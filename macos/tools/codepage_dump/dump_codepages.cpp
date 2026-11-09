@@ -6,7 +6,7 @@
 	Mac 版用这个文件实现与 Windows 完全一致的代码页转换（含 best fit 和替代字符）。
 
 	用法: dump_codepages.exe <输出文件> [代码页一览.tsv]
-	数据格式见 macos/platform/src/codepage_table.h。
+	数据格式见 macos/platform/src/codepage.cpp 的 CodePageRegistry。
 */
 /*
 	Copyright (C) 2026, Sakura Editor Organization
@@ -208,6 +208,64 @@ void ProbeUtf7AndGb18030()
 	PrintWc(L"gb18030-probe", 54936, g4, 1); PrintWc(L"gb18030-probe", 54936, g5, 1); PrintWc(L"gb18030-probe", 54936, g6, 1);
 }
 
+//! ISO-2022 系、HZ（Mac 版用 iconv 加自己的代码实现）的规则：半角片假名、无法转换的字符、不正确的输入
+void ProbeIso2022()
+{
+	const WCHAR w1[] = { L'a', 0xFF71, 0xFF72, L'b' }, w2[] = { 0x3042, 0xFF71, 0x3044 }, w3[] = { 0xFF71, 0x3042 },
+		w4[] = { 0x3042, 0x3044, 0x2460, 0x3046 }, w5[] = { 0xFF71, L'\r', L'\n' }, w6[] = { L'a', 0x2460, L'b' },
+		w7[] = { 0xFF76, 0xFF9E }, w8[] = { 0x3042, 0xFF71, L'x', 0xFF72 }, w9[] = { 0x00E9, L'a' };
+	for (UINT cp : { 50220u, 50221u, 50222u }) {
+		PrintWc(L"iso2022-probe", cp, w1, 4); PrintWc(L"iso2022-probe", cp, w2, 3); PrintWc(L"iso2022-probe", cp, w3, 2);
+		PrintWc(L"iso2022-probe", cp, w4, 4); PrintWc(L"iso2022-probe", cp, w5, 3); PrintWc(L"iso2022-probe", cp, w7, 2);
+		PrintWc(L"iso2022-probe", cp, w8, 4); PrintWc(L"iso2022-probe", cp, w9, 2);
+		const char* mb[] = { "\x1B(I12\x1B(Bx", "\x0E" "12" "\x0F" "x", "\x1B)I\x0E" "12" "\x0F" "x", "\xB1\xB2x",
+			"a\x1B$B$\"\xFF" "bcd", "a\x1B$B$\"\x1B(Bb\xFF" "cd", "\x1B$B\x7F\x7F\x1B(Bz", "\x1B$B$\"", "\x1B$B$", "\x1B(Jx\\~\x1B(B", "\x1B$@$\"\x1B(B" };
+		for (const char* m : mb) PrintMb(L"iso2022-probe", cp, m, static_cast<int>(strlen(m)));
+	}
+	for (UINT cp : { 50225u, 50227u, 50229u, 52936u }) {
+		PrintWc(L"iso2022-probe", cp, w6, 3);
+		PrintWc(L"iso2022-probe", cp, w9, 2);
+	}
+	// 日文：CP932 扩展字符、JIS X 0212、JIS-Roman、各种不正确的输入
+	for (UINT cp : { 50220u, 50222u }) {
+		for (WCHAR c : { WCHAR(0x2170), WCHAR(0x7E8A), WCHAR(0x2252), WCHAR(0x00A5), WCHAR(0x203E), WCHAR(0xFF5E), WCHAR(0x301C),
+				WCHAR(0x2212), WCHAR(0xFF0D), WCHAR(0x00AC), WCHAR(0xFFE2), WCHAR(0x2225), WCHAR(0x2016), WCHAR(0x00A0), WCHAR(0x0080),
+				WCHAR(0x3000), WCHAR(0xE000), WCHAR(0xD800), WCHAR(0x2116), WCHAR(0x2235), WCHAR(0x00B4), WCHAR(0xFF3C), WCHAR(0x005C) }) {
+			PrintWc(L"iso2022-probe", cp, &c, 1);
+		}
+		const WCHAR e1[] = { 0xD83D, 0xDE00 }, e2[] = { 0x00E9, 0x3042, 0x00E9, L'a' }, e3[] = { 0xFF61, 0xFF9F, 0xFF65 };
+		PrintWc(L"iso2022-probe", cp, e1, 2); PrintWc(L"iso2022-probe", cp, e2, 4); PrintWc(L"iso2022-probe", cp, e3, 3);
+	}
+	const char* jp[] = { "\x1B$B\x2D\x21", "\x1B$B\x79\x21\x7C\x7E", "\x1B$(D\x2B\x31\x1B(B", "\x1B$B\x21\x41\x21\x5D\x21\x31\x1B(B",
+		"\x1B(J\x5C\x7E", "\x1B$B\x75\x21\x7F\x21", "\x1B$B$\"\r\n$$", "\x1B$B$\r\n", "\x1B(I1\r\n2", "\x1B(I\x60\x7E\xA1 ",
+		"\x1B$B$\"\x1B(I", "\x1B$B\x21\x7F", "\x1B$B\x80\x80", "a\x1B", "a\x1B$", "\x1B$A0!", "\x1B$(Q$\"", "\x0E\x31\x0F", "\x1B$B$\"\x0E$$",
+		"\x1B$B\x2D\x7E\x1B(B", "\x1B$B$\"$", "x\x1B$B$" };
+	for (const char* m : jp) PrintMb(L"iso2022-probe", 50220, m, static_cast<int>(strlen(m)));
+	PrintMb(L"iso2022-probe", 50220, "\x1B$B\0\0", 5);
+	const char* hz[] = { "a~{<:~}b", "a~{<:\xFF~}b", "~~", "a~{<:" };
+	for (const char* m : hz) PrintMb(L"iso2022-probe", 52936, m, static_cast<int>(strlen(m)));
+	const char* kr[] = { "\x1B$)Ca\x0E\x30\x21\x0F" "b", "\x1B$)Ca\x0E\xFF\x0F" "b" };
+	for (const char* m : kr) PrintMb(L"iso2022-probe", 50225, m, static_cast<int>(strlen(m)));
+	for (UINT cp : { 50220u, 50221u, 50222u, 50225u, 52936u }) {
+		CPINFOEXW info{};
+		::GetCPInfoExW(cp, 0, &info);
+		wprintf(L"iso2022-probe cp=%u MaxCharSize=%u DefaultChar=%02X UnicodeDefaultChar=%04X\n", cp, info.MaxCharSize, info.DefaultChar[0], info.UnicodeDefaultChar);
+		SetLastError(0);
+		const char* bad = "\x1B$B\x7F\x7F";
+		const int m = ::MultiByteToWideChar(cp, MB_ERR_INVALID_CHARS, bad, 5, nullptr, 0);
+		wprintf(L"iso2022-probe cp=%u MB_ERR_INVALID_CHARS=%d/%lu\n", cp, m, GetLastError());
+		const WCHAR wa[] = { L'a' };
+		char out[8];
+		BOOL used = FALSE;
+		SetLastError(0);
+		const int n2 = ::WideCharToMultiByte(cp, 0, wa, 1, out, 8, nullptr, &used);
+		const DWORD e2 = GetLastError();
+		SetLastError(0);
+		const int n3 = ::WideCharToMultiByte(cp, 0, wa, 1, out, 8, "*", nullptr);
+		wprintf(L"iso2022-probe cp=%u used=%d/%lu default=%d/%lu\n", cp, n2, e2, n3, GetLastError());
+	}
+}
+
 } // namespace
 
 int wmain(int argc, wchar_t** argv)
@@ -218,6 +276,7 @@ int wmain(int argc, wchar_t** argv)
 	}
 	ProbeUtf8();
 	ProbeUtf7AndGb18030();
+	ProbeIso2022();
 	::EnumSystemCodePagesW(EnumProc, CP_INSTALLED);
 	std::set<UINT> sorted(g_codePages.begin(), g_codePages.end());
 

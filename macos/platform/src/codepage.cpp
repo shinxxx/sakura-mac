@@ -5,7 +5,9 @@
 	  结果（含 best fit、替代字符、MB_ERR_INVALID_CHARS 的判定）与 Windows 相同。
 	- GB18030（54936）：1、2 字节和 BMP 的 4 字节字符用导出的表，补充平面按公式计算。
 	- UTF-8、UTF-7：按 Windows 的规则自己实现（不正确序列、参数检查都已在 Windows 上核对）。
-	- ISO-2022 系、HZ：用 iconv 实现（不正确输入的处理可能与 Windows 不同）。ISCII 不支持。
+	- ISO-2022 系、HZ：按 Windows 上的探测结果自己实现，字符对应用导出的表（ISO-2022-JP 用 20932，
+	  ISO-2022-KR 用 51949，ISO-2022-CN 用 20936 / 20000，HZ 用 20936）。不用 iconv：macOS 的 iconv 不能写出
+	  ISO-2022-KR/CN，Linux 的 iconv 没有 HZ。ISCII 不支持。
 	- CP_ACP、CP_OEMCP、CP_THREAD_ACP 都是 65001（与 Windows 的 UTF-8 全球语言支持设置相同）。
 */
 /*
@@ -23,8 +25,6 @@
 #include <mutex>
 #include <string>
 #include <vector>
-
-#include <iconv.h>
 
 // codepages.bin 的内容（由 codepage_data.cpp 用 .incbin 嵌入）
 extern "C" const unsigned char g_sakuraCodePagesData[];
@@ -236,73 +236,6 @@ private:
 	std::map<UINT, std::unique_ptr<CodePageTable>> m_tables;
 	std::mutex m_mutex;
 };
-
-// ---------------------------------------------------------------------------
-// 用 iconv 实现的代码页
-// ---------------------------------------------------------------------------
-struct IconvCodePage {
-	UINT cp;
-	const char* iconvName;
-	const char16_t* name;
-	UINT maxCharSize;
-};
-
-constexpr IconvCodePage kIconvCodePages[] = {
-	{ 50220, "ISO-2022-JP",   u"50220 (ISO-2022 Japanese with no halfwidth Katakana)", 5 },
-	{ 50221, "ISO-2022-JP-1", u"50221 (ISO-2022 Japanese with halfwidth Katakana)", 5 },
-	{ 50222, "ISO-2022-JP-1", u"50222 (ISO-2022 Japanese JIS X 0201-1989)", 5 },
-	{ 50225, "ISO-2022-KR",   u"50225 (ISO-2022 Korean)", 5 },
-	{ 50227, "ISO-2022-CN",   u"50227 (ISO-2022 Simplified Chinese)", 5 },
-	{ 50229, "ISO-2022-CN-EXT", u"50229 (ISO-2022 Traditional Chinese)", 5 },
-	{ 52936, "HZ-GB-2312",    u"52936 (HZ-GB2312 Simplified Chinese)", 5 },
-};
-
-const IconvCodePage* FindIconv(UINT cp)
-{
-	for (const auto& c : kIconvCodePages) {
-		if (c.cp == cp) return &c;
-	}
-	return nullptr;
-}
-
-bool IconvAvailable(const IconvCodePage& c)
-{
-	iconv_t h = ::iconv_open("UTF-16LE", c.iconvName);
-	if (h == reinterpret_cast<iconv_t>(-1)) return false;
-	::iconv_close(h);
-	return true;
-}
-
-//! 用 iconv 转换。有不正确的输入或无法转换的字符时返回 false
-bool IconvConvert(const char* to, const char* from, const char* src, std::size_t srcLen, std::string& out)
-{
-	iconv_t h = ::iconv_open(to, from);
-	if (h == reinterpret_cast<iconv_t>(-1)) return false;
-	out.clear();
-	char buf[1024];
-	auto* in = const_cast<char*>(src);
-	std::size_t inLeft = srcLen;
-	bool ok = true;
-	while (inLeft > 0) {
-		char* o = buf;
-		std::size_t oLeft = sizeof(buf);
-		const std::size_t r = ::iconv(h, &in, &inLeft, &o, &oLeft);
-		out.append(buf, static_cast<std::size_t>(o - buf));
-		if (r == static_cast<std::size_t>(-1)) {
-			if (errno == E2BIG) continue;
-			ok = false;
-			break;
-		}
-	}
-	if (ok) {
-		char* o = buf;
-		std::size_t oLeft = sizeof(buf);
-		::iconv(h, nullptr, nullptr, &o, &oLeft);   // 恢复移位状态
-		out.append(buf, static_cast<std::size_t>(o - buf));
-	}
-	::iconv_close(h);
-	return ok;
-}
 
 // ---------------------------------------------------------------------------
 // 共通
@@ -662,52 +595,290 @@ int TableToMulti(const CodePageTable& t, DWORD flags, const WCHAR* src, int n, c
 }
 
 // ---------------------------------------------------------------------------
-// iconv
+// ISO-2022-JP（50220/50221/50222）
+// 按 Windows 上的探测结果实现（macos/tools/codepage_dump 的 iso2022-probe）。
+// Windows 的这三个代码页实际上是在 EUC-JP（20932）上加了一层转换，所以字符对应全部用 20932 的表：
+//   20932 的 A1〜FE A1〜FE → JIS X 0208（ESC $ B），A1〜FE 21〜7E → JIS X 0212（ESC $ ( D），8E xx → 半角片假名。
 // ---------------------------------------------------------------------------
-int IconvToWide(const IconvCodePage& c, DWORD flags, const char* src, int n, WCHAR* dst, int cap)
+bool IsIso2022Jp(UINT cp) { return cp == 50220 || cp == 50221 || cp == 50222; }
+
+const char16_t* Iso2022JpName(UINT cp)
 {
-	if (flags & ~static_cast<DWORD>(MB_ERR_INVALID_CHARS)) return Fail(ERROR_INVALID_FLAGS);
-	std::string u16;
-	if (!IconvConvert("UTF-16LE", c.iconvName, src, static_cast<std::size_t>(n), u16)) {
-		if (flags & MB_ERR_INVALID_CHARS) return Fail(ERROR_NO_UNICODE_TRANSLATION);
-		// 输出已转换的部分，再加一个替代字符
-		u16.append("\xFD\xFF", 2);
+	switch (cp) {
+	case 50220: return u"50220 (ISO-2022 Japanese with no halfwidth Katakana)";
+	case 50221: return u"50221 (ISO-2022 Japanese with halfwidth Katakana)";
+	default:    return u"50222 (ISO-2022 Japanese JIS X 0201-1989)";
 	}
+}
+
+//! 半角片假名 U+FF61〜U+FF9F → 全角（50220 写出时使用，浊点等不合成，与 Windows 相同）
+constexpr char16_t kHalfToFullKana[] = {
+	0x3002, 0x300C, 0x300D, 0x3001, 0x30FB, 0x30F2, 0x30A1, 0x30A3, 0x30A5, 0x30A7, 0x30A9, 0x30E3, 0x30E5, 0x30E7, 0x30C3, 0x30FC,
+	0x30A2, 0x30A4, 0x30A6, 0x30A8, 0x30AA, 0x30AB, 0x30AD, 0x30AF, 0x30B1, 0x30B3, 0x30B5, 0x30B7, 0x30B9, 0x30BB, 0x30BD, 0x30BF,
+	0x30C1, 0x30C4, 0x30C6, 0x30C8, 0x30CA, 0x30CB, 0x30CC, 0x30CD, 0x30CE, 0x30CF, 0x30D2, 0x30D5, 0x30D8, 0x30DB, 0x30DE, 0x30DF,
+	0x30E0, 0x30E1, 0x30E2, 0x30E4, 0x30E6, 0x30E8, 0x30E9, 0x30EA, 0x30EB, 0x30EC, 0x30ED, 0x30EF, 0x30F3, 0x309B, 0x309C,
+};
+static_assert(std::size(kHalfToFullKana) == 0xFF9F - 0xFF61 + 1);
+
+enum class JisMode { Ascii, X0208, X0212, Kana };
+
+//! EUC-JP（20932）的字节串 → UTF-16（追加到 out）
+void EucJpAppend(const CodePageTable& t, const std::string& euc, std::u16string& out)
+{
+	if (euc.empty()) return;
+	const auto* u = reinterpret_cast<const unsigned char*>(euc.data());
+	const int n = static_cast<int>(euc.size());
+	const int len = TableToWide(t, 0, u, n, nullptr, 0);
+	const std::size_t base = out.size();
+	out.resize(base + static_cast<std::size_t>(len));
+	TableToWide(t, 0, u, n, out.data() + base, len);
+}
+
+//! 一段 ASCII 以外的模式下的字节 → UTF-16。
+//! Windows 把每 2 字节的高位置 1 后按 EUC-JP 解释（控制字符等也一样），段末多出的 1 字节原样按 EUC-JP 解释
+void JisSegmentAppend(const CodePageTable& t, JisMode mode, const std::string& seg, std::u16string& out)
+{
+	std::string euc;
+	auto flush = [&] { EucJpAppend(t, euc, out); euc.clear(); };
+	for (std::size_t i = 0; i < seg.size();) {
+		const auto c = static_cast<unsigned char>(seg[i]);
+		if (c == 0) { flush(); out.push_back(0); ++i; continue; }
+		if (mode == JisMode::Kana) {
+			euc.push_back(static_cast<char>(0x8E));
+			euc.push_back(static_cast<char>(c | 0x80));
+			++i;
+			continue;
+		}
+		if (i + 1 < seg.size() && seg[i + 1] != 0) {
+			const auto c2 = static_cast<unsigned char>(seg[i + 1]);
+			euc.push_back(static_cast<char>(c | 0x80));
+			euc.push_back(static_cast<char>(mode == JisMode::X0212 ? (c2 & 0x7F) : (c2 | 0x80)));
+			i += 2;
+		} else {
+			euc.push_back(static_cast<char>(c));
+			++i;
+		}
+	}
+	flush();
+}
+
+int Iso2022JpToWide(DWORD flags, const unsigned char* src, int n, WCHAR* dst, int cap)
+{
+	if (flags != 0) return Fail(ERROR_INVALID_FLAGS);   // MB_ERR_INVALID_CHARS 也是 1004（与 Windows 相同）
+	const CodePageTable* t = CodePageRegistry::Instance().Find(20932);
+	if (!t) return Fail(ERROR_INVALID_PARAMETER);
+	std::u16string w;
+	JisMode mode = JisMode::Ascii;
+	std::string seg;
+	auto flush = [&] { JisSegmentAppend(*t, mode, seg, w); seg.clear(); };
+	for (int i = 0; i < n;) {
+		const unsigned char c = src[i];
+		if (c == 0x1B) {
+			// 认识的指示序列切换模式；不认识的 ESC 原样输出，后面的字节照常处理
+			auto at = [&](int k) { return i + k < n ? src[i + k] : -1; };
+			JisMode next = mode;
+			int len = 0;
+			if (at(1) == '$' && (at(2) == 'B' || at(2) == '@')) { next = JisMode::X0208; len = 3; }
+			else if (at(1) == '$' && at(2) == '(' && at(3) == 'D') { next = JisMode::X0212; len = 4; }
+			else if (at(1) == '(' && (at(2) == 'B' || at(2) == 'J')) { next = JisMode::Ascii; len = 3; }
+			else if (at(1) == '(' && at(2) == 'I') { next = JisMode::Kana; len = 3; }
+			flush();
+			if (len == 0) { w.push_back(0x1B); ++i; continue; }
+			mode = next;
+			i += len;
+			continue;
+		}
+		if (mode == JisMode::Ascii) {
+			if (c != 0x0E) w.push_back(c);    // SO 被丢掉，SI 原样输出；0x80 以上按 Latin-1
+			++i;
+			continue;
+		}
+		seg.push_back(static_cast<char>(c));
+		++i;
+	}
+	flush();
 	Output<WCHAR> out(dst, cap);
-	for (std::size_t i = 0; i + 1 < u16.size(); i += 2) {
-		const auto w = static_cast<WCHAR>(static_cast<unsigned char>(u16[i]) | (static_cast<unsigned char>(u16[i + 1]) << 8));
-		if (!out.push(w)) break;
-	}
+	for (char16_t ch : w) { if (!out.push(ch)) break; }
 	if (out.overflow()) return Fail(ERROR_INSUFFICIENT_BUFFER);
 	return out.count();
 }
 
-int IconvToMulti(const IconvCodePage& c, DWORD flags, const WCHAR* src, int n, char* dst, int cap, LPCSTR lpDefaultChar, BOOL* lpUsedDefaultChar)
+int WideToIso2022Jp(UINT cp, DWORD flags, const WCHAR* src, int n, char* dst, int cap, LPCSTR lpDefaultChar, BOOL* lpUsedDefaultChar)
 {
 	if (flags != 0) return Fail(ERROR_INVALID_FLAGS);
 	if (lpDefaultChar || lpUsedDefaultChar) return Fail(ERROR_INVALID_PARAMETER);
-	std::string mb;
-	// 无法转换的字符逐个换成 '?'
-	std::string all;
-	for (int i = 0; i < n; ++i) {
-		int len = (0xD800 <= src[i] && src[i] <= 0xDBFF && i + 1 < n && 0xDC00 <= src[i + 1] && src[i + 1] <= 0xDFFF) ? 2 : 1;
-		std::string one(reinterpret_cast<const char*>(src + i), static_cast<std::size_t>(len) * 2);
-		i += len - 1;
-		all += one;
+	const CodePageTable* t = CodePageRegistry::Instance().Find(20932);
+	if (!t) return Fail(ERROR_INVALID_PARAMETER);
+	Output<char> out(dst, cap);
+	JisMode mode = JisMode::Ascii;
+	bool designatedJ = false;    // 50222：ESC ( J 只在第一次进入片假名时输出，之后只输出 SO
+	auto put = [&](std::initializer_list<int> bytes) {
+		for (int b : bytes) { if (!out.push(static_cast<char>(b))) return false; }
+		return true;
+	};
+	auto enter = [&](JisMode m) {
+		if (mode == m) return true;
+		mode = m;
+		switch (m) {
+		case JisMode::Ascii: return put({ 0x1B, '(', 'B' });
+		case JisMode::X0208: return put({ 0x1B, '$', 'B' });
+		case JisMode::X0212: return put({ 0x1B, '$', '(', 'D' });
+		case JisMode::Kana:
+			if (cp == 50221) return put({ 0x1B, '(', 'I' });
+			if (!designatedJ) { designatedJ = true; return put({ 0x1B, '(', 'J', 0x0E }); }
+			return put({ 0x0E });
+		}
+		return true;
+	};
+	auto putAscii = [&](int b) { return enter(JisMode::Ascii) && put({ b }); };
+	for (int i = 0; i < n && !out.overflow(); ++i) {
+		char16_t u = src[i];
+		if (0xD800 <= u && u <= 0xDBFF && i + 1 < n && 0xDC00 <= src[i + 1] && src[i + 1] <= 0xDFFF) {
+			putAscii('?') && putAscii('?');   // 补充平面的字符：代理的每一半各一个 '?'（与 Windows 相同）
+			++i;
+			continue;
+		}
+		if (cp == 50220 && 0xFF61 <= u && u <= 0xFF9F) u = kHalfToFullKana[u - 0xFF61];
+		const uint64_t v = (0xD800 <= u && u <= 0xDFFF) ? 0 : t->wcNoBestFit[u];
+		const int len = static_cast<int>(v >> 32);
+		const int b0 = static_cast<int>((v >> 24) & 0xFF);
+		const int b1 = static_cast<int>((v >> 16) & 0xFF);
+		const int b2 = static_cast<int>((v >> 8) & 0xFF);
+		if (len == 1 && b0 < 0x80) { putAscii(b0); continue; }
+		if (len == 2 && b0 == 0x8E && cp != 50220) { enter(JisMode::Kana) && put({ b1 & 0x7F }); continue; }
+		if (len == 2 && b0 >= 0xA1 && b1 >= 0xA1) { enter(JisMode::X0208) && put({ b0 & 0x7F, b1 & 0x7F }); continue; }
+		if (len == 2 && b0 >= 0xA1 && 0x21 <= b1 && b1 <= 0x7E) { enter(JisMode::X0212) && put({ b0 & 0x7F, b1 }); continue; }
+		if (len == 3 && b0 == 0x8F) { enter(JisMode::X0212) && put({ b1 & 0x7F, b2 & 0x7F }); continue; }
+		putAscii('?');
 	}
-	if (!IconvConvert(c.iconvName, "UTF-16LE", all.data(), all.size(), mb)) {
-		mb.clear();
-		std::string piece;
-		for (std::size_t i = 0; i < all.size(); ) {
-			const auto u = static_cast<char16_t>(static_cast<unsigned char>(all[i]) | (static_cast<unsigned char>(all[i + 1]) << 8));
-			const std::size_t len = (0xD800 <= u && u <= 0xDBFF && i + 3 < all.size()) ? 4 : 2;
-			if (IconvConvert(c.iconvName, "UTF-16LE", all.data() + i, len, piece)) mb += piece;
-			else mb += '?';
-			i += len;
+	if (!out.overflow()) enter(JisMode::Ascii);
+	if (out.overflow()) return Fail(ERROR_INSUFFICIENT_BUFFER);
+	return out.count();
+}
+
+// ---------------------------------------------------------------------------
+// ISO-2022-KR / ISO-2022-CN（50225/50227/50229）、HZ（52936）
+// 与 ISO-2022-JP 一样，Windows 在双字节代码页上加了一层转换：SO 和 SI 之间的每 2 字节高位置 1 后按表解释。
+// 写出时第一次用到双字节字符才输出指示序列（ESC $ ) C 等），之后只用 SO / SI 切换（Windows 上的探测结果）。
+// ---------------------------------------------------------------------------
+struct ShiftCodePage {
+	UINT cp;
+	UINT tableCp;          // 字符对应用的双字节代码页
+	char designator;       // ESC $ ) 后面的字符（HZ 为 0）
+	const char16_t* name;
+};
+
+constexpr ShiftCodePage kShiftCodePages[] = {
+	{ 50225, 51949, 'C', u"50225 (ISO-2022 Korean)" },
+	{ 50227, 20936, 'A', u"50227 (ISO-2022 Simplified Chinese)" },
+	{ 50229, 20000, 'G', u"50229 (ISO-2022 Traditional Chinese)" },
+	{ 52936, 20936, 0,   u"52936 (HZ-GB2312 Simplified Chinese)" },
+};
+
+const ShiftCodePage* FindShift(UINT cp)
+{
+	for (const auto& c : kShiftCodePages) {
+		if (c.cp == cp) return &c;
+	}
+	return nullptr;
+}
+
+//! 双字节部分的字节 → UTF-16（每 2 字节高位置 1 后查表，多出的 1 字节原样查表）
+void ShiftSegmentAppend(const CodePageTable& t, const std::string& seg, std::u16string& out)
+{
+	std::string mb;
+	for (std::size_t i = 0; i < seg.size(); i += 2) {
+		if (i + 1 < seg.size()) {
+			mb.push_back(static_cast<char>(seg[i] | 0x80));
+			mb.push_back(static_cast<char>(seg[i + 1] | 0x80));
+		} else {
+			mb.push_back(seg[i]);
 		}
 	}
+	EucJpAppend(t, mb, out);
+}
+
+int ShiftToWide(const ShiftCodePage& c, DWORD flags, const unsigned char* src, int n, WCHAR* dst, int cap)
+{
+	if (flags != 0) return Fail(ERROR_INVALID_FLAGS);   // MB_ERR_INVALID_CHARS 也是 1004（与 Windows 相同）
+	const CodePageTable* t = CodePageRegistry::Instance().Find(c.tableCp);
+	if (!t) return Fail(ERROR_INVALID_PARAMETER);
+	std::u16string w;
+	std::string seg;
+	bool shifted = false;
+	auto flush = [&] { ShiftSegmentAppend(*t, seg, w); seg.clear(); };
+	for (int i = 0; i < n;) {
+		const unsigned char b = src[i];
+		if (c.designator == 0) {
+			// HZ：~{ 进入 GB2312，~} 回到 ASCII，~~ 是 '~'，~ + 换行是续行
+			if (b == '~' && i + 1 < n) {
+				const unsigned char nx = src[i + 1];
+				if (nx == '{' || nx == '}') { flush(); shifted = (nx == '{'); i += 2; continue; }
+				if (!shifted && nx == '~') { w.push_back(u'~'); i += 2; continue; }
+				if (!shifted && nx == '\n') { i += 2; continue; }
+			}
+		} else {
+			if (b == 0x1B && i + 3 < n && src[i + 1] == '$' && src[i + 2] == ')' && src[i + 3] == static_cast<unsigned char>(c.designator)) {
+				flush();
+				i += 4;
+				continue;
+			}
+			if (b == 0x0E || b == 0x0F) { flush(); shifted = (b == 0x0E); ++i; continue; }
+		}
+		if (shifted && b != '\r' && b != '\n') { seg.push_back(static_cast<char>(b)); ++i; continue; }
+		if (shifted) { flush(); if (c.designator) shifted = false; }   // 换行时回到 ASCII（ISO-2022 的规则）
+		w.push_back(b);   // 0x80 以上按 Latin-1
+		++i;
+	}
+	flush();
+	Output<WCHAR> out(dst, cap);
+	for (char16_t ch : w) { if (!out.push(ch)) break; }
+	if (out.overflow()) return Fail(ERROR_INSUFFICIENT_BUFFER);
+	return out.count();
+}
+
+int WideToShift(const ShiftCodePage& c, DWORD flags, const WCHAR* src, int n, char* dst, int cap, LPCSTR lpDefaultChar, BOOL* lpUsedDefaultChar)
+{
+	if (flags != 0) return Fail(ERROR_INVALID_FLAGS);
+	if (lpDefaultChar || lpUsedDefaultChar) return Fail(ERROR_INVALID_PARAMETER);
+	const CodePageTable* t = CodePageRegistry::Instance().Find(c.tableCp);
+	if (!t) return Fail(ERROR_INVALID_PARAMETER);
 	Output<char> out(dst, cap);
-	for (char ch : mb) { if (!out.push(ch)) break; }
+	bool shifted = false;
+	bool designated = false;
+	auto put = [&](std::initializer_list<int> bytes) {
+		for (int b : bytes) { if (!out.push(static_cast<char>(b))) return false; }
+		return true;
+	};
+	auto toAscii = [&] {
+		if (!shifted) return true;
+		shifted = false;
+		return c.designator ? put({ 0x0F }) : put({ '~', '}' });
+	};
+	auto toDouble = [&] {
+		if (c.designator && !designated) {
+			designated = true;
+			if (!put({ 0x1B, '$', ')', c.designator })) return false;
+		}
+		if (shifted) return true;
+		shifted = true;
+		return c.designator ? put({ 0x0E }) : put({ '~', '{' });
+	};
+	for (int i = 0; i < n && !out.overflow(); ++i) {
+		const char16_t u = src[i];
+		const uint64_t v = (0xD800 <= u && u <= 0xDFFF) ? 0 : t->wcNoBestFit[u];
+		const int len = static_cast<int>(v >> 32);
+		const int b0 = static_cast<int>((v >> 24) & 0xFF);
+		const int b1 = static_cast<int>((v >> 16) & 0xFF);
+		if (len == 1 && b0 < 0x80) {
+			toAscii() && (c.designator == 0 && b0 == '~' ? put({ '~', '~' }) : put({ b0 }));
+		} else if (len == 2 && b0 >= 0xA1 && b0 <= 0xFE && b1 >= 0xA1 && b1 <= 0xFE) {
+			toDouble() && put({ b0 & 0x7F, b1 & 0x7F });
+		} else {
+			toAscii() && put({ '?' });   // 无法转换的字符（代理的每一半各一个 '?'）
+		}
+	}
+	if (!out.overflow()) toAscii();
 	if (out.overflow()) return Fail(ERROR_INSUFFICIENT_BUFFER);
 	return out.count();
 }
@@ -724,7 +895,8 @@ BOOL IsValidCodePage(UINT codePage)
 {
 	if (codePage == CP_UTF8 || codePage == CP_UTF7) return TRUE;
 	if (CodePageRegistry::Instance().Offsets().contains(codePage)) return TRUE;
-	if (const auto* c = FindIconv(codePage)) return IconvAvailable(*c) ? TRUE : FALSE;
+	if (IsIso2022Jp(codePage)) return CodePageRegistry::Instance().Offsets().contains(20932) ? TRUE : FALSE;
+	if (const auto* c = FindShift(codePage)) return CodePageRegistry::Instance().Offsets().contains(c->tableCp) ? TRUE : FALSE;
 	return FALSE;
 }
 
@@ -762,10 +934,18 @@ BOOL GetCPInfoExW(UINT codePage, DWORD dwFlags, LPCPINFOEXW info)
 		setName(t.name);
 		return TRUE;
 	}
-	if (const auto* c = FindIconv(cp); c && IconvAvailable(*c)) {
-		info->MaxCharSize = c->maxCharSize;
+	// ISO-2022 系、HZ：Windows 上 UnicodeDefaultChar 是 '?'
+	if (IsIso2022Jp(cp) && IsValidCodePage(cp)) {
+		info->MaxCharSize = 5;
 		info->DefaultChar[0] = '?';
-		info->UnicodeDefaultChar = 0xFFFD;
+		info->UnicodeDefaultChar = u'?';
+		setName(Iso2022JpName(cp));
+		return TRUE;
+	}
+	if (const auto* c = FindShift(cp); c && IsValidCodePage(cp)) {
+		info->MaxCharSize = 5;
+		info->DefaultChar[0] = '?';
+		info->UnicodeDefaultChar = u'?';
 		setName(c->name);
 		return TRUE;
 	}
@@ -804,7 +984,8 @@ BOOL EnumSystemCodePagesW(CODEPAGE_ENUMPROCW proc, DWORD dwFlags)
 	if (!proc || (dwFlags != CP_INSTALLED && dwFlags != CP_SUPPORTED)) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
 	std::vector<UINT> cps;
 	for (const auto& [cp, offset] : CodePageRegistry::Instance().Offsets()) cps.push_back(cp);
-	for (const auto& c : kIconvCodePages) { if (IconvAvailable(c)) cps.push_back(c.cp); }
+	for (UINT cp : { 50220u, 50221u, 50222u }) { if (IsValidCodePage(cp)) cps.push_back(cp); }
+	for (const auto& c : kShiftCodePages) { if (IsValidCodePage(c.cp)) cps.push_back(c.cp); }
 	cps.push_back(CP_UTF7);
 	cps.push_back(CP_UTF8);
 	std::sort(cps.begin(), cps.end());
@@ -824,7 +1005,8 @@ int MultiByteToWideChar(UINT codePage, DWORD dwFlags, LPCSTR src, int cbSrc, WCH
 	if (cp == CP_UTF8) return Utf8ToWide(dwFlags, u, n, dst, cchDst);
 	if (cp == CP_UTF7) return Utf7ToWide(dwFlags, u, n, dst, cchDst);
 	if (const auto* t = CodePageRegistry::Instance().Find(cp)) return TableToWide(*t, dwFlags, u, n, dst, cchDst);
-	if (const auto* c = FindIconv(cp); c && IconvAvailable(*c)) return IconvToWide(*c, dwFlags, src, n, dst, cchDst);
+	if (IsIso2022Jp(cp)) return Iso2022JpToWide(dwFlags, u, n, dst, cchDst);
+	if (const auto* c = FindShift(cp); c && IsValidCodePage(cp)) return ShiftToWide(*c, dwFlags, u, n, dst, cchDst);
 	return Fail(ERROR_INVALID_PARAMETER);
 }
 
@@ -837,6 +1019,7 @@ int WideCharToMultiByte(UINT codePage, DWORD dwFlags, const WCHAR* src, int cchS
 	if (cp == CP_UTF8) return WideToUtf8(dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
 	if (cp == CP_UTF7) return WideToUtf7(dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
 	if (const auto* t = CodePageRegistry::Instance().Find(cp)) return TableToMulti(*t, dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
-	if (const auto* c = FindIconv(cp); c && IconvAvailable(*c)) return IconvToMulti(*c, dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
+	if (IsIso2022Jp(cp)) return WideToIso2022Jp(cp, dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
+	if (const auto* c = FindShift(cp); c && IsValidCodePage(cp)) return WideToShift(*c, dwFlags, src, n, dst, cbDst, lpDefaultChar, lpUsedDefaultChar);
 	return Fail(ERROR_INVALID_PARAMETER);
 }
