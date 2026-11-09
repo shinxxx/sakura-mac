@@ -28,9 +28,11 @@
 #include <string.h>
 #include "CBregexp.h"
 #include "charset/charcode.h"
+#if defined(_WIN32)	// Mac 版では共通設定（第 21 步）と画面（阶段 2）の移植後に使う
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
 #include "apiwrap/StdControl.h"
+#endif
 
 // Compile時、行頭置換(len=0)の時にダミー文字列(１つに統一) by かろと
 const WCHAR CBregexp::m_tmpBuf[2] = LTEXT("\0");
@@ -557,6 +559,7 @@ const WCHAR* CBregexp::GetLastMessage() const
 	return m_szMsg;
 }
 
+#if defined(_WIN32)	// 共通設定（DLLSHAREDATA）とメッセージボックスを使う。Mac 版は第 21 步（env）の移植後に有効にする
 //	From Here Jun. 26, 2001 genta
 /*!
 	与えられた正規表現ライブラリの初期化を行う．
@@ -665,4 +668,5 @@ bool CheckRegexpSyntax(
 	}
 	return true;
 }
+#endif // _WIN32
 //	To Here Jun. 26, 2001 genta

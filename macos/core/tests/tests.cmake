@@ -29,4 +29,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-codepage.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-io.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-roundtrip.cpp"   # 第 18 步：编码往返测试，样本在 data/roundtrip/
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-extmodule.cpp"   # 第 19 步：正则、Migemo、uchardet
 )

@@ -8,8 +8,8 @@
 	   结果与期望文本（同名 .txt，UTF-8）完全相同；
 	2. 写出：按原版保存文件的方式（env/CWriteManager.cpp：第一行前加 BOM，逐行 UnicodeToCode 后连接）
 	   编码，字节与样本完全相同；
-	3. 自动识别：清单里指定了期望结果的样本，CCodeMediator::CheckKanjiCode 的结果与之相同。
-	   CCodeMediator 经由 CharsetDetector 用到 extmodule/CUchardet（DLL 加载），所以这一项在第 19 步“换掉 DLL”时加入。
+	3. 自动识别：清单里指定了期望结果的样本，CCodeMediator::CheckKanjiCode 的结果与之相同
+	   （CCodeMediator 经由 CharsetDetector 用到 extmodule/CUchardet，第 19 步“换掉 DLL”时加入）。
 
 	原版读文件的 io/CFileLoad 和写文件的 env/CWriteManager 依赖设置模块（共享内存），
 	要到第 20、21 步才能编进 Mac 版，所以这里按它们的做法调用同样的转换函数。
@@ -23,6 +23,7 @@
 #include "pch.h"
 #include "charset/CCodeFactory.h"
 #include "charset/CCodeBase.h"
+#include "charset/CCodeMediator.h"
 #include "mem/CNativeW.h"
 #include "mem/CMemory.h"
 
@@ -193,7 +194,13 @@ TEST_P(RoundTrip, LoadThenSaveIsByteIdentical)
 		saved.append(reinterpret_cast<const char*>(out.GetRawPtr()), out.GetRawLength());
 	}
 	EXPECT_TRUE(bytes == saved) << s.name << " (" << s.codec << "): " << DescribeDiff(bytes, saved);
-	// 3. 自动识别：CCodeMediator 依赖 extmodule 的 CUchardet（DLL），第 19 步“换掉 DLL”时加上（清单里已经写好期望结果）
+
+	// 3. 自动识别（与 CFileLoad::FileOpen 相同。uchardet 不内置，与 Windows 官方版一样只用 Sakura 自己的判断）
+	if (s.detect != -1) {
+		SEncodingConfig config;
+		CCodeMediator mediator(config);
+		EXPECT_EQ(s.detect, static_cast<int>(mediator.CheckKanjiCode(bytes.data(), bytes.size()))) << s.name;
+	}
 }
 
 std::string SampleName(const ::testing::TestParamInfo<RoundTripSample>& info)

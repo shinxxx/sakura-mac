@@ -58,6 +58,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # 第 19 步：正则（Onigmo、bregonig）和 C/Migemo 作为源码编进核心库
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 externals/Onigmo externals/bregonig externals/cmigemo
+
       - name: Configure
         run: cmake -S macos/core -B build/mac-core -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 

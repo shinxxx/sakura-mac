@@ -9,7 +9,7 @@
 # 核心库只包含已经移植到非 Windows 平台的目录，见 SAKURA_CORE_DIRS。
 # 后续步骤每移植一个目录，就加到这里。
 cmake_minimum_required(VERSION 3.24)
-project(sakura_core_mac LANGUAGES CXX)
+project(sakura_core_mac LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,9 +95,75 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/util/string_ex.cpp
   sakura_core/util/string_ex2.cpp
   sakura_core/window/CMainStatusBar.cpp   # 只编译 UnicodeToHex（状态栏的字符编码显示），其余是 Windows 界面
+  # 第 19 步：外部模块。对应的库在上面的“第三方库”里编译
+  # （CMigemo.cpp 用到共通设置里的 DLL 名和词典路径，第 21 步 env 移植后加入）
+  sakura_core/extmodule/CDllHandler.cpp
+  sakura_core/extmodule/CBregexpDll2.cpp
+  sakura_core/extmodule/CBregexp.cpp
+  sakura_core/extmodule/CUchardet.cpp     # uchardet 不内置（与 Windows 官方版相同），加载总是失败
 )
 list(TRANSFORM SAKURA_CORE_EXTRA_SOURCES PREPEND "${SAKURA_ROOT}/")
 list(APPEND SAKURA_CORE_SOURCES ${SAKURA_CORE_EXTRA_SOURCES})
+
+# ---------------------------------------------------------------------------
+# 第三方库（第 19 步）：原版运行时加载的 DLL，Mac 版作为源码编进来。
+# CDllImp 的 LoadLibraryW / GetProcAddress 由 macos/platform/src/static_modules.cpp 提供，
+# 按 DLL 名找到静态链接的函数表，所以 sakura_core/extmodule 的代码不用改。
+# ---------------------------------------------------------------------------
+set(ONIGMO_DIR "${SAKURA_ROOT}/externals/Onigmo")
+set(BREGONIG_DIR "${SAKURA_ROOT}/externals/bregonig/src")
+if(NOT EXISTS "${ONIGMO_DIR}/onigmo.h" OR NOT EXISTS "${BREGONIG_DIR}/bregonig.cpp")
+  message(FATAL_ERROR "缺少子模块，请先运行：git submodule update --init externals/Onigmo externals/bregonig")
+endif()
+
+# Onigmo（正则引擎，BSD 许可证）
+set(ONIGMO_SOURCES regcomp regenc regerror regext regexec reggnu regparse regposerr regposix
+  regsyntax regtrav regversion st
+  enc/ascii enc/big5 enc/euc_jp enc/euc_kr enc/euc_tw enc/gb18030 enc/koi8_r enc/koi8_u
+  enc/iso_8859_1 enc/iso_8859_2 enc/iso_8859_3 enc/iso_8859_4 enc/iso_8859_5 enc/iso_8859_6
+  enc/iso_8859_7 enc/iso_8859_8 enc/iso_8859_9 enc/iso_8859_10 enc/iso_8859_11 enc/iso_8859_13
+  enc/iso_8859_14 enc/iso_8859_15 enc/iso_8859_16 enc/shift_jis enc/unicode enc/utf_16be
+  enc/utf_16le enc/utf_32be enc/utf_32le enc/utf_8 enc/windows_31j enc/windows_1250
+  enc/windows_1251 enc/windows_1252 enc/windows_1253 enc/windows_1254 enc/windows_1257)
+list(TRANSFORM ONIGMO_SOURCES PREPEND "${ONIGMO_DIR}/")
+list(TRANSFORM ONIGMO_SOURCES APPEND ".c")
+add_library(onigmo STATIC ${ONIGMO_SOURCES})
+target_compile_definitions(onigmo PRIVATE HAVE_CONFIG_H)
+target_include_directories(onigmo PRIVATE
+  "${SAKURA_ROOT}/macos/thirdparty/onigmo"   # config.h
+  "${ONIGMO_DIR}/enc/unicode")
+target_include_directories(onigmo PUBLIC "${ONIGMO_DIR}")
+target_compile_options(onigmo PRIVATE -w)
+
+# bregonig（BREGEXP 兼容的接口，Perl 许可证：GPL 或 Artistic）。
+# 原版 DLL 把每个源文件编译两次（UNICODE 版和多字节版），这里也一样，用两个 OBJECT 库
+set(BREGONIG_SOURCES bregonig bsplit btrans subst sv)
+list(TRANSFORM BREGONIG_SOURCES PREPEND "${BREGONIG_DIR}/")
+list(TRANSFORM BREGONIG_SOURCES APPEND ".cpp")
+foreach(variant unicode ansi)
+  add_library(bregonig_${variant} OBJECT ${BREGONIG_SOURCES})
+  set_target_properties(bregonig_${variant} PROPERTIES CXX_STANDARD 17)  # 用了 register 关键字
+  target_compile_definitions(bregonig_${variant} PRIVATE
+    USE_ONIGMO_6 USE_VTAB PERL_5_8_COMPAT NAMEGROUP_RIGHTMOST ONIG_EXTERN=extern
+    $<$<STREQUAL:${variant},ansi>:BREGONIG_MAC_ANSI>)
+  target_compile_options(bregonig_${variant} PRIVATE
+    -include "${SAKURA_ROOT}/macos/thirdparty/bregonig/bregonig_mac.h" -Wno-register -w)
+  target_include_directories(bregonig_${variant} PRIVATE "${ONIGMO_DIR}")
+  target_include_directories(bregonig_${variant} SYSTEM PRIVATE "${STUB_DIR}")  # 空的 windows.h、tchar.h、mbstring.h
+endforeach()
+add_library(bregonig STATIC $<TARGET_OBJECTS:bregonig_unicode> $<TARGET_OBJECTS:bregonig_ansi>)
+target_link_libraries(bregonig PUBLIC onigmo)
+
+# C/Migemo（ローマ字で日文检索，MIT 许可证）。词典在 externals/cmigemo-dict（GPL，见 macos/docs/phase1-extmodule.md）
+set(CMIGEMO_DIR "${SAKURA_ROOT}/externals/cmigemo/src")
+if(NOT EXISTS "${CMIGEMO_DIR}/migemo.h")
+  message(FATAL_ERROR "缺少子模块，请先运行：git submodule update --init externals/cmigemo")
+endif()
+add_library(cmigemo STATIC
+  "${CMIGEMO_DIR}/charset.c" "${CMIGEMO_DIR}/filename.c" "${CMIGEMO_DIR}/migemo.c" "${CMIGEMO_DIR}/mnode.c"
+  "${CMIGEMO_DIR}/romaji.c" "${CMIGEMO_DIR}/rxgen.c" "${CMIGEMO_DIR}/wordbuf.c" "${CMIGEMO_DIR}/wordlist.c")
+target_include_directories(cmigemo PUBLIC "${CMIGEMO_DIR}")
+target_compile_options(cmigemo PRIVATE -w)
 
 add_library(sakura_core STATIC
   ${SAKURA_CORE_SOURCES}
@@ -105,6 +171,7 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/codepage.cpp"
   "${SAKURA_ROOT}/macos/platform/src/codepage_data.cpp"
   "${SAKURA_ROOT}/macos/platform/src/ui_bridge.cpp"
+  "${SAKURA_ROOT}/macos/platform/src/static_modules.cpp"
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")
@@ -117,9 +184,7 @@ set_source_files_properties("${SAKURA_ROOT}/macos/platform/src/codepage_data.cpp
   OBJECT_DEPENDS "${SAKURA_CODEPAGES_BIN}"
   SKIP_PRECOMPILE_HEADERS ON)
 add_dependencies(sakura_core sakura_funccode)
-# UTF-7、GB18030、ISO-2022 系代码页用 iconv（macOS 上是系统自带的 libiconv）
-find_package(Iconv REQUIRED)
-target_link_libraries(sakura_core PUBLIC Iconv::Iconv)
+target_link_libraries(sakura_core PUBLIC bregonig cmigemo)
 target_include_directories(sakura_core PUBLIC
   "${SAKURA_ROOT}/macos/platform/include"   # Mac 版 StdAfx.h 优先
   "${SAKURA_CORE}"
@@ -155,8 +220,14 @@ if(SAKURA_BUILD_TESTS)
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"          # Mac 版 pch.h 优先
     "${SAKURA_ROOT}/src/test/resources")
   target_link_libraries(sakura_core_tests PRIVATE sakura_core GTest::gmock_main)
+  # Migemo 的测试用词典（与原版测试相同，externals/cmigemo-dict 的 zip）
+  set(MIGEMO_DICT_DIR "${CMAKE_CURRENT_BINARY_DIR}/migemo-dict")
+  if(NOT EXISTS "${MIGEMO_DICT_DIR}/utf-8/migemo-dict")
+    file(ARCHIVE_EXTRACT INPUT "${SAKURA_ROOT}/externals/cmigemo-dict/cmigemo-dict-utf-8.zip" DESTINATION "${MIGEMO_DICT_DIR}")
+  endif()
   target_compile_definitions(sakura_core_tests PRIVATE
-    SAKURA_ROUNDTRIP_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/roundtrip")
+    SAKURA_ROUNDTRIP_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/roundtrip"
+    SAKURA_MIGEMO_DICT_DIR="${MIGEMO_DICT_DIR}")
   # 与 MSVC 的预编译头（/Yu"pch.h"）一样，让 pch.h 先于测试文件里的其他头文件
   target_precompile_headers(sakura_core_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/pch.h")
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
