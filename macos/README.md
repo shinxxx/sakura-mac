@@ -4,8 +4,9 @@
 
 ## 分支策略
 
-- `master`：与上游 [sakura-editor/sakura](https://github.com/sakura-editor/sakura) 保持同步，不在这里直接开发。
-- `macos`：Mac 版的开发主分支。定期把 `master` 合并进来，以跟进上游更新。
+- 本仓库 [shinxxx/sakura-mac](https://github.com/shinxxx/sakura-mac) 是独立仓库（不是 fork），2026-11-09 从 `shinxxx/sakura` 的 `macos` 分支连同完整历史迁移过来。
+- `macos`：Mac 版的开发主分支，也是本仓库的默认分支。本仓库没有 `master` 分支。
+- 上游 [sakura-editor/sakura](https://github.com/sakura-editor/sakura) 的更新通过额外的远程仓库 `upstream` 直接合并进 `macos`（见 [docs/upstream-sync.md](docs/upstream-sync.md)）。
 - 跨平台改动（例如字符类型、CMake 构建）尽量写成可以回馈上游的形式，减少分叉。
 
 ## 目录结构

@@ -1,20 +1,7 @@
 name: Cppcheck
 
 on:
-  push:
-    branches-ignore:
-      - macos # 2026-11-09 项目负责人决定：Mac 版开发分支只跑 build-macos.yml（需要时可以去掉这两行）
-    paths-ignore:
-      - '**/*.md'
-      - '.gitignore'
-      - '.editorconfig'
-  pull_request:
-    branches-ignore:
-      - macos # 合并到 macos 的 PR 也只跑 build-macos.yml（同上，2026-11-09 项目负责人决定）
-    paths-ignore:
-      - '**/*.md'
-      - '.gitignore'
-      - '.editorconfig'
+  # 2026-11-09 迁移到独立仓库 sakura-mac 后，项目负责人决定：Windows 的检查只手动运行（Actions 页面的 Run workflow）。
   workflow_dispatch:
 
 jobs:
