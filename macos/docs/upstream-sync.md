@@ -6,19 +6,18 @@ Mac 版在 `macos` 分支开发，原版代码（`sakura_core/`、`src/test/`）
 
 ## 步骤
 
-1. **更新 `master`**：把上游的 `master` 拉到 fork 的 `master`（GitHub 网页上的 “Sync fork”，或下面的命令）。`master` 不放 Mac 版的修改。
+1. **取得上游的更新**：本仓库是独立仓库（2026-11-09 从 fork 迁移过来，没有 `master` 分支，也没有 GitHub 网页上的 “Sync fork”），直接从上游拉取：
 
    ```sh
    git remote add upstream https://github.com/sakura-editor/sakura.git   # 第一次
    git fetch upstream master
-   git checkout master && git merge --ff-only upstream/master && git push origin master
    ```
 
 2. **合并到 `macos`**：
 
    ```sh
    git checkout macos
-   git merge master
+   git merge upstream/master
    ```
 
    有冲突时，冲突几乎都是“上游改了某行，Mac 版把同一行的 `L"…"` 换成了 `LTEXT("…")`”。按上游的内容解决，然后在第 3 步重新替换即可。
