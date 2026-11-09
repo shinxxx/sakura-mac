@@ -14,9 +14,9 @@
 | 路径 | 内容 |
 | --- | --- |
 | `macos/docs/` | 各步骤的说明、功能对照表、与上游同步的流程 |
-| `macos/tools/` | 辅助脚本（功能对照表生成、字符类型替换、编译检查、界面字符串生成）和代码页表导出工具（`codepage_dump/`） |
+| `macos/tools/` | 辅助脚本（功能对照表生成、字符类型替换、编译检查、界面字符串生成、往返测试样本生成）和代码页表导出工具（`codepage_dump/`） |
 | `macos/app/` | Xcode 工程定义（XcodeGen）和 Swift + AppKit 界面层 |
-| `macos/core/` | Mac 版核心库（`sakura_core` 的跨平台部分）的 CMake 构建和 Mac 专用测试（阶段 1） |
+| `macos/core/` | Mac 版核心库（`sakura_core` 的跨平台部分）的 CMake 构建和 Mac 专用测试，测试数据在 `tests/data/`（阶段 1） |
 | `macos/platform/` | 平台抽象层：Win32 类型和 API 的替代、字符类型、代码页转换表（`data/`）（阶段 1） |
 | `macos/bridge/` | Objective-C++ 桥接层（阶段 2，尚未建立） |
 
@@ -54,4 +54,4 @@ ctest --test-dir build/mac-core --output-on-failure
 
 - [功能对照表](docs/feature-matrix.md)
 - [与上游同步的流程](docs/upstream-sync.md)
-- 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md)
+- 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md) · [编码往返测试](docs/phase1-roundtrip.md)

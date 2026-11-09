@@ -72,13 +72,13 @@ set(SAKURA_CORE_EXCLUDE
   # Mac 版不需要
   basis/CErrorInfo.cpp            # COM 的 IErrorInfo 实现
   io/CZipFile.cpp                 # 用 Windows Shell 解压 zip，只给插件安装用；Mac 版不支持 DLL 插件
-  # 第 19 步（doc、types）移植后加入
+  # 第 20 步（doc、types）移植后加入
   io/CFile.cpp                    # 依赖 window/CEditWnd.h
   io/CFileLoad.cpp                # 依赖 charset/CESI 和 window/CEditWnd.h
   docplus/CDiffManager.cpp        # 依赖 window/CEditWnd.h 和绘制
   docplus/CModifyManager.cpp      # 依赖 doc/CEditDoc 和 COM 的 VARIANT（宏接口）
 )
-# grep/GrepMessageFormat.cpp 依赖 env/DLLSHAREDATA，第 20 步（env）移植后把 grep 加进 SAKURA_CORE_DIRS
+# grep/GrepMessageFormat.cpp 依赖 env/DLLSHAREDATA，第 21 步（env）移植后把 grep 加进 SAKURA_CORE_DIRS
 
 set(SAKURA_CORE_SOURCES)
 foreach(d ${SAKURA_CORE_DIRS})
@@ -155,6 +155,8 @@ if(SAKURA_BUILD_TESTS)
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"          # Mac 版 pch.h 优先
     "${SAKURA_ROOT}/src/test/resources")
   target_link_libraries(sakura_core_tests PRIVATE sakura_core GTest::gmock_main)
+  target_compile_definitions(sakura_core_tests PRIVATE
+    SAKURA_ROUNDTRIP_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/roundtrip")
   # 与 MSVC 的预编译头（/Yu"pch.h"）一样，让 pch.h 先于测试文件里的其他头文件
   target_precompile_headers(sakura_core_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/pch.h")
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
