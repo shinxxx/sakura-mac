@@ -21,8 +21,8 @@ TEST(CFuncInfo, test001)
 		CLogicInt(3),
 		CLayoutInt(12),
 		CLayoutInt(4),
-		L"funcA",
-		L"test.cpp",
+		LTEXT("funcA"),
+		LTEXT("test.cpp"),
 		FL_OBJ_FUNCTION
 	);
 
@@ -30,8 +30,8 @@ TEST(CFuncInfo, test001)
 	EXPECT_THAT(info.m_nFuncColCRLF, Eq(CLogicInt(3)));
 	EXPECT_THAT(info.m_nFuncLineLAYOUT, Eq(CLayoutInt(12)));
 	EXPECT_THAT(info.m_nFuncColLAYOUT, Eq(CLayoutInt(4)));
-	EXPECT_THAT(info.m_cmemFuncName.GetStringPtr(), StrEq(L"funcA"));
-	EXPECT_THAT(info.m_cmemFileName.GetStringPtr(), StrEq(L"test.cpp"));
+	EXPECT_THAT(info.m_cmemFuncName.GetStringPtr(), StrEq(LTEXT("funcA")));
+	EXPECT_THAT(info.m_cmemFileName.GetStringPtr(), StrEq(LTEXT("test.cpp")));
 	EXPECT_THAT(info.m_nInfo, Eq(FL_OBJ_FUNCTION));
 	EXPECT_THAT(info.m_nDepth, Eq(0));
 	EXPECT_THAT(info.IsAddClipText(), Eq(true));
@@ -44,12 +44,12 @@ TEST(CFuncInfo, test002)
 		CLogicInt(1),
 		CLayoutInt(21),
 		CLayoutInt(1),
-		L"funcB",
+		LTEXT("funcB"),
 		nullptr,
 		FL_OBJ_CLASS | FUNCINFO_NOCLIPTEXT
 	);
 
-	EXPECT_THAT(info.m_cmemFuncName.GetStringPtr(), StrEq(L"funcB"));
+	EXPECT_THAT(info.m_cmemFuncName.GetStringPtr(), StrEq(LTEXT("funcB")));
 	EXPECT_THAT(info.m_cmemFileName.GetStringPtr(), IsNull());
 	EXPECT_THAT(info.m_nInfo & FUNCINFO_INFOMASK, Eq(FL_OBJ_CLASS));
 	EXPECT_THAT(info.IsAddClipText(), Eq(false));
@@ -62,8 +62,8 @@ TEST(CFuncInfo, test003)
 		CLogicInt(3),
 		CLayoutInt(12),
 		CLayoutInt(4),
-		L"funcA",
-		L"test.cpp",
+		LTEXT("funcA"),
+		LTEXT("test.cpp"),
 		FL_OBJ_FUNCTION
 	);
 
@@ -80,7 +80,7 @@ TEST(CFuncInfoArr, test001)
 	// 初期状態
 	EXPECT_THAT(arr.GetNum(), Eq(0));
 	EXPECT_THAT(arr.GetAt(0), IsNull());
-	EXPECT_THAT(arr.GetAppendText(1), StrEq(L""));
+	EXPECT_THAT(arr.GetAppendText(1), StrEq(LTEXT("")));
 	EXPECT_THAT(arr.AppendTextLenMax(), Eq(0));
 
 	// 1件追加して内容を確認
@@ -89,8 +89,8 @@ TEST(CFuncInfoArr, test001)
 		CLogicInt(3),
 		CLayoutInt(12),
 		CLayoutInt(4),
-		L"funcA",
-		L"test.cpp",
+		LTEXT("funcA"),
+		LTEXT("test.cpp"),
 		FL_OBJ_FUNCTION,
 		1
 	);
@@ -102,13 +102,13 @@ TEST(CFuncInfoArr, test001)
 	EXPECT_THAT(item->m_nFuncColCRLF, Eq(CLogicInt(3)));
 	EXPECT_THAT(item->m_nFuncLineLAYOUT, Eq(CLayoutInt(12)));
 	EXPECT_THAT(item->m_nFuncColLAYOUT, Eq(CLayoutInt(4)));
-	EXPECT_THAT(item->m_cmemFuncName.GetStringPtr(), StrEq(L"funcA"));
-	EXPECT_THAT(item->m_cmemFileName.GetStringPtr(), StrEq(L"test.cpp"));
+	EXPECT_THAT(item->m_cmemFuncName.GetStringPtr(), StrEq(LTEXT("funcA")));
+	EXPECT_THAT(item->m_cmemFileName.GetStringPtr(), StrEq(LTEXT("test.cpp")));
 	EXPECT_THAT(item->m_nInfo, Eq(FL_OBJ_FUNCTION));
 	EXPECT_THAT(item->m_nDepth, Eq(1));
 
 	// 5引数版のAppendData呼び出しを確認（桁は既定値1、ファイル名はnullptr）
-	arr.AppendData(CLogicInt(20), CLayoutInt(22), L"funcB", FL_OBJ_CLASS, 2);
+	arr.AppendData(CLogicInt(20), CLayoutInt(22), LTEXT("funcB"), FL_OBJ_CLASS, 2);
 	EXPECT_THAT(arr.GetNum(), Eq(2));
 
 	CFuncInfo* item2 = arr.GetAt(1);
@@ -117,21 +117,21 @@ TEST(CFuncInfoArr, test001)
 	EXPECT_THAT(item2->m_nFuncColCRLF, Eq(CLogicInt(1)));
 	EXPECT_THAT(item2->m_nFuncLineLAYOUT, Eq(CLayoutInt(22)));
 	EXPECT_THAT(item2->m_nFuncColLAYOUT, Eq(CLayoutInt(1)));
-	EXPECT_THAT(item2->m_cmemFuncName.GetStringPtr(), StrEq(L"funcB"));
+	EXPECT_THAT(item2->m_cmemFuncName.GetStringPtr(), StrEq(LTEXT("funcB")));
 	EXPECT_THAT(item2->m_cmemFileName.GetStringPtr(), IsNull());
 	EXPECT_THAT(item2->m_nInfo, Eq(FL_OBJ_CLASS));
 	EXPECT_THAT(item2->m_nDepth, Eq(2));
 
 	// 追加テキストの管理を確認
-	arr.SetAppendText(FL_OBJ_FUNCTION, L"[F]", false);
-	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(L"[F]"));
+	arr.SetAppendText(FL_OBJ_FUNCTION, LTEXT("[F]"), false);
+	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(LTEXT("[F]")));
 	EXPECT_THAT(arr.AppendTextLenMax(), Eq(3));
 
-	arr.SetAppendText(FL_OBJ_FUNCTION, L"[FUNC]", false);
-	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(L"[F]"));
+	arr.SetAppendText(FL_OBJ_FUNCTION, LTEXT("[FUNC]"), false);
+	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(LTEXT("[F]")));
 
-	arr.SetAppendText(FL_OBJ_FUNCTION, L"[FUNC]", true);
-	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(L"[FUNC]"));
+	arr.SetAppendText(FL_OBJ_FUNCTION, LTEXT("[FUNC]"), true);
+	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(LTEXT("[FUNC]")));
 
 	// 呼ぶだけ
 	arr.DUMP();
@@ -140,7 +140,7 @@ TEST(CFuncInfoArr, test001)
 	arr.Empty();
 	EXPECT_THAT(arr.GetNum(), Eq(0));
 	EXPECT_THAT(arr.GetAt(0), IsNull());
-	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(L""));
+	EXPECT_THAT(arr.GetAppendText(FL_OBJ_FUNCTION), StrEq(LTEXT("")));
 	EXPECT_THAT(arr.AppendTextLenMax(), Eq(0));
 }
 
@@ -155,8 +155,8 @@ TEST(CFuncInfoArr, AppendData1_101)
 	auto pFunc1 = new CFuncInfo(
 		CLogicInt(1), CLogicInt(1),
 		CLayoutInt(1), CLayoutInt(1),
-		L"func1",
-		L"test.cpp",
+		LTEXT("func1"),
+		LTEXT("test.cpp"),
 		0
 	);
 
@@ -178,8 +178,8 @@ TEST(CFuncInfoArr, AppendData1_102)
 	auto pFunc1 = new CFuncInfo(
 		CLogicInt(1), CLogicInt(1),
 		CLayoutInt(1), CLayoutInt(1),
-		L"func1",
-		L"test.cpp",
+		LTEXT("func1"),
+		LTEXT("test.cpp"),
 		0
 	);
 
@@ -191,7 +191,7 @@ TEST(CFuncInfoArr, AppendData1_102)
 		arr.AppendData(
 			CLogicInt(20 + i),
 			CLayoutInt(1),
-			L"funcB",
+			LTEXT("funcB"),
 			FL_OBJ_CLASS,
 			2
 		);
@@ -201,8 +201,8 @@ TEST(CFuncInfoArr, AppendData1_102)
 	auto pFunc2 = new CFuncInfo(
 		CLogicInt(1), CLogicInt(1),
 		CLayoutInt(1), CLayoutInt(1),
-		L"func2",
-		L"test.cpp",
+		LTEXT("func2"),
+		LTEXT("test.cpp"),
 		0
 	);
 

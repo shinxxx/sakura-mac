@@ -109,6 +109,14 @@ int MessageBoxS(
 	return sakura::platform::ShowMessageBox(text.c_str(), caption.c_str(), uType);
 }
 
+//! 原版代码里的 ::MessageBox（MessageBoxF.h 把它换成 Wrap_MessageBox）。与原版相同：先复制文字，标题省略时用默认标题
+int Wrap_MessageBox(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
+{
+	std::optional<sakura::wstring> caption;
+	if (lpCaption) caption = sakura::wstring(lpCaption);
+	return MessageBoxS(sakura::wstring(lpText ? lpText : LTEXT("")), uType, hWnd, caption);
+}
+
 // ---------------------------------------------------------------------------
 // CSelectLang.h（只有读取字符串的部分）
 // ---------------------------------------------------------------------------

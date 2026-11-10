@@ -19,14 +19,14 @@ TEST(CFuncInfoArr, AppendData_IncreasesCount)
 	auto* pInfo1 = new CFuncInfo(
 		CLogicInt(1), CLogicInt(0),
 		CLayoutInt(1), CLayoutInt(0),
-		L"func1", L"file.cpp", 0);
+		LTEXT("func1"), LTEXT("file.cpp"), 0);
 	arr.AppendData(pInfo1);
 	ASSERT_EQ(1, arr.GetNum());
 
 	auto* pInfo2 = new CFuncInfo(
 		CLogicInt(2), CLogicInt(0),
 		CLayoutInt(2), CLayoutInt(0),
-		L"func2", L"file.cpp", 0);
+		LTEXT("func2"), LTEXT("file.cpp"), 0);
 	arr.AppendData(pInfo2);
 	ASSERT_EQ(2, arr.GetNum());
 }
@@ -41,7 +41,7 @@ TEST(CFuncInfoArr, AppendData_GetAtReturnsCorrectElement)
 	auto* pInfo = new CFuncInfo(
 		CLogicInt(10), CLogicInt(5),
 		CLayoutInt(10), CLayoutInt(5),
-		L"myFunc", L"test.cpp", FL_OBJ_FUNCTION);
+		LTEXT("myFunc"), LTEXT("test.cpp"), FL_OBJ_FUNCTION);
 	arr.AppendData(pInfo);
 
 	CFuncInfo* pResult = arr.GetAt(0);

@@ -18,12 +18,18 @@
 #include "StdAfx.h"
 #include "_main/global.h"
 
+#if defined(_WIN32)	// Mac 版: プロセスとコマンドライン（G_AppInstance、GetProfileName）は移植計画のステップ 26 で移植する
 #include "_main/CCommandLine.h"
 #include "_main/CNormalProcess.h"
 #include "basis/CErrorInfo.h"
+#endif
 #include "config/app_constants.h"
+#if defined(_WIN32)
 #include "window/CEditWnd.h"
-#include "version.h"
+#include "version.h"	// ビルド時に生成する。Mac 版のバージョン情報はアプリのビルドで用意する
+#endif
+#include "CSelectLang.h"
+#include "sakura_rc.h"
 
 #ifdef DEV_VERSION
 #pragma message("-------------------------------------------------------------------------------------")
@@ -46,6 +52,7 @@ LPCWSTR GetAppName( void )
 const COLORREF	SELECTEDAREA_RGB = RGB( 255, 255, 255 );
 const int		SELECTEDAREA_ROP2 = R2_XORPEN;
 
+#if defined(_WIN32)
 HINSTANCE G_AppInstance()
 {
 	const auto process = CProcess::getInstance();
@@ -60,6 +67,7 @@ LPCWSTR GetProfileName() noexcept
 	const auto cmdline = CCommandLine::getInstance();
 	return cmdline ? cmdline->GetProfileName() : LTEXT("");
 }
+#endif // defined(_WIN32)
 
 /*!
  * コンストラクタ

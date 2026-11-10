@@ -4,15 +4,15 @@
 	样本在 macos/core/tests/data/roundtrip/，由 macos/tools/make_roundtrip_samples.py 用 Python 的编码器生成
 	（与 Sakura、Windows 无关的独立实现）。每个样本检查三件事：
 
-	1. 读入：按原版读文件的方式解码（CCodeBase::CodeToUnicode，开头的 U+FEFF 视为 BOM 去掉），
-	   结果与期望文本（同名 .txt，UTF-8）完全相同；
+	1. 读入：用原版读文件的 io/CFileLoad 读入（第 20 步起），结果与期望文本（同名 .txt，UTF-8）完全相同。
+	   与原版 env/CReadManager 一样，既按一个线程从头读到尾，也把文件按行分成几段分别读入再连接，两种结果都要相同；
 	2. 写出：按原版保存文件的方式（env/CWriteManager.cpp：第一行前加 BOM，逐行 UnicodeToCode 后连接）
 	   编码，字节与样本完全相同；
-	3. 自动识别：清单里指定了期望结果的样本，CCodeMediator::CheckKanjiCode 的结果与之相同
-	   （CCodeMediator 经由 CharsetDetector 用到 extmodule/CUchardet，第 19 步“换掉 DLL”时加入）。
+	3. 自动识别：清单里指定了期望结果的样本，CFileLoad 以“自动选择”打开时识别出的编码与之相同
+	   （内部用 CCodeMediator，经由 CharsetDetector 用到 extmodule/CUchardet，第 19 步“换掉 DLL”时加入）。
 
-	原版读文件的 io/CFileLoad 和写文件的 env/CWriteManager 依赖设置模块（共享内存），
-	要到第 20、21 步才能编进 Mac 版，所以这里按它们的做法调用同样的转换函数。
+	原版写文件的 env/CWriteManager、读文件时分段并行的 env/CReadManager 属于设置模块（env），
+	第 21 步才编进 Mac 版，所以这里按它们的做法调用同样的函数。
 	第 29 步“打开与保存”会用同一批样本在 App 里再验证一次。
 */
 /*
@@ -24,8 +24,10 @@
 #include "charset/CCodeFactory.h"
 #include "charset/CCodeBase.h"
 #include "charset/CCodeMediator.h"
+#include "io/CFileLoad.h"
 #include "mem/CNativeW.h"
 #include "mem/CMemory.h"
+#include "mac-share-data.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -155,7 +157,53 @@ std::string DescribeDiff(const sakura::wstring& expected, const sakura::wstring&
 	return os.str();
 }
 
-class RoundTrip : public ::testing::TestWithParam<RoundTripSample> {};
+//! 用 io/CFileLoad 读入（一个线程从头读到尾）。转换出错时返回 std::nullopt
+std::optional<sakura::wstring> LoadWithCFileLoad(const std::filesystem::path& path, ECodeType code, bool* pbBom, ECodeType* pOpened)
+{
+	CFileLoad cfl(SEncodingConfig{});
+	*pOpened = cfl.FileOpen(sakura::path_to_wstring(path).c_str(), true, code, 0, pbBom);
+	sakura::wstring text;
+	CNativeW line;
+	CEol eol;
+	EConvertResult r;
+	while (RESULT_FAILURE != (r = cfl.ReadLine(&line, &eol))) {
+		if (r != RESULT_COMPLETE) return std::nullopt;
+		text.append(line.GetStringPtr(), line.GetStringLength());
+	}
+	return text;
+}
+
+//! 与 env/CReadManager::ReadFile_To_CDocLineMgr 相同：在行的边界把文件分成 nParts 段分别读入，再连接
+sakura::wstring LoadInParts(const std::filesystem::path& path, ECodeType code, int nParts)
+{
+	CFileLoad cfl(SEncodingConfig{});
+	bool bBom = false;
+	cfl.FileOpen(sakura::path_to_wstring(path).c_str(), true, code, 0, &bBom);
+	std::vector<sakura::wstring> parts(nParts);
+	size_t nOffsetBegin = cfl.GetNextLineOffset(static_cast<size_t>(cfl.GetFileSize()));
+	for (int i = nParts - 1; 0 <= i; i--) {
+		const size_t nOffsetEnd = nOffsetBegin;
+		nOffsetBegin = cfl.GetNextLineOffset(static_cast<size_t>(static_cast<double>(cfl.GetFileSize()) / nParts * i));
+		if (nOffsetBegin == nOffsetEnd) continue;
+		CFileLoad part;
+		part.Prepare(cfl, nOffsetBegin, nOffsetEnd);
+		CNativeW line;
+		CEol eol;
+		while (RESULT_FAILURE != part.ReadLine(&line, &eol)) {
+			parts[i].append(line.GetStringPtr(), line.GetStringLength());
+		}
+	}
+	sakura::wstring text;
+	for (const auto& p : parts) text += p;
+	return text;
+}
+
+class RoundTrip : public ::testing::TestWithParam<RoundTripSample> {
+protected:
+	// CFileLoad 要读共通设置（是否使用扩展换行符）
+	static void SetUpTestSuite() { mac_test::SetUpShareData(); }
+	static void TearDownTestSuite() { mac_test::TearDownShareData(); }
+};
 
 TEST_P(RoundTrip, LoadThenSaveIsByteIdentical)
 {
@@ -166,16 +214,22 @@ TEST_P(RoundTrip, LoadThenSaveIsByteIdentical)
 
 	std::unique_ptr<CCodeBase> codec(CCodeFactory::CreateCodeBase(static_cast<ECodeType>(s.code), 0));
 	ASSERT_TRUE(codec) << s.name;
+	(void)bytes;
 
-	// 1. 读入（io/CFileLoad.cpp：BOM 是解码后开头的 U+FEFF）
-	CMemory src(bytes.data(), bytes.size());
-	CNativeW decoded;
-	EXPECT_EQ(RESULT_COMPLETE, codec->CodeToUnicode(src, &decoded)) << s.name;
-	sakura::wstring text(decoded.GetStringPtr(), decoded.GetStringLength());
-	const bool bom = !text.empty() && text[0] == 0xFEFF;
-	if (bom) text.erase(0, 1);
+	// 1. 读入（io/CFileLoad。BOM 是解码后开头的 U+FEFF，由 CFileLoad 去掉）
+	const auto path = DataDir() / (s.name + ".bin");
+	bool bom = false;
+	ECodeType opened = CODE_NONE;
+	const auto loaded = LoadWithCFileLoad(path, static_cast<ECodeType>(s.code), &bom, &opened);
+	ASSERT_TRUE(loaded.has_value()) << s.name << ": CFileLoad::ReadLine reported a conversion error";
+	const sakura::wstring& text = *loaded;
+	EXPECT_EQ(s.code, static_cast<int>(opened)) << s.name;
 	EXPECT_EQ(s.bom, bom) << s.name;
 	EXPECT_TRUE(expected == text) << s.name << ": decoded text differs from " << s.name << ".txt: " << DescribeDiff(expected, text);
+	for (int nParts : { 2, 3, 7 }) {
+		const auto partsText = LoadInParts(path, static_cast<ECodeType>(s.code), nParts);
+		EXPECT_TRUE(expected == partsText) << s.name << ": reading in " << nParts << " parts differs: " << DescribeDiff(expected, partsText);
+	}
 
 	// 2. 写出（env/CWriteManager.cpp）
 	CMemory bomCheck;
@@ -195,11 +249,12 @@ TEST_P(RoundTrip, LoadThenSaveIsByteIdentical)
 	}
 	EXPECT_TRUE(bytes == saved) << s.name << " (" << s.codec << "): " << DescribeDiff(bytes, saved);
 
-	// 3. 自动识别（与 CFileLoad::FileOpen 相同。uchardet 不内置，与 Windows 官方版一样只用 Sakura 自己的判断）
+	// 3. 自动识别（CFileLoad::FileOpen 以 CODE_AUTODETECT 打开。uchardet 不内置，与 Windows 官方版一样只用 Sakura 自己的判断）
 	if (s.detect != -1) {
-		SEncodingConfig config;
-		CCodeMediator mediator(config);
-		EXPECT_EQ(s.detect, static_cast<int>(mediator.CheckKanjiCode(bytes.data(), bytes.size()))) << s.name;
+		bool detectedBom = false;
+		ECodeType detected = CODE_NONE;
+		LoadWithCFileLoad(path, CODE_AUTODETECT, &detectedBom, &detected);
+		EXPECT_EQ(s.detect, static_cast<int>(detected)) << s.name;
 	}
 }
 

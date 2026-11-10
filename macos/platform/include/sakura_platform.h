@@ -84,12 +84,12 @@ typedef std::int32_t   INT;
 typedef std::uint32_t  UINT;
 typedef std::int32_t   LONG;
 typedef std::uint32_t  ULONG;
-typedef std::int64_t   LONGLONG;
-typedef std::uint64_t  ULONGLONG;
+typedef long long          LONGLONG;   // Windows 与 __int64 相同，是 long long（不是 int64_t 的 long）
+typedef unsigned long long ULONGLONG;
 typedef std::int32_t   INT32;
 typedef std::uint32_t  UINT32;
-typedef std::int64_t   INT64;
-typedef std::uint64_t  UINT64;
+typedef long long          INT64;
+typedef unsigned long long UINT64;
 typedef std::intptr_t  INT_PTR;
 typedef std::uintptr_t UINT_PTR;
 typedef std::intptr_t  LONG_PTR;
@@ -150,6 +150,9 @@ typedef HICON   HCURSOR;
 typedef HINSTANCE HMODULE;
 typedef HANDLE  HGLOBAL;
 typedef HANDLE  HGDIOBJ;
+//! 只在界面代码里使用、核心代码只出现在声明里的结构体：不定义内容（打印对话框等）
+typedef struct tagPDW PRINTDLG, *LPPRINTDLG;
+struct IDataObject; typedef IDataObject* LPDATAOBJECT;
 #define INVALID_HANDLE_VALUE (reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(-1)))
 
 // ---------------------------------------------------------------------------
@@ -167,6 +170,7 @@ typedef struct _SYSTEMTIME {
 } SYSTEMTIME, *PSYSTEMTIME, *LPSYSTEMTIME;
 typedef struct _FILETIME { DWORD dwLowDateTime; DWORD dwHighDateTime; } FILETIME, *PFILETIME, *LPFILETIME;
 typedef union _ULARGE_INTEGER {
+	struct { DWORD LowPart; DWORD HighPart; };
 	struct { DWORD LowPart; DWORD HighPart; } u;
 	ULONGLONG QuadPart;
 } ULARGE_INTEGER;
@@ -259,6 +263,15 @@ typedef CODEPAGE_ENUMPROCW CODEPAGE_ENUMPROC;
 #define IDYES    6
 #define IDNO     7
 
+// 输入法模式（类型别设置里保存的值，与 Windows 相同）
+#define IME_CMODE_ALPHANUMERIC 0x0000
+#define IME_CMODE_NATIVE       0x0001
+#define IME_CMODE_KATAKANA     0x0002
+#define IME_CMODE_FULLSHAPE    0x0008
+#define IME_CMODE_ROMAN        0x0010
+#define IME_CMODE_NOCONVERSION 0x0100
+
+#define R2_XORPEN 7   // 选择范围的绘制方式（_main/global.cpp 的常量）
 #define CW_USEDEFAULT (static_cast<int>(0x80000000))
 #define NO_ERROR 0L
 #define S_OK     static_cast<HRESULT>(0L)
@@ -280,7 +293,9 @@ typedef CODEPAGE_ENUMPROCW CODEPAGE_ENUMPROC;
 // ---------------------------------------------------------------------------
 #define _TRUNCATE  (static_cast<size_t>(-1))
 #define STRUNCATE  80
-#define _countof(a) (std::size(a))
+//! 与 MSVC 相同的写法：不求值，所以对指针所指结构体的数组成员也能用在常量表达式里
+template <typename T, size_t N> char (*__countof_helper(T (&)[N]))[N];
+#define _countof(a) (sizeof(*__countof_helper(a)))
 #define _HEAP_MAXREQ (static_cast<size_t>(-1) & ~static_cast<size_t>(0x1F))
 
 inline int _stricmp(const char* a, const char* b) { return ::strcasecmp(a, b); }
@@ -348,15 +363,31 @@ typedef INT_PTR (*FARPROC)();
 HMODULE LoadLibraryW(const WCHAR* lpLibFileName);
 FARPROC GetProcAddress(HMODULE hModule, const char* lpProcName);
 BOOL FreeLibrary(HMODULE hLibModule);
+//! 虚拟内存（mem/CPoolResource 用）。只支持 MEM_COMMIT | MEM_RESERVE 分配、MEM_RELEASE 释放整块，
+//! 与 Windows 一样返回清零的内存，失败时返回 nullptr（macos/platform/src/win32_api.cpp）
+#define MEM_COMMIT     0x00001000
+#define MEM_RESERVE    0x00002000
+#define MEM_RELEASE    0x00008000
+#define PAGE_READWRITE 0x04
+LPVOID VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+BOOL VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType);
 //! 最近一次错误码
 DWORD GetLastError();
 void SetLastError(DWORD dwErrCode);
 
 /* ---- 文件 ---- */
 #define ERROR_FILE_NOT_FOUND      2L
+#define ERROR_PATH_NOT_FOUND      3L
+#define ERROR_GEN_FAILURE         31L
+#define ERROR_SHARING_VIOLATION   32L
+#define ERROR_FILE_EXISTS         80L
+#define ERROR_ALREADY_EXISTS      183L
+#define ERROR_FILE_INVALID        1006L
 #define ERROR_ACCESS_DENIED       5L
 #define ERROR_INVALID_HANDLE      6L
+#define ERROR_NOT_ENOUGH_MEMORY   8L
 #define ERROR_INVALID_PARAMETER   87L
+#define ERROR_INVALID_ADDRESS     487L
 #define ERROR_MOD_NOT_FOUND       126L
 #define ERROR_PROC_NOT_FOUND      127L
 #define ERROR_INSUFFICIENT_BUFFER 122L
@@ -375,7 +406,79 @@ DWORD GetFileAttributesW(const WCHAR* lpFileName);
 BOOL SetFileAttributesW(const WCHAR* lpFileName, DWORD dwFileAttributes);
 #define GetFileAttributes GetFileAttributesW
 #define SetFileAttributes SetFileAttributesW
+/* ---- 文件句柄和文件映射（macos/platform/src/file_api.cpp） ----
+ * 共享模式不起作用（见 file_api.cpp 的说明）。CreateFileMappingW 只能映射文件。 */
+typedef struct _SECURITY_ATTRIBUTES { DWORD nLength; LPVOID lpSecurityDescriptor; BOOL bInheritHandle; } SECURITY_ATTRIBUTES, *LPSECURITY_ATTRIBUTES;
+#define GENERIC_READ    0x80000000u
+#define GENERIC_WRITE   0x40000000u
+#define GENERIC_ALL     0x10000000u
+#define FILE_SHARE_READ   0x00000001
+#define FILE_SHARE_WRITE  0x00000002
+#define FILE_SHARE_DELETE 0x00000004
+#define CREATE_NEW        1
+#define CREATE_ALWAYS     2
+#define OPEN_EXISTING     3
+#define OPEN_ALWAYS       4
+#define TRUNCATE_EXISTING 5
+#define FILE_FLAG_SEQUENTIAL_SCAN 0x08000000
+#define INVALID_FILE_SIZE ((DWORD)0xFFFFFFFF)
+#define PAGE_READONLY   0x02
+#define FILE_MAP_WRITE  0x0002
+#define FILE_MAP_READ   0x0004
+#define FILE_MAP_ALL_ACCESS 0x000F001F
+HANDLE CreateFileW(const WCHAR* lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+	DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+#define CreateFile CreateFileW
+BOOL CloseHandle(HANDLE hObject);
+DWORD GetFileSize(HANDLE hFile, LPDWORD lpFileSizeHigh);
+BOOL GetFileTime(HANDLE hFile, LPFILETIME lpCreationTime, LPFILETIME lpLastAccessTime, LPFILETIME lpLastWriteTime);
+HANDLE CreateFileMappingW(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMappingAttributes, DWORD flProtect,
+	DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, const WCHAR* lpName);
+#define CreateFileMapping CreateFileMappingW
+LPVOID MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, SIZE_T dwNumberOfBytesToMap);
+BOOL UnmapViewOfFile(LPCVOID lpBaseAddress);
+//! 检查文件是否存在（mode 0）、能否写（2）、能否读（4）、能否读写（6）。与 MSVC 相同，成功返回 0，失败返回 -1
+int _waccess(const WCHAR* path, int mode);
 //! 用 UTF-16 的路径和模式打开文件（路径转换为 UTF-8 后调用 fopen）
 FILE* _wfopen(const WCHAR* filename, const WCHAR* mode);
+
+/* ---- BSTR 和 VARIANT（macos/platform/src/ole_types.cpp） ----
+ * 原版宏接口（_os/OleTypes.h、macro/）传值用的 COM 类型。数据结构与 Windows 相同：
+ * BSTR 前面 4 字节是字节数，后面以 0 结尾。VARIANT 只包含原版用到的类型。 */
+typedef WCHAR*        BSTR;
+typedef unsigned short VARTYPE;
+typedef short         VARIANT_BOOL;
+enum VARENUM : VARTYPE {
+	VT_EMPTY = 0, VT_NULL = 1, VT_I2 = 2, VT_I4 = 3, VT_R8 = 5, VT_BSTR = 8, VT_BOOL = 11,
+	VT_VARIANT = 12, VT_UI4 = 19, VT_INT = 22, VT_UINT = 23, VT_BYREF = 0x4000,
+};
+typedef struct tagVARIANT {
+	VARTYPE vt;
+	WORD wReserved1, wReserved2, wReserved3;
+	union {
+		LONG          lVal;
+		short         iVal;
+		INT           intVal;
+		UINT          uintVal;
+		ULONG         ulVal;
+		VARIANT_BOOL  boolVal;
+		double        dblVal;
+		BSTR          bstrVal;
+		struct tagVARIANT* pvarVal;
+		void*         byref;
+	};
+} VARIANT, VARIANTARG, *LPVARIANT;
+#define E_INVALIDARG    static_cast<HRESULT>(0x80070057L)
+#define E_OUTOFMEMORY   static_cast<HRESULT>(0x8007000EL)
+#define DISP_E_BADVARTYPE static_cast<HRESULT>(0x80020008L)
+BSTR SysAllocString(const OLECHAR* psz);
+BSTR SysAllocStringLen(const OLECHAR* strIn, UINT ui);
+INT  SysReAllocString(BSTR* pbstr, const OLECHAR* psz);
+UINT SysStringLen(BSTR pbstr);
+void SysFreeString(BSTR bstrString);
+void VariantInit(VARIANTARG* pvarg);
+HRESULT VariantClear(VARIANTARG* pvarg);
+HRESULT VariantCopy(VARIANTARG* pvargDest, const VARIANTARG* pvargSrc);
+HRESULT VariantCopyInd(VARIANT* pvarDest, const VARIANTARG* pvargSrc);
 
 #endif /* SAKURA_PLATFORM_H_ */

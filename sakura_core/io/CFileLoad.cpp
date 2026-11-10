@@ -29,7 +29,10 @@
 #include "charset/CCodeMediator.h"
 #include "util/string_ex2.h"
 #include "charset/CESI.h"
+#include "env/DLLSHAREDATA.h"
+#if defined(_WIN32)
 #include "window/CEditWnd.h"
+#endif
 
 /*
 	@note Win32APIで実装

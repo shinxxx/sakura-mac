@@ -12,8 +12,10 @@
 #include "doc/CEditDoc.h"
 #include "outline/CFuncInfoArr.h"
 #include "cmd/COpeBlk.h"
+#if defined(_WIN32)
 #include "cmd/CViewCommander_inline.h"
 #include "view/CEditView.h"
+#endif
 #include "view/colors/EColorIndexType.h"
 #include "CSelectLang.h"
 
@@ -1281,6 +1283,7 @@ void CDocOutline::MakeFuncList_C( CFuncInfoArr* pcFuncInfoArr ,EOutlineType& nOu
 	}
 }
 
+#if defined(_WIN32)	// Mac 版: スマートインデントは編集画面の機能。移植計画のステップ 28 以降で編集画面と一緒に移植する
 struct SCommentBlock{
 	int nFirst;
 	int nLast;
@@ -1715,6 +1718,7 @@ void CEditView::SmartIndent_CPP( WCHAR wcChar )
 		pszData = nullptr;
 	}
 }
+#endif // defined(_WIN32)
 
 const WCHAR* g_ppszKeywordsCPP[] = {
 	LTEXT("#define"),

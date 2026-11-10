@@ -59,7 +59,7 @@ protected:
 	//! @param cDocLineMgr 空を渡すとファイル内容からの検出は何も検出しない
 	IndentationStyle Detect(const std::filesystem::path& filePath, const CDocLineMgr& cDocLineMgr) const {
 		IndentationStyle style{};
-		DetectIndentationStyle(CFilePath(filePath.wstring().c_str()), cDocLineMgr, 256, style);
+		DetectIndentationStyle(CFilePath(sakura::path_to_wstring(filePath).c_str()), cDocLineMgr, 256, style);
 		return style;
 	}
 
@@ -330,11 +330,11 @@ TEST_F(DetectIndentationStyleTest, FallsBackToDetectionFromDocumentContent)
 	// 一時ディレクトリより上の.editorconfigに影響されないよう探索を打ち切らせる
 	WriteEditorConfig("root = true\n"sv);
 
-	constexpr std::wstring_view lines[]{
-		L"void f()"sv,
-		L"    int a;"sv,
-		L"        int b;"sv,
-		L"    int c;"sv,
+	constexpr sakura::wstring_view lines[]{
+		LTEXT("void f()"sv),
+		LTEXT("    int a;"sv),
+		LTEXT("        int b;"sv),
+		LTEXT("    int c;"sv),
 	};
 
 	CDocLineMgr cDocLineMgr;
