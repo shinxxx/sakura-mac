@@ -71,6 +71,7 @@ constexpr int GA_ROOTOWNER2 = 100;
 
 HWND MyGetAncestor( HWND hWnd, UINT gaFlags );	// 指定したウィンドウの祖先のハンドルを取得する	// 2007.07.01 ryoji
 
+#if defined(_WIN32)	// Mac 版: ダイアログとウィンドウの操作は Mac の画面に置き換える（移植計画のステップ 24 以降）
 namespace apiwrap {
 
 /*!
@@ -427,6 +428,7 @@ private:
 HFONT UpdateDialogFont( HWND hwnd, BOOL force = FALSE );
 
 bool GetSystemAccentColor( COLORREF* pColorOut );
+#endif // defined(_WIN32)
 
 #define PSZ_ARGS(pszText) (pszText), int(pszText ? ::wcslen(pszText) : 0)
 

@@ -17,12 +17,12 @@ TEST(CDocLine, IsEmptyLine)
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"空行ではない\n", 6, false);
+		line.SetDocLineString(LTEXT("空行ではない\n"), 6, false);
 		EXPECT_FALSE(line.IsEmptyLine());
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L" \t\r\n", 4, false);
+		line.SetDocLineString(LTEXT(" \t\r\n"), 4, false);
 		EXPECT_TRUE(line.IsEmptyLine());
 	}
 }
@@ -35,17 +35,17 @@ TEST(CDocLine, GetLengthWithoutEOL)
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"改行がありません", 8, false);
+		line.SetDocLineString(LTEXT("改行がありません"), 8, false);
 		EXPECT_EQ(line.GetLengthWithoutEOL(), CLogicInt(8));
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"LFがあります\n", 8, false);
+		line.SetDocLineString(LTEXT("LFがあります\n"), 8, false);
 		EXPECT_EQ(line.GetLengthWithoutEOL(), CLogicInt(7));
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"CRLFがあります\r\n", 11, false);
+		line.SetDocLineString(LTEXT("CRLFがあります\r\n"), 11, false);
 		EXPECT_EQ(line.GetLengthWithoutEOL(), CLogicInt(9));
 	}
 }
@@ -57,7 +57,7 @@ TEST(CDocLine, GetPtr)
 		EXPECT_EQ(nullptr, line.GetPtr());
 	}
 	{
-		std::wstring_view s = L"てきとうなもじれつ";
+		sakura::wstring_view s = LTEXT("てきとうなもじれつ");
 		CDocLine line;
 		line.SetDocLineString(s.data(), s.length(), false);
 		EXPECT_STREQ(line.GetPtr(), s.data());
@@ -72,17 +72,17 @@ TEST(CDocLine, GetLengthWithEOL)
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"改行がありません", 8, false);
+		line.SetDocLineString(LTEXT("改行がありません"), 8, false);
 		EXPECT_EQ(line.GetLengthWithEOL(), CLogicInt(8));
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"LFがあります\n", 8, false);
+		line.SetDocLineString(LTEXT("LFがあります\n"), 8, false);
 		EXPECT_EQ(line.GetLengthWithEOL(), CLogicInt(8));
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"CRLFがあります\r\n", 11, false);
+		line.SetDocLineString(LTEXT("CRLFがあります\r\n"), 11, false);
 		EXPECT_EQ(line.GetLengthWithEOL(), CLogicInt(11));
 	}
 }
@@ -91,7 +91,7 @@ TEST(CDocLine, GetDocLineStrWithEOL)
 {
 	{
 		CDocLine line;
-		line.SetDocLineString(L"もじれつ", 4, false);
+		line.SetDocLineString(LTEXT("もじれつ"), 4, false);
 		CLogicInt n(123);
 		EXPECT_EQ(line.GetDocLineStrWithEOL(&n), line.GetPtr());
 		EXPECT_EQ(n, line.GetLengthWithEOL());
@@ -128,7 +128,7 @@ TEST(CDocLine, GetStringRefWithEOL)
 {
 	{
 		CDocLine line;
-		line.SetDocLineString(L"もじれつ", 4, false);
+		line.SetDocLineString(LTEXT("もじれつ"), 4, false);
 		CStringRef ref = line.GetStringRefWithEOL();
 		EXPECT_EQ(ref.GetPtr(), line.GetPtr());
 		EXPECT_EQ(ref.GetLength(), line.GetLengthWithEOL());
@@ -162,7 +162,7 @@ TEST(CDocLine, GetEol)
 	}
 	{
 		CDocLine line;
-		line.SetDocLineString(L"\n", 1, false);
+		line.SetDocLineString(LTEXT("\n"), 1, false);
 		CEol eol(EEolType::line_feed);
 		EXPECT_EQ(line.GetEol(), eol);
 	}
@@ -172,22 +172,22 @@ TEST(CDocLine, SetEol)
 {
 	// 改行コードを再設定するテスト
 	CDocLine line;
-	line.SetDocLineString(L"てすと", 3, false);
-	EXPECT_STREQ(line.GetPtr(), L"てすと");
+	line.SetDocLineString(LTEXT("てすと"), 3, false);
+	EXPECT_STREQ(line.GetPtr(), LTEXT("てすと"));
 
 	line.SetEol(CEol(EEolType::cr_and_lf), nullptr);
-	EXPECT_STREQ(line.GetPtr(), L"てすと\r\n");
+	EXPECT_STREQ(line.GetPtr(), LTEXT("てすと\r\n"));
 
 	line.SetEol(CEol(EEolType::line_feed), nullptr);
-	EXPECT_STREQ(line.GetPtr(), L"てすと\n");
+	EXPECT_STREQ(line.GetPtr(), LTEXT("てすと\n"));
 
 	line.SetEol(CEol(EEolType::none), nullptr);
-	EXPECT_STREQ(line.GetPtr(), L"てすと");
+	EXPECT_STREQ(line.GetPtr(), LTEXT("てすと"));
 }
 
 TEST(CDocLine, GetDocLineData)
 {
-	const CNativeW data(L"データ\n");
+	const CNativeW data(LTEXT("データ\n"));
 	CDocLine line;
 	line.SetDocLineString(data, false);
 	EXPECT_EQ(line._GetDocLineDataWithEOL(), data);
@@ -196,8 +196,8 @@ TEST(CDocLine, GetDocLineData)
 
 TEST(CDocLine, SetDocLineStringMove)
 {
-	CNativeW data(L"データ\r\n");
-	const wchar_t* originalPtr = data.GetStringPtr();
+	CNativeW data(LTEXT("データ\r\n"));
+	const WCHAR* originalPtr = data.GetStringPtr();
 
 	CDocLine line;
 	line.SetDocLineStringMove(&data, false);

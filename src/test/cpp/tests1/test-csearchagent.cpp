@@ -20,7 +20,11 @@
 #include "docplus/CBookmarkManager.h"
 #include "extmodule/CBregexp.h"
 
+#if defined(_WIN32)
 #include "window/EditorTestSuite.hpp"
+#else
+#include "mac-share-data.hpp"	// Mac 版: 編集ウィンドウはまだないので、共通設定だけを用意する（移植計画のステップ 20）
+#endif
 
 using ::testing::ElementsAre;	// pch.h に using が無いのでここで宣言する
 
@@ -35,13 +39,13 @@ template <typename T> void SetLines(CDocLineMgr& m, int seq, T begin, T end)
 	}
 }
 
-void SetLines(CDocLineMgr& m, int seq, std::initializer_list<std::wstring_view> args)
+void SetLines(CDocLineMgr& m, int seq, std::initializer_list<sakura::wstring_view> args)
 {
 	SetLines(m, seq, args.begin(), args.end());
 }
 
 struct RawLineData {
-	const wchar_t* line;
+	const WCHAR* line;
 	int seq;
 };
 
@@ -103,9 +107,9 @@ TEST(COpeBlk, AppendOpe101)
 TEST(CSearchAgent, ReplaceData1)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L"DDD", 2}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("DDD"), 2}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -117,16 +121,16 @@ TEST(CSearchAgent, ReplaceData1)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 3);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"DDD\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("DDD\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), L"CCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), LTEXT("CCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(2))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 1);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"BBB");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("BBB"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 0);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -141,9 +145,9 @@ TEST(CSearchAgent, ReplaceData1)
 TEST(CSearchAgent, ReplaceData2)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L"DDD\n", 2}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("DDD\n"), 2}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -155,16 +159,16 @@ TEST(CSearchAgent, ReplaceData2)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 3);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"DDD\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("DDD\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), L"CCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), LTEXT("CCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(2))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 0);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"BBB\n");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("BBB\n"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 1);
 	EXPECT_EQ(arg.nInsLineNum, 1);
@@ -179,7 +183,7 @@ TEST(CSearchAgent, ReplaceData2)
 TEST(CSearchAgent, ReplaceData3)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
 	COpeLineData delData;
 
@@ -192,16 +196,16 @@ TEST(CSearchAgent, ReplaceData3)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"BBBCCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("BBBCCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 0);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 2);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"\n");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("\n"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), L"");
+	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), LTEXT(""));
 	EXPECT_EQ(arg.pcmemDeleted->at(1).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 1);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -216,7 +220,7 @@ TEST(CSearchAgent, ReplaceData3)
 TEST(CSearchAgent, ReplaceData4)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
 	COpeLineData delData;
 
@@ -229,16 +233,16 @@ TEST(CSearchAgent, ReplaceData4)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"BCCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("BCCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 0);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 2);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"BB\n");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("BB\n"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), L"");
+	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), LTEXT(""));
 	EXPECT_EQ(arg.pcmemDeleted->at(1).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 1);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -253,7 +257,7 @@ TEST(CSearchAgent, ReplaceData4)
 TEST(CSearchAgent, ReplaceData5)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n"});
+	SetLines(m, 1, {LTEXT("AAA\n")});
 
 	COpeLineData delData;
 
@@ -266,12 +270,12 @@ TEST(CSearchAgent, ReplaceData5)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 0);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"\n");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("\n"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 0);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -286,9 +290,9 @@ TEST(CSearchAgent, ReplaceData5)
 TEST(CSearchAgent, ReplaceData6)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L" ", 2}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT(" "), 2}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -300,16 +304,16 @@ TEST(CSearchAgent, ReplaceData6)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"BB CC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("BB CC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 2);
 
 	EXPECT_EQ(arg.nInsSeq, 1);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 2);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"B\n");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("B\n"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), L"C");
+	EXPECT_STREQ(arg.pcmemDeleted->at(1).cmemLine.GetStringPtr(), LTEXT("C"));
 	EXPECT_EQ(arg.pcmemDeleted->at(1).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 1);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -325,9 +329,9 @@ TEST(CSearchAgent, ReplaceData6)
 TEST(CSearchAgent, ReplaceData7)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L"CCC\n", 2}, {L"DDD", 3}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("CCC\n"), 2}, {LTEXT("DDD"), 3}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -339,11 +343,11 @@ TEST(CSearchAgent, ReplaceData7)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 3);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"CCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("CCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), L"DDDBBB\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), LTEXT("DDDBBB\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(2))->m_sMark.m_cModified.GetSeq(), 3);
 
 	EXPECT_EQ(arg.nInsSeq, 1);
@@ -362,9 +366,9 @@ TEST(CSearchAgent, ReplaceData7)
 TEST(CSearchAgent, ReplaceData8)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n", L"CCC\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n"), LTEXT("CCC\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L"DDD\n", 2}, {L"EEE", 3}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("DDD\n"), 2}, {LTEXT("EEE"), 3}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -376,13 +380,13 @@ TEST(CSearchAgent, ReplaceData8)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 4);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"DDD\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("DDD\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 2);
-	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), L"EEEBBB\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), LTEXT("EEEBBB\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(2))->m_sMark.m_cModified.GetSeq(), 3);
-	EXPECT_STREQ(m.GetLine(CLogicInt(3))->GetPtr(), L"CCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(3))->GetPtr(), LTEXT("CCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(3))->m_sMark.m_cModified.GetSeq(), 1);
 
 	EXPECT_EQ(arg.nInsSeq, 1);
@@ -400,9 +404,9 @@ TEST(CSearchAgent, ReplaceData8)
 TEST(CSearchAgent, ReplaceData9)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"AAA\n", L"BBB\n"});
+	SetLines(m, 1, {LTEXT("AAA\n"), LTEXT("BBB\n")});
 
-	COpeLineData insData = MakeOpeLineData({{L"CCC\n", 2}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("CCC\n"), 2}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -414,11 +418,11 @@ TEST(CSearchAgent, ReplaceData9)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 3);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"AAA\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("AAA\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), L"BBB\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(1))->GetPtr(), LTEXT("BBB\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(1))->m_sMark.m_cModified.GetSeq(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), L"CCC\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(2))->GetPtr(), LTEXT("CCC\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(2))->m_sMark.m_cModified.GetSeq(), 2);
 
 	EXPECT_EQ(arg.nInsSeq, 0);
@@ -436,10 +440,10 @@ TEST(CSearchAgent, ReplaceData9)
 TEST(CSearchAgent, ReplaceData10)
 {
 	CDocLineMgr m;
-	SetLines(m, 1, {L"0123456789\n"});
+	SetLines(m, 1, {LTEXT("0123456789\n")});
 	m.GetLine(CLogicInt(0))->_GetDocLineData().AllocStringBuffer(15);
 
-	COpeLineData insData = MakeOpeLineData({{L"0123", 2}});
+	COpeLineData insData = MakeOpeLineData({{LTEXT("0123"), 2}});
 	COpeLineData delData;
 
 	DocLineReplaceArg arg;
@@ -451,12 +455,12 @@ TEST(CSearchAgent, ReplaceData10)
 	CSearchAgent(&m).ReplaceData(&arg, false);
 
 	EXPECT_EQ(m.GetLineCount(), 1);
-	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), L"0123456780123\n");
+	EXPECT_STREQ(m.GetLine(CLogicInt(0))->GetPtr(), LTEXT("0123456780123\n"));
 	EXPECT_EQ(m.GetLine(CLogicInt(0))->m_sMark.m_cModified.GetSeq(), 2);
 
 	EXPECT_EQ(arg.nInsSeq, 1);
 	EXPECT_EQ(arg.pcmemDeleted->size(), 1);
-	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), L"9");
+	EXPECT_STREQ(arg.pcmemDeleted->at(0).cmemLine.GetStringPtr(), LTEXT("9"));
 	EXPECT_EQ(arg.pcmemDeleted->at(0).nSeq, 1);
 	EXPECT_EQ(arg.nDeletedLineNum, 0);
 	EXPECT_EQ(arg.nInsLineNum, 0);
@@ -476,11 +480,11 @@ struct CSearchAgentSearchTest : public ::testing::Test, public window::EditorTes
 	CDocLineMgr m_cDocLineMgr;
 	CBregexp m_cRegexp;
 	SSearchOption m_sSearchOption;
-	std::wstring m_strKey;
+	sakura::wstring m_strKey;
 	CSearchStringPattern m_cPattern;
 
 	//! 文書を作る。行の文字列には行末を含める
-	void SetDocument(std::initializer_list<std::wstring_view> lines)
+	void SetDocument(std::initializer_list<sakura::wstring_view> lines)
 	{
 		for (const auto& line : lines) {
 			m_cDocLineMgr.AddNewLine()->SetDocLineString(line.data(), int(line.length()), false);
@@ -490,23 +494,23 @@ struct CSearchAgentSearchTest : public ::testing::Test, public window::EditorTes
 	//! 文字列の検索に使う文書
 	void SetStringDocument()
 	{
-		SetDocument({ L"abc abcd abc\n", L"xyz\n", L"ABC\n", L"abc" });
+		SetDocument({ LTEXT("abc abcd abc\n"), LTEXT("xyz\n"), LTEXT("ABC\n"), LTEXT("abc") });
 	}
 
 	//! 単語単位の検索に使う文書
 	void SetWordDocument()
 	{
-		SetDocument({ L"foo foobar foo_bar foo\n", L"bar foo\n" });
+		SetDocument({ LTEXT("foo foobar foo_bar foo\n"), LTEXT("bar foo\n") });
 	}
 
 	//! ブックマークの一括設定に使う文書
 	void SetBookmarkDocument()
 	{
-		SetDocument({ L"foo\n", L"foobar\n", L"bar foo\n", L"FOO" });
+		SetDocument({ LTEXT("foo\n"), LTEXT("foobar\n"), LTEXT("bar foo\n"), LTEXT("FOO") });
 	}
 
 	//! 検索の条件を設定する
-	bool SetKey(std::wstring_view key, bool bRegularExp, bool bLoHiCase, bool bWordOnly)
+	bool SetKey(sakura::wstring_view key, bool bRegularExp, bool bLoHiCase, bool bWordOnly)
 	{
 		m_strKey = key;
 		m_sSearchOption = SSearchOption(bRegularExp, bLoHiCase, bWordOnly);
@@ -544,7 +548,7 @@ struct CSearchAgentSearchTest : public ::testing::Test, public window::EditorTes
 TEST_F(CSearchAgentSearchTest, StringForward)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -552,7 +556,7 @@ TEST_F(CSearchAgentSearchTest, StringForward)
 TEST_F(CSearchAgentSearchTest, StringForwardFromMiddleOfLine)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(1, 0, SEARCH_FORWARD), ElementsAre(4, 0, 7, 0));
 }
 
@@ -560,7 +564,7 @@ TEST_F(CSearchAgentSearchTest, StringForwardFromMiddleOfLine)
 TEST_F(CSearchAgentSearchTest, StringForwardMatchCase)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(10, 0, SEARCH_FORWARD), ElementsAre(0, 3, 3, 3));
 }
 
@@ -568,7 +572,7 @@ TEST_F(CSearchAgentSearchTest, StringForwardMatchCase)
 TEST_F(CSearchAgentSearchTest, StringForwardIgnoreCase)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, false, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, false, false), IsTrue());
 	EXPECT_THAT(Search(10, 0, SEARCH_FORWARD), ElementsAre(0, 2, 3, 2));
 }
 
@@ -576,15 +580,15 @@ TEST_F(CSearchAgentSearchTest, StringForwardIgnoreCase)
 TEST_F(CSearchAgentSearchTest, StringForwardNotFound)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"zzz", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("zzz"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
 //! 前方: 重なる一致も見つける
 TEST_F(CSearchAgentSearchTest, StringForwardOverlap)
 {
-	SetDocument({ L"aaa" });
-	ASSERT_THAT(SetKey(L"aa", false, true, false), IsTrue());
+	SetDocument({ LTEXT("aaa") });
+	ASSERT_THAT(SetKey(LTEXT("aa"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(1, 0, SEARCH_FORWARD), ElementsAre(1, 0, 3, 0));
 }
 
@@ -592,7 +596,7 @@ TEST_F(CSearchAgentSearchTest, StringForwardOverlap)
 TEST_F(CSearchAgentSearchTest, StringBackward)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(9, 0, SEARCH_BACKWARD), ElementsAre(4, 0, 7, 0));
 }
 
@@ -600,7 +604,7 @@ TEST_F(CSearchAgentSearchTest, StringBackward)
 TEST_F(CSearchAgentSearchTest, StringBackwardExcludesCursorPosition)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -608,7 +612,7 @@ TEST_F(CSearchAgentSearchTest, StringBackwardExcludesCursorPosition)
 TEST_F(CSearchAgentSearchTest, StringBackwardPrevLinesMatchCase)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 3, SEARCH_BACKWARD), ElementsAre(9, 0, 12, 0));
 }
 
@@ -616,7 +620,7 @@ TEST_F(CSearchAgentSearchTest, StringBackwardPrevLinesMatchCase)
 TEST_F(CSearchAgentSearchTest, StringBackwardPrevLinesIgnoreCase)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, false, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, false, false), IsTrue());
 	EXPECT_THAT(Search(0, 3, SEARCH_BACKWARD), ElementsAre(0, 2, 3, 2));
 }
 
@@ -624,7 +628,7 @@ TEST_F(CSearchAgentSearchTest, StringBackwardPrevLinesIgnoreCase)
 TEST_F(CSearchAgentSearchTest, StringBackwardNotFoundAtTop)
 {
 	SetStringDocument();
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_BACKWARD), IsEmpty());
 }
 
@@ -635,8 +639,8 @@ TEST_F(CSearchAgentSearchTest, StringBackwardNotFoundAtTop)
  */
 TEST_F(CSearchAgentSearchTest, StringBackwardSkipsOverlap)
 {
-	SetDocument({ L"aaa" });
-	ASSERT_THAT(SetKey(L"aa", false, true, false), IsTrue());
+	SetDocument({ LTEXT("aaa") });
+	ASSERT_THAT(SetKey(LTEXT("aa"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(3, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 2, 0));
 }
 
@@ -648,7 +652,7 @@ TEST_F(CSearchAgentSearchTest, StringBackwardSkipsOverlap)
 TEST_F(CSearchAgentSearchTest, WordForward)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -656,7 +660,7 @@ TEST_F(CSearchAgentSearchTest, WordForward)
 TEST_F(CSearchAgentSearchTest, WordForwardSkipsPartOfWord)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(3, 0, SEARCH_FORWARD), ElementsAre(19, 0, 22, 0));
 }
 
@@ -664,7 +668,7 @@ TEST_F(CSearchAgentSearchTest, WordForwardSkipsPartOfWord)
 TEST_F(CSearchAgentSearchTest, WordForwardFromMiddleOfWord)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(20, 0, SEARCH_FORWARD), ElementsAre(19, 0, 22, 0));
 }
 
@@ -672,7 +676,7 @@ TEST_F(CSearchAgentSearchTest, WordForwardFromMiddleOfWord)
 TEST_F(CSearchAgentSearchTest, WordForwardIgnoreCase)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"FOO", false, false, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("FOO"), false, false, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -680,7 +684,7 @@ TEST_F(CSearchAgentSearchTest, WordForwardIgnoreCase)
 TEST_F(CSearchAgentSearchTest, WordForwardMatchCase)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"FOO", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("FOO"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
@@ -688,15 +692,15 @@ TEST_F(CSearchAgentSearchTest, WordForwardMatchCase)
 TEST_F(CSearchAgentSearchTest, WordForwardAnyWordOfKey)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo bar", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo bar"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_FORWARD), ElementsAre(0, 1, 3, 1));
 }
 
 //! 前方: 単語の一部にしか無ければ見つからない
 TEST_F(CSearchAgentSearchTest, WordForwardNotFound)
 {
-	SetDocument({ L"foobar foo_bar\n" });
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	SetDocument({ LTEXT("foobar foo_bar\n") });
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
@@ -704,7 +708,7 @@ TEST_F(CSearchAgentSearchTest, WordForwardNotFound)
 TEST_F(CSearchAgentSearchTest, WordBackward)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(19, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -712,7 +716,7 @@ TEST_F(CSearchAgentSearchTest, WordBackward)
 TEST_F(CSearchAgentSearchTest, WordBackwardFromMiddleOfWord)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(2, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 3, 0));
 }
 
@@ -720,7 +724,7 @@ TEST_F(CSearchAgentSearchTest, WordBackwardFromMiddleOfWord)
 TEST_F(CSearchAgentSearchTest, WordBackwardPrevLine)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_BACKWARD), ElementsAre(19, 0, 22, 0));
 }
 
@@ -728,7 +732,7 @@ TEST_F(CSearchAgentSearchTest, WordBackwardPrevLine)
 TEST_F(CSearchAgentSearchTest, WordBackwardNotFoundAtTop)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_BACKWARD), IsEmpty());
 }
 
@@ -736,9 +740,9 @@ TEST_F(CSearchAgentSearchTest, WordBackwardNotFoundAtTop)
 TEST_F(CSearchAgentSearchTest, WordBackwardIgnoreCase)
 {
 	SetWordDocument();
-	ASSERT_THAT(SetKey(L"FOO", false, false, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("FOO"), false, false, true), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_BACKWARD), ElementsAre(19, 0, 22, 0));
-	ASSERT_THAT(SetKey(L"FOO", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("FOO"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_BACKWARD), IsEmpty());
 }
 
@@ -749,48 +753,48 @@ TEST_F(CSearchAgentSearchTest, WordBackwardIgnoreCase)
 //! 前方: 一致の範囲を返す
 TEST_F(CSearchAgentSearchTest, RegexForward)
 {
-	SetDocument({ L"abbbc abc\n" });
-	ASSERT_THAT(SetKey(L"b+", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abbbc abc\n") });
+	ASSERT_THAT(SetKey(LTEXT("b+"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(1, 0, 4, 0));
 }
 
 //! 前方: 行の途中から探す
 TEST_F(CSearchAgentSearchTest, RegexForwardFromMiddleOfLine)
 {
-	SetDocument({ L"abbbc abc\n" });
-	ASSERT_THAT(SetKey(L"b+", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abbbc abc\n") });
+	ASSERT_THAT(SetKey(LTEXT("b+"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(2, 0, SEARCH_FORWARD), ElementsAre(2, 0, 4, 0));
 }
 
 //! 前方: 一致は行をまたがない。次の行へ進む
 TEST_F(CSearchAgentSearchTest, RegexForwardNextLine)
 {
-	SetDocument({ L"abc\n", L"xbz" });
-	ASSERT_THAT(SetKey(L"b", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("xbz") });
+	ASSERT_THAT(SetKey(LTEXT("b"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(2, 0, SEARCH_FORWARD), ElementsAre(1, 1, 2, 1));
 }
 
 //! 前方: 大文字小文字を区別しない
 TEST_F(CSearchAgentSearchTest, RegexForwardIgnoreCase)
 {
-	SetDocument({ L"abc" });
-	ASSERT_THAT(SetKey(L"B", true, false, false), IsTrue());
+	SetDocument({ LTEXT("abc") });
+	ASSERT_THAT(SetKey(LTEXT("B"), true, false, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(1, 0, 2, 0));
 }
 
 //! 前方: 大文字小文字を区別する
 TEST_F(CSearchAgentSearchTest, RegexForwardMatchCase)
 {
-	SetDocument({ L"abc" });
-	ASSERT_THAT(SetKey(L"B", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc") });
+	ASSERT_THAT(SetKey(LTEXT("B"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
 //! 前方: 行頭(長さ 0)。行の途中から探すと、その行の行頭には一致せず、次の行の行頭に一致する
 TEST_F(CSearchAgentSearchTest, RegexForwardLineHead)
 {
-	SetDocument({ L"abc\n", L"def" });
-	ASSERT_THAT(SetKey(L"^", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("def") });
+	ASSERT_THAT(SetKey(LTEXT("^"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 0, 0));
 	EXPECT_THAT(Search(1, 0, SEARCH_FORWARD), ElementsAre(0, 1, 0, 1));
 }
@@ -798,32 +802,32 @@ TEST_F(CSearchAgentSearchTest, RegexForwardLineHead)
 //! 前方: 行末(長さ 0)は、CRLF の CR の前に一致する
 TEST_F(CSearchAgentSearchTest, RegexForwardLineEnd)
 {
-	SetDocument({ L"abc\r\n", L"def" });
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r\n"), LTEXT("def") });
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(3, 0, 3, 0));
 }
 
 //! 前方: 改行文字の中で一致したときは、一致の始まりを改行文字の始まりに直す(CRLF の LF に一致しても CR から)
 TEST_F(CSearchAgentSearchTest, RegexForwardMatchInsideEol)
 {
-	SetDocument({ L"abc\r\n", L"x\n" });
-	ASSERT_THAT(SetKey(L"\\n", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r\n"), LTEXT("x\n") });
+	ASSERT_THAT(SetKey(LTEXT("\\n"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(3, 0, 5, 0));
 }
 
 //! 前方: 改行文字の中から探し始めると、その行は探さずに次の行へ進む
 TEST_F(CSearchAgentSearchTest, RegexForwardStartInsideEol)
 {
-	SetDocument({ L"abc\r\n", L"x\n" });
-	ASSERT_THAT(SetKey(L"\\n", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r\n"), LTEXT("x\n") });
+	ASSERT_THAT(SetKey(LTEXT("\\n"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(4, 0, SEARCH_FORWARD), ElementsAre(1, 1, 2, 1));
 }
 
 //! 後方: カーソルより前で最後の一致を返す。カーソルの位置から始まる一致は含めない
 TEST_F(CSearchAgentSearchTest, RegexBackward)
 {
-	SetDocument({ L"abcabc" });
-	ASSERT_THAT(SetKey(L"b", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abcabc") });
+	ASSERT_THAT(SetKey(LTEXT("b"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(5, 0, SEARCH_BACKWARD), ElementsAre(4, 0, 5, 0));
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), ElementsAre(1, 0, 2, 0));
 }
@@ -831,32 +835,32 @@ TEST_F(CSearchAgentSearchTest, RegexBackward)
 //! 後方: 前の行へさかのぼる
 TEST_F(CSearchAgentSearchTest, RegexBackwardPrevLine)
 {
-	SetDocument({ L"abc\n", L"xyz" });
-	ASSERT_THAT(SetKey(L"b", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("xyz") });
+	ASSERT_THAT(SetKey(LTEXT("b"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(1, 1, SEARCH_BACKWARD), ElementsAre(1, 0, 2, 0));
 }
 
 //! 後方: 長さ 0 の一致の後は 1 文字進めて探すので、止まらずに行頭の一致を返す
 TEST_F(CSearchAgentSearchTest, RegexBackwardZeroLength)
 {
-	SetDocument({ L"abc" });
-	ASSERT_THAT(SetKey(L"^", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc") });
+	ASSERT_THAT(SetKey(LTEXT("^"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(2, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 0, 0));
 }
 
 //! 正規表現・後方: 長さ 0 の一致の後は 1 文字(サロゲートペアは 2)進めるので、正字と異体字セレクタの間の一致も見つける
 TEST_F(CSearchAgentSearchTest, RegexBackwardZeroLengthBeforeVariationSelector)
 {
-	SetDocument({ L"\u845B\U000E0100x" });	// 葛 + 異体字セレクタ(VS17) + x
-	ASSERT_THAT(SetKey(L"^|\U000E0100", true, true, false), IsTrue());
+	SetDocument({ LTEXT("\u845B\U000E0100x") });	// 葛 + 異体字セレクタ(VS17) + x
+	ASSERT_THAT(SetKey(LTEXT("^|\U000E0100"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), ElementsAre(1, 0, 3, 0));
 }
 
 //! 見つからない
 TEST_F(CSearchAgentSearchTest, RegexNotFound)
 {
-	SetDocument({ L"abc\n", L"xyz" });
-	ASSERT_THAT(SetKey(L"q", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("xyz") });
+	ASSERT_THAT(SetKey(LTEXT("q"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(3, 1, SEARCH_BACKWARD), IsEmpty());
 }
@@ -869,7 +873,7 @@ TEST_F(CSearchAgentSearchTest, RegexNotFound)
 TEST_F(CSearchAgentSearchTest, MarkSearchWordString)
 {
 	SetBookmarkDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, false), IsTrue());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), ElementsAre(0, 1, 2));
 }
@@ -878,7 +882,7 @@ TEST_F(CSearchAgentSearchTest, MarkSearchWordString)
 TEST_F(CSearchAgentSearchTest, MarkSearchWordWord)
 {
 	SetBookmarkDocument();
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), ElementsAre(0, 2));
 }
@@ -887,7 +891,7 @@ TEST_F(CSearchAgentSearchTest, MarkSearchWordWord)
 TEST_F(CSearchAgentSearchTest, MarkSearchWordWordIgnoreCase)
 {
 	SetBookmarkDocument();
-	ASSERT_THAT(SetKey(L"foo", false, false, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, false, true), IsTrue());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), ElementsAre(0, 2, 3));
 }
@@ -896,7 +900,7 @@ TEST_F(CSearchAgentSearchTest, MarkSearchWordWordIgnoreCase)
 TEST_F(CSearchAgentSearchTest, MarkSearchWordRegex)
 {
 	SetBookmarkDocument();
-	ASSERT_THAT(SetKey(L"^foo", true, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("^foo"), true, true, false), IsTrue());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), ElementsAre(0, 1));
 }
@@ -906,7 +910,7 @@ TEST_F(CSearchAgentSearchTest, MarkSearchWordKeepsBookmarks)
 {
 	SetBookmarkDocument();
 	CBookmarkSetter(m_cDocLineMgr.GetLine(CLogicInt(3))).SetBookmark(true);
-	ASSERT_THAT(SetKey(L"foo", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, false), IsTrue());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), ElementsAre(0, 1, 2, 3));
 }
@@ -918,11 +922,11 @@ TEST_F(CSearchAgentSearchTest, MarkSearchWordKeepsBookmarks)
 //! 空の検索語は、文字列でも単語単位でも見つからず、ブックマークも付けない
 TEST_F(CSearchAgentSearchTest, EmptyKey)
 {
-	SetDocument({ L"abc\n" });
-	ASSERT_THAT(SetKey(L"", false, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n") });
+	ASSERT_THAT(SetKey(LTEXT(""), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(3, 0, SEARCH_BACKWARD), IsEmpty());
-	ASSERT_THAT(SetKey(L"", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT(""), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	CBookmarkManager(&m_cDocLineMgr).MarkSearchWord(m_cPattern);
 	EXPECT_THAT(BookmarkedLines(), IsEmpty());
@@ -931,11 +935,11 @@ TEST_F(CSearchAgentSearchTest, EmptyKey)
 //! 単語単位: 区切り(空白・タブ・全角空白)だけの検索語は単語を含まないので見つからない。前後の区切りは無視する
 TEST_F(CSearchAgentSearchTest, WordDelimiterOnlyKey)
 {
-	SetDocument({ L"foo bar\n", L"foo" });
-	ASSERT_THAT(SetKey(L" \t　", false, true, true), IsTrue());
+	SetDocument({ LTEXT("foo bar\n"), LTEXT("foo") });
+	ASSERT_THAT(SetKey(LTEXT(" \t　"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(3, 1, SEARCH_BACKWARD), IsEmpty());
-	ASSERT_THAT(SetKey(L"  foo  ", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("  foo  "), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 3, 0));
 	EXPECT_THAT(Search(3, 1, SEARCH_BACKWARD), ElementsAre(0, 1, 3, 1));
 }
@@ -943,15 +947,15 @@ TEST_F(CSearchAgentSearchTest, WordDelimiterOnlyKey)
 //! 空の文書・範囲外の行から探すと、見つからない
 TEST_F(CSearchAgentSearchTest, EmptyDocumentAndOutOfRangeLine)
 {
-	ASSERT_THAT(SetKey(L"a", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("a"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(0, 0, SEARCH_BACKWARD), IsEmpty());
 
-	SetDocument({ L"abc\n" });
+	SetDocument({ LTEXT("abc\n") });
 	EXPECT_THAT(Search(0, -1, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(0, 1, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(0, 5, SEARCH_BACKWARD), IsEmpty());
-	ASSERT_THAT(SetKey(L"a", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("a"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(0, 5, SEARCH_BACKWARD), IsEmpty());
 }
@@ -959,22 +963,22 @@ TEST_F(CSearchAgentSearchTest, EmptyDocumentAndOutOfRangeLine)
 //! 文字列: 検索語に改行文字を含めると、同じ行の行末までなら一致する。行はまたがない
 TEST_F(CSearchAgentSearchTest, StringKeyContainsEol)
 {
-	SetDocument({ L"abc\r\n", L"def" });
-	ASSERT_THAT(SetKey(L"c\r\n", false, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r\n"), LTEXT("def") });
+	ASSERT_THAT(SetKey(LTEXT("c\r\n"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(2, 0, 5, 0));
-	ASSERT_THAT(SetKey(L"c\n", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("c\n"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
-	ASSERT_THAT(SetKey(L"c\r\ndef", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("c\r\ndef"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
 //! 行末が CR だけの行: 文字列は CR まで一致し、単語単位は前後の行へ進む
 TEST_F(CSearchAgentSearchTest, CrOnlyLineEndings)
 {
-	SetDocument({ L"abc\r", L"def\r", L"ghi" });
-	ASSERT_THAT(SetKey(L"c\r", false, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r"), LTEXT("def\r"), LTEXT("ghi") });
+	ASSERT_THAT(SetKey(LTEXT("c\r"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(2, 0, 4, 0));
-	ASSERT_THAT(SetKey(L"def", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("def"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 1, 3, 1));
 	EXPECT_THAT(Search(3, 2, SEARCH_BACKWARD), ElementsAre(0, 1, 3, 1));
 }
@@ -982,16 +986,16 @@ TEST_F(CSearchAgentSearchTest, CrOnlyLineEndings)
 //! 文字列・後方: カーソルより前から始まり、カーソルをまたぐ一致を返す
 TEST_F(CSearchAgentSearchTest, StringBackwardMatchStraddlesCursor)
 {
-	SetDocument({ L"abcabc" });
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	SetDocument({ LTEXT("abcabc") });
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(5, 0, SEARCH_BACKWARD), ElementsAre(3, 0, 6, 0));
 }
 
 //! 単語単位・後方: 最後の行に行末が無くても、行末から単語をさかのぼる
 TEST_F(CSearchAgentSearchTest, WordBackwardLastLineWithoutEol)
 {
-	SetDocument({ L"foo bar" });
-	ASSERT_THAT(SetKey(L"bar", false, true, true), IsTrue());
+	SetDocument({ LTEXT("foo bar") });
+	ASSERT_THAT(SetKey(LTEXT("bar"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(7, 0, SEARCH_BACKWARD), ElementsAre(4, 0, 7, 0));
 	EXPECT_THAT(Search(6, 0, SEARCH_BACKWARD), ElementsAre(4, 0, 7, 0));
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), IsEmpty());
@@ -1004,8 +1008,8 @@ TEST_F(CSearchAgentSearchTest, WordBackwardLastLineWithoutEol)
  */
 TEST_F(CSearchAgentSearchTest, DISABLED_WordBackwardCursorPastTextSearchesLine)
 {
-	SetDocument({ L"abc\n", L"abc" });
-	ASSERT_THAT(SetKey(L"abc", false, true, true), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("abc") });
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), ElementsAre(0, 0, 3, 0));
 	EXPECT_THAT(Search(100, 1, SEARCH_BACKWARD), ElementsAre(0, 1, 3, 1));
 }
@@ -1013,27 +1017,27 @@ TEST_F(CSearchAgentSearchTest, DISABLED_WordBackwardCursorPastTextSearchesLine)
 //! 単語単位: 検索語の記号も 1 つの単語として扱う(a.b は a・.・b のどれかに一致する)
 TEST_F(CSearchAgentSearchTest, WordKeyPunctuationIsAlsoAWord)
 {
-	SetDocument({ L"x.y\n" });
-	ASSERT_THAT(SetKey(L"a.b", false, true, true), IsTrue());
+	SetDocument({ LTEXT("x.y\n") });
+	ASSERT_THAT(SetKey(LTEXT("a.b"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(1, 0, 2, 0));
 }
 
 //! 単語単位: 全角空白は単語の区切り
 TEST_F(CSearchAgentSearchTest, WordFullWidthSpaceIsDelimiter)
 {
-	SetDocument({ L"foobar foo　baz\n" });
-	ASSERT_THAT(SetKey(L"foo　bar", false, true, true), IsTrue());
+	SetDocument({ LTEXT("foobar foo　baz\n") });
+	ASSERT_THAT(SetKey(LTEXT("foo　bar"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(7, 0, 10, 0));
 }
 
 //! 単語単位: ひらがなとカタカナの境目で単語が分かれる
 TEST_F(CSearchAgentSearchTest, WordKanaBoundaries)
 {
-	SetDocument({ L"ひらがなカタカナ\n" });
-	ASSERT_THAT(SetKey(L"カタカナ", false, true, true), IsTrue());
+	SetDocument({ LTEXT("ひらがなカタカナ\n") });
+	ASSERT_THAT(SetKey(LTEXT("カタカナ"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(4, 0, 8, 0));
 	EXPECT_THAT(Search(8, 0, SEARCH_BACKWARD), ElementsAre(4, 0, 8, 0));
-	ASSERT_THAT(SetKey(L"がな", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("がな"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
@@ -1044,12 +1048,12 @@ TEST_F(CSearchAgentSearchTest, WordKanaBoundaries)
  */
 TEST_F(CSearchAgentSearchTest, WordProlongedSoundMarkJoinsBothSides)
 {
-	SetDocument({ L"あーカ\n" });
-	ASSERT_THAT(SetKey(L"あー", false, true, true), IsTrue());
+	SetDocument({ LTEXT("あーカ\n") });
+	ASSERT_THAT(SetKey(LTEXT("あー"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 0, 2, 0));
-	ASSERT_THAT(SetKey(L"ーカ", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("ーカ"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(1, 0, 3, 0));
-	ASSERT_THAT(SetKey(L"カ", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("カ"), false, true, true), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 	EXPECT_THAT(Search(3, 0, SEARCH_BACKWARD), IsEmpty());
 }
@@ -1061,18 +1065,18 @@ TEST_F(CSearchAgentSearchTest, WordProlongedSoundMarkJoinsBothSides)
  */
 TEST_F(CSearchAgentSearchTest, DISABLED_StringKeyDoesNotCutCharacter)
 {
-	SetDocument({ L"\U00020BB7\n" });	// 𠮷
-	ASSERT_THAT(SetKey(L"\xDFB7", false, true, false), IsTrue());
+	SetDocument({ LTEXT("\U00020BB7\n") });	// 𠮷
+	ASSERT_THAT(SetKey(LTEXT("\xDFB7"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
-	ASSERT_THAT(SetKey(L"\xD842", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("\xD842"), false, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), IsEmpty());
 }
 
 //! 正規表現: 行末(長さ 0)は、LF・CR・行末なしのどの行でも改行文字の前に一致する
 TEST_F(CSearchAgentSearchTest, RegexLineEndEachEol)
 {
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
-	SetDocument({ L"abc\n", L"abc\r", L"abc" });
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\n"), LTEXT("abc\r"), LTEXT("abc") });
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(3, 0, 3, 0));
 	EXPECT_THAT(Search(0, 1, SEARCH_FORWARD), ElementsAre(3, 1, 3, 1));
 	EXPECT_THAT(Search(0, 2, SEARCH_FORWARD), ElementsAre(3, 2, 3, 2));
@@ -1081,8 +1085,8 @@ TEST_F(CSearchAgentSearchTest, RegexLineEndEachEol)
 //! 正規表現・後方: 行末(長さ 0)はカーソルの位置から始まるので含めず、カーソルより後ろからなら一致する
 TEST_F(CSearchAgentSearchTest, RegexBackwardLineEnd)
 {
-	SetDocument({ L"abc" });
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc") });
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(3, 0, SEARCH_BACKWARD), IsEmpty());
 	EXPECT_THAT(Search(4, 0, SEARCH_BACKWARD), ElementsAre(3, 0, 3, 0));
 }
@@ -1090,24 +1094,24 @@ TEST_F(CSearchAgentSearchTest, RegexBackwardLineEnd)
 //! 正規表現・後方: 前の行へさかのぼると、その行の行末(長さ 0)に一致する
 TEST_F(CSearchAgentSearchTest, RegexBackwardPrevLineEnd)
 {
-	SetDocument({ L"ab\n", L"cd" });
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
+	SetDocument({ LTEXT("ab\n"), LTEXT("cd") });
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 1, SEARCH_BACKWARD), ElementsAre(2, 0, 2, 0));
 }
 
 //! 正規表現: 「.」は改行文字に一致しないので、改行だけの行を飛ばす
 TEST_F(CSearchAgentSearchTest, RegexDotSkipsEol)
 {
-	SetDocument({ L"\r\n", L"ab" });
-	ASSERT_THAT(SetKey(L".", true, true, false), IsTrue());
+	SetDocument({ LTEXT("\r\n"), LTEXT("ab") });
+	ASSERT_THAT(SetKey(LTEXT("."), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(0, 1, 1, 1));
 }
 
 //! 正規表現: 「\r」は CRLF の CR だけに一致する(改行文字の途中までの範囲を返す)
 TEST_F(CSearchAgentSearchTest, RegexCrInsideCrlf)
 {
-	SetDocument({ L"abc\r\n" });
-	ASSERT_THAT(SetKey(L"\\r", true, true, false), IsTrue());
+	SetDocument({ LTEXT("abc\r\n") });
+	ASSERT_THAT(SetKey(LTEXT("\\r"), true, true, false), IsTrue());
 	EXPECT_THAT(Search(0, 0, SEARCH_FORWARD), ElementsAre(3, 0, 4, 0));
 }
 
@@ -1119,7 +1123,7 @@ TEST_F(CSearchAgentSearchTest, RegexCrInsideCrlf)
  */
 struct CLineMatchFinderTest : public CSearchAgentSearchTest {
 	//! 行の先頭から順に探し、見つかった一致を { 始まり, 長さ, 始まり, 長さ, ... } で返す
-	std::vector<int> FindAll(std::wstring_view line)
+	std::vector<int> FindAll(sakura::wstring_view line)
 	{
 		const CLineMatchFinder finder(m_cPattern, &m_cRegexp);
 		const auto nLineLen = static_cast<int>(line.length());
@@ -1134,7 +1138,7 @@ struct CLineMatchFinderTest : public CSearchAgentSearchTest {
 	}
 
 	//! nStart から 1 つ探す。見つかれば { 始まり, 長さ }、見つからなければ空
-	std::vector<int> Find(std::wstring_view line, int nStart)
+	std::vector<int> Find(sakura::wstring_view line, int nStart)
 	{
 		const CLineMatchFinder finder(m_cPattern, &m_cRegexp);
 		const auto match = finder.Find(line.data(), static_cast<int>(line.length()), nStart);
@@ -1148,61 +1152,61 @@ struct CLineMatchFinderTest : public CSearchAgentSearchTest {
 //! 文字列: 一致の後ろから次を探すので、重なる一致は数えない
 TEST_F(CLineMatchFinderTest, StringDoesNotOverlap)
 {
-	ASSERT_THAT(SetKey(L"aa", false, true, false), IsTrue());
-	EXPECT_THAT(FindAll(L"aaaaa\n"), ElementsAre(0, 2, 2, 2));
+	ASSERT_THAT(SetKey(LTEXT("aa"), false, true, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("aaaaa\n")), ElementsAre(0, 2, 2, 2));
 }
 
 //! 文字列: 大文字と小文字を区別しない
 TEST_F(CLineMatchFinderTest, StringIgnoreCase)
 {
-	ASSERT_THAT(SetKey(L"ab", false, false, false), IsTrue());
-	EXPECT_THAT(FindAll(L"Ab xaB"), ElementsAre(0, 2, 4, 2));
+	ASSERT_THAT(SetKey(LTEXT("ab"), false, false, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("Ab xaB")), ElementsAre(0, 2, 4, 2));
 }
 
 //! 文字列: 見つからない・検索語が行より長い
 TEST_F(CLineMatchFinderTest, StringNotFound)
 {
-	ASSERT_THAT(SetKey(L"ab", false, true, false), IsTrue());
-	EXPECT_THAT(FindAll(L"xyz"), IsEmpty());
-	EXPECT_THAT(FindAll(L"a"), IsEmpty());
+	ASSERT_THAT(SetKey(LTEXT("ab"), false, true, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("xyz")), IsEmpty());
+	EXPECT_THAT(FindAll(LTEXT("a")), IsEmpty());
 }
 
 //! 単語単位: 単語の一部(foobar・foo_bar の foo)は飛ばす
 TEST_F(CLineMatchFinderTest, WordSkipsPartOfWord)
 {
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
-	EXPECT_THAT(FindAll(L"foo foobar foo_bar foo\n"), ElementsAre(0, 3, 19, 3));
-	EXPECT_THAT(FindAll(L"foobar"), IsEmpty());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("foo foobar foo_bar foo\n")), ElementsAre(0, 3, 19, 3));
+	EXPECT_THAT(FindAll(LTEXT("foobar")), IsEmpty());
 }
 
 //! 単語単位: 検索語が 2 単語なら、どちらにも一致する
 TEST_F(CLineMatchFinderTest, WordMultipleWordsKey)
 {
-	ASSERT_THAT(SetKey(L"foo bar", false, true, true), IsTrue());
-	EXPECT_THAT(FindAll(L"bar x foo"), ElementsAre(0, 3, 6, 3));
+	ASSERT_THAT(SetKey(LTEXT("foo bar"), false, true, true), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("bar x foo")), ElementsAre(0, 3, 6, 3));
 }
 
 //! 単語単位: 単語の途中から探すと、その単語は飛ばす
 TEST_F(CLineMatchFinderTest, WordStartInsideWord)
 {
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
-	EXPECT_THAT(Find(L"foofoo foo", 1), ElementsAre(7, 3));
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
+	EXPECT_THAT(Find(LTEXT("foofoo foo"), 1), ElementsAre(7, 3));
 }
 
 //! 単語単位: 探し始める位置を含む単語が検索語と同じでも、探し始める位置より前から始まるなら飛ばす
 TEST_F(CLineMatchFinderTest, WordContainingStart)
 {
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
-	EXPECT_THAT(Find(L"foo foo", 1), ElementsAre(4, 3));
-	EXPECT_THAT(Find(L"foo foo", 3), ElementsAre(4, 3));
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
+	EXPECT_THAT(Find(LTEXT("foo foo"), 1), ElementsAre(4, 3));
+	EXPECT_THAT(Find(LTEXT("foo foo"), 3), ElementsAre(4, 3));
 }
 
 //! 単語単位(FindIncludingWordAt): 探し始める位置を含む単語が検索語と同じなら、その単語の先頭を返す(探し始める位置より前でも)
 TEST_F(CLineMatchFinderTest, WordIncludingWordAt)
 {
-	ASSERT_THAT(SetKey(L"foo", false, true, true), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("foo"), false, true, true), IsTrue());
 	const CLineMatchFinder finder(m_cPattern, &m_cRegexp);
-	constexpr std::wstring_view line = L"foo foo";
+	constexpr sakura::wstring_view line = LTEXT("foo foo");
 	const auto match = finder.FindIncludingWordAt(line.data(), static_cast<int>(line.length()), 1);
 	ASSERT_THAT(match.has_value(), IsTrue());
 	EXPECT_THAT(match->nIndex, Eq(0));
@@ -1212,42 +1216,42 @@ TEST_F(CLineMatchFinderTest, WordIncludingWordAt)
 //! 単語単位: 長音「ー」は前後どちらの単語にも付くので、一致の終わりから探すと前の一致に重なる単語が見つかる。重なる一致は返さない
 TEST_F(CLineMatchFinderTest, WordOverlapByProlongedSoundMark)
 {
-	ASSERT_THAT(SetKey(L"あー ーカ", false, true, true), IsTrue());
-	EXPECT_THAT(FindAll(L"あーカ"), ElementsAre(0, 2));
+	ASSERT_THAT(SetKey(LTEXT("あー ーカ"), false, true, true), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("あーカ")), ElementsAre(0, 2));
 }
 
 //! 正規表現: 1 行の中の一致をすべて探す
 TEST_F(CLineMatchFinderTest, RegexFindsEachMatch)
 {
-	ASSERT_THAT(SetKey(L"[0-9]+", true, true, false), IsTrue());
-	EXPECT_THAT(FindAll(L"a1b22\r\n"), ElementsAre(1, 1, 3, 2));
-	EXPECT_THAT(FindAll(L"abc\r\n"), IsEmpty());
+	ASSERT_THAT(SetKey(LTEXT("[0-9]+"), true, true, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("a1b22\r\n")), ElementsAre(1, 1, 3, 2));
+	EXPECT_THAT(FindAll(LTEXT("abc\r\n")), IsEmpty());
 }
 
 //! 正規表現: 長さ 0 の一致(行頭・行末)は、同じ位置で 2 回数えない
 TEST_F(CLineMatchFinderTest, RegexZeroLength)
 {
-	ASSERT_THAT(SetKey(L"^", true, true, false), IsTrue());
-	EXPECT_THAT(FindAll(L"ab\r\n"), ElementsAre(0, 0));
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
-	EXPECT_THAT(FindAll(L"ab"), ElementsAre(2, 0));
+	ASSERT_THAT(SetKey(LTEXT("^"), true, true, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("ab\r\n")), ElementsAre(0, 0));
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("ab")), ElementsAre(2, 0));
 }
 
 //! 正規表現と単語単位の両方を指定したときは、正規表現で探す
 TEST_F(CLineMatchFinderTest, RegexTakesPrecedenceOverWord)
 {
-	ASSERT_THAT(SetKey(L"fo+", true, true, true), IsTrue());
-	EXPECT_THAT(FindAll(L"foo foobar"), ElementsAre(0, 3, 4, 3));
+	ASSERT_THAT(SetKey(LTEXT("fo+"), true, true, true), IsTrue());
+	EXPECT_THAT(FindAll(LTEXT("foo foobar")), ElementsAre(0, 3, 4, 3));
 }
 
 //! 探し始める位置が行の長さ以上なら、見つからない
 //! (行の長さちょうどは CBregexp::Match() が一致にしない。行の長さより後ろは部品が探さない)
 TEST_F(CLineMatchFinderTest, StartBeyondLine)
 {
-	ASSERT_THAT(SetKey(L"$", true, true, false), IsTrue());
-	EXPECT_THAT(Find(L"ab", 1), ElementsAre(2, 0));
-	EXPECT_THAT(Find(L"ab", 2), IsEmpty());
-	EXPECT_THAT(Find(L"ab", 3), IsEmpty());
+	ASSERT_THAT(SetKey(LTEXT("$"), true, true, false), IsTrue());
+	EXPECT_THAT(Find(LTEXT("ab"), 1), ElementsAre(2, 0));
+	EXPECT_THAT(Find(LTEXT("ab"), 2), IsEmpty());
+	EXPECT_THAT(Find(LTEXT("ab"), 3), IsEmpty());
 }
 
 /*!
@@ -1259,7 +1263,7 @@ struct CompileRegexpTest : public CLineMatchFinderTest {
 	CBregexp m_cOtherRegexp;
 
 	//! 別の CBregexp を使って、行の先頭から順に探す
-	std::vector<int> FindAllWithOther(std::wstring_view line)
+	std::vector<int> FindAllWithOther(sakura::wstring_view line)
 	{
 		const CLineMatchFinder finder(m_cPattern, &m_cOtherRegexp);
 		const auto nLineLen = static_cast<int>(line.length());
@@ -1277,37 +1281,37 @@ struct CompileRegexpTest : public CLineMatchFinderTest {
 //! 正規表現: 別の CBregexp でも、同じ一致になる
 TEST_F(CompileRegexpTest, SameMatches)
 {
-	ASSERT_THAT(SetKey(L"H.T", true, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("H.T"), true, true, false), IsTrue());
 	ASSERT_THAT(m_cPattern.CompileRegexp(m_cOtherRegexp), IsTrue());
-	EXPECT_THAT(FindAllWithOther(L"xHIT HAT hit\n"), ElementsAre(1, 3, 5, 3));
-	EXPECT_THAT(FindAllWithOther(L"xHIT HAT hit\n"), ::testing::ContainerEq(FindAll(L"xHIT HAT hit\n")));
+	EXPECT_THAT(FindAllWithOther(LTEXT("xHIT HAT hit\n")), ElementsAre(1, 3, 5, 3));
+	EXPECT_THAT(FindAllWithOther(LTEXT("xHIT HAT hit\n")), ::testing::ContainerEq(FindAll(LTEXT("xHIT HAT hit\n"))));
 }
 
 //! 正規表現: 大文字と小文字を区別しない指定も引き継ぐ
 TEST_F(CompileRegexpTest, IgnoreCase)
 {
-	ASSERT_THAT(SetKey(L"hit", true, false, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("hit"), true, false, false), IsTrue());
 	ASSERT_THAT(m_cPattern.CompileRegexp(m_cOtherRegexp), IsTrue());
-	EXPECT_THAT(FindAllWithOther(L"HIT Hit\n"), ElementsAre(0, 3, 4, 3));
+	EXPECT_THAT(FindAllWithOther(LTEXT("HIT Hit\n")), ElementsAre(0, 3, 4, 3));
 }
 
 //! 正規表現の置換: 置換後文字列と全域オプションも引き継ぐ
 TEST_F(CompileRegexpTest, ReplacePattern)
 {
-	m_strKey = L"HIT";
+	m_strKey = LTEXT("HIT");
 	m_sSearchOption = SSearchOption(true, true, false);
-	ASSERT_THAT(m_cPattern.SetPattern(nullptr, m_strKey.c_str(), m_strKey.length(), L"R", m_sSearchOption, &m_cRegexp, true), IsTrue());
+	ASSERT_THAT(m_cPattern.SetPattern(nullptr, m_strKey.c_str(), m_strKey.length(), LTEXT("R"), m_sSearchOption, &m_cRegexp, true), IsTrue());
 	ASSERT_THAT(m_cPattern.CompileRegexp(m_cOtherRegexp), IsTrue());
 
-	constexpr std::wstring_view target = L"HIT x HIT";
+	constexpr sakura::wstring_view target = LTEXT("HIT x HIT");
 	EXPECT_THAT(m_cOtherRegexp.Replace(target.data(), static_cast<int>(target.length())), Eq(2));
-	EXPECT_THAT(std::wstring_view(m_cOtherRegexp.GetString(), m_cOtherRegexp.GetStringLen()), Eq(L"R x R"));
+	EXPECT_THAT(sakura::wstring_view(m_cOtherRegexp.GetString(), m_cOtherRegexp.GetStringLen()), Eq(LTEXT("R x R")));
 }
 
 //! 正規表現でなければ、何もせず true を返す(別の CBregexp は初期化しない)
 TEST_F(CompileRegexpTest, NotRegexp)
 {
-	ASSERT_THAT(SetKey(L"abc", false, true, false), IsTrue());
+	ASSERT_THAT(SetKey(LTEXT("abc"), false, true, false), IsTrue());
 	EXPECT_THAT(m_cPattern.CompileRegexp(m_cOtherRegexp), IsTrue());
 	EXPECT_THAT(m_cOtherRegexp.IsAvailable(), IsFalse());
 }
@@ -1322,7 +1326,7 @@ TEST_F(CompileRegexpTest, BeforeSetPattern)
 //! 次に探し始める位置: 一致の後ろ。長さ 0 の一致なら 1 文字(サロゲートペアは 2)進め、行の末尾でも 1 進める
 TEST(CLineMatchFinder, GetNextStart)
 {
-	constexpr std::wstring_view line = L"a\U0001F600b";
+	constexpr sakura::wstring_view line = LTEXT("a\U0001F600b");
 	const auto nLineLen = static_cast<int>(line.length());
 	EXPECT_THAT(CLineMatchFinder::GetNextStart(line.data(), nLineLen, { 1, 2 }), Eq(3));
 	EXPECT_THAT(CLineMatchFinder::GetNextStart(line.data(), nLineLen, { 0, 0 }), Eq(1));

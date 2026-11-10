@@ -13,9 +13,13 @@
 #include <csignal>
 #include <ctime>
 #include <string>
+#include <mutex>
 #include <thread>
+#include <unordered_map>
 
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #if defined(__APPLE__)
 #  include <os/log.h>
@@ -226,6 +230,15 @@ BOOL SetFileAttributesW(const WCHAR* lpFileName, DWORD dwFileAttributes)
 	return TRUE;
 }
 
+int _waccess(const WCHAR* path, int mode)
+{
+	if (!path || (mode & ~6) != 0) { errno = EINVAL; return -1; }
+	int amode = F_OK;
+	if (mode & 2) amode |= W_OK;
+	if (mode & 4) amode |= R_OK;
+	return ::access(sakura::u16::to_utf8(path).c_str(), amode);
+}
+
 FILE* _wfopen(const WCHAR* filename, const WCHAR* mode)
 {
 	if (!filename || !mode) { errno = EINVAL; return nullptr; }
@@ -235,4 +248,46 @@ FILE* _wfopen(const WCHAR* filename, const WCHAR* mode)
 		if (*p != u't' && *p != u' ') m.push_back(static_cast<char>(*p));
 	}
 	return std::fopen(sakura::u16::to_utf8(filename).c_str(), m.c_str());
+}
+
+// ---------------------------------------------------------------------------
+// 虚拟内存：用 mmap 实现。MEM_RELEASE 时 Windows 不需要大小，这里记住每块的大小
+// ---------------------------------------------------------------------------
+namespace {
+std::mutex g_virtualMutex;
+std::unordered_map<void*, size_t>& VirtualBlocks()
+{
+	static std::unordered_map<void*, size_t> blocks;
+	return blocks;
+}
+} // namespace
+
+LPVOID VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
+{
+	if (lpAddress || dwSize == 0 || (flAllocationType & (MEM_COMMIT | MEM_RESERVE)) != (MEM_COMMIT | MEM_RESERVE) || flProtect != PAGE_READWRITE) {
+		SetLastError(ERROR_INVALID_PARAMETER);
+		return nullptr;
+	}
+	void* p = ::mmap(nullptr, dwSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	if (p == MAP_FAILED) {
+		SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+		return nullptr;
+	}
+	std::lock_guard lock(g_virtualMutex);
+	VirtualBlocks()[p] = dwSize;
+	return p;
+}
+
+BOOL VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
+{
+	if (dwFreeType != MEM_RELEASE || dwSize != 0) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
+	size_t size = 0;
+	{
+		std::lock_guard lock(g_virtualMutex);
+		auto it = VirtualBlocks().find(lpAddress);
+		if (it == VirtualBlocks().end()) { SetLastError(ERROR_INVALID_ADDRESS); return FALSE; }
+		size = it->second;
+		VirtualBlocks().erase(it);
+	}
+	return ::munmap(lpAddress, size) == 0 ? TRUE : FALSE;
 }

@@ -66,17 +66,14 @@ add_custom_command(
 # ---------------------------------------------------------------------------
 # 核心库
 # ---------------------------------------------------------------------------
-set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse)
+set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse doc/logic types)
 # 暂不编入核心库的文件（依赖尚未移植的模块，或 Mac 版不需要）
 set(SAKURA_CORE_EXCLUDE
   # Mac 版不需要
   basis/CErrorInfo.cpp            # COM 的 IErrorInfo 实现
   io/CZipFile.cpp                 # 用 Windows Shell 解压 zip，只给插件安装用；Mac 版不支持 DLL 插件
-  # 第 20 步（doc、types）移植后加入
-  io/CFile.cpp                    # 依赖 window/CEditWnd.h
-  io/CFileLoad.cpp                # 依赖 charset/CESI 和 window/CEditWnd.h
-  docplus/CDiffManager.cpp        # 依赖 window/CEditWnd.h 和绘制
-  docplus/CModifyManager.cpp      # 依赖 doc/CEditDoc 和 COM 的 VARIANT（宏接口）
+  # 第 20 步：编辑画面的部分
+  types/CTypeSupport.cpp          # 按类型设置绘制颜色和字体（CGraphics）：第 28 步（Core Text 绘制）
 )
 # grep/GrepMessageFormat.cpp 依赖 env/DLLSHAREDATA，第 21 步（env）移植后把 grep 加进 SAKURA_CORE_DIRS
 
@@ -94,6 +91,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/util/tchar_convert.cpp
   sakura_core/util/string_ex.cpp
   sakura_core/util/string_ex2.cpp
+  sakura_core/util/relation_tool.cpp      # 第 20 步：CSubject / CListener（文档事件的通知）
   sakura_core/window/CMainStatusBar.cpp   # 只编译 UnicodeToHex（状态栏的字符编码显示），其余是 Windows 界面
   # 第 19 步：外部模块。对应的库在上面的“第三方库”里编译
   # （CMigemo.cpp 用到共通设置里的 DLL 名和词典路径，第 21 步 env 移植后加入）
@@ -101,6 +99,25 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/extmodule/CBregexpDll2.cpp
   sakura_core/extmodule/CBregexp.cpp
   sakura_core/extmodule/CUchardet.cpp     # uchardet 不内置（与 Windows 官方版相同），加载总是失败
+  # 第 20 步：文档模型和语法类型（doc/logic、types 整个目录在上面的 SAKURA_CORE_DIRS）
+  # doc 目录里只编入不依赖编辑画面的文件；CEditDoc、CDocEditor、CDocFileOperation 等是文档窗口的部分，
+  # 第 26 步（窗口框架）、第 29 步（打开与保存）加入。doc/layout（排版）是第 27 步
+  sakura_core/doc/CBlockComment.cpp
+  sakura_core/doc/CLineComment.cpp
+  sakura_core/doc/CDocTypeSetting.cpp
+  sakura_core/doc/CDocReader.cpp
+  sakura_core/doc/CDocFile.cpp
+  sakura_core/doc/CDocOutline.cpp         # 大纲解析（各语言的解析函数在 types/CType_*.cpp）
+  sakura_core/outline/CFuncInfo.cpp
+  sakura_core/outline/CFuncInfoArr.cpp
+  sakura_core/cmd/COpe.cpp                # 撤销/重做的操作记录
+  sakura_core/cmd/COpeBlk.cpp
+  sakura_core/cmd/COpeBuf.cpp
+  sakura_core/agent/CSearchAgent.cpp      # 文档内的查找和替换
+  sakura_core/doc/CDocListener.cpp        # 文档事件（读入、保存）的通知
+  sakura_core/docplus/CModifyManager.cpp  # 行的修改标记
+  sakura_core/_main/global.cpp            # 查找选项等共用定义（进程相关的部分在第 26 步）
+  sakura_core/env/CKeyWordSetMgr.cpp      # 强调关键字（类型别设置和共通设置里使用；env 的其余部分是第 21 步）
 )
 list(TRANSFORM SAKURA_CORE_EXTRA_SOURCES PREPEND "${SAKURA_ROOT}/")
 list(APPEND SAKURA_CORE_SOURCES ${SAKURA_CORE_EXTRA_SOURCES})
@@ -172,6 +189,8 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/codepage_data.cpp"
   "${SAKURA_ROOT}/macos/platform/src/ui_bridge.cpp"
   "${SAKURA_ROOT}/macos/platform/src/static_modules.cpp"
+  "${SAKURA_ROOT}/macos/platform/src/ole_types.cpp"      # 第 20 步：BSTR、VARIANT
+  "${SAKURA_ROOT}/macos/platform/src/file_api.cpp"       # 第 20 步：CreateFileW、文件映射
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")

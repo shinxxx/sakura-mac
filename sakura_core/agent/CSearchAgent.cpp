@@ -12,14 +12,18 @@
 #include "doc/logic/CDocLineMgr.h"
 #include "doc/logic/CDocLine.h"
 #include "cmd/COpe.h"
+#if defined(_WIN32)
 #include "dlg/CDlgCancel.h"
+#endif
 #include "util/string_ex.h"
 #include <algorithm>
 #include <limits>
 #include "sakura_rc.h"
+#if defined(_WIN32)
 #include "CEditApp.h"
 #include "agent/CGrepAgent.h"
 #include "apiwrap/CommonControl.h"
+#endif
 #include "env/DLLSHAREDATA.h"
 
 // CSearchStringPattern
@@ -716,6 +720,7 @@ void CSearchAgent::ReplaceData( DocLineReplaceArg* pArg, bool bEnableExtEol )
 	pArg->ptNewPos = pArg->sDelRange.GetFrom();
 
 	/* 大量のデータを操作するとき */
+#if defined(_WIN32)	// Mac 版: 進捗ダイアログは移植計画のステップ 31（検索と置換）で画面側に用意する
 	CDlgCancel*	pCDlgCancel = nullptr;
 	class CDLgCandelCloser{
 		CDlgCancel*& m_pDlg;
@@ -750,6 +755,9 @@ void CSearchAgent::ReplaceData( DocLineReplaceArg* pArg, bool bEnableExtEol )
 			}
 		}
 	}
+#else
+	const CLogicInt nDelLines = pArg->sDelRange.GetTo().y - pArg->sDelRange.GetFrom().y;
+#endif // defined(_WIN32)
 	int nProgressOld = 0;
 
 	// バッファを確保
@@ -981,6 +989,7 @@ prev_line:;
 		--m_pcDocLineMgr->m_nPrevReferLine;
 		m_pcDocLineMgr->m_pCodePrevRefer = pCDocLine;
 
+#if defined(_WIN32)
 		if( nullptr != hwndCancel){
 			int nLines = pArg->sDelRange.GetTo().y - i;
 			if( 0 == (nLines % 32) ){
@@ -992,6 +1001,7 @@ prev_line:;
 				}
 			}
 		}
+#endif // defined(_WIN32)
 	}
 
 	if( pArg->pcmemDeleted ){
@@ -1116,6 +1126,7 @@ prev_line:;
 
 			/* 挿入データを行終端で区切った行数カウンタ */
 			++(pArg->ptNewPos.y);	/* 挿入された部分の次の位置の行 */
+#if defined(_WIN32)
 			if( nullptr != hwndCancel ){
 				if( 0 == (nCount % 32) ){
 					nProgress = ::MulDiv(nCount + nDelLines, 100, nEditLines);
@@ -1126,6 +1137,7 @@ prev_line:;
 					}
 				}
 			}
+#endif // defined(_WIN32)
 		}
 	}
 	if( bLastInsert || 0 < cNextLine.GetLength() ){

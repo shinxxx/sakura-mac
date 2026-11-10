@@ -14,7 +14,7 @@
 | 写出 | 与原版 `env/CWriteManager.cpp` 相同：有 BOM 时在第一行前加 U+FEFF，每行（含换行符）分别 `UnicodeToCode` 后连接。样本也按这种逐行的方式生成，所以 ISO-2022 等有状态的编码每行重新指定字符集 |
 | 测试 | `macos/core/tests/test-mac-roundtrip.cpp`，每个样本一个测试（`Samples/RoundTrip.LoadThenSaveIsByteIdentical/名前`） |
 
-原版的 `CFileLoad`、`CWriteManager` 依赖设置模块（共享内存），第 20、21 步之后才能编进 Mac 版，所以这里按它们的做法直接调用同样的转换函数。第 29 步“打开与保存”时，再用同一批样本在 App 里验证一次。
+原版的 `CWriteManager` 依赖设置模块（共享内存），第 21 步之后才能编进 Mac 版，所以写出按它的做法直接调用同样的转换函数。读入从第 20 步起改为走真正的 `CFileLoad`（含分段读取），见[文档模型和语法类型](phase1-doc-types.md)。第 29 步“打开与保存”时，再用同一批样本在 App 里验证一次。
 
 ## 覆盖范围
 

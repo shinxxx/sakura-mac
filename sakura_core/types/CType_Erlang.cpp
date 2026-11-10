@@ -198,7 +198,7 @@ const WCHAR* COutlineErlang::ScanArgs( const WCHAR* end, const WCHAR* p )
 {
 	assert( m_state == STATE_FUNC_ARGS );
 
-	constexpr auto parptr_max = std::size(m_parenthesis);
+	const auto parptr_max = std::size(m_parenthesis);	// Mac 版: clang はメンバー配列の std::size を定数式にできない
 	WCHAR quote = LCHAR('\0'); // 先頭位置を保存
 	for(const WCHAR* head = p ; p < end ; p++ ){
 		if( quote ){

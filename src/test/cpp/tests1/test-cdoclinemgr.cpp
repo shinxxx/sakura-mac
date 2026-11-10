@@ -23,7 +23,7 @@ TEST(CDocLineMgr, ListManipulations)
 	// 1行追加する。行数1。
 	CDocLine* a = m.AddNewLine();
 	ASSERT_NE(a, nullptr);
-	a->SetDocLineString(L"A", 1, false);
+	a->SetDocLineString(LTEXT("A"), 1, false);
 	EXPECT_EQ(m.GetLineCount(), 1);
 	EXPECT_EQ(m.GetLine(CLogicInt(0)), a);
 	EXPECT_EQ(m.GetLine(CLogicInt(1)), nullptr);
@@ -33,7 +33,7 @@ TEST(CDocLineMgr, ListManipulations)
 	// 先頭に1行入れる。行数2。
 	CDocLine* b = m.InsertNewLine(m.GetDocLineTop());
 	ASSERT_NE(b, nullptr);
-	b->SetDocLineString(L"B", 1, false);
+	b->SetDocLineString(LTEXT("B"), 1, false);
 	EXPECT_EQ(m.GetLineCount(), 2);
 	//EXPECT_EQ(m.GetLine(CLogicInt(0)), b);
 	//EXPECT_EQ(m.GetLine(CLogicInt(1)), a);
@@ -44,7 +44,7 @@ TEST(CDocLineMgr, ListManipulations)
 	// 中間に1行入れる。行数3。
 	CDocLine* c = m.InsertNewLine(m.GetDocLineBottom());
 	ASSERT_NE(c, nullptr);
-	c->SetDocLineString(L"C", 1, false);
+	c->SetDocLineString(LTEXT("C"), 1, false);
 	EXPECT_EQ(m.GetLineCount(), 3);
 	//EXPECT_EQ(m.GetLine(CLogicInt(0)), b);
 	//EXPECT_EQ(m.GetLine(CLogicInt(1)), c);
@@ -55,7 +55,7 @@ TEST(CDocLineMgr, ListManipulations)
 	// 末尾に1行追加する。行数4。
 	CDocLine* d = m.InsertNewLine(nullptr);
 	ASSERT_NE(d, nullptr);
-	d->SetDocLineString(L"D", 1, false);
+	d->SetDocLineString(LTEXT("D"), 1, false);
 	EXPECT_EQ(m.GetLineCount(), 4);
 	EXPECT_EQ(m.GetLine(CLogicInt(0)), b);
 	EXPECT_EQ(m.GetLine(CLogicInt(1)), c);
@@ -67,7 +67,7 @@ TEST(CDocLineMgr, ListManipulations)
 	// 末尾に1行追加する。行数5。
 	CDocLine* e = m.AddNewLine();
 	ASSERT_NE(e, nullptr);
-	e->SetDocLineString(L"E", 1, false);
+	e->SetDocLineString(LTEXT("E"), 1, false);
 	EXPECT_EQ(m.GetLineCount(), 5);
 	EXPECT_EQ(m.GetLine(CLogicInt(0)), b);
 	EXPECT_EQ(m.GetLine(CLogicInt(1)), c);

@@ -7,7 +7,9 @@
 #include "StdAfx.h"
 #include "io/CFile.h"
 
+#if defined(_WIN32)
 #include "window/CEditWnd.h" // 変更予定
+#endif
 #include "CSelectLang.h"
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
@@ -140,7 +142,11 @@ bool CFile::FileLock( EShareMode eShareMode, bool bMsg )
 		default:						pszMode = LS(STR_EXCLU_UNDEFINED); break;
 		}
 		TopWarningMessage(
+#if defined(_WIN32)
 			CEditWnd::getInstance()->GetHwnd(),
+#else
+			nullptr,	// Mac 版: 親ウィンドウは画面側（移植計画のステップ 24 以降）で決める
+#endif
 			LS(STR_FILE_LOCK_ERR),
 			GetFilePathClass().IsValidPath() ? GetFilePath() : LS(STR_NO_TITLE1),
 			pszMode

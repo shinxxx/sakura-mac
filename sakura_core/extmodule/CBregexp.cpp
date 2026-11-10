@@ -28,9 +28,11 @@
 #include <string.h>
 #include "CBregexp.h"
 #include "charset/charcode.h"
-#if defined(_WIN32)	// Mac 版では共通設定（第 21 步）と画面（阶段 2）の移植後に使う
-#include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
+#include "CSelectLang.h"
+#include "sakura_rc.h"
+#if defined(_WIN32)	// Mac 版: ダイアログ部品（CheckRegexpVersion）は設定画面の移植時に使う
+#include "env/CShareData.h"
 #include "apiwrap/StdControl.h"
 #endif
 
@@ -559,7 +561,6 @@ const WCHAR* CBregexp::GetLastMessage() const
 	return m_szMsg;
 }
 
-#if defined(_WIN32)	// 共通設定（DLLSHAREDATA）とメッセージボックスを使う。Mac 版は第 21 步（env）の移植後に有効にする
 //	From Here Jun. 26, 2001 genta
 /*!
 	与えられた正規表現ライブラリの初期化を行う．
@@ -603,6 +604,7 @@ bool InitRegexp(
 	return true;
 }
 
+#if defined(_WIN32)	// Mac 版: ダイアログ部品にバージョンを表示する。設定画面の移植時に使う
 /*!
 	正規表現ライブラリの存在を確認し、あればバージョン情報を指定コンポーネントにセットする。
 	失敗した場合には空文字列をセットする。
@@ -629,6 +631,7 @@ bool CheckRegexpVersion(
 	}
 	return true;
 }
+#endif // defined(_WIN32)
 
 /*!
 	正規表現が規則に従っているかをチェックする。
@@ -668,5 +671,4 @@ bool CheckRegexpSyntax(
 	}
 	return true;
 }
-#endif // _WIN32
 //	To Here Jun. 26, 2001 genta

@@ -192,7 +192,7 @@ bool ReadEditorConfig(const CFilePath& cFilePath, IndentationStyle& style)
 		auto configPath = path / ".editorconfig";
 		if (fexist(configPath)) {
 			EditorConfig config;
-			if (parser.Parse(configPath.wstring(), config)) {
+			if (parser.Parse(configPath, config)) {
 				for (auto& section : config.sections) {
 					if (glob_matches_extension(section.name, extension)) {
 						if (section.indent_style) {

@@ -599,6 +599,39 @@ inline char16_t* wcscpy(char16_t* d, const char16_t* s) noexcept { return su16::
 inline char16_t* wcsncpy(char16_t* d, const char16_t* s, size_t n) noexcept { return su16::strncpy(d, s, n); }
 inline char16_t* wcscat(char16_t* d, const char16_t* s) noexcept { return su16::strcat(d, s); }
 inline char16_t* wcsncat(char16_t* d, const char16_t* s, size_t n) noexcept { return su16::strncat(d, s, n); }
+//! MSVC の wcsncpy_s / wcscpy_s / wcsncat_s / wcscat_s（バッファサイズを取る CRT 版）と同じ規則：
+//! count が _TRUNCATE なら入るだけコピーして STRUNCATE、それ以外で入らないときは dest を空にして ERANGE
+inline errno_t _wcsncat_s_impl(char16_t* d, size_t dsz, size_t start, const char16_t* s, size_t n) noexcept {
+	if (!d || dsz == 0) return EINVAL;
+	if (!s) { d[0] = 0; return EINVAL; }
+	if (dsz <= start) { d[0] = 0; return EINVAL; }	// 連結先が NUL 終端していない
+	size_t len = 0;
+	while (len < n && s[len]) ++len;
+	const size_t room = dsz - start - 1;
+	errno_t ret = 0;
+	if (room < len) {
+		if (n != _TRUNCATE) { d[0] = 0; return ERANGE; }
+		len = room;
+		ret = STRUNCATE;
+	}
+	su16::memmove(d + start, s, len);
+	d[start + len] = 0;
+	return ret;
+}
+inline errno_t wcsncpy_s(char16_t* d, size_t dsz, const char16_t* s, size_t n) noexcept { return _wcsncat_s_impl(d, dsz, 0, s, n); }
+inline errno_t wcscpy_s(char16_t* d, size_t dsz, const char16_t* s) noexcept {
+	if (!s) return _wcsncat_s_impl(d, dsz, 0, s, 0);
+	return _wcsncat_s_impl(d, dsz, 0, s, su16::strlen(s));
+}
+inline errno_t wcsncat_s(char16_t* d, size_t dsz, const char16_t* s, size_t n) noexcept {
+	size_t start = 0;
+	while (d && start < dsz && d[start]) ++start;
+	return _wcsncat_s_impl(d, dsz, start, s, n);
+}
+inline errno_t wcscat_s(char16_t* d, size_t dsz, const char16_t* s) noexcept {
+	if (!s) return wcsncat_s(d, dsz, s, 0);
+	return wcsncat_s(d, dsz, s, su16::strlen(s));
+}
 inline char16_t* _wcsdup(const char16_t* s) noexcept { return su16::strdup(s); }
 inline char16_t* wcstok_s(char16_t* s, const char16_t* delim, char16_t** ctx) noexcept { return su16::strtok(s, delim, ctx); }
 inline char16_t* _wcstok(char16_t* s, const char16_t* delim) noexcept { thread_local char16_t* ctx = nullptr; return su16::strtok(s, delim, &ctx); }
@@ -702,6 +735,11 @@ inline int _swprintf(char16_t* buf, const char16_t* fmt, ...) {
 inline int _vsnwprintf_s(char16_t* buf, size_t size, size_t count, const char16_t* fmt, va_list ap) { return su16::vsnprintf_s(buf, size, count, fmt, ap); }
 inline int _snwprintf_s(char16_t* buf, size_t size, size_t count, const char16_t* fmt, ...) {
 	va_list ap; va_start(ap, fmt); const int n = _vsnwprintf_s(buf, size, count, fmt, ap); va_end(ap); return n;
+}
+//! MSVC の配列版テンプレート（バッファサイズを配列から取る）
+template <size_t N>
+inline int _snwprintf_s(char16_t (&buf)[N], size_t count, const char16_t* fmt, ...) {
+	va_list ap; va_start(ap, fmt); const int n = _vsnwprintf_s(buf, N, count, fmt, ap); va_end(ap); return n;
 }
 inline int _vscwprintf(const char16_t* fmt, va_list ap) { return su16::vcount(fmt, ap); }
 inline int _scwprintf(const char16_t* fmt, ...) {

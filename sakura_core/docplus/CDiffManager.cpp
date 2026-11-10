@@ -6,8 +6,12 @@
 */
 #include "StdAfx.h"
 #include "docplus/CDiffManager.h"
+#include "doc/logic/CDocLine.h"
+#include "doc/logic/CDocLineMgr.h"
+#if defined(_WIN32)
 #include "types/CTypeSupport.h"
 #include "window/CEditWnd.h"
+#endif
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                     CDiffLineGetter                         //
@@ -15,6 +19,7 @@
 
 EDiffMark CDiffLineGetter::GetLineDiffMark() const{ return (EDiffMark)m_pcDocLine->m_sMark.m_cDiffmarked; }
 
+#if defined(_WIN32)	// Mac 版: 色と描画は編集画面の機能。移植計画のステップ 28（描画）、32（構文の色分け）で移植する
 /*! 行の差分マークに対応した色を返す -> pnColorIndex
 	
 	色設定が無い場合は pnColorIndex を変更せずに false を返す。	
@@ -110,6 +115,7 @@ bool CDiffLineGetter::DrawDiffMark(CGraphics& gr, int y, int nLineHeight, COLORR
 	}
 	return false;
 }
+#endif // defined(_WIN32)
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                     CDiffLineSetter                         //

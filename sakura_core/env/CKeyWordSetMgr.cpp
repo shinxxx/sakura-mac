@@ -306,7 +306,7 @@ void CKeyWordSetMgr::SortKeyWord( int nIdx )
 			m_szKeyWordArr[m_nStartIdx[nIdx]],
 			m_nKeyWordNumArr[nIdx],
 			sizeof(m_szKeyWordArr[0]),
-			(qsort_callback)wcscmp
+			(qsort_callback)static_cast<int (*)(const WCHAR*, const WCHAR*)>(wcscmp)	// Mac 版: wcscmp は char16_t 版と wchar_t 版があるので型を指定する
 		);
 	}
 	else {
@@ -359,7 +359,8 @@ int CKeyWordSetMgr::SearchKeyWord2( int nIdx, const WCHAR* pszKeyWord, int nKeyW
 	int pl = m_nStartIdx[nIdx];
 	int pr = m_nStartIdx[nIdx] + m_nKeyWordNumArr[nIdx] - 1;
 	int pc = (pr + 1 - pl) / 2 + pl;
-	auto cmp = m_bKEYWORDCASEArr[nIdx] ? wcsncmp : _wcsnicmp;
+	using CmpFunc = int (*)(const WCHAR*, const WCHAR*, size_t);	// Mac 版: wcsncmp は char16_t 版と wchar_t 版があるので型を指定する
+	const auto cmp = m_bKEYWORDCASEArr[nIdx] ? CmpFunc(wcsncmp) : CmpFunc(_wcsnicmp);
 	while( pl <= pr ) {
 		const int ret = cmp( pszKeyWord, m_szKeyWordArr[pc], nKeyWordLen );
 		if( 0 < ret ) {

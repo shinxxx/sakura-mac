@@ -113,8 +113,8 @@ protected:
 	size_t m_nReadBufOffsetCurrent = 0;		// 読み込みバッファ中のオフセット(次の行頭位置)
 	CMemory m_cLineBuffer;
 	CNativeW m_cLineTemp;
-	int		m_nReadOffset2;
-	EConvertResult m_nTempResult;
+	int		m_nReadOffset2 = 0;	// 分割読み込み（Prepare）では FileOpen を通らないので初期値が必要（UTF-7）
+	EConvertResult m_nTempResult = RESULT_FAILURE;
 
 	DISALLOW_COPY_AND_ASSIGN(CFileLoad);
 }; // class CFileLoad
