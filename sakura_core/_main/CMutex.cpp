@@ -15,9 +15,15 @@
 #include "_main/CMutex.h"
 
 #include "basis/primitive.h"
+#if defined(_WIN32)
 #include "util/os/Kernel32.hpp"
 #include "util/os/ntstatus_category.hpp"
+#else
+#include <map>
+#include <mutex>
+#endif
 
+#if defined(_WIN32)
 namespace cxx {
 
 DWORD WaitForSingleObject(
@@ -47,6 +53,7 @@ DWORD WaitForSingleObject(
 }
 
 }	// namespace cxx
+#endif
 
 /*!
  * @brief コンストラクタ
@@ -94,6 +101,7 @@ void CMutex::unlock() noexcept
 	Unlock();
 }
 
+#if defined(_WIN32)
 bool CMutex::Lock(
 	DWORD dwTimeout
 )
@@ -130,3 +138,54 @@ void CMutex::Unlock() noexcept
 {
 	m_Lock = nullptr;
 }
+#else
+// Mac 版：同じ名前のミューテックスをプロセス内で共有する
+static std::shared_ptr<std::recursive_timed_mutex> GetNamedMutex(sakura::wstring_view name)
+{
+	static std::mutex s_RegistryLock;
+	static std::map<sakura::wstring, std::weak_ptr<std::recursive_timed_mutex>, std::less<>> s_Registry;
+
+	std::lock_guard guard{ s_RegistryLock };
+	if (name.empty()) {
+		return std::make_shared<std::recursive_timed_mutex>();
+	}
+	auto& weak = s_Registry[sakura::wstring{ name }];
+	auto pMutex = weak.lock();
+	if (!pMutex) {
+		pMutex = std::make_shared<std::recursive_timed_mutex>();
+		weak = pMutex;
+	}
+	return pMutex;
+}
+
+bool CMutex::Lock(
+	DWORD dwTimeout
+)
+{
+	if (!m_pMutex) {
+		m_pMutex = GetNamedMutex(m_Name);
+		if (m_bInitialOwner) {
+			m_pMutex->lock();
+			m_bLocked = true;
+		}
+	}
+
+	if (m_bLocked) return true;
+
+	if (dwTimeout == INFINITE) {
+		m_pMutex->lock();
+		m_bLocked = true;
+	} else {
+		m_bLocked = m_pMutex->try_lock_for(std::chrono::milliseconds(dwTimeout));
+	}
+	return m_bLocked;
+}
+
+void CMutex::Unlock() noexcept
+{
+	if (m_bLocked) {
+		m_pMutex->unlock();
+		m_bLocked = false;
+	}
+}
+#endif

@@ -147,8 +147,12 @@ public:
 private:
 	CSelectLang m_cSelectLang;			// メッセージリソースDLL読み込み用（プロセスに1個）		// 2011.04.10 nasukoji
 
+#if defined(_WIN32)
 	FileMapping		m_FileMapping{};
 	MappedShareData	m_MappedData{};
+#else
+	std::unique_ptr<std::byte[]>	m_ShareDataMemory{};	//!< Mac 版：共有データを置くプロセス内のメモリ（移植計画のステップ 21）
+#endif
 
 	DLLSHAREDATA*	m_pShareData = nullptr;
 

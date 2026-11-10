@@ -11,7 +11,18 @@
 #include "StdAfx.h"
 #include "file.h"
 
+#if defined(_WIN32)
 #include "_main/CProcessFactory.h"
+#else
+#include "mem/CNativeW.h"
+#include <cstdlib>
+#include <sys/stat.h>
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <sys/mount.h>
+#endif
+#endif
 
 #include <Shlwapi.h>
 
@@ -30,6 +41,11 @@
 //! ファイル名に使えない文字(ADSを使えるように':'は除外する)
 static constexpr auto& g_InvalidChars = LTEXT(R"(*?"<>|)");
 
+#if !defined(_WIN32)
+// Mac 版：パスの区切りは '/'（移植計画のステップ 21）
+static constexpr WCHAR PATH_SEPARATOR = LCHAR('/');
+#endif
+
 bool fexist(LPCWSTR pszPath)
 {
 	return _waccess(pszPath,0)!=-1;
@@ -38,7 +54,11 @@ bool fexist(LPCWSTR pszPath)
 bool fexist(const std::filesystem::path& path) noexcept
 {
 	std::error_code ec;
+#if defined(_WIN32)
 	return std::filesystem::exists(path, ec) && 0 == _waccess_s(path.c_str(), 0);
+#else
+	return std::filesystem::exists(path, ec);
+#endif
 }
 
 /*!
@@ -67,7 +87,11 @@ bool IsInvalidFilenameChars(
 	}
 
 	// パスオブジェクトから文字列を取り出す
+#if defined(_WIN32)
 	const auto& filename = path.native();
+#else
+	const auto filename = sakura::path_to_wstring(path);
+#endif
 
 	// ファイル名に使えない文字が含まれる場合、trueを返す
 	return sakura::wstring::npos != filename.find_first_of(g_InvalidChars);
@@ -194,6 +218,19 @@ bool IsFilePath(
 */
 bool IsLocalDrive( const WCHAR* pszDrive )
 {
+#if !defined(_WIN32)
+	// Mac 版：ドライブ名は無い。パスのあるボリュームがローカルかどうかで判定する
+	// （外付けディスクもローカル扱い。Windows のリムーバブルドライブの判定は Mac には無い）
+#if defined(__APPLE__)
+	struct statfs st{};
+	if (::statfs(sakura::u16::to_utf8(pszDrive).c_str(), &st) == 0) {
+		return (st.f_flags & MNT_LOCAL) != 0;
+	}
+#else
+	(void)pszDrive;
+#endif
+	return true;
+#else
 	WCHAR	szDriveType[_MAX_DRIVE+1];	// "A:\ "登録用
 	long	lngRet;
 
@@ -210,6 +247,7 @@ bool IsLocalDrive( const WCHAR* pszDrive )
 		return false;
 	}
 	return true;
+#endif
 }
 
 /*! フルパスからファイル名を返す
@@ -220,7 +258,11 @@ bool IsLocalDrive( const WCHAR* pszDrive )
 const WCHAR* GetFileTitlePointer(const WCHAR* pszPath)
 {
 	sakura::wstring_view name(pszPath);
+#if defined(_WIN32)
 	if (const size_t sep = name.find_last_of(LCHAR('\\')); sep != sakura::wstring_view::npos) {
+#else
+	if (const size_t sep = name.find_last_of(PATH_SEPARATOR); sep != sakura::wstring_view::npos) {
+#endif
 		if (sep + 1 == name.length()) {
 			return pszPath + name.length();
 		}
@@ -264,6 +306,13 @@ FILE* _wfopen_absini(LPCWSTR fname, LPCWSTR mode, BOOL bOrExedir/*=TRUE*/ )
 /* フォルダーの最後が半角かつ'\\'の場合は、取り除く "c:\\"等のルートは取り除かない */
 void CutLastYenFromDirectoryPath( WCHAR* pszFolder )
 {
+#if !defined(_WIN32)
+	// Mac 版：最後の '/' を取り除く。ルート "/" は取り除かない
+	if (const auto nFolderLen = wcslen(pszFolder); 1 < nFolderLen && pszFolder[nFolderLen - 1] == PATH_SEPARATOR) {
+		pszFolder[nFolderLen - 1] = LCHAR('\0');
+	}
+	return;
+#else
 	if( 3 == wcslen( pszFolder )
 	 && pszFolder[1] == LCHAR(':')
 	 && pszFolder[2] == LCHAR('\\')
@@ -282,6 +331,7 @@ void CutLastYenFromDirectoryPath( WCHAR* pszFolder )
 		}
 	}
 	return;
+#endif
 }
 
 namespace cxx {
@@ -302,7 +352,11 @@ void AddLastYenFromDirectoryPath(std::span<WCHAR> folder)
 	if (const auto lastChar = pszFolder[nFolderLen - 1];
 		LCHAR('\\') != lastChar && LCHAR('/') != lastChar)
 	{
+#if defined(_WIN32)
 		::wcscat_s(pszFolder, cchFolder, LTEXT("\\"));
+#else
+		::wcscat_s(pszFolder, cchFolder, LTEXT("/"));
+#endif
 	}
 
 	return;
@@ -318,7 +372,11 @@ sakura::wstring AddLastYenPath(sakura::wstring_view path)
 		return ret;
 	}
 	if (auto c = ret.back(); !(c == LCHAR('\\') || c == LCHAR('/'))) {
+#if defined(_WIN32)
 		ret.append(LTEXT("\\"));
+#else
+		ret.push_back(PATH_SEPARATOR);
+#endif
 	}
 	return ret;
 }
@@ -332,10 +390,13 @@ sakura::wstring AddLastYenPath(sakura::wstring_view path)
 sakura::wstring ReplaceSlashToYen(sakura::wstring_view path)
 {
 	sakura::wstring ret{ path };
+#if defined(_WIN32)
 	if (ret.find(LTEXT("://")) != sakura::wstring::npos) {
 		return ret;
 	}
 	std::ranges::replace(ret, LCHAR('/'), LCHAR('\\'));
+#endif
+	// Mac 版：'/' がパスの区切りなので置き換えない
 	return ret;
 }
 
@@ -357,7 +418,12 @@ void SplitPath_FolderAndFile( const WCHAR* pszFilePath, WCHAR* pszFolder, WCHAR*
 		nFolderLen = (int)wcslen( pszFolder );
 		if( 0 < nFolderLen ){
 			nCharChars = int(&pszFolder[nFolderLen] - CNativeW::GetCharPrev( pszFolder, nFolderLen, &pszFolder[nFolderLen] ));
+#if defined(_WIN32)
 			if( 1 == nCharChars && LCHAR('\\') == pszFolder[nFolderLen - 1] ){
+#else
+			// Mac 版：ルート "/" は残す
+			if( 1 == nCharChars && PATH_SEPARATOR == pszFolder[nFolderLen - 1] && 1 < nFolderLen ){
+#endif
 				pszFolder[nFolderLen - 1] = LCHAR('\0');
 			}
 		}
@@ -383,7 +449,11 @@ void Concat_FolderAndFile( const WCHAR* pszDir, const WCHAR* pszTitle, WCHAR* ps
 		*out++ = *in++;
 	}
 	//円記号を付加
+#if defined(_WIN32)
 	if( *(out-1) != '\\' ){ *out++ = '\\'; }
+#else
+	if( *(out-1) != PATH_SEPARATOR ){ *out++ = PATH_SEPARATOR; }
+#endif
 	//ファイル名をコピー
 	for( in=pszTitle; *in != '\0'; ){
 		*out++ = *in++;
@@ -403,6 +473,17 @@ void Concat_FolderAndFile( const WCHAR* pszDir, const WCHAR* pszTitle, WCHAR* ps
 */
 BOOL GetLongFileName( const WCHAR* pszFilePathSrc, WCHAR* pszFilePathDes )
 {
+#if !defined(_WIN32)
+	// Mac 版：短いファイル名は無い。相対パスを絶対パスにして "." と ".." を取り除く（GetFullPathName と同じ）
+	std::error_code ec;
+	const auto path = std::filesystem::absolute(std::filesystem::path{ sakura::wstring_view{ pszFilePathSrc } }, ec).lexically_normal();
+	const auto str = sakura::path_to_wstring(path);
+	if (ec || _MAX_PATH <= str.length()) {
+		return FALSE;
+	}
+	wcscpy(pszFilePathDes, str.c_str());
+	return TRUE;
+#else
 	WCHAR* name;
 	WCHAR szBuf[_MAX_PATH + 1];
 	int len = ::GetFullPathName( pszFilePathSrc, _MAX_PATH, szBuf, &name );
@@ -418,6 +499,7 @@ BOOL GetLongFileName( const WCHAR* pszFilePathSrc, WCHAR* pszFilePathDes )
 		wcscpy( pszFilePathDes, szBuf );
 	}
 	return TRUE;
+#endif
 }
 
 /* 拡張子を調べる */
@@ -443,6 +525,10 @@ BOOL CheckEXT( const WCHAR* pszPath, const WCHAR* pszExt )
 */
 bool _IS_REL_PATH(const WCHAR* path)
 {
+#if !defined(_WIN32)
+	// Mac 版：'/' で始まらなければ相対パス
+	return path[0] != PATH_SEPARATOR;
+#else
 	bool ret = true;
 	if( (((LCHAR('A') <= path[0] && path[0] <= LCHAR('Z')) || (LCHAR('a') <= path[0] && path[0] <= LCHAR('z')))
 		&& path[1] == LCHAR(':') && path[2] == LCHAR('\\'))
@@ -451,6 +537,7 @@ bool _IS_REL_PATH(const WCHAR* path)
 		ret = false;
 	}
 	return ret;
+#endif
 }
 
 /*! @brief ディレクトリの深さを計算する
@@ -466,6 +553,23 @@ int CalcDirectoryDepth(
 )
 {
 	int depth = 0;
+
+#if !defined(_WIN32)
+	// Mac 版：'/' を数える。先頭の '/' はルートの記号なので階層の深さに数えない
+	sakura::wstring_view macPath(path);
+	for (size_t pos = 0; pos < macPath.length(); ++pos) {
+		if (macPath[pos] != PATH_SEPARATOR) continue;
+		++depth;
+		// ./ はカレントディレクトリなので深さに関係ない
+		while (pos + 2 < macPath.length() && macPath[pos + 1] == LCHAR('.') && macPath[pos + 2] == PATH_SEPARATOR) {
+			pos += 2;
+		}
+	}
+	if (path[0] == PATH_SEPARATOR) {
+		--depth;
+	}
+	return depth;
+#else
 
 	//	とりあえず\の数を数える
 	sakura::wstring_view p(path);
@@ -487,7 +591,8 @@ int CalcDirectoryDepth(
  
 	//	補正
 	//	ドライブ名はパスの深さに数えない
-	if (std::regex_search(path, std::wregex(LTEXT(R"(^[A-Z]:\\)"), std::wregex::icase))) {
+	if (((LCHAR('A') <= path[0] && path[0] <= LCHAR('Z')) || (LCHAR('a') <= path[0] && path[0] <= LCHAR('z')))
+		&& path[1] == LCHAR(':') && path[2] == LCHAR('\\')) {
 		//フルパス
 		--depth; // C:\ の \ はルートの記号なので階層深さではない
 	}
@@ -505,6 +610,7 @@ int CalcDirectoryDepth(
 		}
 	}
 	return depth;
+#endif
 }
 
 /*!
@@ -512,8 +618,29 @@ int CalcDirectoryDepth(
  */
 std::filesystem::path GetExeFileName()
 {
+#if !defined(_WIN32)
+	// Mac 版：実行ファイルのパス
+	std::filesystem::path exePath;
+#if defined(__APPLE__)
+	uint32_t size = 0;
+	::_NSGetExecutablePath(nullptr, &size);
+	std::string buf(size, '\0');
+	if (::_NSGetExecutablePath(buf.data(), &size) == 0) {
+		exePath = buf.c_str();
+	}
+#else
+	std::error_code ec;
+	exePath = std::filesystem::read_symlink("/proc/self/exe", ec);
+#endif
+	std::error_code ecCanonical;
+	if (auto canonical = std::filesystem::weakly_canonical(exePath, ecCanonical); !ecCanonical) {
+		exePath = canonical;
+	}
+	const auto path = sakura::path_to_wstring(exePath);
+#else
 	// sakura.exe のパスを取得して返却
 	const auto path = cxx::GetModuleFileNameW(nullptr);
+#endif
 	if (const auto cchMaxPath = decltype(DLLSHAREDATA::m_szIniFile)::size();
 		cchMaxPath <= path.length())
 	{
@@ -547,13 +674,19 @@ void GetExedir(
 	if (szFile != nullptr) {
 		partialPath = szFile;
 	}
+#if defined(_WIN32)
 	if (partialPath.empty() || partialPath[0] != LCHAR('\\')) {
 		partialPath.insert(partialPath.cbegin(), LCHAR('\\'));
 	}
+#else
+	if (partialPath.empty() || partialPath[0] != PATH_SEPARATOR) {
+		partialPath.insert(partialPath.cbegin(), PATH_SEPARATOR);
+	}
+#endif
 
 	// exeフォルダーのフルパス、またはexe基準のファイルパスを取得
 	auto path = GetExeFileName().parent_path().concat(partialPath);
-	::wcsncpy_s(pDir, decltype(DLLSHAREDATA::m_szIniFile)::BUFFER_COUNT, path.c_str(), _TRUNCATE);
+	::wcsncpy_s(pDir, decltype(DLLSHAREDATA::m_szIniFile)::BUFFER_COUNT, sakura::path_to_wstring(path).c_str(), _TRUNCATE);
 }
 
 /*!
@@ -561,10 +694,23 @@ void GetExedir(
  */
 std::filesystem::path GetIniFileName()
 {
+#if defined(_WIN32)
 	if (const auto pProcess = CProcess::getInstance(); pProcess != nullptr) {
 		return pProcess->GetIniFileName();
 	}
 	return GetExeFileName().replace_extension(LTEXT(".ini"));
+#else
+	// Mac 版：ユーザーごとの設定フォルダー（~/Library/Application Support/sakura/sakura.ini）に置く。
+	// App Store 版（サンドボックス）では HOME がアプリのコンテナを指すので、その中になる。
+	// Windows 版の「ユーザー別設定」と同じ扱い（移植計画のステップ 21）
+	std::filesystem::path home;
+	if (const char* pszHome = std::getenv("HOME"); pszHome && *pszHome) {
+		home = pszHome;
+	} else {
+		home = std::filesystem::temp_directory_path();
+	}
+	return home / "Library" / "Application Support" / "sakura" / "sakura.ini";
+#endif
 }
 
 /*!
@@ -585,13 +731,19 @@ void GetInidir(
 	if (szFile != nullptr) {
 		partialPath = szFile;
 	}
+#if defined(_WIN32)
 	if (partialPath.empty() || partialPath[0] != LCHAR('\\')) {
 		partialPath.insert(partialPath.cbegin(), LCHAR('\\'));
 	}
+#else
+	if (partialPath.empty() || partialPath[0] != PATH_SEPARATOR) {
+		partialPath.insert(partialPath.cbegin(), PATH_SEPARATOR);
+	}
+#endif
 
 	// 設定フォルダーのフルパス、またはini基準のファイルパスを取得
 	auto path = GetIniFileName().parent_path().concat(partialPath);
-	::wcsncpy_s(pDir, decltype(DLLSHAREDATA::m_szPrivateIniFile)::BUFFER_COUNT, path.c_str(), _TRUNCATE);
+	::wcsncpy_s(pDir, decltype(DLLSHAREDATA::m_szPrivateIniFile)::BUFFER_COUNT, sakura::path_to_wstring(path).c_str(), _TRUNCATE);
 }
 
 /*!
@@ -676,6 +828,21 @@ std::filesystem::path GetTempFilePath(
 {
 	// 一時フォルダーのパスを取得する
 	std::filesystem::path tempDir;
+#if !defined(_WIN32)
+	// Mac 版：<一時フォルダー>/<接頭辞>XXXXXX.tmp を作成して閉じる（GetTempFileName と同じくファイルが残る）
+	if (optTempDir.has_value()) {
+		tempDir = optTempDir.value();
+	} else {
+		std::error_code ec;
+		tempDir = std::filesystem::temp_directory_path(ec);
+	}
+	auto pattern = sakura::u16::to_utf8(sakura::wstring_view{ sakura::path_to_wstring(tempDir / "") }) + sakura::u16::to_utf8(sakura::wstring_view{ prefix.substr(0, std::min<size_t>(prefix.size(), 3)) }) + "XXXXXX.tmp";
+	if (const int fd = ::mkstemps(pattern.data(), 4); 0 <= fd) {
+		::close(fd);
+		return pattern;
+	}
+	return {};
+#else
 	if (optTempDir.has_value()) {
 		tempDir = optTempDir.value();
 	} else {
@@ -694,6 +861,7 @@ std::filesystem::path GetTempFilePath(
 	::GetTempFileNameW(tempDir.c_str(), std::data(prefix), uUnique, std::data(buf));
 
 	return buf.c_str();
+#endif
 }
 
 //! パスに使えない文字が含まれていないかチェックする
@@ -708,7 +876,12 @@ bool IsValidPathAvailableChar(const std::filesystem::path& path) noexcept
 		return true;
 	}
 	constexpr auto& dos_device_path = LTEXT(R"(\\?\)");
+#if defined(_WIN32)
 	sakura::wstring_view pathStr{ path.native() };
+#else
+	const auto pathString = sakura::path_to_wstring(path);
+	sakura::wstring_view pathStr{ pathString };
+#endif
 	size_t pos = 0;
 	if (pathStr.starts_with(dos_device_path)) {
 		pos = std::size(dos_device_path) - 1;
@@ -736,6 +909,7 @@ bool IsFileExists(const WCHAR* path, bool bFileOnly)
 		// ワイルドカード指定を除外
 		return false;
 	}
+#if defined(_WIN32)
 	WIN32_FIND_DATA fd;
 	HANDLE hFind = ::FindFirstFile( path, &fd );
 	if( hFind != INVALID_HANDLE_VALUE ){
@@ -744,6 +918,12 @@ bool IsFileExists(const WCHAR* path, bool bFileOnly)
 		return true;
 	}
 	return false;
+#else
+	std::error_code ec;
+	const auto status = std::filesystem::status(std::filesystem::path{ sakura::wstring_view{ path } }, ec);
+	if (ec || !std::filesystem::exists(status)) return false;
+	return !(bFileOnly && std::filesystem::is_directory(status));
+#endif
 }
 
 /**	ディレクトリチェック
@@ -764,6 +944,7 @@ bool IsDirectory(LPCWSTR pszPath)
 		// ワイルドカード指定を除外
 		return false;
 	}
+#if defined(_WIN32)
 	WIN32_FIND_DATA fd;
 	HANDLE hFind = ::FindFirstFile( pszPath, &fd );
 	if(hFind!=INVALID_HANDLE_VALUE){
@@ -771,6 +952,10 @@ bool IsDirectory(LPCWSTR pszPath)
 		return (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 	}
 	return false;
+#else
+	std::error_code ec;
+	return std::filesystem::is_directory(std::filesystem::path{ sakura::wstring_view{ pszPath } }, ec);
+#endif
 }
 
 /*!
@@ -783,6 +968,26 @@ FILETIME GetLastWriteTime(
 	sakura::wstring_view	fileName	//!< [in]  ファイルのパス
 )
 {
+#if !defined(_WIN32)
+	// Mac 版：stat の更新日時を FILETIME（1601-01-01 からの 100 ナノ秒単位）にする（移植計画のステップ 21）
+	// Windows 版と同じく、取得できなければ std::system_error を投げる
+	FILETIME ftLastWrite{};
+	struct stat st{};
+	if (::stat(sakura::u16::to_utf8(fileName).c_str(), &st) != 0) {
+		throw std::system_error(errno, std::generic_category(), "stat");
+	}
+	{
+#if defined(__APPLE__)
+		const auto& ts = st.st_mtimespec;
+#else
+		const auto& ts = st.st_mtim;
+#endif
+		const auto t = static_cast<std::uint64_t>(ts.tv_sec) * 10000000ULL + static_cast<std::uint64_t>(ts.tv_nsec) / 100ULL + 116444736000000000ULL;
+		ftLastWrite.dwLowDateTime = static_cast<DWORD>(t);
+		ftLastWrite.dwHighDateTime = static_cast<DWORD>(t >> 32);
+	}
+	return ftLastWrite;
+#else
 	using namespace cxx;
 
 	// dwDesiredAccess に 0 を指定する事で読み取りアクセスが拒否されてしまうような場合でも、
@@ -803,6 +1008,7 @@ FILETIME GetLastWriteTime(
 	);
 
 	return ftLastWrite;
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -884,6 +1090,7 @@ WCHAR* wcsrchr2( const WCHAR *pt , const WCHAR ch1 , const WCHAR ch2 ){
 	return	(WCHAR *)pf;
 }
 
+#if defined(_WIN32)	// Mac 版：ドライブ名と '\\' 区切りが前提。外部コマンド実行などの移植時に Mac 用を用意する
 #define		GetExistPath_NO_DriveLetter	0	/* ドライブレターが無い */
 #define		GetExistPath_IV_Drive		1	/* ドライブが無効 */
 #define		GetExistPath_AV_Drive		2	/* ドライブが有効 */
@@ -1054,6 +1261,8 @@ void my_splitpath_w (
 //
 //
 // -----------------------------------------------------------------------------
+#endif
+
 int FileMatchScore( const WCHAR *file1, const WCHAR *file2 );
 
 // フルパスからファイル名と拡張子（ファイル名の.以降）を分離する
@@ -1062,12 +1271,12 @@ static void FileNameSepExt(const std::filesystem::path& path, sakura::wstring& o
 {
 	if (path.has_filename()) {
 		if (path.has_extension()) {
-			outExt = path.extension();
-			outFile = path.filename();
+			outExt = sakura::path_to_wstring(path.extension());
+			outFile = sakura::path_to_wstring(path.filename());
 			outFile = outFile.substr(0, outFile.length() - outExt.length());
 		} else {
 			outExt.clear();
-			outFile = path.filename();
+			outFile = sakura::path_to_wstring(path.filename());
 		}
 	} else {
 		outFile.clear();
@@ -1138,6 +1347,8 @@ int FileMatchScore( const WCHAR *file1, const WCHAR *file2 )
 	}
 	return score;
 }
+
+#if defined(_WIN32)	// Mac 版：文字幅の計算（CTextWidthCalc）は描画部分の移植（移植計画のステップ 28）以降
 
 /*! 指定幅までに文字列を省略
 	@date 2014.06.12 新規作成 Moca
@@ -1316,3 +1527,4 @@ void GetShortViewPath( WCHAR* dest, int nSize, const WCHAR* path, HDC hDC, int n
 	}
 	wcsncpy_s(dest, nSize, strTemp.c_str(), _TRUNCATE);
 }
+#endif

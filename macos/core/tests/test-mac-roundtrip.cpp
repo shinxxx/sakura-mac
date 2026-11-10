@@ -12,7 +12,7 @@
 	   （内部用 CCodeMediator，经由 CharsetDetector 用到 extmodule/CUchardet，第 19 步“换掉 DLL”时加入）。
 
 	原版写文件的 env/CWriteManager、读文件时分段并行的 env/CReadManager 属于设置模块（env），
-	第 21 步才编进 Mac 版，所以这里按它们的做法调用同样的函数。
+	它们依赖编辑画面（进度显示），第 21 步移植 env 时没有编进 Mac 版（第 29 步加入），所以这里按它们的做法调用同样的函数。
 	第 29 步“打开与保存”会用同一批样本在 App 里再验证一次。
 */
 /*
@@ -27,7 +27,7 @@
 #include "io/CFileLoad.h"
 #include "mem/CNativeW.h"
 #include "mem/CMemory.h"
-#include "mac-share-data.hpp"
+#include "env/ShareDataTestSuite.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -198,11 +198,11 @@ sakura::wstring LoadInParts(const std::filesystem::path& path, ECodeType code, i
 	return text;
 }
 
-class RoundTrip : public ::testing::TestWithParam<RoundTripSample> {
+class RoundTrip : public ::testing::TestWithParam<RoundTripSample>, public env::ShareDataTestSuite {
 protected:
 	// CFileLoad 要读共通设置（是否使用扩展换行符）
-	static void SetUpTestSuite() { mac_test::SetUpShareData(); }
-	static void TearDownTestSuite() { mac_test::TearDownShareData(); }
+	static void SetUpTestSuite() { SetUpShareData(); }
+	static void TearDownTestSuite() { TearDownShareData(); }
 };
 
 TEST_P(RoundTrip, LoadThenSaveIsByteIdentical)

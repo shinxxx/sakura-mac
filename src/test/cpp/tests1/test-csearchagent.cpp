@@ -23,7 +23,7 @@
 #if defined(_WIN32)
 #include "window/EditorTestSuite.hpp"
 #else
-#include "mac-share-data.hpp"	// Mac 版: 編集ウィンドウはまだないので、共通設定だけを用意する（移植計画のステップ 20）
+#include "mac-editor-test-suite.hpp"	// Mac 版: 編集ウィンドウはまだないので、共通設定（CShareData::InitShareData）だけを用意する（移植計画のステップ 21）
 #endif
 
 using ::testing::ElementsAre;	// pch.h に using が無いのでここで宣言する

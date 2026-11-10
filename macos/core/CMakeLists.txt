@@ -53,7 +53,21 @@ add_custom_command(
   VERBATIM)
 add_custom_target(sakura_funccode DEPENDS "${GEN_DIR}/Funccode_define.h" "${GEN_DIR}/Funccode_enum.h")
 
+# version.h（与 Windows 版相同，由 src/main/cmake/version.cmake 生成。第 21 步：共通设置里的版本号）
+find_package(Git QUIET)
+add_custom_command(
+  OUTPUT "${GEN_DIR}/version.h"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${GEN_DIR}"
+  COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${SAKURA_ROOT} -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+    -P "${SAKURA_ROOT}/src/main/cmake/version.cmake"
+  WORKING_DIRECTORY "${GEN_DIR}"
+  DEPENDS "${SAKURA_ROOT}/src/main/cmake/version.cmake" "${SAKURA_ROOT}/src/main/cmake/version.h.in"
+  COMMENT "Generating version.h"
+  VERBATIM)
+add_custom_target(sakura_version DEPENDS "${GEN_DIR}/version.h")
+
 # 界面字符串：从 sakura_rc.rc 的 STRINGTABLE 生成（Windows 版 sakura.exe 内置的日文字符串）
+# 第 21 步起，用户定义类型的资源（MainMenu.ini）的内容也放进同一个文件
 add_custom_command(
   OUTPUT "${GEN_DIR}/sakura_rc_strings.cpp"
   COMMAND Python3::Interpreter "${SAKURA_ROOT}/macos/tools/rc_strings.py"
@@ -61,12 +75,13 @@ add_custom_command(
     "${SAKURA_ROOT}/src/main/resources/sakura_rc.h" "${GEN_DIR}/Funccode_define.h"
   DEPENDS "${SAKURA_ROOT}/macos/tools/rc_strings.py" "${SAKURA_CORE}/sakura_rc.rc"
     "${SAKURA_ROOT}/src/main/resources/sakura_rc.h" "${GEN_DIR}/Funccode_define.h"
+    "${SAKURA_ROOT}/src/main/resources/MainMenu.ini"   # 第 21 步：用户定义资源（主菜单的默认设置）也嵌入
   VERBATIM)
 
 # ---------------------------------------------------------------------------
 # 核心库
 # ---------------------------------------------------------------------------
-set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse doc/logic types)
+set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse doc/logic types env recent grep)
 # 暂不编入核心库的文件（依赖尚未移植的模块，或 Mac 版不需要）
 set(SAKURA_CORE_EXCLUDE
   # Mac 版不需要
@@ -74,8 +89,19 @@ set(SAKURA_CORE_EXCLUDE
   io/CZipFile.cpp                 # 用 Windows Shell 解压 zip，只给插件安装用；Mac 版不支持 DLL 插件
   # 第 20 步：编辑画面的部分
   types/CTypeSupport.cpp          # 按类型设置绘制颜色和字体（CGraphics）：第 28 步（Core Text 绘制）
+  # 第 21 步：env 里属于界面或编辑画面的部分
+  env/CAppNodeManager.cpp         # 编辑窗口的列表和切换（窗口消息）：第 26 步（窗口框架）
+  env/CCodeChecker.cpp            # 保存时的字符检查（依赖编辑画面）：第 29 步（打开与保存）
+  env/CReadManager.cpp            # 读入文件（依赖编辑画面的进度显示）：第 29 步
+  env/CWriteManager.cpp           # 保存文件：第 29 步
+  env/CHokanMgr.cpp               # 输入补全的弹出窗口：之后的界面步骤
+  env/CFormatManager.cpp          # 日期、时间的格式（插入日期命令、打印页眉）：与这些命令一起移植
+  env/CSakuraEnvironment.cpp      # 展开 $F 等宏参数（标题栏、打印页眉、外部命令）：与这些功能一起移植
+  recent/CMRUFile.cpp             # “最近的文件”菜单：第 26 步之后的菜单步骤（历史记录本身在 recent 的其他文件）
+  recent/CMRUFolder.cpp           # “最近的文件夹”菜单：同上
+  recent/CMruListener.cpp         # 打开、关闭文件时更新历史：第 29 步（打开与保存）
+  env/CPropertyManager.cpp        # 打开共通设置对话框：之后的设置对话框步骤
 )
-# grep/GrepMessageFormat.cpp 依赖 env/DLLSHAREDATA，第 21 步（env）移植后把 grep 加进 SAKURA_CORE_DIRS
 
 set(SAKURA_CORE_SOURCES)
 foreach(d ${SAKURA_CORE_DIRS})
@@ -94,11 +120,11 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/util/relation_tool.cpp      # 第 20 步：CSubject / CListener（文档事件的通知）
   sakura_core/window/CMainStatusBar.cpp   # 只编译 UnicodeToHex（状态栏的字符编码显示），其余是 Windows 界面
   # 第 19 步：外部模块。对应的库在上面的“第三方库”里编译
-  # （CMigemo.cpp 用到共通设置里的 DLL 名和词典路径，第 21 步 env 移植后加入）
   sakura_core/extmodule/CDllHandler.cpp
   sakura_core/extmodule/CBregexpDll2.cpp
   sakura_core/extmodule/CBregexp.cpp
   sakura_core/extmodule/CUchardet.cpp     # uchardet 不内置（与 Windows 官方版相同），加载总是失败
+  sakura_core/extmodule/CMigemo.cpp       # 第 21 步：用到共通设置里的 DLL 名和词典路径
   # 第 20 步：文档模型和语法类型（doc/logic、types 整个目录在上面的 SAKURA_CORE_DIRS）
   # doc 目录里只编入不依赖编辑画面的文件；CEditDoc、CDocEditor、CDocFileOperation 等是文档窗口的部分，
   # 第 26 步（窗口框架）、第 29 步（打开与保存）加入。doc/layout（排版）是第 27 步
@@ -117,7 +143,14 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/doc/CDocListener.cpp        # 文档事件（读入、保存）的通知
   sakura_core/docplus/CModifyManager.cpp  # 行的修改标记
   sakura_core/_main/global.cpp            # 查找选项等共用定义（进程相关的部分在第 26 步）
-  sakura_core/env/CKeyWordSetMgr.cpp      # 强调关键字（类型别设置和共通设置里使用；env 的其余部分是第 21 步）
+  # 第 21 步：设置模块 env（整个目录在上面的 SAKURA_CORE_DIRS）和它用到的文件
+  sakura_core/util/file.cpp               # 路径操作。Mac 版的路径分隔符是 '/'
+  sakura_core/_main/CMutex.cpp            # Mac 版是进程内的命名互斥锁
+  sakura_core/uiparts/CMenuDrawer.cpp     # 只编译工具栏按钮表（共通设置的工具栏项目），绘制菜单是界面的步骤
+  sakura_core/macro/CSMacroMgr.cpp        # 只编译宏函数名表（按键分配的 ini 读写），宏的执行是第 45 步
+  sakura_core/view/colors/CColorStrategy.cpp  # 只编译颜色名表（ini 的颜色设置），文字着色是第 28 步
+  sakura_core/func/CKeyBind.cpp           # 按键分配的默认值和查找（Windows 的加速键表不用）
+  sakura_core/print/CPrint.cpp            # 只编译打印设置的默认值和用纸表，打印本身在之后的打印步骤
 )
 list(TRANSFORM SAKURA_CORE_EXTRA_SOURCES PREPEND "${SAKURA_ROOT}/")
 list(APPEND SAKURA_CORE_SOURCES ${SAKURA_CORE_EXTRA_SOURCES})
@@ -180,6 +213,10 @@ add_library(cmigemo STATIC
   "${CMIGEMO_DIR}/charset.c" "${CMIGEMO_DIR}/filename.c" "${CMIGEMO_DIR}/migemo.c" "${CMIGEMO_DIR}/mnode.c"
   "${CMIGEMO_DIR}/romaji.c" "${CMIGEMO_DIR}/rxgen.c" "${CMIGEMO_DIR}/wordbuf.c" "${CMIGEMO_DIR}/wordlist.c")
 target_include_directories(cmigemo PUBLIC "${CMIGEMO_DIR}")
+# 原版的 extmodule/CMigemo.h 用 #include "cmigemo/migemo.h"（Windows 版由构建脚本准备头文件），
+# Mac 版在生成目录里放一个转发头文件（第 21 步）
+file(WRITE "${GEN_DIR}/cmigemo/migemo.h.in" "// 生成文件：转发到 C/Migemo 的头文件\n#pragma once\n#include \"${CMIGEMO_DIR}/migemo.h\"\n")
+configure_file("${GEN_DIR}/cmigemo/migemo.h.in" "${GEN_DIR}/cmigemo/migemo.h" COPYONLY)
 target_compile_options(cmigemo PRIVATE -w)
 
 add_library(sakura_core STATIC
@@ -191,6 +228,7 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/static_modules.cpp"
   "${SAKURA_ROOT}/macos/platform/src/ole_types.cpp"      # 第 20 步：BSTR、VARIANT
   "${SAKURA_ROOT}/macos/platform/src/file_api.cpp"       # 第 20 步：CreateFileW、文件映射
+  "${SAKURA_ROOT}/macos/platform/src/resources.cpp"      # 第 21 步：FindResource、LoadResource
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")
@@ -202,7 +240,7 @@ configure_file("${GEN_DIR}/codepage_data_path.h.in" "${GEN_DIR}/codepage_data_pa
 set_source_files_properties("${SAKURA_ROOT}/macos/platform/src/codepage_data.cpp" PROPERTIES
   OBJECT_DEPENDS "${SAKURA_CODEPAGES_BIN}"
   SKIP_PRECOMPILE_HEADERS ON)
-add_dependencies(sakura_core sakura_funccode)
+add_dependencies(sakura_core sakura_funccode sakura_version)
 target_link_libraries(sakura_core PUBLIC bregonig cmigemo)
 target_include_directories(sakura_core PUBLIC
   "${SAKURA_ROOT}/macos/platform/include"   # Mac 版 StdAfx.h 优先
@@ -237,6 +275,7 @@ if(SAKURA_BUILD_TESTS)
   add_executable(sakura_core_tests ${SAKURA_CORE_TEST_SOURCES})
   target_include_directories(sakura_core_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"          # Mac 版 pch.h 优先
+    "${SAKURA_ROOT}/src/test/cpp/tests1"         # 第 21 步：原版测试的 env/ShareDataTestSuite.hpp
     "${SAKURA_ROOT}/src/test/resources")
   target_link_libraries(sakura_core_tests PRIVATE sakura_core GTest::gmock_main)
   # Migemo 的测试用词典（与原版测试相同，externals/cmigemo-dict 的 zip）
@@ -244,9 +283,13 @@ if(SAKURA_BUILD_TESTS)
   if(NOT EXISTS "${MIGEMO_DICT_DIR}/utf-8/migemo-dict")
     file(ARCHIVE_EXTRACT INPUT "${SAKURA_ROOT}/externals/cmigemo-dict/cmigemo-dict-utf-8.zip" DESTINATION "${MIGEMO_DICT_DIR}")
   endif()
+  if(NOT EXISTS "${MIGEMO_DICT_DIR}/cp932/migemo-dict")   # 第 21 步：Shift_JIS 的词典（原版 CMigemoTest.test003）
+    file(ARCHIVE_EXTRACT INPUT "${SAKURA_ROOT}/externals/cmigemo-dict/cmigemo-dict-cp932.zip" DESTINATION "${MIGEMO_DICT_DIR}")
+  endif()
   target_compile_definitions(sakura_core_tests PRIVATE
     SAKURA_ROUNDTRIP_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/roundtrip"
-    SAKURA_MIGEMO_DICT_DIR="${MIGEMO_DICT_DIR}")
+    SAKURA_MIGEMO_DICT_DIR="${MIGEMO_DICT_DIR}"
+    SAKURA_ROOT_DIR="${SAKURA_ROOT}")
   # 与 MSVC 的预编译头（/Yu"pch.h"）一样，让 pch.h 先于测试文件里的其他头文件
   target_precompile_headers(sakura_core_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/pch.h")
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

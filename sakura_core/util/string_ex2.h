@@ -54,8 +54,21 @@ int scan_ints(
 /*! @brief int2dec の第2引数の文字列出力先に必要十分なサイズ取得用
 	符号付き整数の最小値の場合に必要な長さを返す
 */
+#if defined(_WIN32)
 template <typename T>
 constexpr size_t int2dec_destBufferSufficientLength();
+#else
+/*
+	Mac 版：LONGLONG（long long）と int64_t（Linux では long）が別の型になる環境があるので、
+	特殊化のない符号付き整数型は同じサイズの int32_t / int64_t の値を使う（移植計画のステップ 21）
+*/
+template <typename T>
+constexpr size_t int2dec_destBufferSufficientLength()
+{
+	static_assert(std::is_signed_v<T> && (sizeof(T) == 4 || sizeof(T) == 8), "unsupported type");
+	return int2dec_destBufferSufficientLength<std::conditional_t<sizeof(T) == 4, int32_t, int64_t>>();
+}
+#endif
 
 /*!
 	符号付き32bit整数の最小値(-2147483648)の10進数文字列の文字数は

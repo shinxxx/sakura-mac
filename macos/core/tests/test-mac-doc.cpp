@@ -25,7 +25,7 @@
 #include "io/CFile.h"
 #include "io/CFileLoad.h"
 #include "types/CType.h"
-#include "mac-share-data.hpp"
+#include "env/ShareDataTestSuite.hpp"
 
 #include <array>
 #include <filesystem>
@@ -41,12 +41,12 @@ namespace {
 namespace fs = std::filesystem;
 
 //! 测试用的临时文件夹（名字含日文）
-class MacDocTest : public ::testing::Test {
+class MacDocTest : public ::testing::Test, public env::ShareDataTestSuite {
 protected:
 	fs::path m_dir;
 
-	static void SetUpTestSuite() { mac_test::SetUpShareData(); }
-	static void TearDownTestSuite() { mac_test::TearDownShareData(); }
+	static void SetUpTestSuite() { SetUpShareData(); }
+	static void TearDownTestSuite() { TearDownShareData(); }
 
 	void SetUp() override {
 		const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
@@ -337,7 +337,7 @@ TEST(MacCModifyVisitor, ResetAllModifyFlag)
 
 TEST(MacTypeConfig, BuiltinTypesHaveWindowsDefaults)
 {
-	mac_test::SetUpShareData();
+	env::ShareDataTestSuite::SetUpShareData();
 	struct Expected { std::unique_ptr<CType> type; const WCHAR* name; const WCHAR* exts; };
 	std::vector<Expected> table;
 	table.push_back({ std::make_unique<CType_Basis>(),  LTEXT("基本"), LTEXT("") });

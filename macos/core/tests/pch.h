@@ -2,7 +2,6 @@
 	@brief Mac 版单元测试的预编译头（代替 src/test/resources/pch.h）
 
 	与原版的区别：
-	- 不包含 env/DLLSHAREDATA.h（Mac 版核心库还没有共享数据）
 	- 让 EXPECT_STREQ 等宏支持 char16_t 的字符串（Mac 上 WCHAR 是 char16_t）
 
 	Copyright (C) 2026, Sakura Editor Organization
@@ -70,9 +69,8 @@ inline ::testing::Message& operator<<(::testing::Message& m, const std::u16strin
 
 #include "Funccode_enum.h"
 
-// 原版的 pch.h 通过 DLLSHAREDATA.h 间接包含的常用类型
-#include "basis/CMyString.h"
-#include "basis/SakuraBasis.h"
+// 与原版的 pch.h 相同（第 21 步移植 env 之后可以包含）
+#include "env/DLLSHAREDATA.h"
 
 // gMock の文字列マッチャー（StrEq など）も char16_t に対応させる
 namespace testing {

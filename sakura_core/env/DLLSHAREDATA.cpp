@@ -10,11 +10,13 @@
 #include "env/DLLSHAREDATA.h"
 
 #include "_main/CMutex.h"
+#if defined(_WIN32)
 #include "dlg/CDlgCancel.h"
 #include "uiparts/CWaitCursor.h"
 #include "util/os.h"
 #include "util/window.h"
 #include "apiwrap/CommonControl.h"
+#endif
 #include "CSelectLang.h"
 #include "sakura_rc.h"
 #include "config/system_constants.h"
@@ -55,6 +57,7 @@ int CShareDataLockCounter::GetLockCounter(){
 	return GetDllShareData().m_nLockCount;
 }
 
+#if defined(_WIN32)	// Mac 版：他の処理（印刷など）の終了待ちダイアログは画面部分の移植（移植計画のステップ 26 以降）で用意する
 class CLockCancel final: public CDlgCancel{
 public:
 	BOOL OnInitDialog( HWND hwnd, WPARAM wParam, LPARAM lParam ) override{
@@ -131,3 +134,4 @@ void CShareDataLockCounter::WaitLock( HWND hwndParent, CShareDataLockCounter** p
 		::EnableWindow(hwndParent, TRUE);
 	}
 }
+#endif

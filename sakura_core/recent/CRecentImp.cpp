@@ -546,7 +546,7 @@ template class CRecentImp<EditNode>;
 template class CRecentImp<EditInfo>;
 template class CRecentImp<CPathString, LPCWSTR>;
 template class CRecentImp<CGrepFileString, LPCWSTR>;
-#ifndef __MINGW32__
+#if !defined(__MINGW32__) && defined(_WIN32)	// Mac 版：MinGW と同じく、これらは上と同じ型になるので重複する（移植計画のステップ 21）
 template class CRecentImp<CMetaPath, LPCWSTR>;
 template class CRecentImp<CGrepFolderString, LPCWSTR>;
 template class CRecentImp<CSearchString, LPCWSTR>;

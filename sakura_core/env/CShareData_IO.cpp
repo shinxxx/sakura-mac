@@ -16,12 +16,17 @@
 #include "CShareData.h"
 #include "util/string_ex2.h"
 #include "util/window.h"
+#if defined(_WIN32)
 #include "view/CEditView.h" // SColorStrategyInfo
+#endif
 #include "view/colors/CColorStrategy.h"
+#include "macro/CSMacroMgr.h"
 #include "plugin/CPlugin.h"
 #include "uiparts/CMenuDrawer.h"
+#if defined(_WIN32)
 #include "_main/CCommandLine.h"
 #include "_main/CControlProcess.h"
+#endif
 #include "config/app_constants.h"
 
 using namespace std::literals::string_literals;
@@ -47,6 +52,12 @@ void SetValueLimit(T& target, int maxval)
  */
 std::filesystem::path GetIniFileNameForIO(bool bWrite)
 {
+#if !defined(_WIN32)
+	// Mac 版：設定ファイルは常にユーザーごとの場所（~/Library/Application Support/sakura/sakura.ini）を使う。
+	// アプリ本体（.app）の中には書き込めないため、exe と同じ場所の ini は使わない（移植計画のステップ 21）
+	(void)bWrite;
+	return GetIniFileName();
+#endif
 	const auto iniPath = GetExeFileName().replace_extension(LTEXT(".ini"));
 	if (const auto privateIniPath = GetIniFileName();
 		bWrite || fexist(privateIniPath.c_str()))
@@ -95,7 +106,11 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 
 	SFilePath iniFileName;
 	const auto iniPath = GetIniFileNameForIO(!bRead);
+#if defined(_WIN32)
 	iniFileName = iniPath;
+#else
+	iniFileName = sakura::path_to_wstring(iniPath).c_str();	// Mac 版：path は UTF-8 なので変換する（移植計画のステップ 21）
+#endif
 	const auto szIniFileName = iniFileName.c_str();
 
 //	MYTRACE( L"Iniファイル処理-1 所要時間(ミリ秒) = %d\n", cRunningTimer.Read() );
@@ -103,6 +118,7 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 	if( bRead ){
 		if( !cProfile.ReadProfile( szIniFileName ) ){
 			/* 設定ファイルが存在しない */
+#if defined(_WIN32)	// Mac 版：言語 DLL は使わない。表示言語の切り替えは後のステップ（UI の多言語化）で移植する（移植計画のステップ 21）
 			LANGID langId = GetUserDefaultUILanguage();
 			// Windowsの表示言語が日本語でない場合は言語設定を英語にする
 			if (langId != MAKELANGID( LANG_JAPANESE, SUBLANG_JAPANESE_JAPAN )) {
@@ -114,6 +130,7 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 				pcShare->ConvertLangValues( values, false );
 				pcShare->RefreshString();
 			}
+#endif
 			return false;
 		}
 
@@ -152,7 +169,13 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 				szBkFileName = szIniFileName;
 				szBkFileName += LTEXT(".bak");
 
+#if defined(_WIN32)
 				::CopyFileW(szIniFileName, szBkFileName, FALSE);
+#else
+				// Mac 版：std::filesystem でコピーする（移植計画のステップ 21）
+				std::error_code ec;
+				std::filesystem::copy_file(std::filesystem::path(szIniFileName), std::filesystem::path(szBkFileName.c_str()), std::filesystem::copy_options::overwrite_existing, ec);
+#endif
 			}
 		}
 	}
@@ -160,7 +183,9 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 
 	if( bRead ){
 		cProfile.IOProfileData(LTEXT("Common"), LTEXT("szLanguageDll"), StringBufferW(pShareData->m_Common.m_sWindow.m_szLanguageDll));
+#if defined(_WIN32)	// Mac 版：言語 DLL は使わない（移植計画のステップ 21）
 		CSelectLang::ChangeLang( pShareData->m_Common.m_sWindow.m_szLanguageDll );
+#endif
 		pcShare->RefreshString();
 	}
 
@@ -1479,7 +1504,7 @@ void ShareData_IO_BlockComments(
 
 		// From-Toをセットで読み書きする
 		sakura::wstring_view entryKey = LTEXT("szBlockComment");
-		if (const auto keySurfix = 0 < i ? std::to_wstring(i + 1) : LTEXT(""s);
+		if (const auto keySurfix = 0 < i ? sakura::to_wstring(i + 1) : LTEXT(""s);
 			!cProfile.IOProfileData(sectionName, sakura::format(LTEXT("{}From{}"), entryKey, keySurfix), strFrom) ||
 			!cProfile.IOProfileData(sectionName, sakura::format(LTEXT("{}To{}"),   entryKey, keySurfix), strTo  ))
 		{
@@ -1587,7 +1612,7 @@ void ShareData_IO_LineComments(
 		}
 
 		// 読み書きを実行する
-		if (const auto keySurfix = 0 < i ? std::to_wstring(i + 1) : LTEXT(""s);
+		if (const auto keySurfix = 0 < i ? sakura::to_wstring(i + 1) : LTEXT(""s);
 			!cProfile.IOProfileData(sectionName, sakura::format(LTEXT("szLineComment{}"),      keySurfix), lineComment) ||
 			!cProfile.IOProfileData(sectionName, sakura::format(LTEXT("nLineCommentColumn{}"), keySurfix), pos        ))
 		{

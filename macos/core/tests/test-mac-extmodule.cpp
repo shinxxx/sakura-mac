@@ -5,7 +5,7 @@
 	资源里的 zip，Mac 版还不能直接编译。这里把其中不依赖这些的部分改写过来：
 	  - CBregexpTest.test001、MatchConcurrentlyWithSeparateObjects（几乎原样）
 	  - LoadTest.FailedToLoadLibrary / FailedToGetProcAddress（Mac 没有 MSHTML.DLL，换成名字不对的模块）
-	  - CMigemoTest.test002 的查询结果（CMigemo 本身用到共通设置，第 21 步加入；这里直接调用 migemo.dll 的函数）
+	  - CMigemoTest.test002 的查询结果（这里直接调用 migemo.dll 的函数；经由 CMigemo 类的测试在 test-mac-env.cpp，第 21 步）
 	另外加了 Mac 版“静态链接的 DLL”本身（macos/platform/src/static_modules.cpp）和几个正则用例的测试。
 */
 /*
@@ -236,7 +236,7 @@ TEST(CBregexpTest, RepresentativePatterns)
 // C/Migemo（原版 CMigemoTest.test002 的查询结果）
 // ---------------------------------------------------------------------------
 
-//! 直接取得与 CMigemo 相同的函数表（CMigemo 本身在第 21 步加入）
+//! 直接取得与 CMigemo 相同的函数表（CMigemo 类本身的测试在 test-mac-env.cpp）
 class MigemoFunctions : public CDllImp {
 public:
 	decltype(&::migemo_open) open = nullptr;

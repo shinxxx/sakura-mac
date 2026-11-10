@@ -23,6 +23,7 @@
 #include "CMenuDrawer.h"
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
+#if defined(_WIN32)
 #include "window/CSplitBoxWnd.h"
 #include "CImageListMgr.h"
 #include "func/CKeyBind.h"
@@ -30,10 +31,13 @@
 #include "util/window.h"
 #include "apiwrap/DarkMode.h"
 #include "CEditApp.h"
+#endif
 #include "sakura_rc.h"
 
+#if defined(_WIN32)
 #include <uxtheme.h>
 #include <vssym32.h>
+#endif
 
 //	@date 2002.2.17 YAZAKI CShareDataのインスタンスは、CProcessにひとつあるのみ。
 CMenuDrawer::CMenuDrawer()
@@ -705,6 +709,7 @@ CMenuDrawer::CMenuDrawer()
 
 CMenuDrawer::~CMenuDrawer()
 {
+#if defined(_WIN32)	// Mac 版：メニューの描画は画面部分の移植（移植計画のステップ 26 以降）で用意する
 	for (auto& dib : m_dibs) {
 		if (dib.hBMP) {
 			// 生成したビットマップを削除する。（生ハンドルでなく、オブジェクトを格納したほうが分かりやすいかも？）
@@ -717,6 +722,7 @@ CMenuDrawer::~CMenuDrawer()
 		m_hFontMenu = nullptr;
 	}
 	DeleteCompDC();
+#endif
 	return;
 }
 
@@ -727,6 +733,7 @@ void CMenuDrawer::Create( HINSTANCE hInstance, HWND hWndOwner, CImageListMgr* pc
 	m_pcIcons = pcIcons;
 }
 
+#if defined(_WIN32)	// Mac 版：メニューの作成と描画は画面部分の移植（移植計画のステップ 26 以降）で用意する。ここではツールバーのボタン表だけ使う
 /*!
  * アイコン番号に対応するメニュー用ビットマップを返す
  *
@@ -903,6 +910,7 @@ void CMenuDrawer::MyAppendMenu(
 
 	return;
 }
+#endif
 
 /*
 	ツールバー番号をボタン配列のindexに変換する
@@ -935,6 +943,7 @@ inline int CMenuDrawer::GetIconIdByFuncId( int nFuncID ) const
 
 void CMenuDrawer::DeleteCompDC()
 {
+#if defined(_WIN32)
 	if( m_hCompDC ){
 		::SelectObject( m_hCompDC, m_hCompBitmapOld );
 		::DeleteObject( m_hCompBitmap );
@@ -944,6 +953,7 @@ void CMenuDrawer::DeleteCompDC()
 		m_hCompBitmap = nullptr;
 		m_hCompBitmapOld = nullptr;
 	}
+#endif
 }
 
 /*
@@ -1054,6 +1064,7 @@ WCHAR CMenuDrawer::GetAccelCharFromLabel(sakura::wstring_view label) const
 	return (WCHAR)towupper(label[pos + 1]);
 }
 
+#if defined(_WIN32)	// Mac 版：メニューのアクセスキーは画面部分の移植（移植計画のステップ 26 以降）
 struct WorkData{
 	int				idx;
 	MENUITEMINFO	mii;
@@ -1123,6 +1134,7 @@ LRESULT CMenuDrawer::OnMenuChar( [[maybe_unused]] HWND hwnd, [[maybe_unused]] UI
 		return  MAKELONG( vecAccel[nAccelSel + 1].idx, MNC_SELECT );
 	}
 }
+#endif
 
 //	Jul. 21, 2003 genta
 //	コメントアウトされていた部分を削除 (CImageListで再利用)

@@ -87,7 +87,7 @@ namespace profile_data {
 	[[nodiscard]] sakura::wstring ToString(NumType value)
 	{
 		auto nValue = static_cast<int>(value);
-		return std::to_wstring(nValue);
+		return sakura::to_wstring(nValue);
 	}
 
 #ifdef USE_STRICT_INT

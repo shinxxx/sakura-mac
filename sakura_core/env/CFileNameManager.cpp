@@ -22,6 +22,35 @@
 #include "util/window.h"
 #include "CSelectLang.h"
 
+#if !defined(_WIN32)
+/*!
+	Mac 版：%MYDOC% などのフォルダー名（Windows のレジストリ Shell Folders の値の名前）を
+	ホームフォルダーの下の対応するフォルダーに変換する（移植計画のステップ 21）
+	@retval true 対応するフォルダーがある
+*/
+static bool GetMacSpecialFolder( const WCHAR* pszName, WCHAR* pszPath, int nPathLen )
+{
+	static const struct { const WCHAR* name; const char* sub; } table[] = {
+		{ LTEXT("Personal"),    "Documents" },
+		{ LTEXT("Desktop"),     "Desktop" },
+		{ LTEXT("My Music"),    "Music" },
+		{ LTEXT("Video"),       "Movies" },
+		{ LTEXT("My Pictures"), "Pictures" },
+	};
+	const char* pszHome = ::getenv( "HOME" );
+	if( !pszHome || !*pszHome ) return false;
+	for( const auto& e : table ){
+		if( 0 == _wcsicmp( pszName, e.name ) ){
+			const auto path = sakura::path_to_wstring( std::filesystem::path( pszHome ) / e.sub );
+			if( nPathLen <= int(path.length()) ) return false;
+			wcscpy_s( pszPath, nPathLen, path.c_str() );
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                      ファイル名管理                         //
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
@@ -47,8 +76,13 @@ LPWSTR CFileNameManager::GetTransformFileNameFast( LPCWSTR pszSrc, LPWSTR pszDes
 		if( cchMaxWidth == 0 ){
 			cchMaxWidth = m_pShareData->m_Common.m_sFileName.m_nTransformShortMaxWidth;
 		}
+#if defined(_WIN32)
 		CTextWidthCalc calc(hDC);
 		nPxWidth = calc.GetTextWidth(LTEXT("x")) * cchMaxWidth;
+#else
+		// Mac 版：表示幅に合わせた省略（GetShortViewPath）は文字の描画と一緒に移植する。それまでは省略しない（移植計画のステップ 21）
+		(void)hDC; (void)bFitMode;
+#endif
 	}
 
 	if( 0 < m_nTransformFileNameCount ){
@@ -227,6 +261,7 @@ bool CFileNameManager::ExpandMetaToFolder( LPCWSTR pszSrc, LPWSTR pszDes, int nD
 					}
 				}
 #endif
+#if defined(_WIN32)
 				// 直接レジストリで調べる
 				szPath[0] = LCHAR('\0');
 				bFolderPath = ReadRegistry( HKEY_CURRENT_USER,
@@ -237,8 +272,23 @@ bool CFileNameManager::ExpandMetaToFolder( LPCWSTR pszSrc, LPWSTR pszDes, int nD
 						LTEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders"),
 						szMeta, szPath, int(std::size(szPath)) );
 				}
+#else
+				// Mac 版：レジストリの代わりに、ホームフォルダーの下の対応するフォルダーを使う（移植計画のステップ 21）
+				szPath[0] = LCHAR('\0');
+				bFolderPath = GetMacSpecialFolder( szMeta, szPath, int(std::size(szPath)) );
+				std::u16string strEnv;
+#endif
 				if( false == bFolderPath || LCHAR('\0') == szPath[0] ){
+#if defined(_WIN32)
 					pStr = _wgetenv( szMeta );
+#else
+					// Mac 版：環境変数は UTF-8 なので変換する
+					pStr = nullptr;
+					if( const char* pszEnv = ::getenv( sakura::u16::to_utf8( szMeta ).c_str() ) ){
+						strEnv = sakura::u16::from_utf8<char16_t>( pszEnv );
+						pStr = strEnv.c_str();
+					}
+#endif
 					// 環境変数
 					if( nullptr != pStr ){
 						nPathLen = (int)wcslen( pStr );
@@ -282,7 +332,12 @@ bool CFileNameManager::ExpandMetaToFolder( LPCWSTR pszSrc, LPWSTR pszDes, int nD
 			// 最後のフォルダー区切り記号を削除する
 			// [A:\]などのルートであっても削除
 			for(nPathLen = 0; pStr2[nPathLen] != LCHAR('\0'); nPathLen++ ){
-				if( LCHAR('\\') == pStr2[nPathLen] && LCHAR('\0') == pStr2[nPathLen + 1] ){
+#if defined(_WIN32)
+				if( LCHAR('\\') == pStr2[nPathLen]
+#else
+				if( LCHAR('/') == pStr2[nPathLen]	// Mac 版：区切りは '/'（移植計画のステップ 21）
+#endif
+				 && LCHAR('\0') == pStr2[nPathLen + 1] ){
 					pStr2[nPathLen] = LCHAR('\0');
 					break;
 				}

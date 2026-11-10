@@ -78,6 +78,7 @@
 // ---------------------------------------------------------------------------
 typedef std::uint8_t   BYTE;
 typedef std::uint16_t  WORD;
+typedef short          SHORT;
 typedef std::uint32_t  DWORD;
 typedef std::int32_t   BOOL;
 typedef std::int32_t   INT;
@@ -199,6 +200,7 @@ typedef struct tagLOGFONTW {
 // ---------------------------------------------------------------------------
 #define MAX_PATH  260
 #define _MAX_PATH 260
+#define _MAX_DRIVE 3
 #define _MAX_DIR  256
 #define _MAX_FNAME 256
 #define _MAX_EXT  256
@@ -271,6 +273,27 @@ typedef CODEPAGE_ENUMPROCW CODEPAGE_ENUMPROC;
 #define IME_CMODE_ROMAN        0x0010
 #define IME_CMODE_NOCONVERSION 0x0100
 
+// 共通设置的默认值里使用的常量（值与 Windows 相同，保存在 sakura.ini 里。第 21 步）
+#define HOTKEYF_SHIFT   0x01
+#define HOTKEYF_CONTROL 0x02
+#define HOTKEYF_ALT     0x04
+#define HOTKEYF_EXT     0x08
+#define DEFAULT_QUALITY        0
+#define DRAFT_QUALITY          1
+#define PROOF_QUALITY          2
+#define NONANTIALIASED_QUALITY 3
+#define ANTIALIASED_QUALITY    4
+#define CLEARTYPE_QUALITY      5
+#define SIZE_RESTORED  0
+#define SIZE_MINIMIZED 1
+#define SIZE_MAXIMIZED 2
+#define WM_APP 0x8000
+inline BOOL SetRect(LPRECT lprc, int xLeft, int yTop, int xRight, int yBottom)
+{
+	if (!lprc) return FALSE;
+	lprc->left = xLeft; lprc->top = yTop; lprc->right = xRight; lprc->bottom = yBottom;
+	return TRUE;
+}
 #define R2_XORPEN 7   // 选择范围的绘制方式（_main/global.cpp 的常量）
 #define CW_USEDEFAULT (static_cast<int>(0x80000000))
 #define NO_ERROR 0L
@@ -371,6 +394,21 @@ BOOL FreeLibrary(HMODULE hLibModule);
 #define PAGE_READWRITE 0x04
 LPVOID VirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
 BOOL VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType);
+//! 等待的超时时间：无限（_main/CMutex 用。Mac 版的 CMutex 是进程内的互斥锁，见 CMutex.h）
+#define INFINITE 0xFFFFFFFF
+//! 全局内存（剪贴板、拖放等传递数据用。util/os.h 的 cxx::GlobalMemory 使用，第 21 步）
+//! 在进程内分配，句柄指向内部的管理信息；GlobalLock 返回数据的地址（不移动，锁计数不管理）
+typedef WORD CLIPFORMAT;
+#define GMEM_FIXED    0x0000
+#define GMEM_MOVEABLE 0x0002
+#define GMEM_ZEROINIT 0x0040
+#define GHND (GMEM_MOVEABLE | GMEM_ZEROINIT)
+#define GPTR (GMEM_FIXED | GMEM_ZEROINIT)
+HGLOBAL GlobalAlloc(UINT uFlags, SIZE_T dwBytes);
+HGLOBAL GlobalFree(HGLOBAL hMem);
+LPVOID GlobalLock(HGLOBAL hMem);
+BOOL GlobalUnlock(HGLOBAL hMem);
+SIZE_T GlobalSize(HGLOBAL hMem);
 //! 最近一次错误码
 DWORD GetLastError();
 void SetLastError(DWORD dwErrCode);
@@ -441,6 +479,166 @@ BOOL UnmapViewOfFile(LPCVOID lpBaseAddress);
 int _waccess(const WCHAR* path, int mode);
 //! 用 UTF-16 的路径和模式打开文件（路径转换为 UTF-8 后调用 fopen）
 FILE* _wfopen(const WCHAR* filename, const WCHAR* mode);
+/*!
+	Shlwapi 的 PathMatchSpecW（第 21 步，类型别扩展名的通配符匹配）。
+	pszSpec 可以用 ';' 分隔多个模式；'*' 匹配任意个字符，'?' 匹配一个字符，不区分大小写（ASCII）；
+	与 Windows 相同，"*.*" 匹配所有文件名，"xxx.*" 也匹配没有扩展名的 "xxx"。
+*/
+BOOL PathMatchSpecW(const WCHAR* pszFile, const WCHAR* pszSpec);
+#define PathMatchSpec PathMatchSpecW
+
+/* ---- 键盘、绘图的常量（apiwrap/StdApi.h 等头文件用，第 21 步） ---- */
+//! 属性表（util/shell.h 的 MyPropertySheet 的参数）。只声明类型，设置对话框的步骤再定义
+typedef struct _PROPSHEETHEADERW* LPPROPSHEETHEADERW;
+typedef LPPROPSHEETHEADERW LPPROPSHEETHEADER;
+//! 用纸大小和方向（wingdi.h 的值。打印设置保存在 sakura.ini 里，要与 Windows 版相同；第 21 步）
+#define DMORIENT_PORTRAIT  1
+#define DMORIENT_LANDSCAPE 2
+#define DMPAPER_LETTER 1
+#define DMPAPER_LETTERSMALL 2
+#define DMPAPER_TABLOID 3
+#define DMPAPER_LEDGER 4
+#define DMPAPER_LEGAL 5
+#define DMPAPER_STATEMENT 6
+#define DMPAPER_EXECUTIVE 7
+#define DMPAPER_A3 8
+#define DMPAPER_A4 9
+#define DMPAPER_A4SMALL 10
+#define DMPAPER_A5 11
+#define DMPAPER_B4 12
+#define DMPAPER_B5 13
+#define DMPAPER_FOLIO 14
+#define DMPAPER_QUARTO 15
+#define DMPAPER_10X14 16
+#define DMPAPER_11X17 17
+#define DMPAPER_NOTE 18
+#define DMPAPER_ENV_9 19
+#define DMPAPER_ENV_10 20
+#define DMPAPER_ENV_11 21
+#define DMPAPER_ENV_12 22
+#define DMPAPER_ENV_14 23
+#define DMPAPER_CSHEET 24
+#define DMPAPER_DSHEET 25
+#define DMPAPER_ESHEET 26
+#define DMPAPER_ENV_DL 27
+#define DMPAPER_ENV_C5 28
+#define DMPAPER_ENV_C3 29
+#define DMPAPER_ENV_C4 30
+#define DMPAPER_ENV_C6 31
+#define DMPAPER_ENV_C65 32
+#define DMPAPER_ENV_B4 33
+#define DMPAPER_ENV_B5 34
+#define DMPAPER_ENV_B6 35
+#define DMPAPER_ENV_ITALY 36
+#define DMPAPER_ENV_MONARCH 37
+#define DMPAPER_ENV_PERSONAL 38
+#define DMPAPER_FANFOLD_US 39
+#define DMPAPER_FANFOLD_STD_GERMAN 40
+#define DMPAPER_FANFOLD_LGL_GERMAN 41
+#define ETO_OPAQUE  0x0002
+#define ETO_CLIPPED 0x0004
+/*
+	GDI 函数的声明（uiparts/CGraphics.h 的内联函数引用它们）。
+	第 21 步只需要头文件能编译（设置模块通过 view/colors/CColorStrategy.h 间接包含 CGraphics.h），
+	这些函数不会被调用，也还没有实现；第 28 步（Core Text 绘制）实现。
+*/
+#define HGDI_ERROR  (reinterpret_cast<HGDIOBJ>(static_cast<intptr_t>(-1)))
+#define PATCOPY     0x00F00021
+#define TRANSPARENT 1
+#define OPAQUE      2
+#define PS_SOLID    0
+HGDIOBJ SelectObject(HDC hdc, HGDIOBJ h);
+BOOL DeleteObject(HGDIOBJ ho);
+BOOL PatBlt(HDC hdc, int x, int y, int w, int h, DWORD rop);
+HBRUSH GetSysColorBrush(int nIndex);
+HBRUSH CreateSolidBrush(COLORREF color);
+int SetBkMode(HDC hdc, int mode);
+BOOL MoveToEx(HDC hdc, int x, int y, LPPOINT lppt);
+BOOL LineTo(HDC hdc, int x, int y);
+COLORREF SetPixel(HDC hdc, int x, int y, COLORREF color);
+BOOL ExtTextOutW(HDC hdc, int x, int y, UINT options, const RECT* lprect, const WCHAR* lpString, UINT c, const INT* lpDx);
+#define ExtTextOut ExtTextOutW
+//! 虚拟键码（与 Windows 相同的值。按键分配的设置里保存这些值，sakura.ini 要与 Windows 版相同）
+#define VK_LBUTTON  0x01
+#define VK_RBUTTON  0x02
+#define VK_MBUTTON  0x04
+#define VK_XBUTTON1 0x05
+#define VK_XBUTTON2 0x06
+#define VK_BACK     0x08
+#define VK_TAB      0x09
+#define VK_RETURN   0x0D
+#define VK_SHIFT    0x10
+#define VK_CONTROL  0x11
+#define VK_MENU     0x12
+#define VK_ESCAPE   0x1B
+#define VK_SPACE    0x20
+#define VK_PRIOR    0x21
+#define VK_NEXT     0x22
+#define VK_END      0x23
+#define VK_HOME     0x24
+#define VK_LEFT     0x25
+#define VK_UP       0x26
+#define VK_RIGHT    0x27
+#define VK_DOWN     0x28
+#define VK_INSERT   0x2D
+#define VK_DELETE   0x2E
+#define VK_APPS     0x5D
+#define VK_F1  0x70
+#define VK_F2  0x71
+#define VK_F3  0x72
+#define VK_F4  0x73
+#define VK_F5  0x74
+#define VK_F6  0x75
+#define VK_F7  0x76
+#define VK_F8  0x77
+#define VK_F9  0x78
+#define VK_F10 0x79
+#define VK_F11 0x7A
+#define VK_F12 0x7B
+#define VK_F13 0x7C
+#define VK_F14 0x7D
+#define VK_F15 0x7E
+#define VK_F16 0x7F
+#define VK_F17 0x80
+#define VK_F18 0x81
+#define VK_F19 0x82
+#define VK_F20 0x83
+#define VK_F21 0x84
+#define VK_F22 0x85
+#define VK_F23 0x86
+#define VK_F24 0x87
+//! 按键状态。核心库里没有键盘，总是返回 0（没有按下）；界面层以后用 NSEvent 的修饰键实现（macos/platform/src/ui_bridge.cpp）
+SHORT GetKeyState(int nVirtKey);
+
+/* ---- 工具栏按钮（uiparts/CMenuDrawer 的按钮表。工具栏的设置按这个表的序号保存在 sakura.ini 里，第 21 步） ---- */
+typedef struct _TBBUTTON {
+	int iBitmap;
+	int idCommand;
+	BYTE fsState;
+	BYTE fsStyle;
+	BYTE bReserved[6];
+	DWORD_PTR dwData;
+	INT_PTR iString;
+} TBBUTTON, *PTBBUTTON, *LPTBBUTTON;
+#define TBSTATE_CHECKED  0x01
+#define TBSTATE_ENABLED  0x04
+#define TBSTATE_WRAP     0x20
+#define TBSTYLE_BUTTON   0x0000
+#define TBSTYLE_SEP      0x0001
+#define TBSTYLE_DROPDOWN 0x0008
+
+/* ---- 资源（macos/platform/src/resources.cpp，第 21 步） ----
+ * 用户定义类型的资源（MainMenu.ini 等）在构建时由 macos/tools/rc_strings.py 嵌入核心库。
+ * 模块句柄忽略（只有 sakura 本身的资源）。名字和类型只支持数字（MAKEINTRESOURCE）。 */
+SAKURA_DECLARE_HANDLE(HRSRC);
+#define MAKEINTRESOURCEW(i) (reinterpret_cast<LPWSTR>(static_cast<ULONG_PTR>(static_cast<WORD>(i))))
+#define MAKEINTRESOURCE MAKEINTRESOURCEW
+#define IS_INTRESOURCE(r) ((reinterpret_cast<ULONG_PTR>(r) >> 16) == 0)
+HRSRC FindResourceW(HMODULE hModule, LPCWSTR lpName, LPCWSTR lpType);
+#define FindResource FindResourceW
+HGLOBAL LoadResource(HMODULE hModule, HRSRC hResInfo);
+LPVOID LockResource(HGLOBAL hResData);
+DWORD SizeofResource(HMODULE hModule, HRSRC hResInfo);
 
 /* ---- BSTR 和 VARIANT（macos/platform/src/ole_types.cpp） ----
  * 原版宏接口（_os/OleTypes.h、macro/）传值用的 COM 类型。数据结构与 Windows 相同：
