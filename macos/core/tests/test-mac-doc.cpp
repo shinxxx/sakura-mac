@@ -338,6 +338,8 @@ TEST(MacCModifyVisitor, ResetAllModifyFlag)
 TEST(MacTypeConfig, BuiltinTypesHaveWindowsDefaults)
 {
 	env::ShareDataTestSuite::SetUpShareData();
+	// 测试结束时删除共通设置。留到进程结束时再删除的话，静态对象（单例的互斥锁等）可能已经先销毁了
+	struct TearDown { ~TearDown() { env::ShareDataTestSuite::TearDownShareData(); } } tearDown;
 	struct Expected { std::unique_ptr<CType> type; const WCHAR* name; const WCHAR* exts; };
 	std::vector<Expected> table;
 	table.push_back({ std::make_unique<CType_Basis>(),  LTEXT("基本"), LTEXT("") });
