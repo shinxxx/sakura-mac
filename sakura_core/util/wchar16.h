@@ -570,6 +570,23 @@ inline wstring path_to_wstring(const std::filesystem::path& path)
 #endif
 }
 
+/*!
+ * @brief std::to_wstring の WCHAR 版（整数だけ）。
+ *
+ * Windows では std::to_wstring と同じ。Mac では std::to_string の結果（ASCII の数字）を WCHAR にする。
+ */
+template <typename T>
+	requires std::is_integral_v<T>
+inline wstring to_wstring(T value)
+{
+#if SAKURA_WCHAR_IS_CHAR16
+	const auto s = std::to_string(value);
+	return wstring(s.begin(), s.end());
+#else
+	return std::to_wstring(value);
+#endif
+}
+
 } // namespace sakura
 
 // ---------------------------------------------------------------------------
@@ -585,6 +602,9 @@ inline int      wcsncmp(const char16_t* a, const char16_t* b, size_t n) noexcept
 inline int      _wcsicmp(const char16_t* a, const char16_t* b) noexcept { return su16::stricmp(a, b); }
 inline int      _wcsnicmp(const char16_t* a, const char16_t* b, size_t n) noexcept { return su16::strnicmp(a, b, n); }
 inline int      wcsicmp(const char16_t* a, const char16_t* b) noexcept { return su16::stricmp(a, b); }
+//! tchar.h の _totlower / _totupper（WCHAR 版）
+inline char16_t _totlower(char16_t c) noexcept { return su16::to_lower(c); }
+inline char16_t _totupper(char16_t c) noexcept { return su16::to_upper(c); }
 inline const char16_t* wcschr(const char16_t* s, char16_t c) noexcept { return su16::strchr(s, c); }
 inline       char16_t* wcschr(char16_t* s, char16_t c) noexcept { return const_cast<char16_t*>(su16::strchr<char16_t>(s, c)); }
 inline const char16_t* wcsrchr(const char16_t* s, char16_t c) noexcept { return su16::strrchr(s, c); }
@@ -704,6 +724,208 @@ inline int swscanf(const char16_t* str, const char16_t* fmt, ...) {
 	const int n = std::vswscanf(ws.c_str(), wf.c_str(), ap);
 	va_end(ap);
 	return n;
+}
+
+//! lstrcpy / lstrcpyW（Windows API：dest に src をコピーして dest を返す）
+inline char16_t* lstrcpyW(char16_t* dest, const char16_t* src) { return su16::strcpy(dest, src); }
+inline char16_t* lstrcpy(char16_t* dest, const char16_t* src) { return lstrcpyW(dest, src); }
+
+//! MSVC の _wsplitpath_s（第 21 步）。区切りは MSVC と同じく '/' と '\\' の両方。
+//! ドライブは 2 文字目が ':' のときだけ。バッファが足りなければ ERANGE を返し、全部の出力を空にする。
+inline errno_t _wsplitpath_s(const char16_t* path,
+	char16_t* drive, size_t driveSize, char16_t* dir, size_t dirSize,
+	char16_t* fname, size_t fnameSize, char16_t* ext, size_t extSize)
+{
+	const auto clearAll = [&]() {
+		if (drive && driveSize) drive[0] = 0;
+		if (dir && dirSize) dir[0] = 0;
+		if (fname && fnameSize) fname[0] = 0;
+		if (ext && extSize) ext[0] = 0;
+	};
+	if (!path || (drive == nullptr) != (driveSize == 0) || (dir == nullptr) != (dirSize == 0)
+		|| (fname == nullptr) != (fnameSize == 0) || (ext == nullptr) != (extSize == 0)) {
+		clearAll();
+		errno = EINVAL;
+		return EINVAL;
+	}
+	const std::u16string_view p(path);
+	size_t pos = 0;
+	if (p.size() >= 2 && p[1] == u':') pos = 2;
+	const size_t lastSep = p.find_last_of(u"/\\");
+	const size_t dirEnd = (lastSep == std::u16string_view::npos || lastSep < pos) ? pos : lastSep + 1;
+	const size_t dot = p.find_last_of(u'.');
+	const size_t extBegin = (dot == std::u16string_view::npos || dot < dirEnd) ? p.size() : dot;
+	struct Part { char16_t* buf; size_t size; std::u16string_view text; };
+	const Part parts[] = {
+		{ drive, driveSize, p.substr(0, pos) },
+		{ dir, dirSize, p.substr(pos, dirEnd - pos) },
+		{ fname, fnameSize, p.substr(dirEnd, extBegin - dirEnd) },
+		{ ext, extSize, p.substr(extBegin) },
+	};
+	for (const auto& part : parts) {
+		if (part.buf && part.size <= part.text.size()) {
+			clearAll();
+			errno = ERANGE;
+			return ERANGE;
+		}
+	}
+	for (const auto& part : parts) {
+		if (!part.buf) continue;
+		std::char_traits<char16_t>::copy(part.buf, part.text.data(), part.text.size());
+		part.buf[part.text.size()] = 0;
+	}
+	return 0;
+}
+template <size_t NDrive, size_t NDir, size_t NFname, size_t NExt>
+inline errno_t _wsplitpath_s(const char16_t* path, char16_t (&drive)[NDrive], char16_t (&dir)[NDir], char16_t (&fname)[NFname], char16_t (&ext)[NExt])
+{
+	return _wsplitpath_s(path, drive, NDrive, dir, NDir, fname, NFname, ext, NExt);
+}
+
+//! MSVC の swscanf_s（第 21 步：设置文件的读入用）
+//! 对应 %d %i %u %x %X %o（长度修饰 hh h l ll z j t I64）、%s %c %[...]（后面跟 unsigned 的缓冲区大小）、%n、%%。
+//! 不对应浮点数。缓冲区不够时与 MSVC 相同：缓冲区设为空字符串，停止读入，返回已经赋值的个数。
+namespace sakura::u16 {
+inline int vscanf_s(const char16_t* str, const char16_t* fmt, va_list ap) {
+	const auto isSpace = [](char16_t c) { return c == u' ' || (u'\t' <= c && c <= u'\r'); };
+	const char16_t* in = str;
+	int assigned = 0;
+	bool anyConversion = false;
+	for (const char16_t* f = fmt; *f; ++f) {
+		if (isSpace(*f)) {
+			while (isSpace(*in)) ++in;
+			continue;
+		}
+		if (*f != u'%') {
+			if (*in == 0) return anyConversion || assigned ? assigned : -1;
+			if (*in != *f) return assigned;
+			++in;
+			continue;
+		}
+		++f;
+		if (*f == u'%') {
+			while (isSpace(*in)) ++in;
+			if (*in != u'%') return assigned;
+			++in;
+			continue;
+		}
+		bool suppress = false;
+		if (*f == u'*') { suppress = true; ++f; }
+		size_t width = 0;
+		while (u'0' <= *f && *f <= u'9') { width = width * 10 + (*f - u'0'); ++f; }
+		int size = 0;	// -2 hh, -1 h, 0 int, 1 l, 2 ll, 3 size_t/ptrdiff_t
+		if (*f == u'h') { ++f; size = -1; if (*f == u'h') { ++f; size = -2; } }
+		else if (*f == u'l') { ++f; size = 1; if (*f == u'l') { ++f; size = 2; } }
+		else if (*f == u'z' || *f == u't') { ++f; size = 3; }
+		else if (*f == u'j') { ++f; size = 2; }
+		else if (*f == u'I' && f[1] == u'6' && f[2] == u'4') { f += 3; size = 2; }
+		const char16_t conv = *f;
+		if (!conv) break;
+		if (conv == u'n') {
+			if (!suppress) *va_arg(ap, int*) = static_cast<int>(in - str);
+			continue;
+		}
+		if (conv == u'd' || conv == u'i' || conv == u'u' || conv == u'x' || conv == u'X' || conv == u'o') {
+			while (isSpace(*in)) ++in;
+			if (*in == 0) return anyConversion || assigned ? assigned : -1;
+			anyConversion = true;
+			const size_t limit = width ? width : static_cast<size_t>(-1);
+			size_t pos = 0;
+			bool negative = false;
+			if (pos < limit && (in[pos] == u'+' || in[pos] == u'-')) { negative = in[pos] == u'-'; ++pos; }
+			int base = conv == u'x' || conv == u'X' ? 16 : conv == u'o' ? 8 : conv == u'i' ? 0 : 10;
+			const auto hasHexPrefix = [&]() { return pos + 1 < limit && in[pos] == u'0' && (in[pos + 1] == u'x' || in[pos + 1] == u'X'); };
+			if (base == 0) {
+				if (hasHexPrefix()) { base = 16; pos += 2; }
+				else if (pos < limit && in[pos] == u'0') base = 8;
+				else base = 10;
+			} else if (base == 16 && hasHexPrefix()) {
+				pos += 2;
+			}
+			const auto digit = [base](char16_t c) -> int {
+				int d = -1;
+				if (u'0' <= c && c <= u'9') d = c - u'0';
+				else if (u'a' <= c && c <= u'z') d = c - u'a' + 10;
+				else if (u'A' <= c && c <= u'Z') d = c - u'A' + 10;
+				return d < base ? d : -1;
+			};
+			const size_t digitsStart = pos;
+			unsigned long long value = 0;
+			while (pos < limit && in[pos] && digit(in[pos]) >= 0) { value = value * base + digit(in[pos]); ++pos; }
+			if (pos == digitsStart) return assigned;
+			in += pos;
+			if (negative) value = 0 - value;
+			if (!suppress) {
+				switch (size) {
+				case -2: *va_arg(ap, signed char*) = static_cast<signed char>(value); break;
+				case -1: *va_arg(ap, short*) = static_cast<short>(value); break;
+				case 0:  *va_arg(ap, int*) = static_cast<int>(value); break;
+				case 1:  *va_arg(ap, long*) = static_cast<long>(value); break;
+				case 2:  *va_arg(ap, long long*) = static_cast<long long>(value); break;
+				default: *va_arg(ap, size_t*) = static_cast<size_t>(value); break;
+				}
+				++assigned;
+			}
+			continue;
+		}
+		if (conv == u's' || conv == u'c' || conv == u'[') {
+			// 文字の集合（%[...]）
+			bool negate = false;
+			std::u16string set;
+			if (conv == u'[') {
+				++f;
+				if (*f == u'^') { negate = true; ++f; }
+				if (*f == u']') { set.push_back(u']'); ++f; }
+				while (*f && *f != u']') { set.push_back(*f); ++f; }
+				if (!*f) return assigned;
+			}
+			const auto accept = [&](char16_t c) -> bool {
+				if (c == 0) return false;
+				if (conv == u's') return !isSpace(c);
+				if (conv == u'c') return true;
+				bool found = false;
+				for (size_t k = 0; k < set.size(); ++k) {
+					if (k + 2 < set.size() && set[k + 1] == u'-') {
+						if (set[k] <= c && c <= set[k + 2]) found = true;
+						k += 2;
+					} else if (set[k] == c) {
+						found = true;
+					}
+				}
+				return negate ? !found : found;
+			};
+			if (conv == u's') while (isSpace(*in)) ++in;
+			if (*in == 0) return anyConversion || assigned ? assigned : -1;
+			anyConversion = true;
+			const size_t limit = width ? width : (conv == u'c' ? 1 : static_cast<size_t>(-1));
+			size_t len = 0;
+			while (len < limit && accept(in[len])) ++len;
+			if (len == 0 || (conv == u'c' && len < limit)) return assigned;
+			if (!suppress) {
+				char16_t* buf = va_arg(ap, char16_t*);
+				const size_t bufSize = va_arg(ap, unsigned);
+				const size_t need = conv == u'c' ? len : len + 1;
+				if (!buf || bufSize < need) {
+					if (buf && bufSize > 0) buf[0] = 0;
+					return assigned;
+				}
+				std::char_traits<char16_t>::copy(buf, in, len);
+				if (conv != u'c') buf[len] = 0;
+				++assigned;
+			}
+			in += len;
+			continue;
+		}
+		// 対応していない変換
+		errno = EINVAL;
+		return assigned;
+	}
+	return assigned;
+}
+} // namespace sakura::u16
+inline int swscanf_s(const char16_t* str, const char16_t* fmt, ...) {
+	if (!str || !fmt) { errno = EINVAL; return -1; }
+	va_list ap; va_start(ap, fmt); const int n = su16::vscanf_s(str, fmt, ap); va_end(ap); return n;
 }
 
 //! MSVC の swprintf_s / sprintf_s：収まらないときは空文字列にして -1

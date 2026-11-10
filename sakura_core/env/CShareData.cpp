@@ -27,20 +27,31 @@
 #include "StdAfx.h"
 #include "env/CShareData.h"
 
+#if defined(_WIN32)
 #include "basis/make_initialization_error.hpp"
+#else
+#include "version.h"	// Mac 版：製品バージョン（Windows 版はバージョンリソースから取得）
+#endif
 #include "env/DLLSHAREDATA.h"
 #include "env/CFileNameManager.h"
 #include "env/CShareData_IO.h"
 #include "env/CSakuraEnvironment.h"
 #include "doc/CDocListener.h" // SLoadInfo
+#if defined(_WIN32)
 #include "_main/CControlProcess.h"
 #include "_main/CControlTray.h"
 #include "_main/CCommandLine.h"
+#endif
 #include "_main/CMutex.h"
 #include "charset/CCodePage.h"
 #include "debug/CRunningTimer.h"
+#if defined(_WIN32)
 #include "recent/CMRUFile.h"
 #include "recent/CMRUFolder.h"
+#else
+#include "recent/CRecentFile.h"
+#include "recent/CRecentFolder.h"
+#endif
 #include "util/module.h"
 #include "util/string_ex2.h"
 #include "util/window.h"
@@ -78,6 +89,13 @@ CShareData::~CShareData()
 {
 	CFileNameManager::resetInstance();
 	CAppNodeManager::resetInstance();
+#if !defined(_WIN32)
+	// Mac 版：プロセス内のメモリに置いた共有データを破棄する
+	if (m_pShareData) {
+		std::destroy_at(m_pShareData);
+		m_pShareData = nullptr;
+	}
+#endif
 }
 
 static CMutex g_cMutexShareWork( FALSE, GSTR_MUTEX_SAKURA_SHAREWORK );
@@ -104,6 +122,7 @@ void CShareData::InitShareData()
 
 	m_hwndTraceOutSource = nullptr;	// 2006.06.26 ryoji
 
+#if defined(_WIN32)
 	// ファイルマッピングオブジェクトを作成する
 	try
 	{
@@ -133,16 +152,33 @@ void CShareData::InitShareData()
 		FILE_MAP_ALL_ACCESS
 	);
 
+#else
+	// Mac 版：プロセスは 1 つだけなので、共有メモリの代わりにプロセス内のメモリに置く（移植計画のステップ 21）。
+	// Windows 版の共有メモリと同じく、ゼロで初期化した領域に構築する。
+	m_ShareDataMemory = std::make_unique<std::byte[]>(sizeof(DLLSHAREDATA));
+	std::memset(m_ShareDataMemory.get(), 0, sizeof(DLLSHAREDATA));
+#endif
+
 	{
 		// マップされたビューにDLLSHAREDATA構造体を配置します
+#if defined(_WIN32)
 		m_pShareData = new (m_MappedData.get()) DLLSHAREDATA;
+#else
+		m_pShareData = new (m_ShareDataMemory.get()) DLLSHAREDATA;
+#endif
 
 		m_pShareData->m_vStructureVersion = uShareDataVersion;
 		m_pShareData->m_nSize = sizeof(*m_pShareData);
 
 		// 2004.05.13 Moca リソースから製品バージョンの取得
+#if defined(_WIN32)
 		GetAppVersionInfo( nullptr, VS_VERSION_INFO,
 			&m_pShareData->m_sVersion.m_dwProductVersionMS, &m_pShareData->m_sVersion.m_dwProductVersionLS );
+#else
+		// Mac 版：バージョンリソースと同じ値を version.h から取る
+		m_pShareData->m_sVersion.m_dwProductVersionMS = MAKELONG(VER_B, VER_A);
+		m_pShareData->m_sVersion.m_dwProductVersionLS = MAKELONG(VER_D, VER_C);
+#endif
 
 		m_pShareData->m_sFlags.m_bEditWndChanging = FALSE;	// 編集ウィンドウ切替中	// 2007.04.03 ryoji
 		m_pShareData->m_sFlags.m_bRecordingKeyMacro = FALSE;		/* キーボードマクロの記録中 */
@@ -162,22 +198,34 @@ void CShareData::InitShareData()
 
 		// マルチユーザー用のiniファイルパス(exe基準の初期化よりも先に行う必要がある)
 		auto privateIniPath = GetIniFileName();
-		m_pShareData->m_szPrivateIniFile = privateIniPath.c_str();
+		m_pShareData->m_szPrivateIniFile = sakura::path_to_wstring(privateIniPath).c_str();
 
+#if defined(_WIN32)
 		// exe基準のiniファイルパス
 		auto iniPath = GetExeFileName().replace_extension(LTEXT(".ini"));
-		m_pShareData->m_szIniFile = iniPath.c_str();
+#else
+		// Mac 版：アプリの中には書き込めないので、exe基準の ini は使わない（常にユーザー別設定）
+		auto iniPath = privateIniPath;
+#endif
+		m_pShareData->m_szIniFile = sakura::path_to_wstring(iniPath).c_str();
 
 		// 設定ファイルフォルダー
 		WCHAR	szIniFolder[_MAX_PATH];
 		GetInidir(szIniFolder);
 
+#if defined(_WIN32)
 //@@@ 2001.12.26 YAZAKI MRUリストは、CMRUに依頼する
 		CMRUFile cMRU;
 		cMRU.ClearAll();
 //@@@ 2001.12.26 YAZAKI OPENFOLDERリストは、CMRUFolderにすべて依頼する
 		CMRUFolder cMRUFolder;
 		cMRUFolder.ClearAll();
+#else
+		// Mac 版：CMRUFile / CMRUFolder はメニューを作る部分を含むので、履歴の本体を直接クリアする
+		// （CMRUFile::ClearAll、CMRUFolder::ClearAll と同じ）（移植計画のステップ 21）
+		CRecentFile().DeleteAllItem();
+		CRecentFolder().DeleteAllItem();
+#endif
 
 //	From Here Sept. 19, 2000 JEPRO コメントアウトになっていた初めのブロックを復活しその下をコメントアウト
 //	MS ゴシック標準スタイル10ptに設定
@@ -204,12 +252,22 @@ void CShareData::InitShareData()
 
 		// キーワードヘルプのフォント ai 02/05/21 Add S
 		LOGFONT lfIconTitle;	// エクスプローラのファイル名表示に使用されるフォント
+#if !defined(_WIN32)
+		// Mac 版：Windows の既定（Yu Gothic UI 9pt）に相当するシステムのフォント
+		// TODO: 描画部分の移植（移植計画のステップ 28）で Mac のシステムフォントに合わせる
+		memset_raw( &lfIconTitle, 0, sizeof( lfIconTitle ) );
+		lfIconTitle.lfHeight = DpiPointsToPixels(-9);
+		lfIconTitle.lfWeight = FW_NORMAL;
+		lfIconTitle.lfCharSet = SHIFTJIS_CHARSET;
+		wcscpy( lfIconTitle.lfFaceName, LTEXT("Hiragino Sans") );
+#else
 		::SystemParametersInfo(
 			SPI_GETICONTITLELOGFONT,				// system parameter to query or set
 			sizeof(LOGFONT),						// depends on action to be taken
 			(PVOID)&lfIconTitle,					// depends on action to be taken
 			0										// user profile update flag
 		);
+#endif
 		// ai 02/05/21 Add E
 
 		INT		nIconPointSize = lfIconTitle.lfHeight >=0 ? lfIconTitle.lfHeight : DpiPixelsToPoints( -lfIconTitle.lfHeight, 10 );	// フォントサイズ（1/10ポイント単位）
@@ -710,6 +768,7 @@ void CShareData::InitShareData()
 	}
 }
 
+#if defined(_WIN32)	// Mac 版：プロセスは 1 つだけなので、他のプロセスが作った共有データを開く処理は無い
 /*!
  * @brief CShareDataクラスの初期化処理
  *
@@ -767,6 +826,7 @@ void CShareData::OpenShareData()
 		InitCharWidthCache(m_pShareData->m_Common.m_sView.m_lf);
 	}
 }
+#endif
 
 static void ConvertLangString( WCHAR* pBuf, size_t chBufSize, sakura::wstring& org, sakura::wstring& to )
 {
@@ -879,6 +939,7 @@ void CShareData::ConvertLangValues(std::vector<sakura::wstring>& values, bool bS
 	}
 }
 
+#if defined(_WIN32)	// Mac 版：ウィンドウ間の問い合わせとアウトプットウィンドウはウィンドウ部分の移植（移植計画のステップ 26）で用意する
 /*!
 	@brief	指定ファイルが開かれているか調べる
 	
@@ -921,6 +982,7 @@ BOOL CShareData::IsPathOpened( const WCHAR* pszPath, HWND* phwndOwner )
 	}
 	return FALSE;
 }
+
 
 /*!
 	@brief	指定ファイルが開かれているか調べつつ、多重オープン時の文字コード衝突も確認
@@ -987,6 +1049,7 @@ BOOL CShareData::ActiveAlreadyOpenedWindow( const WCHAR* pszPath, HWND* phwndOwn
 	}
 }
 
+
 /*!
 	アウトプットウインドウに出力(文字列指定)
 
@@ -1043,6 +1106,7 @@ void CShareData::TraceOutString( const WCHAR* pStr, int len )
 	}
 }
 
+
 /*
 	デバッグウィンドウを表示
 	@param hwnd 新規ウィンドウのときのデバッグウィンドウの所属グループ
@@ -1079,6 +1143,7 @@ bool CShareData::OpenDebugWindow( HWND hwnd, bool bAllwaysActive )
 	}
 	return ret;
 }
+#endif
 
 /*!
 	設定フォルダーがEXEフォルダーと別かどうかを返す

@@ -19,7 +19,11 @@
 #include "util/file.h"
 #include "view/colors/EColorIndexType.h"
 
+#if defined(_WIN32)
 #include "window/TrayWndTestSuite.hpp"
+#else
+#include "mac-editor-test-suite.hpp"	// Mac 版: トレイウィンドウはまだないので、共通設定だけを用意する（移植計画のステップ 21）
+#endif
 
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
@@ -27,7 +31,7 @@ using namespace std::literals::string_view_literals;
 extern template
 void ShareData_IO_KeyHelpArr<KeyHelpInfo(&)[MAX_KEYHELP_FILE]>(
 	CDataProfile&			cProfile,
-	std::wstring_view		sectionName,	//!< [in] セクション名
+	sakura::wstring_view		sectionName,	//!< [in] セクション名
 	KeyHelpInfo				(&KeyHelpArr)[MAX_KEYHELP_FILE],
 	int&					nKeyHelpNum
 );
@@ -35,15 +39,15 @@ void ShareData_IO_KeyHelpArr<KeyHelpInfo(&)[MAX_KEYHELP_FILE]>(
 extern template
 void ShareData_IO_OutlineDockRect<CommonSetting_OutLine>(
 	CDataProfile&			cProfile,
-	std::wstring_view		sectionName,	//!< [in] セクション名
-	std::wstring_view		entryKey,		//!< [in] エントリ名
+	sakura::wstring_view		sectionName,	//!< [in] セクション名
+	sakura::wstring_view		entryKey,		//!< [in] エントリ名
 	CommonSetting_OutLine&	tEntryValue		//!< [in,out] エントリ値
 );
 
 extern template
 void ShareData_IO_VertLineIdx<CKetaXInt(&)[MAX_VERTLINES]>(
 	CDataProfile&		cProfile,
-	std::wstring_view	sectionName,	//!< [in] セクション名
+	sakura::wstring_view	sectionName,	//!< [in] セクション名
 	CKetaXInt			(&nVertLineIdx)[MAX_VERTLINES]
 );
 
@@ -84,7 +88,7 @@ TEST(CProfile, ReadProfile_ExpandLineBuffer)
 	cProfile.ReadProfile(iniPath);
 
 	bool value = false;
-	EXPECT_TRUE(cProfile.IOProfileData(L"test", L"test", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("test"), LTEXT("test"), value));
 	EXPECT_THAT(value, IsTrue());
 
 	std::filesystem::remove(iniPath, ec);
@@ -123,7 +127,7 @@ TEST(CProfile, ReadProfile_LineTerminatorCr)
 	cProfile.ReadProfile(iniPath);
 
 	bool value = false;
-	EXPECT_TRUE(cProfile.IOProfileData(L"test", L"test", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("test"), LTEXT("test"), value));
 	EXPECT_THAT(value, IsTrue());
 
 	std::filesystem::remove(iniPath, ec);
@@ -136,11 +140,16 @@ TEST( CProfile, WriteProfileMakesSubDirectories )
 {
 	// サブディレクトリを含むパスを作成する
 	WCHAR szIniName[_MAX_PATH]{ 0 };
-	::_wfullpath( szIniName, L"test1\\test2\\test.ini", int(std::size(szIniName)) );
+#if defined(_WIN32)
+	::_wfullpath( szIniName, LTEXT("test1\\test2\\test.ini"), int(std::size(szIniName)) );
+#else
+	// Mac 版: パスの区切りは '/'（移植計画のステップ 21）
+	::wcscpy_s( szIniName, sakura::path_to_wstring(std::filesystem::absolute("test1/test2/test.ini")).c_str() );
+#endif
 
 	// プロファイルを書き出す
 	CProfile cProfile;
-	cProfile.WriteProfile( szIniName, L"WriteProfileのテスト" );
+	cProfile.WriteProfile( szIniName, LTEXT("WriteProfileのテスト") );
 
 	ASSERT_TRUE( fexist( szIniName ) );
 
@@ -151,15 +160,23 @@ TEST( CProfile, WriteProfileMakesSubDirectories )
 	// ファイルを削除
 	std::filesystem::remove( szIniName, ec );
 
+#if defined(_WIN32)
 	// フォルダーを削除
 	p = ::PathFindFileNameW( szIniName );
-	p[0] = L'\0';
+	p[0] = LCHAR('\0');
 	std::filesystem::remove( szIniName, ec );
 
 	// フォルダーを削除
 	p = ::PathFindFileNameW( szIniName );
-	p[0] = L'\0';
+	p[0] = LCHAR('\0');
 	std::filesystem::remove( szIniName, ec );
+#else
+	// Mac 版: PathFindFileNameW の代わりに std::filesystem で親フォルダーを削除する（移植計画のステップ 21）
+	(void)p;
+	const auto dir2 = std::filesystem::path( szIniName ).parent_path();
+	std::filesystem::remove( dir2, ec );
+	std::filesystem::remove( dir2.parent_path(), ec );
+#endif
 }
 
 /*!
@@ -171,8 +188,8 @@ TEST(CProfile, GetProfileData_NoSection)
 	cProfile.SetReadingMode();
 
 	// 初期状態は空なのでセクションが見つからない
-	std::wstring value;
-	ASSERT_FALSE(cProfile.GetProfileData(L"存在しないセクション名", L"szTest", value));
+	sakura::wstring value;
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("存在しないセクション名"), LTEXT("szTest"), value));
 }
 
 /*!
@@ -183,15 +200,15 @@ TEST(CProfile, GetProfileData_NewSection)
 	CProfile cProfile;
 	cProfile.SetReadingMode();
 
-	std::wstring value;
-	ASSERT_FALSE(cProfile.GetProfileData(L"Test", L"szTest", value));
+	sakura::wstring value;
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
 
 	// セクションを追加
-	cProfile.SetProfileData(L"Test", L"szTest", L"value");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("szTest"), LTEXT("value"));
 
 	// 追加されたセクションを取得
-	ASSERT_TRUE(cProfile.GetProfileData(L"Test", L"szTest", value));
-	ASSERT_STREQ(L"value", value.data());
+	ASSERT_TRUE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
+	ASSERT_STREQ(LTEXT("value"), value.data());
 }
 
 /*!
@@ -202,16 +219,16 @@ TEST(CProfile, GetProfileData_NoEntry)
 	CProfile cProfile;
 	cProfile.SetReadingMode();
 
-	std::wstring value;
-	ASSERT_FALSE(cProfile.GetProfileData(L"Test", L"szTest", value));
+	sakura::wstring value;
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
 
-	cProfile.SetProfileData(L"Test", L"szTest", L"value");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("szTest"), LTEXT("value"));
 
-	ASSERT_TRUE(cProfile.GetProfileData(L"Test", L"szTest", value));
-	ASSERT_STREQ(L"value", value.data());
+	ASSERT_TRUE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
+	ASSERT_STREQ(LTEXT("value"), value.data());
 
 	// 該当するキーがないのでエントリを取得できない
-	ASSERT_FALSE(cProfile.GetProfileData(L"Test", L"nTest", value));
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("nTest"), value));
 }
 
 /*!
@@ -222,20 +239,20 @@ TEST(CProfile, GetProfileData_NewEntry)
 	CProfile cProfile;
 	cProfile.SetReadingMode();
 
-	std::wstring value;
-	ASSERT_FALSE(cProfile.GetProfileData(L"Test", L"szTest", value));
+	sakura::wstring value;
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
 
-	cProfile.SetProfileData(L"Test", L"szTest", L"value");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("szTest"), LTEXT("value"));
 
-	ASSERT_TRUE(cProfile.GetProfileData(L"Test", L"szTest", value));
-	ASSERT_STREQ(L"value", value.data());
+	ASSERT_TRUE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("szTest"), value));
+	ASSERT_STREQ(LTEXT("value"), value.data());
 
-	ASSERT_FALSE(cProfile.GetProfileData(L"Test", L"nTest", value));
+	ASSERT_FALSE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("nTest"), value));
 
-	cProfile.SetProfileData(L"Test", L"nTest", L"109");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nTest"), LTEXT("109"));
 
-	ASSERT_TRUE(cProfile.GetProfileData(L"Test", L"nTest", value));
-	ASSERT_STREQ(L"109", value.data());
+	ASSERT_TRUE(cProfile.GetProfileData(LTEXT("Test"), LTEXT("nTest"), value));
+	ASSERT_STREQ(LTEXT("109"), value.data());
 }
 
 /*!
@@ -244,16 +261,16 @@ TEST(CProfile, GetProfileData_NewEntry)
 TEST(profile_data, TryParse_int)
 {
 	int value = 0;
-	ASSERT_TRUE(profile_data::TryParse(L"109", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("109"), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT(""), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"not a number", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT("not a number"), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_TRUE(profile_data::TryParse(L"888", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("888"), value));
 	ASSERT_EQ(888, value);
 }
 
@@ -263,16 +280,16 @@ TEST(profile_data, TryParse_int)
 TEST(profile_data, TryParse_CLayoutInt)
 {
 	CLayoutInt value{ 0 };
-	ASSERT_TRUE(profile_data::TryParse(L"109", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("109"), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT(""), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"not a number", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT("not a number"), value));
 	ASSERT_EQ(109, value);
 
-	ASSERT_TRUE(profile_data::TryParse(L"888", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("888"), value));
 	ASSERT_EQ(888, value);
 }
 
@@ -283,10 +300,10 @@ TEST(profile_data, TryParse_enum)
 {
 	enum ETest { NONE, RED, GREEN, BLUE, };
 	ETest value = NONE;
-	ASSERT_TRUE(profile_data::TryParse(L"1", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("1"), value));
 	ASSERT_EQ(RED, value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT(""), value));
 	ASSERT_EQ(RED, value);
 }
 
@@ -296,16 +313,16 @@ TEST(profile_data, TryParse_enum)
 TEST(profile_data, TryParse_bool)
 {
 	bool value = false;
-	ASSERT_TRUE(profile_data::TryParse(L"1", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("1"), value));
 	ASSERT_TRUE(value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT(""), value));
 	ASSERT_TRUE(value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"false", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT("false"), value));
 	ASSERT_TRUE(value);
 
-	ASSERT_TRUE(profile_data::TryParse(L"0", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("0"), value));
 	ASSERT_FALSE(value);
 }
 
@@ -314,15 +331,15 @@ TEST(profile_data, TryParse_bool)
  */
 TEST(profile_data, TryParse_WCHAR)
 {
-	WCHAR value = L'\0';
-	ASSERT_TRUE(profile_data::TryParse(L"|", value));
-	ASSERT_EQ(L'|', value);
+	WCHAR value = LCHAR('\0');
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("|"), value));
+	ASSERT_EQ(LCHAR('|'), value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"\U0001F51E", value));
-	ASSERT_EQ(L'|', value);
+	ASSERT_FALSE(profile_data::TryParse(LTEXT("\U0001F51E"), value));
+	ASSERT_EQ(LCHAR('|'), value);
 
-	ASSERT_TRUE(profile_data::TryParse(L"", value));
-	ASSERT_EQ(L'\0', value);
+	ASSERT_TRUE(profile_data::TryParse(LTEXT(""), value));
+	ASSERT_EQ(LCHAR('\0'), value);
 }
 
 /*!
@@ -331,13 +348,13 @@ TEST(profile_data, TryParse_WCHAR)
 TEST(profile_data, TryParse_KEYCODE)
 {
 	KEYCODE value = '\0';
-	ASSERT_TRUE(profile_data::TryParse(L"W", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT("W"), value));
 	ASSERT_EQ('W', value);
 
-	ASSERT_FALSE(profile_data::TryParse(L"漢", value));
+	ASSERT_FALSE(profile_data::TryParse(LTEXT("漢"), value));
 	ASSERT_EQ('W', value);
 
-	ASSERT_TRUE(profile_data::TryParse(L"", value));
+	ASSERT_TRUE(profile_data::TryParse(LTEXT(""), value));
 	ASSERT_EQ('\0', value);
 }
 
@@ -346,32 +363,32 @@ TEST(profile_data, TryParse_KEYCODE)
  */
 TEST(profile_data, ToString_KEYCODE)
 {
-	std::wstring str;
+	sakura::wstring str;
 	KEYCODE code;
 
 	code = 0x80;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"", str.c_str());
+	ASSERT_STREQ(LTEXT(""), str.c_str());
 
 	code = -1;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"", str.c_str());
+	ASSERT_STREQ(LTEXT(""), str.c_str());
 
 	code = 0;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"", str.c_str());
+	ASSERT_STREQ(LTEXT(""), str.c_str());
 
 	code = 1;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"\x01", str.c_str());
+	ASSERT_STREQ(LTEXT("\x01"), str.c_str());
 
 	code = 0x61;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"a", str.c_str());
+	ASSERT_STREQ(LTEXT("a"), str.c_str());
 
 	code = 0x7f;
 	str = profile_data::ToString(code);
-	ASSERT_STREQ(L"\x7f", str.c_str());
+	ASSERT_STREQ(LTEXT("\x7f"), str.c_str());
 }
 
 /*!
@@ -382,26 +399,26 @@ TEST(CDataProfile, IOProfileData)
 	CDataProfile cProfile;
 	cProfile.SetReadingMode();
 
-	std::wstring value;
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"szTest", value), IsFalse());
+	sakura::wstring value;
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("szTest"), value), IsFalse());
 
-	cProfile.SetProfileData(L"Test", L"szTest", L"value");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("szTest"), LTEXT("value"));
 
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"szTest", value), IsTrue());
-	EXPECT_THAT(value, StrEq(L"value"));
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("szTest"), value), IsTrue());
+	EXPECT_THAT(value, StrEq(LTEXT("value")));
 
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"nTest", value), IsFalse());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("nTest"), value), IsFalse());
 
-	cProfile.SetProfileData(L"Test", L"nTest", L"109");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nTest"), LTEXT("109"));
 
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"nTest", value), IsTrue());
-	EXPECT_THAT(value, StrEq(L"109"));
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("nTest"), value), IsTrue());
+	EXPECT_THAT(value, StrEq(LTEXT("109")));
 
 	int nValue = 0;
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"nTest", nValue), IsTrue());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("nTest"), nValue), IsTrue());
 	EXPECT_THAT(nValue, 109);
 
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"szTest", nValue), IsFalse());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("szTest"), nValue), IsFalse());
 	EXPECT_THAT(nValue, 109);
 }
 
@@ -416,22 +433,22 @@ TEST(CDataProfile, IOProfileData_ColorInfo)
 	ColorInfo value{};
 
 	// 設定項目がないと読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"clrTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("clrTest"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_bDisp, IsFalse());
 
 	// 不適切な値を設定（足りない）
-	cProfile.SetProfileData(L"Test", L"clrTest", L"1,1,ffffff,000000");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("clrTest"), LTEXT("1,1,ffffff,000000"));
 
 	// 不完全な設定項目は読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"clrTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("clrTest"), value));
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"clrTest", L"1,1,ffffff,000000,1");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("clrTest"), LTEXT("1,1,ffffff,000000,1"));
 
 	// 読める
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"clrTest", value), IsTrue());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("clrTest"), value), IsTrue());
 
 	// 値は変更される
 	EXPECT_THAT(value.m_bDisp, IsTrue());
@@ -452,7 +469,7 @@ TEST(CDataProfile, IOProfileData_EditInfo)
 	EditInfo value{};
 
 	// 設定項目がなくても読める
-	EXPECT_TRUE(cProfile.IOProfileData(L"Test", L"eiTest", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("eiTest"), value));
 }
 
 /*!
@@ -465,93 +482,93 @@ TEST(CDataProfile, IOProfileData_KeyHelpInfo)
 
 	KeyHelpInfo value{};
 	value.m_bUse	= false;
-	value.m_szAbout	= L"about";
-	value.m_szPath	= L"path";
+	value.m_szAbout	= LTEXT("about");
+	value.m_szPath	= LTEXT("path");
 
 	// 設定項目がないと読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_bUse, IsFalse());
-	EXPECT_THAT(value.m_szAbout, StrEq(L"about"));
-	EXPECT_THAT(value.m_szPath, StrEq(L"path"));
+	EXPECT_THAT(value.m_szAbout, StrEq(LTEXT("about")));
+	EXPECT_THAT(value.m_szPath, StrEq(LTEXT("path")));
 
 	// 不適切な値を設定
-	cProfile.SetProfileData(L"Test", L"keyHelp", std::format(L"{},{},{}", L"true", L"ABOUT", L"PATH"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("keyHelp"), sakura::format(LTEXT("{},{},{}"), LTEXT("true"), LTEXT("ABOUT"), LTEXT("PATH")));
 
 	// 値が不適切なので読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_bUse, IsFalse());
-	EXPECT_THAT(value.m_szAbout, StrEq(L"about"));
-	EXPECT_THAT(value.m_szPath, StrEq(L"path"));
+	EXPECT_THAT(value.m_szAbout, StrEq(LTEXT("about")));
+	EXPECT_THAT(value.m_szPath, StrEq(LTEXT("path")));
 
 	// 不適切な値を設定
-	cProfile.SetProfileData(L"Test", L"keyHelp", std::format(L"{},{},{}", 1, std::wstring(50, L'a'), L"PATH"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("keyHelp"), sakura::format(LTEXT("{},{},{}"), 1, sakura::wstring(50, LCHAR('a')), LTEXT("PATH")));
 
 	// 値が不適切なので読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_bUse, IsFalse());
-	EXPECT_THAT(value.m_szAbout, StrEq(L"about"));
-	EXPECT_THAT(value.m_szPath, StrEq(L"path"));
+	EXPECT_THAT(value.m_szAbout, StrEq(LTEXT("about")));
+	EXPECT_THAT(value.m_szPath, StrEq(LTEXT("path")));
 
 	// 不適切な値を設定
-	cProfile.SetProfileData(L"Test", L"keyHelp", std::format(L"{},{},{}", 1, std::wstring(50 - 1, L'a'), std::wstring(_MAX_PATH, L'b')));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("keyHelp"), sakura::format(LTEXT("{},{},{}"), 1, sakura::wstring(50 - 1, LCHAR('a')), sakura::wstring(_MAX_PATH, LCHAR('b'))));
 
 	// 値が不適切なので読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_bUse, IsFalse());
-	EXPECT_THAT(value.m_szAbout, StrEq(L"about"));
-	EXPECT_THAT(value.m_szPath, StrEq(L"path"));
+	EXPECT_THAT(value.m_szAbout, StrEq(LTEXT("about")));
+	EXPECT_THAT(value.m_szPath, StrEq(LTEXT("path")));
 
 	// 適切（？）な値を設定
-	cProfile.SetProfileData(L"Test", L"keyHelp", std::format(L"{},{},{}", 1, std::wstring(50 - 1, L'a'), std::wstring(_MAX_PATH - 1, L'b')));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("keyHelp"), sakura::format(LTEXT("{},{},{}"), 1, sakura::wstring(50 - 1, LCHAR('a')), sakura::wstring(_MAX_PATH - 1, LCHAR('b'))));
 
 	// 読める
-	EXPECT_TRUE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 値は変更される
 	EXPECT_THAT(value.m_bUse, IsTrue());
-	EXPECT_THAT(value.m_szAbout, StrEq(std::wstring(50 - 1, L'a')));
-	EXPECT_THAT(value.m_szPath, StrEq(std::wstring(_MAX_PATH - 1, L'b')));
+	EXPECT_THAT(value.m_szAbout, StrEq(sakura::wstring(50 - 1, LCHAR('a'))));
+	EXPECT_THAT(value.m_szPath, StrEq(sakura::wstring(_MAX_PATH - 1, LCHAR('b'))));
 
 	// szAboutが空のパターンを追加で確認する
 	value.m_bUse	= false;
-	value.m_szAbout	= L"about";
-	value.m_szPath	= L"path";
+	value.m_szAbout	= LTEXT("about");
+	value.m_szPath	= LTEXT("path");
 
 	// 適切（？）な値を設定
-	cProfile.SetProfileData(L"Test", L"keyHelp", L"1,,PATH");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("keyHelp"), LTEXT("1,,PATH"));
 
 	// 読める
-	EXPECT_TRUE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	EXPECT_THAT(value.m_bUse, IsTrue());
-	EXPECT_THAT(value.m_szAbout, StrEq(L""));
-	EXPECT_THAT(value.m_szPath, StrEq(L"PATH"));
+	EXPECT_THAT(value.m_szAbout, StrEq(LTEXT("")));
+	EXPECT_THAT(value.m_szPath, StrEq(LTEXT("PATH")));
 
 	// 書き込みモード
 	cProfile.SetWritingMode();
 
 	// パス未設定なら書き込み失敗とする仕様の確認
-	value.m_szPath = L"";
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	value.m_szPath = LTEXT("");
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
 	// 出力フォーマットの確認
 	value.m_bUse	= true;
-	value.m_szAbout	= L"ABOUT";
-	value.m_szPath	= L"PATH";
+	value.m_szAbout	= LTEXT("ABOUT");
+	value.m_szPath	= LTEXT("PATH");
 
-	EXPECT_TRUE(cProfile.IOProfileData(L"Test", L"keyHelp", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("keyHelp"), value));
 
-	std::wstring written;
-	cProfile.GetProfileData(L"Test", L"keyHelp", written);
-	EXPECT_THAT(written, StrEq(L"1,ABOUT,PATH"));
+	sakura::wstring written;
+	cProfile.GetProfileData(LTEXT("Test"), LTEXT("keyHelp"), written);
+	EXPECT_THAT(written, StrEq(LTEXT("1,ABOUT,PATH")));
 }
 
 /*!
@@ -563,52 +580,52 @@ TEST(CDataProfile, IOProfileData_MacroRec)
 	cProfile.SetReadingMode();
 
 	MacroRec value{};
-	value.m_szName[0]			= L'\0';
-	value.m_szFile[0]			= L'\0';
+	value.m_szName[0]			= LCHAR('\0');
+	value.m_szFile[0]			= LCHAR('\0');
 	value.m_bReloadWhenExecute	= false;
 
 	// 設定項目がないと読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"[000]", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("[000]"), value));
 
 	// 値は変更されない
-	EXPECT_THAT(value.m_szName, StrEq(L""));
-	EXPECT_THAT(value.m_szFile, StrEq(L""));
+	EXPECT_THAT(value.m_szName, StrEq(LTEXT("")));
+	EXPECT_THAT(value.m_szFile, StrEq(LTEXT("")));
 	EXPECT_THAT(value.m_bReloadWhenExecute, IsFalse());
 
 	// 不適切な値を設定
-	cProfile.SetProfileData(L"Test", L"Name[000]", std::wstring(MACRONAME_MAX, L'a'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Name[000]"), sakura::wstring(MACRONAME_MAX, LCHAR('a')));
 
 	// 値が不適切なので読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"[000]", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("[000]"), value));
 
 	// 値は変更されない
-	EXPECT_THAT(value.m_szName, StrEq(L""));
-	EXPECT_THAT(value.m_szFile, StrEq(L""));
+	EXPECT_THAT(value.m_szName, StrEq(LTEXT("")));
+	EXPECT_THAT(value.m_szFile, StrEq(LTEXT("")));
 	EXPECT_THAT(value.m_bReloadWhenExecute, IsFalse());
 
 	// 不適切な値を設定
-	cProfile.SetProfileData(L"Test", L"Name[000]", std::wstring(MACRONAME_MAX - 1, L'a'));
-	cProfile.SetProfileData(L"Test", L"File[000]", std::wstring(_MAX_PATH + 1, L'b'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Name[000]"), sakura::wstring(MACRONAME_MAX - 1, LCHAR('a')));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("File[000]"), sakura::wstring(_MAX_PATH + 1, LCHAR('b')));
 
 	// 値が不適切なので読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"[000]", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("[000]"), value));
 
 	// 値は変更されない
-	EXPECT_THAT(value.m_szName, StrEq(L""));
-	EXPECT_THAT(value.m_szFile, StrEq(L""));
+	EXPECT_THAT(value.m_szName, StrEq(LTEXT("")));
+	EXPECT_THAT(value.m_szFile, StrEq(LTEXT("")));
 	EXPECT_THAT(value.m_bReloadWhenExecute, IsFalse());
 
 	// 適切（？）な値を設定
-	cProfile.SetProfileData(L"Test", L"Name[000]", std::wstring(MACRONAME_MAX - 1, L'a'));
-	cProfile.SetProfileData(L"Test", L"File[000]", std::wstring(_MAX_PATH, L'b'));
-	cProfile.SetProfileData(L"Test", L"ReloadWhenExecute[000]", L"1");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Name[000]"), sakura::wstring(MACRONAME_MAX - 1, LCHAR('a')));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("File[000]"), sakura::wstring(_MAX_PATH, LCHAR('b')));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("ReloadWhenExecute[000]"), LTEXT("1"));
 
 	// 読める
-	EXPECT_TRUE(cProfile.IOProfileData(L"Test", L"[000]", value));
+	EXPECT_TRUE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("[000]"), value));
 
 	// 値は変更される
-	EXPECT_THAT(value.m_szName, StrEq(std::wstring(MACRONAME_MAX - 1, L'a')));
-	EXPECT_THAT(value.m_szFile, StrEq(std::wstring(_MAX_PATH, L'b')));
+	EXPECT_THAT(value.m_szName, StrEq(sakura::wstring(MACRONAME_MAX - 1, LCHAR('a'))));
+	EXPECT_THAT(value.m_szFile, StrEq(sakura::wstring(_MAX_PATH, LCHAR('b'))));
 	EXPECT_THAT(value.m_bReloadWhenExecute, IsTrue());
 }
 
@@ -621,48 +638,48 @@ TEST(CDataProfile, IOProfileData_PluginRec)
 	cProfile.SetReadingMode();
 
 	PluginRec value{};
-	value.m_szId = L"";
-	value.m_szName = L"";
+	value.m_szId = LTEXT("");
+	value.m_szName = LTEXT("");
 	value.m_state = EPluginState::PLS_NONE;
 	value.m_nCmdNum = 0;
 
 	// 設定項目がないと読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"pluginTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("pluginTest"), value));
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_nCmdNum, 0);
 
 	// 不適切な値を設定（サイズオーバー1）
-	cProfile.SetProfileData(L"Test", L"pluginTest.Name", std::wstring(size_t(MAX_PLUGIN_ID), L'a'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.Name"), sakura::wstring(size_t(MAX_PLUGIN_ID), LCHAR('a')));
 
 	// 不完全な設定項目は読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"pluginTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("pluginTest"), value));
 
-	cProfile.SetProfileData(L"Test", L"pluginTest.Name", std::wstring(size_t(MAX_PLUGIN_ID) - 1, L'a'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.Name"), sakura::wstring(size_t(MAX_PLUGIN_ID) - 1, LCHAR('a')));
 
 	// 不適切な値を設定（サイズオーバー2）
-	cProfile.SetProfileData(L"Test", L"pluginTest.Id", std::wstring(size_t(MAX_PLUGIN_NAME), L'b'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.Id"), sakura::wstring(size_t(MAX_PLUGIN_NAME), LCHAR('b')));
 
 	// 不完全な設定項目は読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"pluginTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("pluginTest"), value));
 
-	cProfile.SetProfileData(L"Test", L"pluginTest.Id", std::wstring(size_t(MAX_PLUGIN_NAME) - 1, L'b'));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.Id"), sakura::wstring(size_t(MAX_PLUGIN_NAME) - 1, LCHAR('b')));
 
 	// 不適切な値を設定（型誤り）
-	cProfile.SetProfileData(L"Test", L"pluginTest.CmdNum", L"なし");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.CmdNum"), LTEXT("なし"));
 
 	// 不完全な設定項目は読めない
-	EXPECT_FALSE(cProfile.IOProfileData(L"Test", L"pluginTest", value));
+	EXPECT_FALSE(cProfile.IOProfileData(LTEXT("Test"), LTEXT("pluginTest"), value));
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"pluginTest.CmdNum", L"1");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("pluginTest.CmdNum"), LTEXT("1"));
 
 	// 読める
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"pluginTest", value), IsTrue());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("pluginTest"), value), IsTrue());
 
 	// 値は変更される
-	EXPECT_THAT(value.m_szName.c_str(), StartsWith(L"aaa"));
-	EXPECT_THAT(value.m_szId.c_str(), StartsWith(L"bbb"));
+	EXPECT_THAT(value.m_szName.c_str(), StartsWith(LTEXT("aaa")));
+	EXPECT_THAT(value.m_szId.c_str(), StartsWith(LTEXT("bbb")));
 	EXPECT_THAT(value.m_nCmdNum, 1);
 }
 
@@ -677,7 +694,7 @@ TEST(CDataProfile, IOProfileData_RECT)
 	RECT value = { 1, 2, 3, 4 };
 
 	// 設定項目がないと読めない
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"rcTest", value), IsFalse());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("rcTest"), value), IsFalse());
 
 	// 値は変更されない
 	EXPECT_THAT(value.left, 1);
@@ -686,10 +703,10 @@ TEST(CDataProfile, IOProfileData_RECT)
 	EXPECT_THAT(value.bottom, 4);
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"rcTest", L"4,3,2,1");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("rcTest"), LTEXT("4,3,2,1"));
 
 	// 読める
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"rcTest", value), IsTrue());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("rcTest"), value), IsTrue());
 
 	// 値は変更される
 	EXPECT_THAT(value.left, 4);
@@ -698,10 +715,10 @@ TEST(CDataProfile, IOProfileData_RECT)
 	EXPECT_THAT(value.bottom, 1);
 
 	// 値を設定（足りない）
-	cProfile.SetProfileData(L"Test", L"rcTest", L"109,108,107");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("rcTest"), LTEXT("109,108,107"));
 
 	// 不完全な設定項目は読めない
-	EXPECT_THAT(cProfile.IOProfileData(L"Test", L"rcTest", value), IsFalse());
+	EXPECT_THAT(cProfile.IOProfileData(LTEXT("Test"), LTEXT("rcTest"), value), IsFalse());
 
 	// 値は変更されない
 	EXPECT_THAT(value.left, 4);
@@ -721,16 +738,16 @@ TEST(CDataProfile, IOProfileDataSet001)
 	StaticVector<SFilePath, 3, LPCWSTR> values{};
 
 	// INIの有効要素数が指定されている場合、その要素数だけ読み込む
-	cProfile.SetProfileData(L"Test", L"_Entry_Counts", L"2");
-	cProfile.SetProfileData(L"Test", L"Entry[00]", L"first");
-	cProfile.SetProfileData(L"Test", L"Entry[01]", L"");
-	cProfile.SetProfileData(L"Test", L"Entry[02]", L"ignored");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("_Entry_Counts"), LTEXT("2"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[00]"), LTEXT("first"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[01]"), LTEXT(""));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[02]"), LTEXT("ignored"));
 
-	cProfile.IOProfileDataSet(L"Test", L"Entry", values);
+	cProfile.IOProfileDataSet(LTEXT("Test"), LTEXT("Entry"), values);
 
 	EXPECT_THAT(values.size(), Eq(2));
-	EXPECT_THAT(values[0], StrEq(L"first"));
-	EXPECT_THAT(values[1], StrEq(L""));
+	EXPECT_THAT(values[0], StrEq(LTEXT("first")));
+	EXPECT_THAT(values[1], StrEq(LTEXT("")));
 }
 
 /*!
@@ -744,19 +761,19 @@ TEST(CDataProfile, IOProfileDataSet002)
 	StaticVector<SFilePath, 4, LPCWSTR> values{};
 
 	// INIの有効要素数が配列サイズを超えている場合、配列サイズに補正する
-	cProfile.SetProfileData(L"Test", L"nEntryCount", L"5");
-	cProfile.SetProfileData(L"Test", L"Entry[00]", L"first");
-	cProfile.SetProfileData(L"Test", L"Entry[01]", L"second");
-	cProfile.SetProfileData(L"Test", L"Entry[02]", L"third");
-	cProfile.SetProfileData(L"Test", L"Entry[03]", L"force");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nEntryCount"), LTEXT("5"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[00]"), LTEXT("first"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[01]"), LTEXT("second"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[02]"), LTEXT("third"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[03]"), LTEXT("force"));
 
-	cProfile.IOProfileDataSet(L"Test", L"Entry", values, L"nEntryCount");
+	cProfile.IOProfileDataSet(LTEXT("Test"), LTEXT("Entry"), values, LTEXT("nEntryCount"));
 
 	EXPECT_THAT(values.size(), Eq(4));
-	EXPECT_THAT(values[0], StrEq(L"first"));
-	EXPECT_THAT(values[1], StrEq(L"second"));
-	EXPECT_THAT(values[2], StrEq(L"third"));
-	EXPECT_THAT(values[3], StrEq(L"force"));
+	EXPECT_THAT(values[0], StrEq(LTEXT("first")));
+	EXPECT_THAT(values[1], StrEq(LTEXT("second")));
+	EXPECT_THAT(values[2], StrEq(LTEXT("third")));
+	EXPECT_THAT(values[3], StrEq(LTEXT("force")));
 }
 
 /*!
@@ -770,14 +787,14 @@ TEST(CDataProfile, IOProfileDataSet003)
 	StaticVector<SFilePath, 4, LPCWSTR> values{};
 
 	// INIに有効要素数がない場合、末尾から見て最初に見付かった空ではない要素を最終要素とする
-	cProfile.SetProfileData(L"Test", L"Entry[00]", L"first");
-	cProfile.SetProfileData(L"Test", L"Entry[01]", L"second");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[00]"), LTEXT("first"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("Entry[01]"), LTEXT("second"));
 
-	cProfile.IOProfileDataSet(L"Test", L"Entry", values);
+	cProfile.IOProfileDataSet(LTEXT("Test"), LTEXT("Entry"), values);
 
 	EXPECT_THAT(values.size(), Eq(2));
-	EXPECT_THAT(values[0], StrEq(L"first"));
-	EXPECT_THAT(values[1], StrEq(L"second"));
+	EXPECT_THAT(values[0], StrEq(LTEXT("first")));
+	EXPECT_THAT(values[1], StrEq(LTEXT("second")));
 }
 
 /*!
@@ -790,7 +807,13 @@ TEST(ShareData_IO, ShareData_IO_2)
 	constexpr std::array UTF8_BOM = { '\xEF', '\xBB', '\xBF' };
 
 	const auto iniPath = GetIniFileName();
-	const auto bakPath = std::filesystem::path{ iniPath.native() + L".bak" };
+#if defined(_WIN32)
+	const auto bakPath = std::filesystem::path{ iniPath.native() + LTEXT(".bak") };
+#else
+	auto bakPath = iniPath;	// Mac 版: path::native() は UTF-8 なので += で連結する（移植計画のステップ 21）
+	bakPath += LTEXT(".bak");
+	std::filesystem::create_directories(iniPath.parent_path());	// Mac 版: 設定フォルダーはまだ無いことがある
+#endif
 
 	// ファイル出力ストリームをバイナリモードで開く
 	std::ofstream fos{ iniPath };
@@ -831,10 +854,10 @@ TEST(ShareData_IO, ShareData_IO_ColorSet)
 	std::vector<ColorInfo> colorInfoArr{ size_t(COLORIDX_LAST) };
 
 	// キャレット前景色がテキスト背景色と同じ
-	cProfile.SetProfileData(L"Test", L"C[TXT]", L"1,1,000000,ffffff,1");	// 黒文字、白背景
-	cProfile.SetProfileData(L"Test", L"C[CAR]", L"1,1,ffffff,ff0000,1");	// 白文字、赤背景
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("C[TXT]"), LTEXT("1,1,000000,ffffff,1"));	// 黒文字、白背景
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("C[CAR]"), LTEXT("1,1,ffffff,ff0000,1"));	// 白文字、赤背景
 
-	ShareData_IO_ColorSet(cProfile, L"Test", colorInfoArr);
+	ShareData_IO_ColorSet(cProfile, LTEXT("Test"), colorInfoArr);
 
 	// キャレット前景色がテキスト文字色に変更される
 	EXPECT_THAT(colorInfoArr[COLORIDX_CARET].m_sColorAttr.m_cTEXT, colorInfoArr[COLORIDX_TEXT].m_sColorAttr.m_cTEXT);
@@ -851,23 +874,23 @@ TEST(ShareData_IO, ShareData_IO_KeyHelpArr)
 	KeyHelpInfo KeyHelpArr[MAX_KEYHELP_FILE]{};
 	int nKeyHelpNum = 0;
 
-	cProfile.SetProfileData(L"Test", L"KDct[00]", L"0,about,path");
-	cProfile.SetProfileData(L"Test", L"KDct[01]", L"1,ABOUT,PATH");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("KDct[00]"), LTEXT("0,about,path"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("KDct[01]"), LTEXT("1,ABOUT,PATH"));
 
-	ShareData_IO_KeyHelpArr(cProfile, L"Test", KeyHelpArr, nKeyHelpNum);
+	ShareData_IO_KeyHelpArr(cProfile, LTEXT("Test"), KeyHelpArr, nKeyHelpNum);
 
 	EXPECT_THAT(KeyHelpArr[0].m_bUse, IsFalse());
-	EXPECT_THAT(KeyHelpArr[0].m_szAbout, StrEq(L"about"));
-	EXPECT_THAT(KeyHelpArr[0].m_szPath, StrEq(L"path"));
+	EXPECT_THAT(KeyHelpArr[0].m_szAbout, StrEq(LTEXT("about")));
+	EXPECT_THAT(KeyHelpArr[0].m_szPath, StrEq(LTEXT("path")));
 	EXPECT_THAT(KeyHelpArr[1].m_bUse, IsTrue());
-	EXPECT_THAT(KeyHelpArr[1].m_szAbout, StrEq(L"ABOUT"));
-	EXPECT_THAT(KeyHelpArr[1].m_szPath, StrEq(L"PATH"));
+	EXPECT_THAT(KeyHelpArr[1].m_szAbout, StrEq(LTEXT("ABOUT")));
+	EXPECT_THAT(KeyHelpArr[1].m_szPath, StrEq(LTEXT("PATH")));
 	EXPECT_THAT(nKeyHelpNum, 2);
 
 	// 旧バージョンサポート
-	cProfile.SetProfileData(L"Test", L"szKeyWordHelpFile", L"szKeyWordHelpFile");
-	ShareData_IO_KeyHelpArr(cProfile, L"Test", KeyHelpArr, nKeyHelpNum);
-	EXPECT_THAT(KeyHelpArr[0].m_szPath, StrEq(L"szKeyWordHelpFile"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("szKeyWordHelpFile"), LTEXT("szKeyWordHelpFile"));
+	ShareData_IO_KeyHelpArr(cProfile, LTEXT("Test"), KeyHelpArr, nKeyHelpNum);
+	EXPECT_THAT(KeyHelpArr[0].m_szPath, StrEq(LTEXT("szKeyWordHelpFile")));
 	EXPECT_THAT(nKeyHelpNum, 1);
 }
 
@@ -883,41 +906,41 @@ TEST(ShareData_IO, ShareData_IO_LogFont)
 	INT nPointSize = 0;
 
 	// 設定項目がないと読めない
-	ShareData_IO_LogFont(cProfile, L"Test", L"lf", lf, nPointSize);
+	ShareData_IO_LogFont(cProfile, LTEXT("Test"), LTEXT("lf"), lf, nPointSize);
 
 	EXPECT_THAT(nPointSize, 0);
 	EXPECT_THAT(lf.lfHeight, 0);
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"nPointSize", L"12");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nPointSize"), LTEXT("12"));
 
 	// 複合項目なので、やっぱり読めない
-	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, L"Test", L"lf", lf, nPointSize));
+	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, LTEXT("Test"), LTEXT("lf"), lf, nPointSize));
 
 	EXPECT_THAT(nPointSize, 12);
 	EXPECT_THAT(lf.lfHeight, 0);
 
 	// 不適切な値を設定（足りない）
-	cProfile.SetProfileData(L"Test", L"lf", L"1,2,3,4,5,6,7,8,9,10,11,12");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("lf"), LTEXT("1,2,3,4,5,6,7,8,9,10,11,12"));
 
 	// 項目が足りないので読めない
-	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, L"Test", L"lf", lf, nPointSize));
+	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, LTEXT("Test"), LTEXT("lf"), lf, nPointSize));
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"lf", L"1,2,3,4,5,6,7,8,9,10,11,12,13");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("lf"), LTEXT("1,2,3,4,5,6,7,8,9,10,11,12,13"));
 
 	// 複合項目なので、やっぱり読めない
-	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, L"Test", L"lf", lf, nPointSize));
+	EXPECT_FALSE(ShareData_IO_LogFont(cProfile, LTEXT("Test"), LTEXT("lf"), lf, nPointSize));
 
 	EXPECT_THAT(nPointSize, 12);
 	EXPECT_THAT(lf.lfHeight, 0);
-	EXPECT_THAT(lf.lfFaceName[0], L'\0');
+	EXPECT_THAT(lf.lfFaceName[0], LCHAR('\0'));
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"lfFaceName", L"font name");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("lfFaceName"), LTEXT("font name"));
 
 	// 読める
-	EXPECT_TRUE(ShareData_IO_LogFont(cProfile, L"Test", L"lf", lf, nPointSize));
+	EXPECT_TRUE(ShareData_IO_LogFont(cProfile, LTEXT("Test"), LTEXT("lf"), lf, nPointSize));
 
 	EXPECT_THAT(nPointSize,				12);
 	EXPECT_THAT(lf.lfHeight,			-2);	// 補正が入るので入力値と異なる
@@ -933,7 +956,7 @@ TEST(ShareData_IO, ShareData_IO_LogFont)
 	EXPECT_THAT(lf.lfClipPrecision,		0xB);
 	EXPECT_THAT(lf.lfQuality,			0xC);
 	EXPECT_THAT(lf.lfPitchAndFamily,	0xD);
-	EXPECT_THAT(lf.lfFaceName,			StrEq(L"font name"));
+	EXPECT_THAT(lf.lfFaceName,			StrEq(LTEXT("font name")));
 }
 
 /*!
@@ -951,7 +974,7 @@ TEST(ShareData_IO, ShareData_IO_OutlineDockRect)
 	value.m_cyOutlineDockBottom	= 4;
 
 	// 設定項目がないと読めない
-	ShareData_IO_OutlineDockRect(cProfile, L"Test", L"xyOutlineDock", value);
+	ShareData_IO_OutlineDockRect(cProfile, LTEXT("Test"), LTEXT("xyOutlineDock"), value);
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_cxOutlineDockLeft, 1);
@@ -960,10 +983,10 @@ TEST(ShareData_IO, ShareData_IO_OutlineDockRect)
 	EXPECT_THAT(value.m_cyOutlineDockBottom, 4);
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"xyOutlineDock", L"4,3,2,1");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("xyOutlineDock"), LTEXT("4,3,2,1"));
 
 	// 読める
-	ShareData_IO_OutlineDockRect(cProfile, L"Test", L"xyOutlineDock", value);
+	ShareData_IO_OutlineDockRect(cProfile, LTEXT("Test"), LTEXT("xyOutlineDock"), value);
 
 	// 値は変更される
 	EXPECT_THAT(value.m_cxOutlineDockLeft, 4);
@@ -972,10 +995,10 @@ TEST(ShareData_IO, ShareData_IO_OutlineDockRect)
 	EXPECT_THAT(value.m_cyOutlineDockBottom, 1);
 
 	// 値を設定（足りない）
-	cProfile.SetProfileData(L"Test", L"xyOutlineDock", L"109,108,107");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("xyOutlineDock"), LTEXT("109,108,107"));
 
 	// 不完全な設定項目は読めない
-	ShareData_IO_OutlineDockRect(cProfile, L"Test", L"xyOutlineDock", value);
+	ShareData_IO_OutlineDockRect(cProfile, LTEXT("Test"), LTEXT("xyOutlineDock"), value);
 
 	// 値は変更されない
 	EXPECT_THAT(value.m_cxOutlineDockLeft, 4);
@@ -992,16 +1015,16 @@ TEST(ShareData_IO, ShareData_IO_Print)
 	CDataProfile cProfile;
 	cProfile.SetReadingMode();
 
-	cProfile.SetProfileData(L"Print", L"PS[00].szHF[0]", L"&f");
-	cProfile.SetProfileData(L"Print", L"PS[00].szFTF[0]", L"&C- &P -");
+	cProfile.SetProfileData(LTEXT("Print"), LTEXT("PS[00].szHF[0]"), LTEXT("&f"));
+	cProfile.SetProfileData(LTEXT("Print"), LTEXT("PS[00].szFTF[0]"), LTEXT("&C- &P -"));
 
 	std::vector<PRINTSETTING> printSettings{ static_cast<size_t>(MAX_PRINTSETTINGARR) };
 
 	ShareData_IO_Print(cProfile, printSettings);
 
-	EXPECT_THAT(printSettings[0].m_szHeaderForm[0], StrEq(L"$f"));
-	EXPECT_THAT(printSettings[0].m_szFooterForm[0], StrEq(L""));
-	EXPECT_THAT(printSettings[0].m_szFooterForm[1], StrEq(L"- $p -"));
+	EXPECT_THAT(printSettings[0].m_szHeaderForm[0], StrEq(LTEXT("$f")));
+	EXPECT_THAT(printSettings[0].m_szFooterForm[0], StrEq(LTEXT("")));
+	EXPECT_THAT(printSettings[0].m_szFooterForm[1], StrEq(LTEXT("- $p -")));
 }
 
 /*!
@@ -1036,7 +1059,7 @@ TEST(ShareData_IO, ShareData_IO_PrintInts)
 	printSetting.m_bFooterUse[2]			= TRUE;
 
 	// 設定項目がないと読めない
-	EXPECT_FALSE(ShareData_IO_PrintInts(cProfile, L"Test", L"PS[00].nInts", printSetting));
+	EXPECT_FALSE(ShareData_IO_PrintInts(cProfile, LTEXT("Test"), LTEXT("PS[00].nInts"), printSetting));
 
 	EXPECT_THAT(printSetting.m_nPrintFontWidth,			0);
 	EXPECT_THAT(printSetting.m_nPrintFontHeight,		0);
@@ -1059,10 +1082,10 @@ TEST(ShareData_IO, ShareData_IO_PrintInts)
 	EXPECT_THAT(printSetting.m_bFooterUse[2],			IsTrue());
 
 	// 値を設定(18個指定で失敗させる)
-	cProfile.SetProfileData(L"Test", L"PS[00].nInts", L"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("PS[00].nInts"), LTEXT("1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18"));
 
 	// 項目足りないので、読めない
-	EXPECT_FALSE(ShareData_IO_PrintInts(cProfile, L"Test", L"PS[00].nInts", printSetting));
+	EXPECT_FALSE(ShareData_IO_PrintInts(cProfile, LTEXT("Test"), LTEXT("PS[00].nInts"), printSetting));
 
 	EXPECT_THAT(printSetting.m_nPrintFontWidth,			0);
 	EXPECT_THAT(printSetting.m_nPrintFontHeight,		0);
@@ -1085,10 +1108,10 @@ TEST(ShareData_IO, ShareData_IO_PrintInts)
 	EXPECT_THAT(printSetting.m_bFooterUse[2],			IsTrue());
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"PS[00].nInts", L"1,2,3,4,5,6,7,8,9,10,11,1,0,1,0,1,0,1,0");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("PS[00].nInts"), LTEXT("1,2,3,4,5,6,7,8,9,10,11,1,0,1,0,1,0,1,0"));
 
 	// 値が揃ったので読める
-	EXPECT_TRUE(ShareData_IO_PrintInts(cProfile, L"Test", L"PS[00].nInts", printSetting));
+	EXPECT_TRUE(ShareData_IO_PrintInts(cProfile, LTEXT("Test"), LTEXT("PS[00].nInts"), printSetting));
 
 	EXPECT_THAT(printSetting.m_nPrintFontWidth,			0x1);
 	EXPECT_THAT(printSetting.m_nPrintFontHeight,		0x2);
@@ -1120,8 +1143,8 @@ TEST(ShareData_IO, ShareData_IO_Plugin)
 	cProfile.SetWritingMode();
 
 	CommonSetting_Plugin sPlugin{};
-	::wcscpy_s(sPlugin.m_PluginTable[0].m_szName, L"test name");
-	::wcscpy_s(sPlugin.m_PluginTable[0].m_szId, L"test id");
+	::wcscpy_s(sPlugin.m_PluginTable[0].m_szName, LTEXT("test name"));
+	::wcscpy_s(sPlugin.m_PluginTable[0].m_szId, LTEXT("test id"));
 	sPlugin.m_PluginTable[0].m_state = EPluginState::PLS_DELETED;
 	sPlugin.m_PluginTable[0].m_nCmdNum = 2;
 
@@ -1133,8 +1156,8 @@ TEST(ShareData_IO, ShareData_IO_Plugin)
 	// 削除機能の確認
 	ShareData_IO_Plugin(cProfile, pcMenuDrawer.get(), sPlugin);
 
-	EXPECT_THAT(sPlugin.m_PluginTable[0].m_szName, StrEq(L""));
-	EXPECT_THAT(sPlugin.m_PluginTable[0].m_szId, StrEq(L""));
+	EXPECT_THAT(sPlugin.m_PluginTable[0].m_szName, StrEq(LTEXT("")));
+	EXPECT_THAT(sPlugin.m_PluginTable[0].m_szId, StrEq(LTEXT("")));
 
 	pcMenuDrawer = nullptr;
 
@@ -1157,19 +1180,19 @@ TEST(ShareData_IO, ShareData_IO_RegexKeyword)
 	type.m_bUseRegexKeyword		= true;
 
 	// 設定項目がないと読めない
-	ShareData_IO_RegexKeyword(cProfile, L"Test", type);
+	ShareData_IO_RegexKeyword(cProfile, LTEXT("Test"), type);
 
 	// 値は変更されない
 	EXPECT_THAT(type.m_bUseRegexKeyword, IsTrue());
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"bUseRegexKeyword", L"0");
-	cProfile.SetProfileData(L"Test", L"RxKey[000]", std::format(L"{},{}", int(COLORIDX_LAST), L"patten"));
-	cProfile.SetProfileData(L"Test", L"RxKey[001]", std::format(L"{},{}", std::wstring(20, L'c'), L"patten"));
-	cProfile.SetProfileData(L"Test", L"RxKey[002]", std::format(L"{},{}", L"TXT", L"patten"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("bUseRegexKeyword"), LTEXT("0"));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("RxKey[000]"), sakura::format(LTEXT("{},{}"), int(COLORIDX_LAST), LTEXT("patten")));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("RxKey[001]"), sakura::format(LTEXT("{},{}"), sakura::wstring(20, LCHAR('c')), LTEXT("patten")));
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("RxKey[002]"), sakura::format(LTEXT("{},{}"), LTEXT("TXT"), LTEXT("patten")));
 
 	// 設定項目があれば読める
-	ShareData_IO_RegexKeyword(cProfile, L"Test", type);
+	ShareData_IO_RegexKeyword(cProfile, LTEXT("Test"), type);
 
 	// 値は反映される
 	EXPECT_THAT(type.m_bUseRegexKeyword, IsFalse());
@@ -1204,7 +1227,7 @@ TEST(ShareData_IO, ShareData_IO_TypeInts)
 	type.m_nTsvMode				= 0;
 
 	// 設定項目がないと読めない
-	ShareData_IO_TypeInts(cProfile, L"Test", type);
+	ShareData_IO_TypeInts(cProfile, LTEXT("Test"), type);
 
 	EXPECT_THAT(type.m_nIdx,					0);
 	EXPECT_THAT(type.m_nMaxLineKetas,			0);
@@ -1220,10 +1243,10 @@ TEST(ShareData_IO, ShareData_IO_TypeInts)
 	EXPECT_THAT(type.m_nTsvMode,				0);
 
 	// 値を設定(11個指定で失敗させる)
-	cProfile.SetProfileData(L"Test", L"nInts", L"1,2,3,4,5,6,7,1,9,1,11");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nInts"), LTEXT("1,2,3,4,5,6,7,1,9,1,11"));
 
 	// 項目足りないので、読めない
-	ShareData_IO_TypeInts(cProfile, L"Test", type);
+	ShareData_IO_TypeInts(cProfile, LTEXT("Test"), type);
 
 	EXPECT_THAT(type.m_nIdx,					0);
 	EXPECT_THAT(type.m_nMaxLineKetas,			0);
@@ -1239,10 +1262,10 @@ TEST(ShareData_IO, ShareData_IO_TypeInts)
 	EXPECT_THAT(type.m_nTsvMode,				0);
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"nInts", L"1,2,3,4,5,6,7,1,9,1,11,12");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nInts"), LTEXT("1,2,3,4,5,6,7,1,9,1,11,12"));
 
 	// 値が揃ったので読める
-	ShareData_IO_TypeInts(cProfile, L"Test", type);
+	ShareData_IO_TypeInts(cProfile, LTEXT("Test"), type);
 
 	EXPECT_THAT(type.m_nIdx,					1);
 	EXPECT_THAT(type.m_nMaxLineKetas,			10);
@@ -1269,12 +1292,12 @@ TEST(ShareData_IO, ShareData_IO_VertLineIdx)
 	CKetaXInt nVertLineIdx[MAX_VERTLINES]{};
 
 	// 設定項目がないと読めない
-	ShareData_IO_VertLineIdx(cProfile, L"Test", nVertLineIdx);
+	ShareData_IO_VertLineIdx(cProfile, LTEXT("Test"), nVertLineIdx);
 
 	// 値を設定
-	cProfile.SetProfileData(L"Test", L"nVertLineIdx1", L"20");
+	cProfile.SetProfileData(LTEXT("Test"), LTEXT("nVertLineIdx1"), LTEXT("20"));
 
-	ShareData_IO_VertLineIdx(cProfile, L"Test", nVertLineIdx);
+	ShareData_IO_VertLineIdx(cProfile, LTEXT("Test"), nVertLineIdx);
 
 	EXPECT_THAT(nVertLineIdx[0], 20);
 }

@@ -93,7 +93,7 @@ bool CProfile::ReadProfile(
 		m_ProfilePath = optProfilePath.value();
 	}
 
-	CTextInputStream in(m_ProfilePath.c_str());
+	CTextInputStream in(sakura::path_to_wstring(m_ProfilePath).c_str());
 	if(!in){
 		return false;
 	}
@@ -229,6 +229,7 @@ bool CProfile::WriteProfile(
 		lines.emplace_back();
 	}
 
+#if defined(_WIN32)
 	// 別ファイルに書き込んでから置き換える（プロセス強制終了などへの安全対策）
 	SFilePath szMirrorFile;
 	SFilePath szPath;
@@ -258,6 +259,22 @@ bool CProfile::WriteProfile(
 		}
 	}
 
+#else
+	// Mac 版：同じフォルダーの一時ファイルに書き込んでから rename で置き換える（移植計画のステップ 21）
+	// rename は同じファイルシステム内なら置き換えが一度に行われるので、ReplaceFile と同じ安全対策になる
+	auto mirrorPath = m_ProfilePath;
+	mirrorPath += ".tmp";
+	if (!_WriteFile(mirrorPath, lines)) {
+		std::error_code ec;
+		std::filesystem::remove(mirrorPath, ec);
+		return false;
+	}
+	if (std::error_code ec; std::filesystem::rename(mirrorPath, m_ProfilePath, ec), ec) {
+		std::filesystem::remove(mirrorPath, ec);
+		return false;
+	}
+#endif
+
 	return true;
 }
 
@@ -274,7 +291,7 @@ bool CProfile::_WriteFile(
 	std::span<const sakura::wstring>	lines			//!< [out] 文字列格納先
 )
 {
-	CTextOutputStream out(path.c_str());
+	CTextOutputStream out(sakura::path_to_wstring(path).c_str());
 	if(!out){
 		return false;
 	}

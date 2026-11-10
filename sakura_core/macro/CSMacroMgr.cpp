@@ -25,13 +25,17 @@
 */
 #include "StdAfx.h"
 #include "macro/CSMacroMgr.h"
+#if defined(_WIN32)	// Mac 版：マクロの実行は後のステップで移植する。ここでは機能名の表（設定ファイルの読み書きで使う）だけ使う（移植計画のステップ 21）
 #include "macro/CPPAMacroMgr.h"
 #include "macro/CWSHManager.h"
 #include "macro/CPythonMacroManager.h"
 #include "macro/CMacroFactory.h"
+#endif
 #include "env/CShareData.h"
 #include "io/CTextStream.h"
+#if defined(_WIN32)
 #include "view/CEditView.h"
+#endif
 #include "debug/CRunningTimer.h"
 
 MacroFuncInfo CSMacroMgr::m_MacroFuncInfoCommandArr[] = 
@@ -492,6 +496,7 @@ MacroFuncInfo CSMacroMgr::m_MacroFuncInfoArr[] =
 	return std::span{ m_MacroFuncInfoArr, std::size(m_MacroFuncInfoArr) - 1 };
 }
 
+#if defined(_WIN32)	// Mac 版：マクロの読み込みと実行は後のステップで移植する
 /*!
 	@date 2002.02.17 YAZAKI CShareDataのインスタンスは、CProcessにひとつあるのみ。
 	@date 2002.04.29 genta オブジェクトの実体は実行時まで生成しない。
@@ -777,6 +782,8 @@ void CSMacroMgr::Clear( int idx )
 /*
 ||  Attributes & Operations
 */
+#endif
+
 /*
 	指定されたIDに対応するMacroInfo構造体へのポインタを返す．
 	該当するIDに対応する構造体がなければNULLを返す．
@@ -1240,6 +1247,7 @@ BOOL CSMacroMgr::CanFuncIsKeyMacro( int nFuncID )
 	return FALSE;
 }
 
+#if defined(_WIN32)	// Mac 版：マクロの読み込みと実行は後のステップで移植する
 /*!
 	マクロ番号から対応するマクロオブジェクト格納位置へのポインタへの変換
 	
@@ -1290,3 +1298,4 @@ CMacroManagerBase* CSMacroMgr::SetTempMacro( CMacroManagerBase *newMacro )
 
 	return oldMacro;
 }
+#endif

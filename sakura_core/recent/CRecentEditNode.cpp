@@ -47,7 +47,14 @@ bool CRecentEditNode::DataToReceiveType( const EditNode** dst, const EditNode* s
 
 int CRecentEditNode::CompareItem( const EditNode* p1, const EditNode* p2 ) const
 {
+#if defined(_WIN32)
 	return int(p1->m_hWnd - p2->m_hWnd);
+#else
+	// Mac 版：HWND は不完全型なので、アドレスの大小で比べる（移植計画のステップ 21）
+	const auto a = reinterpret_cast<std::uintptr_t>(p1->m_hWnd);
+	const auto b = reinterpret_cast<std::uintptr_t>(p2->m_hWnd);
+	return a < b ? -1 : (a == b ? 0 : 1);
+#endif
 }
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //

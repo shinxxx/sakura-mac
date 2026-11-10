@@ -67,6 +67,15 @@ LPCWSTR GetProfileName() noexcept
 	const auto cmdline = CCommandLine::getInstance();
 	return cmdline ? cmdline->GetProfileName() : LTEXT("");
 }
+#else
+/*!
+ * Mac 版：アプリのモジュールハンドル。Mac 版にはモジュールハンドルがなく、
+ * リソースはアプリに 1 つだけ（FindResourceW などはハンドルを見ない）なので nullptr を返す（移植計画のステップ 21）
+ */
+HINSTANCE G_AppInstance()
+{
+	return nullptr;
+}
 #endif // defined(_WIN32)
 
 /*!

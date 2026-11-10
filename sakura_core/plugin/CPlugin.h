@@ -13,7 +13,9 @@
 #pragma once
 
 #include <algorithm>
+#if defined(_WIN32)	// Mac 版：プラグイン（WSH / DLL）は使えない。設定の読み書きに使う番号の計算などだけ使う（移植計画のステップ 21）
 #include "macro/CWSHIfObj.h"
+#endif
 #include "env/CDataProfile.h"
 #include "util/string_ex.h"
 
@@ -78,7 +80,9 @@ public:
 
 	//操作
 public:
+#if defined(_WIN32)
 	bool Invoke( CEditView* view, CWSHIfObj::List& params );	//プラグを実行する
+#endif
 
 	//属性
 public:
@@ -275,7 +279,9 @@ protected:
 
 	//非実装提供
 public:
+#if defined(_WIN32)
 	virtual bool InvokePlug( CEditView* view, CPlug& plug, CWSHIfObj::List& param ) =0;	//プラグを実行する
+#endif
 	virtual bool ReadPluginDef( CDataProfile *cProfile, CDataProfile *cProfileMlang ) =0;		//プラグイン定義ファイルを読み込む
 	virtual bool ReadPluginOption( CDataProfile *cProfile ) =0;		//オプションファイルを読み込む
 };

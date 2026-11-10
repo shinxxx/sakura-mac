@@ -21,7 +21,9 @@
 #include "_main/global.h"
 #include "basis/CMyString.h"
 #include "util/os.h"
+#if defined(_WIN32)	// Mac 版：印刷設定の既定値と用紙の表だけ使う。印刷そのものは後のステップで移植する（移植計画のステップ 21）
 #include "util/os/Comdlg32.hpp"
+#endif
 
 #include "CSelectLang.h"
 
@@ -72,6 +74,7 @@ const PAPER_INFO CPrint::m_paperInfoArr[] = {
 };
 
 const int CPrint::m_nPaperInfoArrNum = int(std::size(m_paperInfoArr));
+#if defined(_WIN32)
 
 CPrint::CPrint( void )
 {
@@ -507,6 +510,7 @@ void CPrint::PrintClose( HDC hdc )
 	::EndDoc( hdc );
 	::DeleteDC( hdc );
 }
+#endif // defined(_WIN32)
 
 /* 用紙の名前を取得 */
 WCHAR* CPrint::GetPaperName( int nPaperSize, WCHAR* pszPaperName )

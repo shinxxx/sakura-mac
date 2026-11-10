@@ -16,9 +16,15 @@
 #pragma once
 
 #include "cxx/ResourceHolder.hpp"
+#if defined(_WIN32)
 #include "util/sync/MutexHandle.hpp"
+#endif
 
 #include <chrono>
+#if !defined(_WIN32)
+#include <memory>
+#include <mutex>
+#endif
 
 #include <Windows.h>
 
@@ -30,8 +36,10 @@
 class CMutex
 {
 private:
+#if defined(_WIN32)
 	using MutexHandle = cxx::MutexHandle;
 	using LockHolder = cxx::ResourceHolder<&::ReleaseMutex>;
+#endif
 
 	using Me = CMutex;
 
@@ -69,15 +77,24 @@ public:
 
 	void Unlock() noexcept;
 
+#if defined(_WIN32)
 	operator HANDLE() const { return m_hObj; }
+#endif
 
 private:
 	sakura::wstring_view m_Name;
 	LPSECURITY_ATTRIBUTES m_pSa;
 	bool m_bInitialOwner;
 
+#if defined(_WIN32)
 	MutexHandle m_hObj{};
 	LockHolder	m_Lock{};
+#else
+	// Mac 版：プロセスは 1 つだけなので、名前付きミューテックスはプロセス内の再帰ミューテックスで代用する
+	// （同じ名前の CMutex は同じミューテックスを共有する。移植計画のステップ 21）
+	std::shared_ptr<std::recursive_timed_mutex> m_pMutex{};
+	bool m_bLocked = false;
+#endif
 };
 
 /**	スコープから抜けると同時にロックを解除する．

@@ -6,6 +6,9 @@
 Windows 版的 sakura.exe 内含日文字符串，CSelectLang::LoadStringW 从中读取；
 Mac 版在没有注册其他语言的读取函数时，用这里生成的日文字符串表，结果与 Windows 版相同。
 
+另外，用户定义类型的资源（类型是数字，例如 `IDR_MENU1 100 "MainMenu.ini"`，第 21 步）
+把文件内容原样嵌入，供 FindResource / LoadResource（macos/platform/src/resources.cpp）读取。
+
 用法: rc_strings.py <sakura_rc.rc> <输出.cpp> <定义 ID 的头文件>...
 """
 import re
@@ -86,6 +89,27 @@ def main():
                 return 1
             entries[ident] = unescape_rc(value)
 
+    # 用户定义类型的资源：<名字> <数字类型> "<文件>"（路径相对于 rc 文件）
+    import os
+    raw_entries = []
+    rc_dir = os.path.dirname(os.path.abspath(rc_path))
+    for m in re.finditer(r'^(\w+)\s+(\w+)\s+"([^"]+)"\s*$', text, re.M):
+        name, rtype, file = m.groups()
+        if rtype.isdigit():
+            type_id = int(rtype)
+        elif rtype in defines:
+            type_id = defines[rtype]
+        else:
+            continue  # ICON、BITMAP、CURSOR 等标准类型（界面，Mac 版不用）
+        if name.isdigit():
+            res_id = int(name)
+        elif name in defines:
+            res_id = defines[name]
+        else:
+            continue  # 资源以外的行（BEGIN ... 等）
+        with open(os.path.join(rc_dir, file.replace('\\\\', '/')), 'rb') as rf:
+            raw_entries.append((type_id, res_id, rf.read()))
+
     with open(out_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// 由 macos/tools/rc_strings.py 根据 sakura_core/sakura_rc.rc 生成，请勿手动修改\n')
         f.write('#include <cstddef>\n\n')
@@ -95,6 +119,21 @@ def main():
             f.write(f'\t{{ {ident}u, {to_cpp_literal(entries[ident])} }},\n')
         f.write('};\n')
         f.write(f'extern const std::size_t g_sakuraResourceStringCount = {len(entries)};\n')
+        f.write('\nstruct SakuraResourceData { unsigned int type; unsigned int id; const unsigned char* data; std::size_t size; };\n')
+        for n, (type_id, res_id, data) in enumerate(raw_entries):
+            f.write(f'static const unsigned char s_resourceData{n}[] = {{')
+            for k, b in enumerate(data):
+                if k % 24 == 0:
+                    f.write('\n\t')
+                f.write(f'{b},')
+            f.write('\n};\n')
+        f.write('extern const SakuraResourceData g_sakuraResourceData[] = {\n')
+        for n, (type_id, res_id, data) in enumerate(raw_entries):
+            f.write(f'\t{{ {type_id}u, {res_id}u, s_resourceData{n}, sizeof(s_resourceData{n}) }},\n')
+        if not raw_entries:
+            f.write('\t{ 0u, 0u, nullptr, 0 },\n')
+        f.write('};\n')
+        f.write(f'extern const std::size_t g_sakuraResourceDataCount = {len(raw_entries)};\n')
     return 0
 
 

@@ -152,9 +152,55 @@ LPCWSTR CLoadString::LoadStringW(UINT uid)
 	return m_Buffer.GetStringPtr();
 }
 
+//! 第 21 步：语言环境的初始化（测试的 env::ShareDataTestSuite 调用）。
+//! Mac 版不用语言 DLL，字符串总是从内嵌的资源读取，所以什么都不做（界面多语言化在第 48 步）
+HMODULE CSelectLang::InitializeLanguageEnvironment()
+{
+	return nullptr;
+}
+
+void CSelectLang::UninitializeLanguageEnvironment()
+{
+}
+
 size_t CLoadString::CLoadStrBuffer::LoadStringW(UINT uid)
 {
 	m_ResString = CSelectLang::LoadStringW(uid);
 	m_String.assign(m_ResString);
 	return m_String.length();
+}
+
+// ---------------------------------------------------------------------------
+// 键盘（第 21 步：apiwrap/StdApi.h 用。界面层实现之前，所有键都是没有按下）
+// ---------------------------------------------------------------------------
+SHORT GetKeyState(int /* nVirtKey */)
+{
+	return 0;
+}
+
+// ---------------------------------------------------------------------------
+// 第 21 步：共通设置的默认值用到的界面函数（util/os.h、util/window.h）
+// ---------------------------------------------------------------------------
+#include "util/os.h"
+#include "util/window.h"
+
+//! 视觉样式（主题）。现在的 Windows 总是启用，默认值（工具栏不是平面的）与 Windows 版相同
+BOOL IsVisualStyle()
+{
+	return TRUE;
+}
+
+/*!
+	磅数 ↔ 像素的换算。设置文件里的字体大小是像素，按 Windows 的标准 DPI（96）换算，
+	使 Mac 版写出的 sakura.ini 与 Windows 版（100% 缩放）相同。
+	屏幕上的实际大小在第 28 步（Core Text 绘制）处理。
+*/
+LONG DpiPointsToPixels(LONG pt, LONG ptMag)
+{
+	return ::MulDiv(pt, 96, 72 * ptMag);
+}
+
+LONG DpiPixelsToPoints(LONG px, LONG ptMag)
+{
+	return ::MulDiv(px * ptMag, 72, 96);
 }

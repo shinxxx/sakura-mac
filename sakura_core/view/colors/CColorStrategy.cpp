@@ -7,6 +7,7 @@
 */
 
 #include "StdAfx.h"
+#if defined(_WIN32)	// Mac 版：色名の表（g_ColorAttributeArr）と色名の変換だけ使う。色分けの描画は後のステップで移植する（移植計画のステップ 21）
 #include "view/CEditView.h" // SColorStrategyInfo
 #include "view/colors/CColorStrategy.h"
 #include "CColor_Comment.h"
@@ -21,7 +22,11 @@
 #include "doc/layout/CLayout.h"
 #include "window/CEditWnd.h"
 #include "types/CTypeSupport.h"
+#else
+#include "view/colors/CColorStrategy.h"
+#endif
 
+#if defined(_WIN32)
 bool _IsPosKeywordHead(const CStringRef& cStr, int nPos)
 {
 	return (nPos==0 || !IS_KEYWORD_CHAR(cStr.At(nPos-1)));
@@ -357,6 +362,7 @@ bool CColorStrategyPool::HasRangeBasedColorStrategies(void) const noexcept
 		|| (m_pcDoubleQuote != nullptr)
 		|| (m_pcHeredoc != nullptr);
 }
+#endif // defined(_WIN32)
 
 /*!
   iniの色設定を番号でなく文字列で書き出す。(added by Stonee, 2001/01/12, 2001/01/15)

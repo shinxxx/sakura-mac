@@ -17,6 +17,9 @@
 #include "apiwrap/StdApi.h"
 #include "env/DLLSHAREDATA.h"
 #include "config/system_constants.h"
+#if !defined(_WIN32)
+#include "env/CShareData.h"
+#endif
 
 const WCHAR* CDocTypeManager::m_typeExtSeps = LTEXT(" ;,");	// タイプ別拡張子 区切り文字
 const WCHAR* CDocTypeManager::m_typeExtWildcards = LTEXT("*?");	// タイプ別拡張子 ワイルドカード
@@ -94,10 +97,16 @@ CTypeConfig CDocTypeManager::GetDocumentTypeOfId( int id )
 			return true;
 		}else{
 			LockGuard<CMutex> guard( g_cDocTypeMutex );
+#if defined(_WIN32)
 			 if( SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_GET_TYPESETTING, (WPARAM)n, 0 ) ){
 				type = m_pShareData->m_sWorkBuffer.m_TypeConfig;
 				return true;
 			}
+#else
+			// Mac 版：プロセスは 1 つなので、タイプ別設定リストを直接読む（CControlTray::OnGetTypeSetting と同じ）（移植計画のステップ 21）
+			type = *(CShareData::getInstance()->GetTypeSettingArr()[n]);
+			return true;
+#endif
 		}
 	}
 	return false;
@@ -108,10 +117,27 @@ bool CDocTypeManager::SetTypeConfig(CTypeConfig cDocumentType, const STypeConfig
 	int n = cDocumentType.GetIndex();
 	if( 0 <= n && n < m_pShareData->m_nTypesCount ){
 		LockGuard<CMutex> guard( g_cDocTypeMutex );
+#if defined(_WIN32)
 		m_pShareData->m_sWorkBuffer.m_TypeConfig = type;
 		if( SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_SET_TYPESETTING, (WPARAM)n, 0 ) ){
 			return true;
 		}
+#else
+		// Mac 版：タイプ別設定リストを直接書き換える（CControlTray::OnSetTypeSetting と同じ）（移植計画のステップ 21）
+		if (0 == n) {
+			m_pShareData->m_TypeBasis = type;
+			m_pShareData->m_TypeBasis.m_nIdx = 0;
+		}
+		auto types = CShareData::getInstance()->GetTypeSettingArr();
+		*types[n] = type;
+		types[n]->m_nIdx = n;
+		auto& typeMini = m_pShareData->m_TypeMini[n];
+		::wcscpy_s(typeMini.m_szTypeName, type.m_szTypeName);
+		::wcscpy_s(typeMini.m_szTypeExts, type.m_szTypeExts);
+		typeMini.m_id = type.m_id;
+		typeMini.m_encoding = type.m_encoding;
+		return true;
+#endif
 	}
 	return false;
 }
@@ -136,13 +162,24 @@ bool CDocTypeManager::SetTypeConfig(CTypeConfig cDocumentType, const STypeConfig
 bool CDocTypeManager::AddTypeConfig(CTypeConfig cDocumentType)
 {
 	LockGuard<CMutex> guard( g_cDocTypeMutex );
+#if defined(_WIN32)
 	return FALSE != SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_ADD_TYPESETTING, (WPARAM)cDocumentType.GetIndex(), 0 );
+#else
+	// Mac 版：タイプ別設定の追加・削除はタイプ別設定一覧ダイアログで使う。ダイアログと一緒に後のステップで移植する（移植計画のステップ 21）
+	(void)cDocumentType;
+	return false;
+#endif
 }
 
 bool CDocTypeManager::DelTypeConfig(CTypeConfig cDocumentType)
 {
 	LockGuard<CMutex> guard( g_cDocTypeMutex );
+#if defined(_WIN32)
 	return FALSE != SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_DEL_TYPESETTING, (WPARAM)cDocumentType.GetIndex(), 0 );
+#else
+	(void)cDocumentType;	// Mac 版：AddTypeConfig と同じ（移植計画のステップ 21）
+	return false;
+#endif
 }
 
 /*!

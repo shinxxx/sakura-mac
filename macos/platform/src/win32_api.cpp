@@ -291,3 +291,115 @@ BOOL VirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
 	}
 	return ::munmap(lpAddress, size) == 0 ? TRUE : FALSE;
 }
+
+// ---------------------------------------------------------------------------
+// 全局内存（第 21 步）。句柄指向下面的管理信息，数据紧跟在后面
+// ---------------------------------------------------------------------------
+namespace {
+struct GlobalBlock {
+	SIZE_T size;
+	alignas(std::max_align_t) unsigned char data[1];
+};
+} // namespace
+
+HGLOBAL GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
+{
+	const auto total = offsetof(GlobalBlock, data) + (dwBytes ? dwBytes : 1);
+	void* p = (uFlags & GMEM_ZEROINIT) ? std::calloc(1, total) : std::malloc(total);
+	if (!p) {
+		SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+		return nullptr;
+	}
+	static_cast<GlobalBlock*>(p)->size = dwBytes;
+	return static_cast<HGLOBAL>(p);
+}
+
+HGLOBAL GlobalFree(HGLOBAL hMem)
+{
+	std::free(hMem);
+	return nullptr;	// 成功
+}
+
+LPVOID GlobalLock(HGLOBAL hMem)
+{
+	if (!hMem) {
+		SetLastError(ERROR_INVALID_HANDLE);
+		return nullptr;
+	}
+	return static_cast<GlobalBlock*>(hMem)->data;
+}
+
+BOOL GlobalUnlock(HGLOBAL hMem)
+{
+	// Windows：锁计数变成 0 时返回 FALSE（GetLastError() は NO_ERROR）
+	(void)hMem;
+	SetLastError(NO_ERROR);
+	return FALSE;
+}
+
+SIZE_T GlobalSize(HGLOBAL hMem)
+{
+	return hMem ? static_cast<GlobalBlock*>(hMem)->size : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Shlwapi：PathMatchSpecW（第 21 步）
+// ---------------------------------------------------------------------------
+namespace {
+
+WCHAR AsciiLower(WCHAR c) noexcept
+{
+	return (u'A' <= c && c <= u'Z') ? WCHAR(c - u'A' + u'a') : c;
+}
+
+//! 一个模式与文件名的通配符匹配（回溯法）
+bool WildcardMatch(const WCHAR* f, const WCHAR* fEnd, const WCHAR* p, const WCHAR* pEnd) noexcept
+{
+	const WCHAR* starP = nullptr;
+	const WCHAR* starF = nullptr;
+	while (f < fEnd) {
+		if (p < pEnd && *p == u'*') {
+			starP = ++p;
+			starF = f;
+		} else if (p < pEnd && (*p == u'?' || AsciiLower(*p) == AsciiLower(*f))) {
+			++p;
+			++f;
+		} else if (starP) {
+			p = starP;
+			f = ++starF;
+		} else {
+			return false;
+		}
+	}
+	while (p < pEnd && *p == u'*') ++p;
+	return p == pEnd;
+}
+
+} // namespace
+
+BOOL PathMatchSpecW(const WCHAR* pszFile, const WCHAR* pszSpec)
+{
+	if (!pszFile || !pszSpec) return FALSE;
+	const WCHAR* fEnd = pszFile + wcslen(pszFile);
+	const WCHAR* p = pszSpec;
+	while (*p) {
+		while (*p == u' ') ++p;	// 与 Windows 相同，忽略模式前面的空格
+		const WCHAR* q = p;
+		while (*q && *q != u';') ++q;
+		const WCHAR* e = q;
+		while (p < e && e[-1] == u' ') --e;
+		if (p < e) {
+			const std::u16string_view spec(p, size_t(e - p));
+			if (spec == u"*.*" || spec == u"*") return TRUE;
+			if (WildcardMatch(pszFile, fEnd, p, e)) return TRUE;
+			// "xxx.*" 也匹配没有扩展名的 "xxx"
+			if (spec.size() >= 2 && spec.substr(spec.size() - 2) == u".*"
+				&& std::u16string_view(pszFile).find(u'.') == std::u16string_view::npos
+				&& WildcardMatch(pszFile, fEnd, p, e - 2)) {
+				return TRUE;
+			}
+		}
+		p = *q ? q + 1 : q;
+	}
+	return FALSE;
+}

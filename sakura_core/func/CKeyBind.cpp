@@ -66,6 +66,11 @@ HACCEL CKeyBind::CreateAccerelator(
 		KEYDATA*	pKeyNameArr
 )
 {
+#if !defined(_WIN32)
+	// Mac 版：Windows のアクセラレータテーブルは使わない。キー入力の処理は後のステップ（キーボード）で移植する（移植計画のステップ 21）
+	(void)nKeyNameArrNum; (void)pKeyNameArr;
+	return nullptr;
+#else
 	ACCEL*	pAccelArr;
 	HACCEL	hAccel;
 	int		j, k;
@@ -108,6 +113,7 @@ HACCEL CKeyBind::CreateAccerelator(
 	hAccel = ::CreateAcceleratorTable( pAccelArr, nAccelArrNum );
 	delete [] pAccelArr;
 	return hAccel;
+#endif
 }
 
 /*! アクラセレータ識別子に対応するコマンド識別子を返す．
@@ -138,6 +144,7 @@ EFunctionCode CKeyBind::GetFuncCode(
 	return F_DEFAULT;
 }
 
+#if defined(_WIN32)	// Mac 版：キー割り当て一覧の作成は機能名の検索（CFuncLookup）と一緒に後のステップで移植する（移植計画のステップ 21）
 /*!
 	@return 機能が割り当てられているキーストロークの数
 	
@@ -239,6 +246,7 @@ int CKeyBind::CreateKeyBindList(
 	}
 	return nValidKeys;
 }
+#endif
 
 /** 機能に対応するキー名のサーチ(補助関数)
 
