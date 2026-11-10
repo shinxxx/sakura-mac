@@ -106,7 +106,10 @@ TEST_F(MacDocTest, FileSizeTimeAndMapping)
 	FILETIME ftNow{};
 	::SystemTimeToFileTime(&now, &ftNow);
 	const auto toU64 = [](const FILETIME& ft) { return (static_cast<ULONGLONG>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime; };
-	EXPECT_LT(toU64(ftNow) - toU64(ftWrite), 10ULL * 60 * 10000000);
+	// SYSTEMTIME 只到毫秒，文件时间更精确，所以文件可能比“现在”晚不到 1 毫秒，比较差的绝对值
+	const auto tNow = toU64(ftNow);
+	const auto tWrite = toU64(ftWrite);
+	EXPECT_LT(tNow > tWrite ? tNow - tWrite : tWrite - tNow, 10ULL * 60 * 10000000);
 
 	HANDLE m = ::CreateFileMappingW(h, nullptr, PAGE_READONLY, 0, 0, nullptr);
 	ASSERT_NE(nullptr, m);
