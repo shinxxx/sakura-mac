@@ -259,6 +259,26 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 # ---------------------------------------------------------------------------
+# 核心库的对外接口（第 22 步）。界面层只使用 include/sakura_core/SakuraCore.h
+# ---------------------------------------------------------------------------
+add_library(sakura_core_api STATIC "${CMAKE_CURRENT_SOURCE_DIR}/api/SakuraCore.cpp")
+target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(sakura_core_api PRIVATE sakura_core)
+add_dependencies(sakura_core_api sakura_funccode)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(sakura_core_api PRIVATE -Wno-everything)   # 原版的头文件有大量警告
+endif()
+
+# 接口头文件不引用任何平台头文件的检查：包含路径只有 include/，
+# 没有 macos/platform、sakura_core、Windows SDK 的替身，并且打开全部警告、警告当作错误
+add_library(sakura_core_api_header_check OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/api/header_check.cpp")
+target_include_directories(sakura_core_api_header_check PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(sakura_core_api_header_check PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+add_dependencies(sakura_core_api sakura_core_api_header_check)
+
+# ---------------------------------------------------------------------------
 # 单元测试（GoogleTest）
 # ---------------------------------------------------------------------------
 option(SAKURA_BUILD_TESTS "Build unit tests" ON)
@@ -277,7 +297,7 @@ if(SAKURA_BUILD_TESTS)
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"          # Mac 版 pch.h 优先
     "${SAKURA_ROOT}/src/test/cpp/tests1"         # 第 21 步：原版测试的 env/ShareDataTestSuite.hpp
     "${SAKURA_ROOT}/src/test/resources")
-  target_link_libraries(sakura_core_tests PRIVATE sakura_core GTest::gmock_main)
+  target_link_libraries(sakura_core_tests PRIVATE sakura_core sakura_core_api GTest::gmock_main)
   # Migemo 的测试用词典（与原版测试相同，externals/cmigemo-dict 的 zip）
   set(MIGEMO_DICT_DIR "${CMAKE_CURRENT_BINARY_DIR}/migemo-dict")
   if(NOT EXISTS "${MIGEMO_DICT_DIR}/utf-8/migemo-dict")
