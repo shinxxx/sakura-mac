@@ -77,7 +77,9 @@ enum MainMenuBuilder {
         return menu
     }
 
-    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），第 28 步加「すべて選択」，其余按原版在后面的步骤加入
+    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），第 28 步加「すべて選択」，
+    /// 第 29 步按原版 MainMenu.ini 的顺序加入剪贴板、删除、矩形貼り付け、TABインデント。其余在后面的步骤加入。
+    /// 第 29 步起新加的菜单文字用 NSLocalizedString 写（第 48 步加中文、英文的翻译）
     private static func editMenu() -> NSMenu {
         let menu = NSMenu(title: "編集")
         menu.addItem(withTitle: "元に戻す", action: #selector(EditorTextView.undo(_:)), keyEquivalent: "z")
@@ -85,8 +87,29 @@ enum MainMenuBuilder {
         redo.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(redo)
         menu.addItem(.separator())
+        menu.addItem(withTitle: NSLocalizedString("切り取り", comment: "編集 > F_CUT"),
+                     action: #selector(EditorTextView.cut(_:)), keyEquivalent: "x")
+        menu.addItem(withTitle: NSLocalizedString("コピー", comment: "編集 > F_COPY"),
+                     action: #selector(EditorTextView.copy(_:)), keyEquivalent: "c")
+        menu.addItem(withTitle: NSLocalizedString("貼り付け", comment: "編集 > F_PASTE"),
+                     action: #selector(EditorTextView.paste(_:)), keyEquivalent: "v")
+        menu.addItem(withTitle: NSLocalizedString("削除", comment: "編集 > F_DELETE"),
+                     action: #selector(EditorTextView.delete(_:)), keyEquivalent: "")
         // 第 28 步：すべて選択（F_SELECTALL）
         menu.addItem(withTitle: "すべて選択", action: #selector(EditorTextView.selectAll(_:)), keyEquivalent: "a")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: NSLocalizedString("矩形貼り付け", comment: "編集 > F_PASTEBOX"),
+                     action: #selector(EditorTextView.pasteAsBox(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: NSLocalizedString("カーソル前を削除", comment: "編集 > F_DELETE_BACK"),
+                     action: #selector(EditorTextView.deleteBack(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+        // 高度な操作（原版的子菜单。这里先放 TAB 缩进，其余在后面的步骤加入）
+        let advanced = NSMenu(title: NSLocalizedString("高度な操作", comment: "編集 > 高度な操作（子菜单）"))
+        advanced.addItem(withTitle: NSLocalizedString("TABインデント", comment: "編集 > 高度な操作 > F_INDENT_TAB"),
+                         action: #selector(EditorTextView.indentTab(_:)), keyEquivalent: "")
+        advanced.addItem(withTitle: NSLocalizedString("逆TABインデント", comment: "編集 > 高度な操作 > F_UNINDENT_TAB"),
+                         action: #selector(EditorTextView.unindentTab(_:)), keyEquivalent: "")
+        menu.addItem(submenuItem(advanced))
         return menu
     }
 

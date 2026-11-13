@@ -52,6 +52,9 @@ static_assert(ECColorIndexText == static_cast<NSInteger>(core::ColorIndex::Text)
 static_assert(ECColorIndexLineNumber == static_cast<NSInteger>(core::ColorIndex::LineNumber));
 static_assert(ECColorIndexEof == static_cast<NSInteger>(core::ColorIndex::Eof));
 static_assert(ECColorIndexSelect == static_cast<NSInteger>(core::ColorIndex::Select));
+static_assert(ECIndentKindNone == static_cast<NSInteger>(core::IndentKind::None));
+static_assert(ECIndentKindTab == static_cast<NSInteger>(core::IndentKind::Tab));
+static_assert(ECIndentKindSpace == static_cast<NSInteger>(core::IndentKind::Space));
 
 namespace {
 
@@ -259,6 +262,26 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 @end
 
 // ---------------------------------------------------------------------------
+
+// 第 29 步的编辑命令用
+namespace {
+
+std::int32_t ClampInt32(NSInteger v)
+{
+	return static_cast<std::int32_t>(std::clamp<NSInteger>(v, INT32_MIN / 2, INT32_MAX / 2));
+}
+
+core::BoxRange ToCore(ECBoxRange b)
+{
+	return core::BoxRange{ ClampInt32(b.top), ClampInt32(b.bottom), ClampInt32(b.left), ClampInt32(b.right) };
+}
+
+core::LayoutPosition ToCore(ECLayoutPosition p)
+{
+	return core::LayoutPosition{ ClampInt32(p.line), ClampInt32(p.x) };
+}
+
+} // namespace
 
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
@@ -494,5 +517,53 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 	if (!FitsInt32(line)) return NO;
 	return _doc->IsLineModified(static_cast<std::int32_t>(line)) ? YES : NO;
 }
+
+// ----- 编辑命令（第 29 步） -----
+
+
+- (ECEditSettings)editSettings
+{
+	const core::EditSettings e = _doc->GetEditSettings();
+	return ECEditSettings{ e.copyWithoutSelection, e.lineModePaste, e.clearSelectionAfterCopy, e.autoColumnPaste,
+						   e.convertEolOnPaste, e.addEolAtWrapOnCopy, e.insertSpacesForTab, e.autoIndent };
+}
+
+- (NSString *)copyTextInRange:(ECRange)range { return ToNSString(_doc->GetCopyText(ToCore(range))); }
+- (NSString *)boxText:(ECBoxRange)box { return ToNSString(_doc->GetBoxText(ToCore(box))); }
+- (NSString *)copyTextOfLayoutLine:(NSInteger)line { return ToNSString(_doc->GetLayoutLineCopyText(ClampInt32(line))); }
+
+- (ECLayoutPosition)insertText:(NSString *)text atLayout:(ECLayoutPosition)position
+{
+	const core::LayoutPosition p = _doc->InsertAtLayout(ToCore(position), ToText(text));
+	return ECLayoutPosition{ p.line, p.x };
+}
+
+- (ECPosition)deleteBox:(ECBoxRange)box { return FromCore(_doc->DeleteBox(ToCore(box))); }
+
+- (void)pasteBox:(NSString *)text at:(ECLayoutPosition)position { _doc->PasteBox(ToCore(position), ToText(text)); }
+
+- (ECBoxRange)indentBox:(ECBoxRange)box text:(NSString *)text kind:(ECIndentKind)kind caret:(nullable ECPosition *)caret
+{
+	// 宽度 0 的 TAB、SPACE 缩进不移动光标，caret 保持原样
+	core::Position c = caret ? ToCore(*caret) : core::Position{};
+	const core::BoxRange b = _doc->IndentBox(ToCore(box), ToText(text), static_cast<core::IndentKind>(kind), caret ? &c : nullptr);
+	if (caret) *caret = FromCore(c);
+	return ECBoxRange{ b.top, b.bottom, b.left, b.right };
+}
+
+- (NSInteger)indentLinesFrom:(NSInteger)top to:(NSInteger)bottom text:(NSString *)text
+{
+	return _doc->IndentLines(ClampInt32(top), ClampInt32(bottom), ToText(text));
+}
+
+- (NSInteger)unindentLinesFrom:(NSInteger)top to:(NSInteger)bottom character:(unichar)character
+{
+	return _doc->UnindentLines(ClampInt32(top), ClampInt32(bottom), static_cast<char16_t>(character));
+}
+
+- (NSString *)tabTextAt:(NSInteger)x { return ToNSString(_doc->TabText(ClampInt32(x))); }
+- (NSString *)autoIndentTextAt:(ECPosition)caret { return ToNSString(_doc->AutoIndentText(ToCore(caret))); }
+- (NSString *)convertEolToNewLine:(NSString *)text { return ToNSString(_doc->ConvertEolToNewLine(ToText(text))); }
+- (ECPosition)deleteLayoutLine:(NSInteger)line x:(NSInteger)x { return FromCore(_doc->DeleteLayoutLine(ClampInt32(line), ClampInt32(x))); }
 
 @end

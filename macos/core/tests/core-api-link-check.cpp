@@ -39,6 +39,8 @@ int main()
 					|| doc->GetLayoutLine(1).start != Position{ 0, 10 })) rc = 4;
 		// 第 28 步：颜色、変更行（docplus/CModifyManager）
 		if (doc && (doc->GetColor(ColorIndex::Text).back != 0xFFFBF0u || !doc->IsLineModified(0))) rc = 5;
+		// 第 29 步：矩形选择的复制（每行后面加 CRLF）
+		if (doc && doc->GetBoxText(BoxRange{ 0, 0, 0, 3 * doc->CharWidth() }) != u"int\r\n") rc = 6;
 	}
 	Shutdown(false);
 	std::filesystem::remove_all(home);

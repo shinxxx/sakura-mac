@@ -1188,4 +1188,562 @@ bool Document::IsLineModified(std::int32_t line) const
 	return CModifyVisitor().IsLineModified(pDocLine, d.opeBuf.GetNoModifiedSeq());
 }
 
+
+// ---------------------------------------------------------------------------
+// 编辑命令（第 29 步）
+//
+// 与原版 view/CViewCalc.cpp、view/CEditView_Command_New.cpp、view/CEditView.cpp、
+// cmd/CViewCommander_Clipboard.cpp、cmd/CViewCommander_Edit_advanced.cpp 的处理相同。
+// 原版的光标、选择范围在 CEditView 里，这里由参数给出，结果作为返回值交给界面层。
+// ---------------------------------------------------------------------------
+
+namespace {
+
+//! CViewCalc::LineColumnToIndex：排版行里横向位置 nColumn 处的字符下标（跨在 nColumn 上的字符算在前面）
+CLogicInt LineColumnToIndex(const CLayoutMgr& mgr, const CLayout* pcLayout, CLayoutInt nColumn)
+{
+	CMemoryIterator it = mgr.CreateCMemoryIterator(pcLayout);
+	while (!it.end()) {
+		it.scanNext();
+		if (it.getColumn() + it.getColumnDelta() > nColumn) {
+			break;
+		}
+		it.addDelta();
+	}
+	return it.getIndex();
+}
+
+//! CViewCalc::LineColumnToIndex2：nColumn 在行末（包括换行符）之后时，pnLineAllColLen 是整行的宽度，否则是 0
+CLogicInt LineColumnToIndex2(const CLayoutMgr& mgr, const CLayout* pcLayout, CLayoutInt nColumn, CLayoutInt* pnLineAllColLen)
+{
+	*pnLineAllColLen = CLayoutInt(0);
+	CMemoryIterator it = mgr.CreateCMemoryIterator(pcLayout);
+	while (!it.end()) {
+		it.scanNext();
+		if (it.getColumn() + it.getColumnDelta() > nColumn) {
+			break;
+		}
+		it.addDelta();
+	}
+	const CLogicInt i2 = it.getIndex();
+	if (i2 >= pcLayout->GetLengthWithEOL()) {
+		*pnLineAllColLen = it.getColumn();
+	}
+	return i2;
+}
+
+//! CViewCalc::LineIndexToColumn：排版行里字符下标 nIndex 的横向位置
+CLayoutInt LineIndexToColumn(const CLayoutMgr& mgr, const CLayout* pcLayout, CLogicInt nIndex)
+{
+	CMemoryIterator it = mgr.CreateCMemoryIterator(pcLayout);
+	while (!it.end()) {
+		it.scanNext();
+		if (it.getIndex() + it.getIndexDelta() > nIndex) {
+			break;
+		}
+		it.addDelta();
+	}
+	return it.getColumn();
+}
+
+//! 排版行里的下标 → 逻辑位置
+CLogicPoint LayoutIndexToLogic(const CLayout* pcLayout, CLogicInt nIndex)
+{
+	return CLogicPoint(pcLayout->GetLogicOffset() + nIndex, pcLayout->GetLogicLineNo());
+}
+
+//! 排版位置 → 逻辑位置。行末之后的位置（原版的フリーカーソル）改成行末：界面层的光标不放在行末之后
+Position LayoutToLogicInLine(const Document& doc, const LayoutPosition& position)
+{
+	Position p = doc.LayoutToLogic(position);
+	const std::int32_t nLines = doc.LineCount();
+	if (p.line >= nLines) return doc.EndPosition();
+	p.column = std::min<std::int32_t>(p.column, static_cast<std::int32_t>(doc.GetLine(p.line).size()));
+	return p;
+}
+
+//! Command_INDENT 里的 IsIndentCharSpaceTab
+bool IsSpaceOrTab(WCHAR ch)
+{
+	return ch == WCODE::SPACE || ch == WCODE::TAB;
+}
+
+} // namespace
+
+EditSettings Document::GetEditSettings() const
+{
+	const auto& sEdit = GetDllShareData().m_Common.m_sEdit;
+	const STypeConfig& t = m_impl->typeConfig;
+	EditSettings e;
+	e.copyWithoutSelection = sEdit.m_bEnableNoSelectCopy;
+	e.lineModePaste = sEdit.m_bEnableLineModePaste;
+	e.clearSelectionAfterCopy = sEdit.m_bCopyAndDisablSelection;
+	e.autoColumnPaste = sEdit.m_bAutoColumnPaste;
+	e.convertEolOnPaste = sEdit.m_bConvertEOLPaste;
+	e.addEolAtWrapOnCopy = sEdit.m_bAddCRLFWhenCopy;
+	e.insertSpacesForTab = t.m_bInsSpace;
+	e.autoIndent = t.m_bAutoIndent;
+	return e;
+}
+
+Text Document::GetCopyText(const Range& range) const
+{
+	// CEditView::GetSelectedData の通常選択（引用符、行番号なし、改行コードはそのまま）
+	const auto& d = *m_impl;
+	if (!d.IsValidPosition(range.from) || !d.IsValidPosition(range.to) || !(range.from < range.to)) return {};
+	const LayoutPosition from = LogicToLayout(range.from);
+	const LayoutPosition to = LogicToLayout(range.to);
+	const bool bAddCRLFWhenCopy = GetDllShareData().m_Common.m_sEdit.m_bAddCRLFWhenCopy;
+	Text buffer;
+	for (std::int32_t nLineNum = from.line; nLineNum <= to.line; ++nLineNum) {
+		CLogicInt nLineLen;
+		const CLayout* pcLayout = nullptr;
+		const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(nLineNum), &nLineLen, &pcLayout);
+		if (!pLine) break;
+		const CLogicInt nIdxFrom = (nLineNum == from.line) ? LineColumnToIndex(d.layout, pcLayout, CLayoutInt(from.x)) : CLogicInt(0);
+		const CLogicInt nIdxTo = (nLineNum == to.line) ? LineColumnToIndex(d.layout, pcLayout, CLayoutInt(to.x)) : nLineLen;
+		if (nIdxTo - nIdxFrom == 0) continue;
+		if (pcLayout->GetLayoutEol().IsValid()) {
+			if (nIdxTo >= nLineLen) {
+				buffer.append(&pLine[nIdxFrom], nLineLen - 1 - nIdxFrom);
+				const CEol& eol = pcLayout->GetLayoutEol();
+				buffer.append(eol.GetValue2(), eol.GetLen());
+			} else {
+				buffer.append(&pLine[nIdxFrom], nIdxTo - nIdxFrom);
+			}
+		} else {
+			buffer.append(&pLine[nIdxFrom], nIdxTo - nIdxFrom);
+			if (nIdxTo >= nLineLen && bAddCRLFWhenCopy) {	// 折り返し行に改行を付けてコピー
+				buffer.append(d.newLineEol.GetValue2(), d.newLineEol.GetLen());
+			}
+		}
+	}
+	return buffer;
+}
+
+Text Document::GetBoxText(const BoxRange& box) const
+{
+	// CEditView::GetSelectedData の矩形選択：各行の末尾に CRLF
+	const auto& d = *m_impl;
+	const bool bExtEol = ExtEolEnabled();
+	Text buffer;
+	for (std::int32_t nLineNum = box.top; nLineNum <= box.bottom; ++nLineNum) {
+		CLogicInt nLineLen;
+		const CLayout* pcLayout = nullptr;
+		const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(nLineNum), &nLineLen, &pcLayout);
+		if (pLine) {
+			const CLogicInt nIdxFrom = LineColumnToIndex(d.layout, pcLayout, CLayoutInt(box.left));
+			const CLogicInt nIdxTo = LineColumnToIndex(d.layout, pcLayout, CLayoutInt(box.right));
+			if (nIdxTo - nIdxFrom > 0) {
+				if (WCODE::IsLineDelimiter(pLine[nIdxTo - 1], bExtEol)) {
+					buffer.append(&pLine[nIdxFrom], nIdxTo - nIdxFrom - 1);
+				} else {
+					buffer.append(&pLine[nIdxFrom], nIdxTo - nIdxFrom);
+				}
+			}
+		}
+		buffer.append(WCODE::CRLF, 2);
+	}
+	return buffer;
+}
+
+Text Document::GetLayoutLineCopyText(std::int32_t layoutLine) const
+{
+	// CEditView::CopyCurLine（改行コードはそのまま）
+	const auto& d = *m_impl;
+	const CLayout* pcLayout = d.layout.SearchLineByLayoutY(CLayoutInt(layoutLine));
+	if (layoutLine < 0 || !pcLayout) return {};
+	Text buffer(pcLayout->GetPtr(), pcLayout->GetLengthWithoutEOL());
+	if (pcLayout->GetLayoutEol().GetLen() != 0) {
+		buffer.append(pcLayout->GetLayoutEol().GetValue2(), pcLayout->GetLayoutEol().GetLen());
+	} else if (GetDllShareData().m_Common.m_sEdit.m_bAddCRLFWhenCopy) {
+		buffer.append(WCODE::CRLF, 2);
+	}
+	return buffer;
+}
+
+LayoutPosition Document::InsertAtLayout(const LayoutPosition& at, const Text& text)
+{
+	// CEditView::InsertData_CEditView：行末より右に挿入するときは空白を埋める
+	auto& d = *m_impl;
+	CLogicInt nLineLen;
+	const CLayout* pcLayout = nullptr;
+	const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(at.line), &nLineLen, &pcLayout);
+	const int nSpWidth = std::max<int>(1, CharWidth());	// 原版 CalcTextWidth3(L" ", 1)
+	Text data;
+	CLogicPoint ptInsert;
+	if (pLine) {
+		CLayoutInt nLineAllColLen;
+		LineColumnToIndex2(d.layout, pcLayout, CLayoutInt(at.x), &nLineAllColLen);
+		if (nLineAllColLen > 0) {
+			// 行終端より右に挿入しようとした：終端直前から挿入位置まで空白を埋める
+			const int nGap = pcLayout->GetLayoutEol().IsValid() ? at.x - static_cast<int>(nLineAllColLen) + 1
+															   : at.x - static_cast<int>(nLineAllColLen);
+			for (int i = 0; i < nGap; i += nSpWidth) {
+				data += u' ';
+			}
+			ptInsert = LayoutIndexToLogic(pcLayout, pcLayout->GetLengthWithoutEOL());
+		} else {
+			d.layout.LayoutToLogic(CLayoutPoint(CLayoutInt(at.x), CLayoutInt(at.line)), &ptInsert);
+		}
+	} else {
+		// EOF より下：行頭から空白を埋める
+		for (int i = 0; i < at.x; i += nSpWidth) {
+			data += u' ';
+		}
+		const Position end = EndPosition();
+		ptInsert = ToLogic(end);
+	}
+	data += text;
+	if (data.empty()) {
+		return LogicToLayout(FromLogic(ptInsert));
+	}
+	const CLogicPoint ptNew = d.ReplaceWithUndo(CLogicRange(ptInsert, ptInsert), data.data(), static_cast<int>(data.size()));
+	return LogicToLayout(FromLogic(ptNew));
+}
+
+Position Document::DeleteBox(const BoxRange& box)
+{
+	// CEditView::DeleteData の矩形選択：下の行から削除する
+	auto& d = *m_impl;
+	const bool bExtEol = ExtEolEnabled();
+	BeginEdit();
+	for (std::int32_t nLineNum = box.bottom; nLineNum >= box.top; nLineNum--) {
+		CLogicInt nLineLen;
+		const CLayout* pcLayout = nullptr;
+		const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(nLineNum), &nLineLen, &pcLayout);
+		if (!pLine) continue;
+		const CLogicInt nIdxFrom = LineColumnToIndex(d.layout, pcLayout, CLayoutInt(box.left));
+		CLogicInt nIdxTo = LineColumnToIndex(d.layout, pcLayout, CLayoutInt(box.right));
+		for (CLogicInt i = nIdxFrom; i <= nIdxTo && i < nLineLen; ++i) {
+			if (WCODE::IsLineDelimiter(pLine[i], bExtEol)) {
+				nIdxTo = i;
+				break;
+			}
+		}
+		if (0 < nIdxTo - nIdxFrom) {
+			d.ReplaceWithUndo(CLogicRange(LayoutIndexToLogic(pcLayout, nIdxFrom), LayoutIndexToLogic(pcLayout, nIdxTo)), nullptr, 0);
+		}
+	}
+	EndEdit();
+	// 選択エリアの先頭へカーソルを移動。EOL より左なら文字の単位にそろえる
+	CLayoutPoint caretOld(CLayoutInt(box.left), CLayoutInt(box.top));
+	if (const CLayout* pcLayout = d.layout.SearchLineByLayoutY(CLayoutInt(box.top));
+		pcLayout && CLayoutInt(box.left) <= pcLayout->CalcLayoutWidth(d.layout)) {
+		const CLogicInt nIdxCaret = LineColumnToIndex(d.layout, pcLayout, CLayoutInt(box.left));
+		caretOld.SetX(LineIndexToColumn(d.layout, pcLayout, nIdxCaret));
+	}
+	return LayoutToLogicInLine(*this, LayoutPosition{ static_cast<std::int32_t>(caretOld.GetY2()), static_cast<std::int32_t>(caretOld.GetX2()) });
+}
+
+void Document::PasteBox(const LayoutPosition& at, const Text& text)
+{
+	// Command_PASTEBOX：各行を同じ桁に挿入する
+	auto& d = *m_impl;
+	const bool bExtEol = ExtEolEnabled();
+	const int nPasteSize = static_cast<int>(text.size());
+	const WCHAR* szPaste = text.data();
+	BeginEdit();
+	std::int32_t nCount = 0;	// カーソル位置からのオフセット行数
+	for (int nBgn = 0, nPos = 0; nBgn < nPasteSize;) {
+		if (nPos == nPasteSize || WCODE::IsLineDelimiter(szPaste[nPos], bExtEol)) {
+			const std::int32_t row = at.line + nCount;
+			// 現在位置にデータを挿入
+			if (nPos - nBgn > 0) {
+				InsertAtLayout(LayoutPosition{ row, at.x }, Text(&szPaste[nBgn], nPos - nBgn));
+			}
+			// 行末に改行が無い場合（最後の行、折り返し行）は改行を挿入する
+			bool bAddLastCR = false;
+			CLogicInt nLineLen;
+			const CLayout* pcLayout = nullptr;
+			const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(row), &nLineLen, &pcLayout);
+			if (pLine && 1 <= nLineLen) {
+				if (!WCODE::IsLineDelimiter(pLine[nLineLen - 1], bExtEol)) {
+					bAddLastCR = true;
+				}
+			} else {
+				bAddLastCR = true;
+			}
+			if (bAddLastCR) {
+				const CLogicPoint ptEnd = pcLayout ? LayoutIndexToLogic(pcLayout, nLineLen) : ToLogic(EndPosition());
+				d.ReplaceWithUndo(CLogicRange(ptEnd, ptEnd), d.newLineEol.GetValue2(), d.newLineEol.GetLen());
+			}
+			if (nPos + 1 < nPasteSize && szPaste[nPos] == WCODE::CR && szPaste[nPos + 1] == WCODE::LF) {
+				nBgn = nPos + 2;
+			} else {
+				nBgn = nPos + 1;
+			}
+			nPos = nBgn;
+			++nCount;
+		} else {
+			++nPos;
+		}
+	}
+	EndEdit();
+}
+
+BoxRange Document::IndentBox(const BoxRange& boxIn, const Text& text, IndentKind kind, Position* pCaret)
+{
+	auto& d = *m_impl;
+	BoxRange box = boxIn;
+	const CLayoutInt nMaxLineLayout = d.layout.GetMaxLineLayout();
+	// Command_INDENT ver1：SPACE か TAB のインデントで矩形選択桁がゼロの時は選択範囲を最大にする
+	if (kind != IndentKind::None && box.left == box.right) {
+		box.right = static_cast<std::int32_t>(nMaxLineLayout);
+		return box;
+	}
+	if (text.empty()) return box;
+
+	// Command_INDENT ver0 の矩形選択
+	const bool bSoftTab = (kind == IndentKind::Tab && d.typeConfig.m_bInsSpace);
+	const CLayoutInt nTabSpace = d.layout.GetTabSpace();
+	const CLayoutInt left(box.left), right(box.right);
+	CLayoutInt minOffset(-1);
+	bool alignFullWidthChar = kind == IndentKind::Tab && 0 == left % nTabSpace;
+	alignFullWidthChar = alignFullWidthChar || (kind == IndentKind::Space && 1 == right - left);
+	BeginEdit();
+	for (bool insertionWasDone = false;; alignFullWidthChar = false) {
+		minOffset = CLayoutInt(-1);
+		for (std::int32_t nLineNum = box.top; nLineNum <= box.bottom; ++nLineNum) {
+			const CLayout* pcLayout = d.layout.SearchLineByLayoutY(CLayoutInt(nLineNum));
+			CLogicInt nIdxFrom, nIdxTo;
+			CLayoutInt xLayoutFrom, xLayoutTo;
+			bool reachEndOfLayout = false;
+			if (pcLayout) {
+				// 指定された桁に対応する行のデータ内の位置を調べる
+				const struct {
+					CLayoutInt keta;
+					CLogicInt* outLogicX;
+					CLayoutInt* outLayoutX;
+				} sortedKetas[] = {
+					{ left, &nIdxFrom, &xLayoutFrom },
+					{ right, &nIdxTo, &xLayoutTo },
+					{ CLayoutInt(-1), nullptr, nullptr }
+				};
+				CMemoryIterator it = d.layout.CreateCMemoryIterator(pcLayout);
+				for (int i = 0; 0 <= sortedKetas[i].keta; ++i) {
+					for (; !it.end(); it.addDelta()) {
+						if (sortedKetas[i].keta == it.getColumn()) {
+							break;
+						}
+						it.scanNext();
+						if (sortedKetas[i].keta < it.getColumn() + it.getColumnDelta()) {
+							break;
+						}
+					}
+					*sortedKetas[i].outLogicX = it.getIndex();
+					*sortedKetas[i].outLayoutX = it.getColumn();
+				}
+				reachEndOfLayout = it.end();
+			} else {
+				nIdxFrom = nIdxTo = CLogicInt(0);
+				xLayoutFrom = xLayoutTo = CLayoutInt(0);
+				reachEndOfLayout = true;
+			}
+			const bool emptyLine = !pcLayout || 0 == pcLayout->GetLengthWithoutEOL();
+			const bool selectionIsOutOfLine = reachEndOfLayout && (
+				(pcLayout && pcLayout->GetLayoutEol().IsValid()) ? xLayoutFrom == xLayoutTo : xLayoutTo < left);
+
+			// 入力文字の挿入位置
+			const CLayoutInt xInsert = selectionIsOutOfLine ? left : xLayoutFrom;
+
+			// TABやスペースインデントの時
+			if (kind != IndentKind::None) {
+				if (emptyLine || selectionIsOutOfLine) {
+					continue;	// インデント対象が存在しない部分（改行文字の後ろや空行）には挿入しない
+				}
+				// 範囲の左端にある文字がインデント文字で、右端までに末尾が含まれていないときは挿入しない
+				if (nIdxFrom == nIdxTo && pcLayout && IsSpaceOrTab(pcLayout->GetPtr()[nIdxFrom]) && left < right) {
+					continue;
+				}
+				// 全角文字の左側の桁揃え
+				if (alignFullWidthChar && (xInsert == left || (pcLayout && IsSpaceOrTab(pcLayout->GetPtr()[nIdxFrom])))) {
+					minOffset = CLayoutInt(0);
+					continue;
+				}
+			}
+
+			// 現在位置にデータを挿入
+			const LayoutPosition inserted = InsertAtLayout(LayoutPosition{ nLineNum, static_cast<std::int32_t>(xInsert) },
+														   bSoftTab ? TabText(static_cast<std::int32_t>(xInsert)) : text);
+			insertionWasDone = true;
+			const CLayoutInt xInserted(inserted.x);
+			minOffset = t_min(
+				0 <= minOffset ? minOffset : nMaxLineLayout,
+				xInsert <= xInserted ? xInserted - xInsert : t_max(CLayoutInt(0), nMaxLineLayout - xInsert));
+		}
+		if (insertionWasDone || !alignFullWidthChar) {
+			break;	// 文字の挿入が行われた、または挿入を控えたせいではない
+		}
+	}
+	EndEdit();
+
+	// 挿入された文字の分だけ選択範囲を後ろにずらす
+	if (0 < minOffset) {
+		box.left = static_cast<std::int32_t>(t_min(left + minOffset, nMaxLineLayout));
+		box.right = static_cast<std::int32_t>(t_min(right + minOffset, nMaxLineLayout));
+	}
+	// カーソルを選択範囲の左上へ移動
+	if (pCaret) *pCaret = LayoutToLogicInLine(*this, LayoutPosition{ box.top, box.left });
+	return box;
+}
+
+std::int32_t Document::IndentLines(std::int32_t top, std::int32_t bottom, const Text& text)
+{
+	// Command_INDENT の通常選択(複数行)
+	auto& d = *m_impl;
+	if (text.empty()) return bottom;
+	BeginEdit();
+	for (std::int32_t i = top; i < bottom; i++) {
+		const CLayoutInt nLineCountPrev = d.layout.GetLineCount();
+		const CLayout* pcLayout = d.layout.SearchLineByLayoutY(CLayoutInt(i));
+		if (nullptr == pcLayout ||						// テキストが無いEOLの行は無視
+			pcLayout->GetLogicOffset() > 0 ||			// 折り返し行は無視
+			pcLayout->GetLengthWithoutEOL() == 0) {		// 改行のみの行は無視する
+			continue;
+		}
+		InsertAtLayout(LayoutPosition{ i, 0 }, text);
+		if (nLineCountPrev != d.layout.GetLineCount()) {
+			bottom += static_cast<std::int32_t>(d.layout.GetLineCount() - nLineCountPrev);	// 行数が変化した
+		}
+	}
+	EndEdit();
+	return bottom;
+}
+
+std::int32_t Document::UnindentLines(std::int32_t top, std::int32_t bottom, char16_t ch)
+{
+	// Command_UNINDENT の通常選択
+	auto& d = *m_impl;
+	const WCHAR wcChar = static_cast<WCHAR>(ch);
+	BeginEdit();
+	for (std::int32_t i = top; i < bottom; i++) {
+		const CLayoutInt nLineCountPrev = d.layout.GetLineCount();
+		CLogicInt nLineLen;
+		const CLayout* pcLayout = nullptr;
+		const WCHAR* pLine = d.layout.GetLineStr(CLayoutInt(i), &nLineLen, &pcLayout);
+		if (nullptr == pcLayout || pcLayout->GetLogicOffset() > 0) {	// 折り返し以降の行はインデント処理を行わない
+			continue;
+		}
+		CLogicInt nDelLen;
+		if (WCODE::TAB == wcChar) {
+			if (pLine[0] == wcChar) {
+				nDelLen = CLogicInt(1);
+			} else {
+				// 削り取る半角スペース数 (1～タブ幅分)
+				CLogicInt i2;
+				const CLogicInt nTabSpaces = CLogicInt(static_cast<Int>(d.layout.GetTabSpaceKetas()));
+				for (i2 = CLogicInt(0); i2 < nLineLen; i2++) {
+					if (WCODE::SPACE != pLine[i2]) break;
+					if (i2 >= nTabSpaces) break;
+				}
+				if (0 == i2) continue;
+				nDelLen = i2;
+			}
+		} else {
+			if (pLine[0] != wcChar) continue;
+			nDelLen = CLogicInt(1);
+		}
+		d.ReplaceWithUndo(CLogicRange(LayoutIndexToLogic(pcLayout, CLogicInt(0)), LayoutIndexToLogic(pcLayout, nDelLen)), nullptr, 0);
+		if (nLineCountPrev != d.layout.GetLineCount()) {
+			bottom += static_cast<std::int32_t>(d.layout.GetLineCount() - nLineCountPrev);
+		}
+	}
+	EndEdit();
+	return bottom;
+}
+
+Text Document::TabText(std::int32_t x) const
+{
+	// Command_INDENT の SSoftTabData：[SPACEの挿入] のときは次の TAB 位置までの空白
+	const auto& d = *m_impl;
+	if (!d.typeConfig.m_bInsSpace) return Text(1, u'\t');
+	const int nTab = std::max<int>(1, static_cast<int>(d.layout.GetTabSpace()));
+	const int nSpWidth = std::max<int>(1, static_cast<int>(d.layout.GetWidthPerKeta()));
+	const int nXWidth = nSpWidth - 1;
+	const int nLen = (nTab + nXWidth - (x + nXWidth) % nTab) / nSpWidth;
+	return Text(std::max(1, nLen), u' ');
+}
+
+Text Document::AutoIndentText(const Position& caret) const
+{
+	// Command_WCHAR のオートインデント
+	const auto& d = *m_impl;
+	const STypeConfig& t = d.typeConfig;
+	if (!t.m_bAutoIndent) return {};
+	const CDocLine* pcDocLine = d.lines.GetLine(CLogicInt(caret.line));
+	if (!pcDocLine) return {};
+	CLogicInt nLineLen;
+	const WCHAR* pLine = pcDocLine->GetDocLineStrWithEOL(&nLineLen);
+	if (!pLine) return {};
+	CLogicInt nPos(0);
+	for (; nPos < nLineLen && nPos < caret.column;) {
+		const CLogicInt nCharChars = CNativeW::GetSizeOfChar(pLine, nLineLen, nPos);
+		bool bIndentChar = false;
+		// その他のインデント文字
+		if (0 < nCharChars && pLine[nPos] != L'\0' && t.m_szIndentChars[0] != L'\0') {
+			WCHAR szCurrent[10];
+			wmemcpy(szCurrent, &pLine[nPos], nCharChars);
+			szCurrent[nCharChars] = L'\0';
+			bIndentChar = nullptr != wcsstr(t.m_szIndentChars, szCurrent);
+		}
+		if (!bIndentChar && !(nCharChars == 1 && WCODE::IsIndentChar(pLine[nPos], t.m_bAutoIndent_ZENSPACE))) {
+			break;
+		}
+		nPos += nCharChars;
+	}
+	return Text(pLine, nPos);
+}
+
+Text Document::ConvertEolToNewLine(const Text& text) const
+{
+	// CViewCommander::ConvertEol
+	const CEol& eol = m_impl->newLineEol;
+	const bool bExtEol = ExtEolEnabled();
+	Text converted;
+	converted.reserve(text.size());
+	for (size_t i = 0; i < text.size(); i++) {
+		if (WCODE::IsLineDelimiter(text[i], bExtEol)) {
+			if (text[i] == WCODE::CR && i + 1 < text.size() && text[i + 1] == WCODE::LF) {
+				i++;
+			}
+			converted.append(eol.GetValue2(), eol.GetLen());
+		} else {
+			converted += text[i];
+		}
+	}
+	return converted;
+}
+
+Position Document::DeleteLayoutLine(std::int32_t layoutLine, std::int32_t x)
+{
+	// Command_DELETE_LINE：レイアウト行を改行まで削除して、カーソルは元の桁へ
+	auto& d = *m_impl;
+	const CLayout* pcLayout = d.layout.SearchLineByLayoutY(CLayoutInt(layoutLine));
+	if (layoutLine < 0 || !pcLayout) return EndPosition();
+	const CLogicPoint ptFrom = LayoutIndexToLogic(pcLayout, CLogicInt(0));
+	CLogicPoint ptTo;
+	if (const CLayout* pNext = pcLayout->GetNextLayout()) {
+		ptTo = LayoutIndexToLogic(pNext, CLogicInt(0));
+	} else if (pcLayout->GetLayoutEol().IsValid()) {
+		ptTo = CLogicPoint(CLogicInt(0), pcLayout->GetLogicLineNo() + 1);
+	} else {
+		ptTo = LayoutIndexToLogic(pcLayout, pcLayout->GetLengthWithoutEOL());
+	}
+	d.ReplaceWithUndo(CLogicRange(ptFrom, ptTo), nullptr, 0);
+
+	// 行削除した後、カーソル位置が行端より右にならないように調整する（フリーカーソルでないとき）
+	const CLayout* pcNew = d.layout.SearchLineByLayoutY(CLayoutInt(layoutLine));
+	if (!pcNew) return EndPosition();
+	CLayoutInt nAllColLen;
+	const CLogicInt nIndex = LineColumnToIndex2(d.layout, pcNew, CLayoutInt(x), &nAllColLen);
+	CLayoutInt xNew = nAllColLen;
+	if (0 < xNew) {
+		xNew--;
+	} else {
+		xNew = LineIndexToColumn(d.layout, pcNew, nIndex);
+	}
+	return LayoutToLogicInLine(*this, LayoutPosition{ layoutLine, static_cast<std::int32_t>(xNew) });
+}
+
 } // namespace sakura::core
