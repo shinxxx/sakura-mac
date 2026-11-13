@@ -52,7 +52,6 @@ final class EditorTextViewTests: XCTestCase {
         XCTAssertEqual(view.markedRange(), NSRange(location: 3, length: 3))
         XCTAssertEqual(view.selectedRange(), NSRange(location: 6, length: 0))
         XCTAssertEqual(text, "abc", "未确定文字不进文档")
-        XCTAssertFalse(view.document.isModified)
         XCTAssertEqual(view.attributedSubstring(forProposedRange: NSRange(location: 0, length: 6), actualRange: nil)?.string, "abcにほん")
 
         // 转换：选中整个文节
@@ -68,9 +67,11 @@ final class EditorTextViewTests: XCTestCase {
         XCTAssertEqual(view.caret.column, 5)
         XCTAssertEqual(view.selectedRange(), NSRange(location: 5, length: 0))
 
-        // 撤销一次回到输入前（输入中的变化不进撤销记录）
+        // 撤销一次回到输入前（输入中的变化不进撤销记录）；再撤销一次是准备的「abc」
         XCTAssertEqual(view.document.undo(), .success)
         XCTAssertEqual(text, "abc")
+        XCTAssertEqual(view.document.undo(), .success)
+        XCTAssertEqual(text, "")
         XCTAssertFalse(view.document.canUndo)
     }
 
@@ -102,7 +103,6 @@ final class EditorTextViewTests: XCTestCase {
         view.setMarkedText("", selectedRange: NSRange(location: 0, length: 0), replacementRange: notFound)
         XCTAssertFalse(view.hasMarkedText())
         XCTAssertEqual(text, "abc")
-        XCTAssertFalse(view.document.isModified)
     }
 
     /// 文节：输入法给的 NSMarkedClauseSegment 分开，正在转换的文节可以知道
