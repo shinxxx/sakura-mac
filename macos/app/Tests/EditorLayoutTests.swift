@@ -89,8 +89,11 @@ final class EditorLayoutTests: XCTestCase {
         XCTAssertEqual(document.layoutWidth, 10 * document.charWidth)
 
         // 编辑后排版跟着变
-        XCTAssertEqual(document.replace(EditorRange(from: EditorPosition(line: 0, column: 0), to: EditorPosition(line: 0, column: 12)), with: ""), .success)
+        XCTAssertEqual(document.replace(EditorRange(from: EditorPosition(line: 0, column: 0), to: EditorPosition(line: 0, column: 10)), with: ""), .success)
         XCTAssertEqual(rows(), ["ABCDEFGHIJ", "KL", "xyz"])
+        // 正好 10 桁的行：换行符到下一行（与原版相同）
+        XCTAssertEqual(document.replace(EditorRange(from: EditorPosition(line: 0, column: 0), to: EditorPosition(line: 0, column: 2)), with: ""), .success)
+        XCTAssertEqual(rows(), ["CDEFGHIJKL", "", "xyz"])
     }
 
     // MARK: - 视图
