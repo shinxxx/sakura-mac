@@ -197,6 +197,21 @@ final class EditorDrawingTests: XCTestCase {
         XCTAssertFalse(view.hasSelection)
     }
 
+    // MARK: - 键盘
+
+    /// 按住字母键连续输入：关掉 macOS 的「按住弹出重音字符」（shin 在第 28 步发现的问题）
+    func testPressAndHoldDisabled() {
+        EditorTextView.registerInputDefaults()
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "ApplePressAndHoldEnabled"))
+        // 按键重复的事件照样输入
+        let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                     windowNumber: window.windowNumber, context: nil,
+                                     characters: "a", charactersIgnoringModifiers: "a", isARepeat: true, keyCode: 0)
+        for _ in 0..<3 { view.insertText("a", replacementRange: notFound) }
+        XCTAssertNotNil(event)
+        XCTAssertEqual(document.line(at: 0), "aaa")
+    }
+
     // MARK: - 字体
 
     func testChangeFontRelayouts() throws {

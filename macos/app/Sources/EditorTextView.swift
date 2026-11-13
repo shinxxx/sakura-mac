@@ -59,6 +59,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         NotificationCenter.default.post(name: fontDidChangeNotification, object: nil)
     }
 
+    /// 键盘的设置：关掉「按住字母键弹出重音字符」（ApplePressAndHoldEnabled），按住键时连续输入（原版相同）。
+    /// 放在注册域里：用户在终端里明确设置过时，按用户的设置
+    static func registerInputDefaults() {
+        UserDefaults.standard.register(defaults: ["ApplePressAndHoldEnabled": false])
+    }
+
     /// 测试用：回到默认的字体
     static func resetFont() {
         UserDefaults.standard.removeObject(forKey: fontNameKey)
