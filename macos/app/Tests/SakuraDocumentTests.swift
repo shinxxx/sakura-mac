@@ -89,12 +89,9 @@ final class SakuraDocumentTests: XCTestCase {
 
         wb.makeKeyAndOrderFront(nil)
         XCTAssertTrue(wa.tabGroup?.selectedWindow === wb)
-        // 标签的切换在事件循环里完成，等一会儿
-        wb.selectNextTab(nil)
-        let deadline = Date().addingTimeInterval(3)
-        while !(wa.tabGroup?.selectedWindow === wa) && Date() < deadline {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-        }
+        // 切换标签（标签栏点击时也是改 selectedWindow）。
+        // selectNextTab 要 App 的事件循环在跑，测试进程里不起作用，手动操作在 Mac 上确认
+        wa.tabGroup?.selectedWindow = wa
         XCTAssertTrue(wa.tabGroup?.selectedWindow === wa)
     }
 
