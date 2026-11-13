@@ -243,17 +243,20 @@ final class EditorDrawingTests: XCTestCase {
         }
     }
 
-    /// 视图上一点画出来的颜色（0xRRGGBB，sRGB）
+    /// 视图上一点画出来的颜色（0xRRGGBB）。画到 sRGB 的位图上，不经过颜色空间的换算
     private func pixel(at point: NSPoint) -> UInt32 {
-        view.needsDisplay = true
-        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return 0xDEAD }
-        view.cacheDisplay(in: view.bounds, to: rep)
-        let scale = CGFloat(rep.pixelsWide) / view.bounds.width
-        // NSBitmapImageRep 的 y 从上往下（视图是翻转的，坐标一致）
-        guard let color = rep.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))?.usingColorSpace(.sRGB) else {
+        let width = Int(view.bounds.width), height = Int(view.bounds.height)
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
             return 0xDEAD
         }
-        func channel(_ v: CGFloat) -> UInt32 { UInt32((v * 255).rounded()) }
-        return (channel(color.redComponent) << 16) | (channel(color.greenComponent) << 8) | channel(color.blueComponent)
+        view.displayIgnoringOpacity(view.bounds, in: NSGraphicsContext(cgContext: context, flipped: false))
+        guard let data = context.data else { return 0xDEAD }
+        // 位图的第 0 行是图的上端，与翻转的视图的 y 相同
+        let x = min(max(0, Int(point.x)), width - 1), y = min(max(0, Int(point.y)), height - 1)
+        let bytes = data.assumingMemoryBound(to: UInt8.self)
+        let offset = y * context.bytesPerRow + x * 4
+        return (UInt32(bytes[offset]) << 16) | (UInt32(bytes[offset + 1]) << 8) | UInt32(bytes[offset + 2])
     }
 }
