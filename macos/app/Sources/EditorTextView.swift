@@ -654,8 +654,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
         let columns = lineNumberDigits + 2
         let x = CGFloat(columns - number.count - 1) * charWidth
-        var attributes: [NSAttributedString.Key: Any] = [.font: info.bold.boolValue ? boldFont : font, .foregroundColor: fg]
-        if info.underline.boolValue { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+        var attributes: [NSAttributedString.Key: Any] = [.font: info.bold ? boldFont : font, .foregroundColor: fg]
+        if info.underline { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
         (number as NSString).draw(at: NSPoint(x: x, y: top), withAttributes: attributes)
         // 行番号区切り（縦线，原版的默认值）：行号的文字色
         fg.setFill()
@@ -673,7 +673,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     private func drawMarkText(_ text: String, x: CGFloat, top: CGFloat, info: EditorColorSetting, rowBack: UInt32) {
         let back = backColor(info, rowBack: rowBack)
         let string = text as NSString
-        let attributes: [NSAttributedString.Key: Any] = [.font: info.bold.boolValue ? boldFont : font,
+        let attributes: [NSAttributedString.Key: Any] = [.font: info.bold ? boldFont : font,
                                                          .foregroundColor: Self.nsColor(info.text)]
         if back != rowBack {
             Self.nsColor(back).setFill()
@@ -691,7 +691,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let select = color(.select)
         let normalColor = Self.nsColor(text.text).cgColor
         let selectedColor = Self.nsColor(overlayTextColor(select, on: text.text)).cgColor
-        let attributed = NSAttributedString(string: current.text as String, attributes: [.font: text.bold.boolValue ? boldFont : font])
+        let attributed = NSAttributedString(string: current.text as String, attributes: [.font: text.bold ? boldFont : font])
         let line = CTLineCreateWithAttributedString(attributed)
         guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return }
         context.saveGState()

@@ -486,7 +486,7 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 {
 	if (index < 0 || index > 255) return ECColorSetting{};
 	const core::ColorSetting c = _doc->GetColor(static_cast<core::ColorIndex>(index));
-	return ECColorSetting{ c.display ? YES : NO, c.bold ? YES : NO, c.underline ? YES : NO, c.text, c.back };
+	return ECColorSetting{ c.display, c.bold, c.underline, c.text, c.back };
 }
 
 - (BOOL)isLineModified:(NSInteger)line

@@ -55,7 +55,7 @@ final class EditorDrawingTests: XCTestCase {
         XCTAssertEqual(view.color(.text).back, 0xFFFBF0)
         XCTAssertEqual(view.color(.text).text, 0x000000)
         XCTAssertEqual(view.color(.lineNumber).text, 0x0000FF)
-        XCTAssertTrue(view.color(.caretLineUnderline).display.boolValue)
+        XCTAssertTrue(view.color(.caretLineUnderline).display)
         XCTAssertEqual(view.caretColor, 0x000000, "输入法关闭时是「キャレット」的颜色")
         let background = view.enclosingScrollView?.backgroundColor.usingColorSpace(.sRGB)
         XCTAssertEqual(background?.redComponent ?? 0, 1.0, accuracy: 0.01)
@@ -99,7 +99,7 @@ final class EditorDrawingTests: XCTestCase {
         XCTAssertFalse(document.isLineModified(0))
         view.insertText("abc", replacementRange: notFound)
         XCTAssertTrue(document.isLineModified(0))
-        XCTAssertTrue(view.color(.lineNumberModified).bold.boolValue)
+        XCTAssertTrue(view.color(.lineNumberModified).bold)
         view.undo(nil)
         XCTAssertFalse(document.isLineModified(0))
     }

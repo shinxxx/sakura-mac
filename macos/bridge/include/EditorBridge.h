@@ -143,9 +143,9 @@ typedef NS_ENUM(NSInteger, ECColorIndex) {
 
 //! 一种颜色的设置（原版的 ColorInfo）。颜色是 0xRRGGBB
 typedef struct ECColorSetting {
-	BOOL display;		//!< 表示
-	BOOL bold;			//!< 太字
-	BOOL underline;		//!< 下線
+	bool display;		//!< 表示（C 的 bool，Swift 里是 Bool）
+	bool bold;			//!< 太字
+	bool underline;		//!< 下線
 	uint32_t text;		//!< 文字色
 	uint32_t back;		//!< 背景色
 } NS_SWIFT_NAME(EditorColorSetting) ECColorSetting;
