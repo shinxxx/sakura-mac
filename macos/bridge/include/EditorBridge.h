@@ -169,7 +169,7 @@ NS_SWIFT_NAME(EditorCore)
 	文字宽度用 Core Text 测量（第 27 步，原版用 GDI）。App 启动时调用一次。
 	不调用时用简单的估算（单元测试用）。
 */
-+ (void)useCoreTextMeasurement;
++ (void)useCoreTextMeasurement NS_SWIFT_NAME(useCoreTextMeasurement());
 /*!
 	排版用的字体：字体名和大小（点）。已经打开的文档要调用 -relayout。
 	字体名是 Core Text 能找到的名字（例如 "Menlo"）。
