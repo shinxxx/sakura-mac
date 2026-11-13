@@ -20,16 +20,19 @@
 | `macos/core/include/`、`macos/core/api/` | 核心库的对外接口（`sakura_core/SakuraCore.h`）和它的实现。界面层只通过这个头文件使用核心库（阶段 1 第 22 步） |
 | `macos/thirdparty/` | 编译第三方源码（`externals/` 的 Onigmo、bregonig）用的 Mac 版配置和兼容头文件（阶段 1） |
 | `macos/platform/` | 平台抽象层：Win32 类型和 API 的替代、字符类型、代码页转换表（`data/`）（阶段 1） |
-| `macos/bridge/` | Objective-C++ 桥接层（阶段 2，尚未建立） |
+| `macos/bridge/` | Objective-C++ 桥接层：把核心库接口包装成 Swift 能用的框架 `EditorBridge`（`include/EditorBridge.h`、`src/EditorBridge.mm`）（阶段 2 第 24 步） |
+| `macos/app/Scripts/` | Xcode 构建时调用的脚本（`build-core.sh`：用 CMake 构建核心库的静态库） |
+| `macos/app/Tests/` | 桥接层的单元测试（Swift、XCTest） |
 
 核心逻辑继续使用 `sakura_core/` 中的原版代码，不复制到本目录。
 
 ## 在 Mac 上构建
 
-需要 Xcode 15 或更新版本，以及 [XcodeGen](https://github.com/yonaskolb/XcodeGen)。
+需要 Xcode 15 或更新版本、[XcodeGen](https://github.com/yonaskolb/XcodeGen) 和 CMake，以及三个子模块（核心库的正则和 Migemo）。
 
 ```sh
-brew install xcodegen
+brew install xcodegen cmake
+git submodule update --init externals/Onigmo externals/bregonig externals/cmigemo
 cd macos/app
 xcodegen generate
 open SakuraMac.xcodeproj
@@ -37,6 +40,7 @@ open SakuraMac.xcodeproj
 
 在 Xcode 里选好签名团队（Signing & Capabilities），按 Cmd+R 运行。
 App 名称、Bundle ID、最低系统版本都集中在 `macos/app/Config/App.xcconfig`。
+构建时 Xcode 先运行 `macos/app/Scripts/build-core.sh`，用 CMake 把核心库构建到仓库根目录的 `build/xcode-core/<Debug|Release>/`，再链接进桥接层框架。按 Cmd+U 运行桥接层的单元测试。
 
 核心库和单元测试可以不经 Xcode 单独构建：
 
@@ -57,3 +61,4 @@ ctest --test-dir build/mac-core --output-on-failure
 - [功能对照表](docs/feature-matrix.md)
 - [与上游同步的流程](docs/upstream-sync.md)
 - 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md) · [编码往返测试](docs/phase1-roundtrip.md) · [换掉 DLL](docs/phase1-extmodule.md) · [文档模型和语法类型](docs/phase1-doc-types.md) · [设置模块 env](docs/phase1-env.md) · [核心库接口](docs/phase1-core-api.md) · [阶段 1 验收](docs/phase1-review.md)
+- 阶段 2：[桥接层](docs/phase2-bridge.md)

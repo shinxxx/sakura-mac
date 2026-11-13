@@ -9,7 +9,9 @@ PRODUCT_NAME = $(APP_DISPLAY_NAME)
 PRODUCT_BUNDLE_IDENTIFIER = com.hanagumo.texteditor
 
 // 最低支持的 macOS 版本（2026-11-08 确定为 macOS 13）
-MACOSX_DEPLOYMENT_TARGET = 13.0
+// 第 24 步改成 13.3：原版代码用的 std::format 需要 macOS 13.3 的 C++ 标准库（std::to_chars）。
+// macOS 13 的用户都能免费更新到 13.3 以上。
+MACOSX_DEPLOYMENT_TARGET = 13.3
 
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1

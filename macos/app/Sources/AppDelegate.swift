@@ -3,11 +3,16 @@
 // SPDX-License-Identifier: Zlib
 
 import AppKit
+import EditorBridge
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowControllers: [EditorWindowController] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 核心库：建立共通设置，读入 sakura.ini（第 24 步）
+        if !EditorCore.startup() {
+            NSLog("Sakura core startup failed")
+        }
         NSApp.mainMenu = MainMenuBuilder.build()
         newEditorWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -18,8 +23,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    // 原版在控制进程结束时写出 sakura.ini
+    func applicationWillTerminate(_ notification: Notification) {
+        if EditorCore.isStarted {
+            EditorCore.shutdown(savingSettings: true)
+        }
+    }
+
     @objc func newEditorWindow(_ sender: Any?) {
-        let controller = EditorWindowController()
+        showWindow(EditorWindowController())
+    }
+
+    /// ファイル > 開く（F_FILEOPEN）。目前只读显示，编辑在第 27～30 步。
+    @objc func openDocument(_ sender: Any?) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            openFile(url)
+        }
+    }
+
+    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        openFile(URL(fileURLWithPath: filename))
+    }
+
+    @discardableResult
+    private func openFile(_ url: URL) -> Bool {
+        guard let document = EditorDocument() else { return false }
+        let result = document.open(path: url.path)
+        guard result == .success || result == .lostSome else {
+            let alert = NSAlert()
+            alert.messageText = "ファイルを開けませんでした。"
+            alert.informativeText = url.path
+            alert.runModal()
+            return false
+        }
+        showWindow(EditorWindowController(document: document))
+        return true
+    }
+
+    private func showWindow(_ controller: EditorWindowController) {
         windowControllers.append(controller)
         controller.onClose = { [weak self, weak controller] in
             self?.windowControllers.removeAll { $0 === controller }

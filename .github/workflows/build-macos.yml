@@ -143,6 +143,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # 第 24 步：App 通过桥接层链接核心库，核心库用到这些子模块
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 externals/Onigmo externals/bregonig externals/cmigemo
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -162,6 +166,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      # 第 24 步：桥接层的单元测试（Swift 通过桥接层打开文件、读出文字）
+      - name: Test bridge (Debug)
+        working-directory: macos/app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project SakuraMac.xcodeproj \
+            -scheme SakuraMac \
+            -configuration Debug \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
       - name: Check app bundle
         working-directory: macos/app
         run: |
@@ -172,6 +189,12 @@ jobs:
           lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac"
           lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac" | grep -q arm64
           lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac" | grep -q x86_64
+          # 桥接层框架嵌在 App 里，也是通用二进制
+          FW="$APP/Contents/Frameworks/EditorBridge.framework/EditorBridge"
+          test -f "$FW"
+          lipo -archs "$FW"
+          lipo -archs "$FW" | grep -q arm64
+          lipo -archs "$FW" | grep -q x86_64
 
       # 第 9 步：确认 App 能启动，不会一启动就崩溃（CI 没有屏幕可看，只确认进程启动 10 秒后仍在运行）
       - name: Launch smoke test

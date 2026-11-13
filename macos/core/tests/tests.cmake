@@ -41,7 +41,6 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-roundtrip.cpp"   # 第 18 步：编码往返测试，样本在 data/roundtrip/
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-extmodule.cpp"   # 第 19 步：正则、Migemo、uchardet
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-doc.cpp"         # 第 20 步：文件 API、CFile、CFileLoad、撤销、差异标记、类型设置
-  "${CMAKE_CURRENT_LIST_DIR}/mac-layout-stub.cpp"      # 第 20 步：排版移植（第 27 步）前的 LogicToLayout
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-env.cpp"         # 第 21 步：设置模块（ini 往返、路径、互斥锁、资源等）
   "${CMAKE_CURRENT_LIST_DIR}/mac-test-home.cpp"        # 第 21 步：测试时把 HOME 换成临时文件夹（不碰真正的 sakura.ini）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-core-api.cpp"    # 第 22 步：核心库的对外接口（打开、编辑、保存、查找、命令）
