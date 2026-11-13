@@ -14,7 +14,7 @@ enum MainMenuBuilder {
         let mainMenu = NSMenu()
         mainMenu.addItem(submenuItem(appMenu()))
         mainMenu.addItem(submenuItem(fileMenu()))
-        mainMenu.addItem(submenuItem(NSMenu(title: "編集")))
+        mainMenu.addItem(submenuItem(editMenu()))
         mainMenu.addItem(submenuItem(NSMenu(title: "変換")))
         mainMenu.addItem(submenuItem(NSMenu(title: "検索")))
         mainMenu.addItem(submenuItem(NSMenu(title: "ツール")))
@@ -64,6 +64,16 @@ enum MainMenuBuilder {
         menu.addItem(withTitle: "開く…", action: #selector(AppDelegate.openDocument(_:)), keyEquivalent: "o")
         menu.addItem(.separator())
         menu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        return menu
+    }
+
+    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），其余按原版在后面的步骤加入
+    private static func editMenu() -> NSMenu {
+        let menu = NSMenu(title: "編集")
+        menu.addItem(withTitle: "元に戻す", action: #selector(EditorTextView.undo(_:)), keyEquivalent: "z")
+        let redo = NSMenuItem(title: "やり直し", action: #selector(EditorTextView.redo(_:)), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(redo)
         return menu
     }
 

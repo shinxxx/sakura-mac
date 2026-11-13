@@ -11,26 +11,10 @@ import XCTest
 /// 核心库本身的测试在 macos/core/tests（956 个）；这里只确认 Swift → Objective-C++ → C++ 的连接，
 /// 以及文字（UTF-16）、位置、编码等在边界上不走样。
 final class EditorBridgeTests: XCTestCase {
-    private static var home: URL!
     private var workDir: URL!
 
-    // 核心库在一个进程里只启动一次（与 App 相同）。设置文件写在临时目录，不碰运行者自己的 sakura.ini
-    override class func setUp() {
-        super.setUp()
-        home = FileManager.default.temporaryDirectory.appendingPathComponent("sakura-bridge-tests-\(ProcessInfo.processInfo.processIdentifier)")
-        try? FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        setenv("HOME", home.path, 1)
-        XCTAssertTrue(EditorCore.startup())
-    }
-
-    override class func tearDown() {
-        EditorCore.shutdown(savingSettings: false)
-        try? FileManager.default.removeItem(at: home)
-        super.tearDown()
-    }
-
     override func setUpWithError() throws {
-        workDir = Self.home.appendingPathComponent("work-\(UUID().uuidString)")
+        workDir = TestCore.home.appendingPathComponent("work-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: workDir, withIntermediateDirectories: true)
     }
 
