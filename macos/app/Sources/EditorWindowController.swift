@@ -5,11 +5,15 @@
 import AppKit
 import EditorBridge
 
-/// 编辑窗口。
+/// 编辑窗口（原版的 CEditWnd）。
 ///
-/// 通过桥接层持有一个文档（EditorDocument，第 24 步），文本区域是自绘的 EditorTextView（第 25 步）。
-final class EditorWindowController: NSWindowController, NSWindowDelegate {
-    var onClose: (() -> Void)?
+/// 一个文件一个窗口，由 SakuraDocument（NSDocument）管理（第 26 步）。
+/// 文本区域是自绘的 EditorTextView（第 25 步）。
+/// 窗口之间可以合并成标签：macOS 自带的窗口标签，与原版的「タブまとめ表示」相当。
+final class EditorWindowController: NSWindowController {
+    /// 同一个标识的窗口可以合并成标签
+    static let tabbingIdentifier = "SakuraEditorWindow"
+
     let editorDocument: EditorDocument
     let textView: EditorTextView
 
@@ -21,18 +25,23 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
+        // 按系统设置（「打开文稿时首选标签页」）决定新窗口是否作为标签打开。
+        // 原版对应的设置（共通設定 > タブバー）在第 39 步接上
+        window.tabbingIdentifier = Self.tabbingIdentifier
+        window.tabbingMode = .automatic
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
         textView = EditorTextView(document: document)
         scrollView.documentView = textView
         window.contentView = scrollView
-        window.cascadeTopLeft(from: NSPoint(x: 120, y: 120))
-        super.init(window: window)
-        window.delegate = self
         window.initialFirstResponder = textView
-        textView.onChange = { [weak self] in self?.updateTitle() }
-        updateTitle()
+        super.init(window: window)
+        // 新窗口错开一点，不完全重叠（原版也是层叠显示）
+        shouldCascadeWindows = true
+        textView.onChange = { [weak self] in
+            (self?.document as? SakuraDocument)?.contentDidChange()
+        }
         textView.contentDidChange()
     }
 
@@ -42,24 +51,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     }
 
     /// 标题与原版相同：文件名（无题时是「(無題)」），修改过时加「(更新)」；副标题显示编码
-    private func updateTitle() {
-        guard let window else { return }
-        let modified = editorDocument.isModified ? " (更新)" : ""
-        window.isDocumentEdited = editorDocument.isModified
-        guard !editorDocument.path.isEmpty else {
-            window.title = "(無題)" + modified
-            return
+    override func windowTitle(forDocumentDisplayName displayName: String) -> String {
+        if #available(macOS 11.0, *), let window {
+            if editorDocument.path.isEmpty {
+                window.subtitle = ""
+            } else {
+                var encoding = EditorCore.name(ofEncoding: editorDocument.encoding)
+                if editorDocument.hasBOM { encoding += " BOM" }
+                window.subtitle = encoding
+            }
         }
-        window.title = (editorDocument.path as NSString).lastPathComponent + modified
-        window.representedFilename = editorDocument.path
-        if #available(macOS 11.0, *) {
-            var encoding = EditorCore.name(ofEncoding: editorDocument.encoding)
-            if editorDocument.hasBOM { encoding += " BOM" }
-            window.subtitle = encoding
-        }
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        onClose?()
+        return displayName + (editorDocument.isModified ? " (更新)" : "")
     }
 }

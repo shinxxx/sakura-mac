@@ -61,4 +61,4 @@ ctest --test-dir build/mac-core --output-on-failure
 - [功能对照表](docs/feature-matrix.md)
 - [与上游同步的流程](docs/upstream-sync.md)
 - 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md) · [编码往返测试](docs/phase1-roundtrip.md) · [换掉 DLL](docs/phase1-extmodule.md) · [文档模型和语法类型](docs/phase1-doc-types.md) · [设置模块 env](docs/phase1-env.md) · [核心库接口](docs/phase1-core-api.md) · [阶段 1 验收](docs/phase1-review.md)
-- 阶段 2：[桥接层](docs/phase2-bridge.md) · [输入法原型](docs/phase2-ime.md)
+- 阶段 2：[桥接层](docs/phase2-bridge.md) · [输入法原型](docs/phase2-ime.md) · [窗口框架](docs/phase2-windows.md)

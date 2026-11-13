@@ -77,8 +77,8 @@ Mac 编译检查的错误数从 8,722 降到 6,876。
 | `util/file.cpp:490` | `std::wregex` | 第 21 步（test-file） |
 | `env/CDataProfile.h:90` | `std::to_wstring` | 第 21 步 |
 | `env/CShareData_IO.cpp:1482`、`:1590` | `std::to_wstring` | 第 21 步 |
-| `_main/CCommandLine.cpp:83` | `std::wregex` | 第 26 步（窗口框架，启动参数） |
-| `util/window.cpp:505` | `std::wostringstream` | 第 26 步（只有 Windows 界面用，可能整段只在 Windows 上编译） |
+| `_main/CCommandLine.cpp:83` | `std::wregex` | 第 26 步决定 Mac 版不编译（见 [phase2-windows.md](phase2-windows.md)）：Mac 的 App 由 Finder 用 Apple Event 打开文件，不经过命令行 |
+| `util/window.cpp:505` | `std::wostringstream` | 第 26 步决定 Mac 版不编译：整个文件是 Win32 窗口和对话框的辅助函数，Mac 版的窗口用 AppKit |
 | `agent/CGrepAgent.cpp:81` | `std::to_wstring` | 第 43 步（Grep） |
 | `macro/CPythonMacroManager.cpp:156`、`:271` | `std::wregex`、`std::to_wstring` | 第 45 步（宏）。Python 宏在 Mac 版是否支持在那一步决定，不支持就不编译 |
 | `CSelectLang.cpp:83` | `std::wregex`（语言 DLL 文件名） | 第 48 步（界面本地化），Mac 版不用语言 DLL |

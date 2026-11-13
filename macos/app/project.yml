@@ -70,14 +70,16 @@ targets:
         Release:
           ONLY_ACTIVE_ARCH: NO
 
-  # 单元测试：桥接层（第 24 步）、自绘视图的输入法接口（第 25 步）。
-  # 测试不启动 App，自绘视图的源文件直接编进测试
+  # 单元测试：桥接层（第 24 步）、自绘视图的输入法接口（第 25 步）、文档和窗口（第 26 步）。
+  # 测试不启动 App，要测的源文件直接编进测试
   SakuraMacTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: Tests
       - path: Sources/EditorTextView.swift
+      - path: Sources/EditorWindowController.swift
+      - path: Sources/SakuraDocument.swift
     dependencies:
       - target: EditorBridge
     settings:
