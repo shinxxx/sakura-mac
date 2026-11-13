@@ -387,6 +387,12 @@ protected:
 
 	//参照
 	CEditDoc*		m_pcEditDoc;
+#if !defined(_WIN32)
+public:
+	// Mac 版：CEditDoc はまだ移植していないので、現在の折り返し方法（CEditDoc::m_nTextWrapMethodCur）をここで持つ（移植計画のステップ 27）
+	int				m_nTextWrapMethodCurMac = WRAP_SETTING_WIDTH;
+private:
+#endif
 
 	//実データ
 	CLayout*				m_pLayoutTop;

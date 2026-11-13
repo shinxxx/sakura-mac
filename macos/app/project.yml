@@ -45,6 +45,8 @@ targets:
       - path: ../bridge/src
       - path: ../bridge/include
         headerVisibility: public
+    dependencies:
+      - sdk: CoreText.framework   # 第 27 步：用 Core Text 测文字宽度
     preBuildScripts:
       - name: Build sakura core (CMake)
         script: '"${SRCROOT}/Scripts/build-core.sh"'

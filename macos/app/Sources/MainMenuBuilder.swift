@@ -18,7 +18,7 @@ enum MainMenuBuilder {
         mainMenu.addItem(submenuItem(NSMenu(title: "変換")))
         mainMenu.addItem(submenuItem(NSMenu(title: "検索")))
         mainMenu.addItem(submenuItem(NSMenu(title: "ツール")))
-        mainMenu.addItem(submenuItem(NSMenu(title: "設定")))
+        mainMenu.addItem(submenuItem(settingsMenu()))
 
         let windowMenu = NSMenu(title: "ウィンドウ")
         windowMenu.addItem(withTitle: "しまう", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
@@ -84,6 +84,18 @@ enum MainMenuBuilder {
         let redo = NSMenuItem(title: "やり直し", action: #selector(EditorTextView.redo(_:)), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(redo)
+        return menu
+    }
+
+    /// 設定：第 27 步先放「折り返し方法」（原版 MainMenu.ini 里 F_TEXTWRAPMETHOD 下面的
+    /// F_TMPWRAPNOWRAP / F_TMPWRAPSETTING / F_TMPWRAPWINDOW）。现在的方法打勾
+    private static func settingsMenu() -> NSMenu {
+        let menu = NSMenu(title: "設定")
+        let wrap = NSMenu(title: "折り返し方法")
+        wrap.addItem(withTitle: "折り返さない", action: #selector(EditorTextView.wrapNone(_:)), keyEquivalent: "")
+        wrap.addItem(withTitle: "指定桁で折り返す", action: #selector(EditorTextView.wrapSettingWidth(_:)), keyEquivalent: "")
+        wrap.addItem(withTitle: "右端で折り返す", action: #selector(EditorTextView.wrapWindowWidth(_:)), keyEquivalent: "")
+        menu.addItem(submenuItem(wrap))
         return menu
     }
 

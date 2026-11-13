@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !EditorCore.startup() {
             NSLog("Sakura core startup failed")
         }
+        // 排版的文字宽度用 Core Text 测，字体与绘制相同（第 27 步）
+        EditorCore.useCoreTextMeasurement()
+        EditorCore.setLayoutFont(name: EditorTextView.fontName, size: EditorTextView.fontSize)
         NSApp.mainMenu = MainMenuBuilder.build()
     }
 
