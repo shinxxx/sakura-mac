@@ -448,7 +448,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 矩形选择的范围：画面上的行（top...bottom）和横向位置（文字区域里的点，left..<right）
     var boxSelection: (top: Int, bottom: Int, left: CGFloat, right: CGFloat)? {
-        guard isBoxSelection, boxAnchor.x != boxEnd.x else { return nil }
+        guard isBoxSelection, boxAnchor != boxEnd else { return nil }
         return (min(boxAnchor.row, boxEnd.row), max(boxAnchor.row, boxEnd.row),
                 min(boxAnchor.x, boxEnd.x), max(boxAnchor.x, boxEnd.x))
     }
@@ -1112,23 +1112,337 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         textChanged()
     }
 
-    /// 输入的文字放到哪里：有选择时替换选择范围，否则插在光标处。
-    /// 矩形选择的编辑（每行插入、删除）在第 29 步，现在先取消矩形选择
+    /// 输入的文字放到哪里：有选择时替换选择范围，否则插在光标处（矩形选择由 insertText 另外处理）
     private var insertionRange: EditorRange {
         if let selection { return selection }
-        if isBoxSelection { clearSelection() }
         return EditorRange(from: caret, to: caret)
     }
 
+    // MARK: - 基本编辑（第 29 步。原版 CViewCommander_Edit.cpp、CViewCommander_Clipboard.cpp）
+
+    /// 剪贴板（测试时换成别的）
+    var pasteboard: NSPasteboard = .general
+
+    /// 矩形选择的复制（原版 Windows 剪贴板的 MSDEVColumnSelect 形式）。贴付时按矩形贴付
+    static let columnSelectType = NSPasteboard.PasteboardType("jp.sakura-editor.MSDEVColumnSelect")
+    /// 没有选择时复制的一行（原版的 MSDEVLineSelect 形式）。贴付时贴在行首（ラインモード貼り付け）
+    static let lineSelectType = NSPasteboard.PasteboardType("jp.sakura-editor.MSDEVLineSelect")
+
+    /// 矩形选择范围（核心库的形式）。宽度 0 的矩形（几行的同一位置）也算选择，输入时每行插入
+    var boxRange: EditorBoxRange? {
+        guard isBoxSelection, boxAnchor != boxEnd else { return nil }
+        return EditorBoxRange(top: min(boxAnchor.row, boxEnd.row), bottom: max(boxAnchor.row, boxEnd.row),
+                              left: Int(min(boxAnchor.x, boxEnd.x)), right: Int(max(boxAnchor.x, boxEnd.x)))
+    }
+
+    /// 设置普通的选择范围：from 是起点，光标在 to（原版 SetSelectArea。宏、测试用）
+    func setSelection(from: EditorPosition, to: EditorPosition) {
+        extendingSelection = true
+        setCaret(to)
+        extendingSelection = false
+        isBoxSelection = false
+        selectionAnchor = from
+        needsDisplay = true
+    }
+
+    /// 设置矩形选择（编辑之后保留选择时）
+    func setBoxSelection(_ box: EditorBoxRange) {
+        selectionAnchor = nil
+        isBoxSelection = true
+        boxAnchor = BoxPoint(row: box.top, x: CGFloat(box.left))
+        boxEnd = BoxPoint(row: box.bottom, x: CGFloat(box.right))
+        needsDisplay = true
+    }
+
+    /// 排版位置 → 逻辑位置（光标用：不放在行末之后）
+    private func logicPosition(row r: Int, x: Int) -> EditorPosition {
+        if r >= document.layoutLineCount { return document.endPosition }
+        let p = document.logicPosition(of: EditorLayoutPosition(line: r, x: x))
+        return EditorPosition(line: p.line, column: min(p.column, lineText(p.line).length))
+    }
+
+    /// 光标的排版位置
+    private var caretLayoutPosition: EditorLayoutPosition {
+        let c = caretRowAndIndex
+        return EditorLayoutPosition(line: c.row, x: Int(row(c.row).xs[min(c.index, row(c.row).xs.count - 1)]))
+    }
+
+    /// 几个编辑合成撤销的一步，之后光标放在 body 返回的位置
+    private func edit(_ body: () -> EditorPosition) {
+        document.beginEdit()
+        let position = body()
+        document.endEdit()
+        caret = EditorPosition(line: position.line, column: min(position.column, lineText(position.line).length))
+        textChanged()
+    }
+
+    private static func isLineDelimiter(_ c: unichar) -> Bool {
+        c == 0x0D || c == 0x0A
+    }
+
+    /// 到第一个换行为止（原版 Command_INSTEXT 的矩形选择：改行までを抜き出す）
+    private static func firstLine(_ text: String) -> String {
+        let utf16 = Array(text.utf16)
+        let end = utf16.firstIndex(where: isLineDelimiter) ?? utf16.count
+        return String(utf16CodeUnits: utf16, count: end)
+    }
+
+    /// 写进剪贴板（原版 MySetClipboardData）
+    private func setClipboard(_ text: String, column: Bool = false, line: Bool = false) {
+        pasteboard.clearContents()
+        var types: [NSPasteboard.PasteboardType] = [.string]
+        if column { types.append(Self.columnSelectType) }
+        if line { types.append(Self.lineSelectType) }
+        pasteboard.declareTypes(types, owner: nil)
+        pasteboard.setString(text, forType: .string)
+        if column { pasteboard.setData(Data(), forType: Self.columnSelectType) }
+        if line { pasteboard.setData(Data(), forType: Self.lineSelectType) }
+    }
+
+    /// 剪贴板里的文字
+    private var clipboardText: String? {
+        guard let text = pasteboard.string(forType: .string), !text.isEmpty else { return nil }
+        return text
+    }
+
+    /// 編集 > コピー（F_COPY）。没有选择时复制光标所在的一行（「選択なしでコピーを可能にする」）
+    @objc func copy(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        let settings = document.editSettings
+        if let box = boxRange {
+            setClipboard(document.boxText(box), column: true)
+        } else if let selection {
+            setClipboard(document.copyText(in: selection))
+        } else {
+            guard settings.copyWithoutSelection else { return }
+            let text = document.copyText(ofLayoutLine: caretRowAndIndex.row)
+            if !text.isEmpty { setClipboard(text, line: settings.lineModePaste) }
+            return
+        }
+        if settings.clearSelectionAfterCopy { clearSelection() }	// コピーしたら選択解除
+    }
+
+    /// 編集 > 切り取り（F_CUT）。没有选择时切り取り光标所在的一行（原版 Command_CUT_LINE）
+    @objc func cut(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        let settings = document.editSettings
+        if let box = boxRange {
+            setClipboard(document.boxText(box), column: true)
+            edit { document.deleteBox(box) }
+        } else if let selection {
+            setClipboard(document.copyText(in: selection))
+            replace(selection, with: "")
+        } else {
+            guard settings.copyWithoutSelection else { return }
+            let position = caretLayoutPosition
+            let text = document.copyText(ofLayoutLine: position.line)
+            guard !text.isEmpty else {
+                NSSound.beep()
+                return
+            }
+            setClipboard(text, line: settings.lineModePaste)
+            edit { document.deleteLayoutLine(position.line, x: position.x) }
+        }
+    }
+
+    /// 編集 > 貼り付け（F_PASTE）。矩形复制的文字按矩形贴付，一行复制的文字贴在行首
+    @objc func paste(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        guard var text = clipboardText else {
+            NSSound.beep()
+            return
+        }
+        let settings = document.editSettings
+        let types = pasteboard.types ?? []
+        // 矩形コピーのテキストは常に矩形貼り付け
+        if settings.autoColumnPaste && types.contains(Self.columnSelectType) {
+            pasteBoxText(text)
+            return
+        }
+        // 行コピーのテキストで末尾が改行になっていなければ改行を追加する
+        let linePaste = settings.lineModePaste && types.contains(Self.lineSelectType)
+        if linePaste, let last = text.utf16.last, !Self.isLineDelimiter(last) {
+            text += EditorCore.text(ofEol: document.newLineEol)
+        }
+        if settings.convertEolOnPaste {
+            text = document.convertEolToNewLine(text)
+        }
+        insertClipboardText(text, linePaste: linePaste)
+    }
+
+    /// 編集 > 矩形貼り付け（F_PASTEBOX）：剪贴板的文字每行贴在同一横向位置
+    @objc func pasteAsBox(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        guard let text = clipboardText else {
+            NSSound.beep()
+            return
+        }
+        pasteBoxText(text)
+    }
+
+    /// 原版 Command_PASTEBOX：先删除选择范围，从光标的位置矩形贴付，光标留在开始的位置
+    private func pasteBoxText(_ text: String) {
+        var at = caretLayoutPosition
+        let box = boxRange
+        let selected = selection
+        edit {
+            if let box {
+                let c = document.deleteBox(box)
+                at = document.layoutPosition(of: c)
+                // 矩形的左端在行末之后时，光标留在那个横向位置（原版 DeleteData）
+                if c.column == lineText(c.line).length && box.left > at.x {
+                    at = EditorLayoutPosition(line: at.line, x: box.left)
+                }
+            } else if let selected {
+                document.delete(selected)
+                at = document.layoutPosition(of: selected.from)
+            }
+            document.pasteBox(text, at: at)
+            return logicPosition(row: at.line, x: at.x)
+        }
+    }
+
+    /// 原版 Command_INSTEXT：矩形选择时每行插入第一行，普通选择时替换。
+    /// ラインモード貼り付け时贴在光标所在排版行的行首，光标回到原来的位置
+    private func insertClipboardText(_ text: String, linePaste: Bool) {
+        if let box = boxRange {
+            indentBox(box, text: Self.firstLine(text), kind: .none)
+            return
+        }
+        let selected = selection
+        let start = caret
+        edit {
+            var at = start
+            if let selected {
+                if !linePaste {
+                    var end = EditorPosition()
+                    document.replace(selected, with: text, newEnd: &end)
+                    return end
+                }
+                // 行コピーの貼り付けでは選択範囲は削除（後で行頭に貼り付ける）
+                document.delete(selected)
+                at = selected.from
+            }
+            var end = EditorPosition()
+            if linePaste {
+                // 挿入ポイント（折り返し単位行頭）に貼り付けて、元の位置へカーソルを戻す
+                let lineTop = position(row: rowAndIndex(of: at).row, index: 0)
+                let delta = at.column - lineTop.column
+                document.replace(EditorRange(from: lineTop, to: lineTop), with: text, newEnd: &end)
+                return EditorPosition(line: end.line, column: end.column + delta)
+            }
+            document.replace(EditorRange(from: at, to: at), with: text, newEnd: &end)
+            return end
+        }
+    }
+
+    /// 矩形选择中的输入、TAB（原版 Command_INDENT）：每行插入，之后矩形往右移
+    private func indentBox(_ box: EditorBoxRange, text: String, kind: EditorIndentKind) {
+        var newCaret = caret
+        var newBox = box
+        edit {
+            newBox = document.indentBox(box, text: text, kind: kind, caret: &newCaret)
+            return newCaret
+        }
+        setBoxSelection(newBox)
+    }
+
+    /// 普通选择的多行范围：排版行 top～bottom（不包括 bottom）。终点在行首时不包括那一行（原版相同）
+    private func selectedRows(_ selection: EditorRange) -> (top: Int, bottom: Int) {
+        let from = document.layoutPosition(of: selection.from)
+        let to = document.layoutPosition(of: selection.to)
+        return (from.line, to.x > 0 ? to.line + 1 : to.line)
+    }
+
+    /// 缩进之后选择整行（原版：行頭から行頭まで、カーソルは終点）
+    private func selectRows(top: Int, bottom: Int) {
+        let anchor = logicPosition(row: top, x: 0)
+        caret = logicPosition(row: bottom, x: 0)
+        textChanged()
+        selectionAnchor = anchor
+        needsDisplay = true
+    }
+
+    /// Enter（原版 Command_WCHAR の改行）：选择范围删除后，插入输入用的换行符和オートインデント
     override func insertNewline(_ sender: Any?) {
-        replace(insertionRange, with: EditorCore.text(ofEol: document.newLineEol))
+        let box = boxRange
+        let selected = selection
+        let start = caret
+        edit {
+            var at = start
+            if let box {
+                at = document.deleteBox(box)
+            } else if let selected {
+                document.delete(selected)
+                at = selected.from
+            }
+            let text = EditorCore.text(ofEol: document.newLineEol) + document.autoIndentText(at: at)
+            var end = EditorPosition()
+            document.replace(EditorRange(from: at, to: at), with: text, newEnd: &end)
+            return end
+        }
     }
 
+    /// TAB（原版 F_INDENT_TAB）：多行选择时每行行首插入 TAB，矩形选择时每行插入，
+    /// 否则与输入 TAB 相同（「スペースの挿入」时插入到下一个 TAB 位置的空白）
     override func insertTab(_ sender: Any?) {
-        replace(insertionRange, with: "\t")
+        guard !hasMarkedText() else { return }
+        if let box = boxRange {
+            if box.left == box.right {
+                // 宽度 0 时右端扩展到最大，不插入（原版 Command_INDENT ver1）
+                setBoxSelection(document.indentBox(box, text: "\t", kind: .tab, caret: nil))
+                return
+            }
+            indentBox(box, text: "\t", kind: .tab)
+            return
+        }
+        if let selected = selection {
+            let rows = selectedRows(selected)
+            // 通常選択(複数行)：排版上不在同一行时
+            if document.layoutPosition(of: selected.from).line != document.layoutPosition(of: selected.to).line {
+                let bottom = document.indentLines(from: rows.top, to: rows.bottom, text: document.tabText(at: 0))
+                selectRows(top: rows.top, bottom: bottom)
+                return
+            }
+        }
+        let selected = selection
+        let start = caret
+        edit {
+            var at = start
+            if let selected {
+                document.delete(selected)
+                at = selected.from
+            }
+            var end = EditorPosition()
+            let x = document.layoutPosition(of: at).x
+            document.replace(EditorRange(from: at, to: at), with: document.tabText(at: x), newEnd: &end)
+            return end
+        }
     }
 
+    /// Shift+TAB（原版 F_UNINDENT_TAB）：选择范围的每行删除行首的一个 TAB（或 TAB 幅以内的空白）。
+    /// 没有选择时与原版相同，当作 TAB 输入；矩形选择时不能执行
+    override func insertBacktab(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        if boxRange != nil {
+            NSSound.beep()
+            return
+        }
+        guard let selected = selection else {
+            insertTab(sender)
+            return
+        }
+        let rows = selectedRows(selected)
+        let bottom = document.unindentLines(from: rows.top, to: rows.bottom, character: 0x09)
+        selectRows(top: rows.top, bottom: bottom)
+    }
+
+    /// BackSpace（F_DELETE_BACK）：有选择时删除选择范围，否则删除光标前的一个字
     override func deleteBackward(_ sender: Any?) {
+        if let box = boxRange {
+            edit { document.deleteBox(box) }
+            return
+        }
         if let selection {
             replace(selection, with: "")
             return
@@ -1145,7 +1459,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         replace(EditorRange(from: start, to: caret), with: "")
     }
 
+    /// Delete（F_DELETE）：有选择时删除选择范围，否则删除光标处的一个字（行末时与下一行连接）
     override func deleteForward(_ sender: Any?) {
+        if let box = boxRange {
+            edit { document.deleteBox(box) }
+            return
+        }
         if let selection {
             replace(selection, with: "")
             return
@@ -1161,6 +1480,24 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
         replace(EditorRange(from: caret, to: end), with: "")
     }
+
+    /// 編集 > 削除（F_DELETE）
+    @objc func delete(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        deleteForward(sender)
+    }
+
+    /// 編集 > カーソル前を削除（F_DELETE_BACK）
+    @objc func deleteBack(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        deleteBackward(sender)
+    }
+
+    /// 編集 > 高度な操作 > TABインデント（F_INDENT_TAB）
+    @objc func indentTab(_ sender: Any?) { insertTab(sender) }
+
+    /// 編集 > 高度な操作 > 逆TABインデント（F_UNINDENT_TAB）
+    @objc func unindentTab(_ sender: Any?) { insertBacktab(sender) }
 
     override func moveLeft(_ sender: Any?) {
         if caret.column > 0 {
@@ -1267,6 +1604,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(selectAll(_:)): return !hasMarkedText()
+        // 第 29 步（原版 IsFuncEnable：选择范围、「選択なしでコピーを可能にする」、剪贴板）
+        case #selector(cut(_:)), #selector(copy(_:)):
+            return !hasMarkedText() && (hasSelection || document.editSettings.copyWithoutSelection)
+        case #selector(paste(_:)), #selector(pasteAsBox(_:)):
+            return !hasMarkedText() && clipboardText != nil
+        case #selector(delete(_:)), #selector(deleteBack(_:)), #selector(indentTab(_:)), #selector(unindentTab(_:)):
+            return !hasMarkedText()
         case #selector(undo(_:)): return !hasMarkedText() && document.canUndo
         case #selector(redo(_:)): return !hasMarkedText() && document.canRedo
         // 折り返し方法：现在的方法打勾（原版 IsFuncChecked）
@@ -1292,6 +1636,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     func insertText(_ string: Any, replacementRange: NSRange) {
         let text = Self.plainString(string)
+        // 矩形选择中的输入：每行的选择范围之前插入（原版 Command_WCHAR → Command_INDENT、Command_INSTEXT）
+        if let box = boxRange, replacementRange.location == NSNotFound {
+            clearMarkedText()
+            indentBox(box, text: Self.firstLine(text), kind: .none)
+            return
+        }
         var range = hasMarkedText() ? EditorRange(from: caret, to: caret) : insertionRange
         if replacementRange.location != NSNotFound {
             let from = position(ofOffset: documentOffset(fromVirtual: replacementRange.location))
@@ -1305,10 +1655,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
         // 开始输入时有选择范围：先删掉（与直接输入文字时相同）
         if !hasMarkedText() && replacementRange.location == NSNotFound {
+            // 矩形选择时保留选择，确定后每行插入（insertText）
             if let selection {
                 replace(selection, with: "")
-            } else if isBoxSelection {
-                clearSelection()
             }
         }
         // 重新转换等：输入法要求把文档里的一段换成未确定文字

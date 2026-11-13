@@ -150,6 +150,33 @@ typedef struct ECColorSetting {
 	uint32_t back;		//!< 背景色
 } NS_SWIFT_NAME(EditorColorSetting) ECColorSetting;
 
+//! 矩形范围（第 29 步）：排版行 top～bottom（包括 bottom），横向 left～right（点）
+typedef struct ECBoxRange {
+	NSInteger top;
+	NSInteger bottom;
+	NSInteger left;
+	NSInteger right;
+} NS_SWIFT_NAME(EditorBoxRange) ECBoxRange;
+
+//! 缩进的种类（第 29 步。原版的 EIndentType）
+typedef NS_ENUM(NSInteger, ECIndentKind) {
+	ECIndentKindNone NS_SWIFT_NAME(none) = 0,		//!< 普通的输入
+	ECIndentKindTab NS_SWIFT_NAME(tab) = 1,			//!< TABインデント
+	ECIndentKindSpace NS_SWIFT_NAME(space) = 2,		//!< SPACEインデント
+} NS_SWIFT_NAME(EditorIndentKind);
+
+//! 编辑用的设置（第 29 步。共通设置「編集」和类型别设置的一部分）
+typedef struct ECEditSettings {
+	bool copyWithoutSelection;		//!< 選択なしでコピーを可能にする
+	bool lineModePaste;				//!< ラインモード貼り付けを可能にする
+	bool clearSelectionAfterCopy;	//!< コピーしたら選択解除
+	bool autoColumnPaste;			//!< 矩形コピーのテキストは常に矩形貼り付け
+	bool convertEolOnPaste;			//!< 改行コードを変換して貼り付ける
+	bool addEolAtWrapOnCopy;		//!< 折り返し行に改行を付けてコピー
+	bool insertSpacesForTab;		//!< スペースの挿入（TAB 键输入空白）
+	bool autoIndent;				//!< オートインデント
+} NS_SWIFT_NAME(EditorEditSettings) ECEditSettings;
+
 /*!
 	编辑画面的显示设置：类型别设置里与排版、记号有关的部分（sakura::core::ViewSettings）
 */
@@ -327,6 +354,36 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECColorSetting)colorFor:(ECColorIndex)index NS_SWIFT_NAME(color(for:));
 //! 这一逻辑行在上次保存（或打开）之后改过（行号用「変更行」的颜色）
 - (BOOL)isLineModified:(NSInteger)line NS_SWIFT_NAME(isLineModified(_:));
+
+// ----- 编辑命令（第 29 步。sakura::core::Document 的同名函数，与原版 CEditView、CViewCommander 相同） -----
+
+@property (readonly) ECEditSettings editSettings;
+//! 复制普通选择范围的文字（GetSelectedData）
+- (NSString *)copyTextInRange:(ECRange)range NS_SWIFT_NAME(copyText(in:));
+//! 复制矩形范围的文字：每行后面加 CRLF
+- (NSString *)boxText:(ECBoxRange)box NS_SWIFT_NAME(boxText(_:));
+//! 没有选择时复制的排版行（CopyCurLine）
+- (NSString *)copyTextOfLayoutLine:(NSInteger)line NS_SWIFT_NAME(copyText(ofLayoutLine:));
+//! 在排版位置插入（行末之后先填空白）。返回插入的文字之后的排版位置
+- (ECLayoutPosition)insertText:(NSString *)text atLayout:(ECLayoutPosition)position NS_SWIFT_NAME(insert(_:atLayout:));
+//! 删除矩形范围的文字。返回之后的光标
+- (ECPosition)deleteBox:(ECBoxRange)box NS_SWIFT_NAME(deleteBox(_:));
+//! 矩形贴付（Command_PASTEBOX）
+- (void)pasteBox:(NSString *)text at:(ECLayoutPosition)position NS_SWIFT_NAME(pasteBox(_:at:));
+//! 矩形选择中的输入、缩进（Command_INDENT）。返回之后的矩形，caret 是之后的光标
+- (ECBoxRange)indentBox:(ECBoxRange)box text:(NSString *)text kind:(ECIndentKind)kind caret:(nullable ECPosition *)caret NS_SWIFT_NAME(indentBox(_:text:kind:caret:));
+//! 多行选择的缩进：排版行 top～bottom（不包括 bottom）。返回之后的 bottom
+- (NSInteger)indentLinesFrom:(NSInteger)top to:(NSInteger)bottom text:(NSString *)text NS_SWIFT_NAME(indentLines(from:to:text:));
+//! 多行选择的逆缩进。返回之后的 bottom
+- (NSInteger)unindentLinesFrom:(NSInteger)top to:(NSInteger)bottom character:(unichar)character NS_SWIFT_NAME(unindentLines(from:to:character:));
+//! TAB 键输入的文字（「スペースの挿入」时是空白）
+- (NSString *)tabTextAt:(NSInteger)x NS_SWIFT_NAME(tabText(at:));
+//! 改行时的オートインデント
+- (NSString *)autoIndentTextAt:(ECPosition)caret NS_SWIFT_NAME(autoIndentText(at:));
+//! 把换行符都换成输入用的换行符
+- (NSString *)convertEolToNewLine:(NSString *)text NS_SWIFT_NAME(convertEolToNewLine(_:));
+//! 删除一个排版行。返回之后的光标
+- (ECPosition)deleteLayoutLine:(NSInteger)line x:(NSInteger)x NS_SWIFT_NAME(deleteLayoutLine(_:x:));
 
 @end
 

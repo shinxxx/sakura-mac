@@ -289,6 +289,45 @@ struct ColorSetting {
 };
 
 // ---------------------------------------------------------------------------
+// 编辑命令（第 29 步）
+// ---------------------------------------------------------------------------
+
+/*!
+	矩形范围（原版 TwoPointToRect 的结果 CLayoutRect）：排版行 top～bottom（包括 bottom），
+	横向 left～right（点，与 LayoutPosition::x 相同）。left == right 是宽度 0 的矩形选择。
+*/
+struct BoxRange {
+	std::int32_t top = 0;
+	std::int32_t bottom = 0;
+	std::int32_t left = 0;
+	std::int32_t right = 0;
+
+	friend bool operator==(const BoxRange&, const BoxRange&) = default;
+};
+
+//! 缩进的种类（原版的 EIndentType）
+enum class IndentKind : std::uint8_t {
+	None  = 0,	//!< 普通的输入（矩形选择中输入文字时）
+	Tab   = 1,	//!< TABインデント
+	Space = 2,	//!< SPACEインデント
+};
+
+/*!
+	编辑用的设置：共通设置「編集」页和类型别设置的一部分。
+	剪贴板、TAB 键、改行时的处理按这些设置决定（与原版相同）。
+*/
+struct EditSettings {
+	bool copyWithoutSelection = true;		//!< 選択なしでコピーを可能にする（m_bEnableNoSelectCopy）
+	bool lineModePaste = true;				//!< ラインモード貼り付けを可能にする（m_bEnableLineModePaste）
+	bool clearSelectionAfterCopy = false;	//!< コピーしたら選択解除（m_bCopyAndDisablSelection）
+	bool autoColumnPaste = true;			//!< 矩形コピーのテキストは常に矩形貼り付け（m_bAutoColumnPaste）
+	bool convertEolOnPaste = false;			//!< 改行コードを変換して貼り付ける（m_bConvertEOLPaste）
+	bool addEolAtWrapOnCopy = false;		//!< 折り返し行に改行を付けてコピー（m_bAddCRLFWhenCopy）
+	bool insertSpacesForTab = false;		//!< 类型别「スペースの挿入」：TAB 键输入空白（m_bInsSpace）
+	bool autoIndent = true;					//!< 类型别「オートインデント」（m_bAutoIndent）
+};
+
+// ---------------------------------------------------------------------------
 // 命令
 // ---------------------------------------------------------------------------
 
@@ -504,6 +543,95 @@ public:
 		行号用「変更行」的颜色显示）。撤销回到保存时的内容后就不算改过。
 	*/
 	bool IsLineModified(std::int32_t line) const;
+
+	// ----- 编辑命令（第 29 步） -----
+	//
+	// 选择范围和光标属于编辑画面（界面层），这里只提供需要排版、类型别设置的处理，
+	// 与原版 CEditView、CViewCommander 的同名处理相同。编辑都记入撤销缓冲，
+	// 一个函数的编辑是撤销的一步（外面有 BeginEdit 时合在外面的一步里）。
+
+	//! 编辑用的设置
+	EditSettings GetEditSettings() const;
+
+	/*!
+		复制普通选择范围的文字（原版 CEditView::GetSelectedData 的普通选择）。
+		「折り返し行に改行を付けてコピー」时在折り返し的位置加入输入用的换行符。
+	*/
+	Text GetCopyText(const Range& range) const;
+
+	//! 复制矩形范围的文字（GetSelectedData 的矩形选择）：每行后面加 CRLF
+	Text GetBoxText(const BoxRange& box) const;
+
+	/*!
+		没有选择时复制的一行（原版 CEditView::CopyCurLine）：光标所在的排版行，带换行符。
+		折り返した行在「折り返し行に改行を付けてコピー」时加 CRLF。
+	*/
+	Text GetLayoutLineCopyText(std::int32_t layoutLine) const;
+
+	/*!
+		在排版位置插入（原版 CEditView::InsertData_CEditView）：位置在行末的右边时，先用半角空白填到那里。
+		@return 插入的文字之后的排版位置
+	*/
+	LayoutPosition InsertAtLayout(const LayoutPosition& at, const Text& text);
+
+	/*!
+		删除矩形范围的文字（原版 CEditView::DeleteData 的矩形选择）。范围里没有文字时什么也不改。
+		@return 删除后的光标（矩形的左上，在文字的边界上）
+	*/
+	Position DeleteBox(const BoxRange& box);
+
+	/*!
+		矩形贴付（原版 Command_PASTEBOX）：text 的第 n 行插在 at 下面第 n 行的同一横向位置。
+		文档的最后一行没有换行时先加入输入用的换行符。
+	*/
+	void PasteBox(const LayoutPosition& at, const Text& text);
+
+	/*!
+		矩形选择中的输入、缩进（原版 Command_INDENT ver0 的矩形选择）：在每行的选择范围之前插入 text。
+		Tab、Space 时，空行和行末之后不插入；宽度 0 的矩形时把右端扩展到折り返し桁（原版 ver1），不插入。
+		@param[out] pCaret 之后的光标
+		@return 之后的矩形选择（插入的文字的宽度往右移）
+	*/
+	BoxRange IndentBox(const BoxRange& box, const Text& text, IndentKind kind, Position* pCaret = nullptr);
+
+	/*!
+		多行选择的缩进（原版 Command_INDENT 的「通常選択(複数行)」）：排版行 top～bottom（不包括 bottom）中
+		逻辑行开头的行，在行首插入 text（空行不插入）。
+		@return 之后的 bottom（折り返し变化时跟着变）
+	*/
+	std::int32_t IndentLines(std::int32_t top, std::int32_t bottom, const Text& text);
+
+	/*!
+		多行选择的逆缩进（原版 Command_UNINDENT）：行首是 ch 时删除一个。
+		ch 是 TAB 时，行首是半角空白的话删除 TAB 幅以内的空白。
+		@return 之后的 bottom
+	*/
+	std::int32_t UnindentLines(std::int32_t top, std::int32_t bottom, char16_t ch);
+
+	/*!
+		TAB 键输入的文字（原版 Command_INDENT）：「スペースの挿入」时是到下一个 TAB 位置的空白，否则是 TAB。
+		@param x 插入位置的排版横向位置
+	*/
+	Text TabText(std::int32_t x) const;
+
+	/*!
+		改行时接在换行符后面的缩进（原版文字输入命令的オートインデント）：
+		光标所在逻辑行开头的空白（TAB、半角空白、「日本語空白もインデント」时的全角空白、
+		「その他のインデント対象文字」）到光标为止的部分。オートインデント关闭时是空。
+	*/
+	Text AutoIndentText(const Position& caret) const;
+
+	/*!
+		把文字里的换行符都换成输入用的换行符（原版 CViewCommander::ConvertEol，贴付时用）
+	*/
+	Text ConvertEolToNewLine(const Text& text) const;
+
+	/*!
+		删除一个排版行（原版 Command_DELETE_LINE，「切り取り」没有选择时用）。
+		@param x 光标的横向位置（删除后光标尽量留在这个横向位置）
+		@return 之后的光标
+	*/
+	Position DeleteLayoutLine(std::int32_t layoutLine, std::int32_t x);
 
 private:
 	Document();
