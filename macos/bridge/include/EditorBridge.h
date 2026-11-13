@@ -7,6 +7,7 @@
 
 	- 文字是 NSString（UTF-16），与核心库相同，不做转换。
 	- 位置是逻辑位置：行号和行内的 UTF-16 下标，都从 0 开始。
+	  自动换行后的排版位置是 ECLayoutPosition（第 27 步）：排版行号和横向位置（点）。
 	- 编码、换行符、功能编号的数值与原版相同（ECodeType、EEolType、EFunctionCode）。
 */
 /*
@@ -86,6 +87,62 @@ typedef NS_OPTIONS(NSUInteger, ECSearchOptions) {
 	ECSearchOptionsWholeWord NS_SWIFT_NAME(wholeWord) = 1 << 2,		//!< 单词单位
 } NS_SWIFT_NAME(EditorSearchOptions);
 
+//! 折り返し方法（数值与原版的 WRAP_NO_TEXT_WRAP 等相同）
+typedef NS_ENUM(NSInteger, ECWrapMethod) {
+	ECWrapMethodNone NS_SWIFT_NAME(none) = 0,						//!< 折り返さない
+	ECWrapMethodSettingWidth NS_SWIFT_NAME(settingWidth) = 1,		//!< 指定桁で折り返す
+	ECWrapMethodWindowWidth NS_SWIFT_NAME(windowWidth) = 2,			//!< 右端で折り返す
+} NS_SWIFT_NAME(EditorWrapMethod);
+
+//! TAB 记号的样式（数值与原版的 ETabArrow 相同）
+typedef NS_ENUM(NSInteger, ECTabMark) {
+	ECTabMarkString NS_SWIFT_NAME(string) = 0,				//!< 文字指定
+	ECTabMarkShortArrow NS_SWIFT_NAME(shortArrow) = 1,		//!< 短い矢印
+	ECTabMarkLongArrow NS_SWIFT_NAME(longArrow) = 2,		//!< 長い矢印
+} NS_SWIFT_NAME(EditorTabMark);
+
+//! 排版位置：排版行号（从 0 开始）和横向位置（点，从排版行的左端量起，包括缩进）
+typedef struct ECLayoutPosition {
+	NSInteger line;
+	NSInteger x;
+} NS_SWIFT_NAME(EditorLayoutPosition) ECLayoutPosition;
+
+//! 一个排版行（原版的 CLayout）
+typedef struct ECLayoutLine {
+	ECPosition start;		//!< 在逻辑行里的开始位置
+	NSInteger length;		//!< 长度（UTF-16，不含换行符）
+	ECEol eol;				//!< 逻辑行的最后一段带换行符，其他段是 none
+	NSInteger indent;		//!< 行首的缩进（点）
+} NS_SWIFT_NAME(EditorLayoutLine) ECLayoutLine;
+
+/*!
+	编辑画面的显示设置：类型别设置里与排版、记号有关的部分（sakura::core::ViewSettings）
+*/
+NS_SWIFT_NAME(EditorViewSettings)
+@interface ECViewSettings : NSObject
+@property (readonly) ECWrapMethod wrapMethod;			//!< 现在的折り返し方法
+@property (readonly) NSInteger wrapColumns;				//!< 现在的折り返し桁数
+@property (readonly) NSInteger typeWrapColumns;			//!< 类型别设置的折り返し桁数
+@property (readonly) NSInteger tabColumns;				//!< TAB 幅（桁）
+@property (readonly) NSInteger columnSpacing;			//!< 文字と文字の隙間（点）
+@property (readonly) NSInteger lineSpacing;				//!< 行間のすきま（点）
+@property (readonly) BOOL showLineNumbers;
+@property (readonly) BOOL lineNumberPerLogicalLine;		//!< 行番号を改行単位で数える
+@property (readonly) NSInteger lineNumberMinDigits;		//!< 行番号の最小桁数
+@property (readonly) BOOL showTab;
+@property (readonly) ECTabMark tabMark;
+@property (readonly, copy) NSString *tabString;			//!< 文字指定のときの TAB 表示文字
+@property (readonly) BOOL showSpace;					//!< 半角空白
+@property (readonly) BOOL showFullWidthSpace;			//!< 日本語空白
+@property (readonly) BOOL showEol;						//!< 改行記号
+@property (readonly) BOOL showWrapMark;					//!< 折り返し記号
+@property (readonly) BOOL showEof;						//!< EOF 記号
+@property (readonly) BOOL hideHanging;					//!< ぶら下げを隠す
+@property (readonly) BOOL hangEol;						//!< 改行文字をぶら下げる
+@property (readonly) BOOL hangPunctuation;				//!< 句読点ぶら下げ
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 /*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
@@ -108,12 +165,24 @@ NS_SWIFT_NAME(EditorCore)
 //! 换行符的文字（"\r\n" 等）
 + (NSString *)textOfEol:(ECEol)eol NS_SWIFT_NAME(text(ofEol:));
 
+/*!
+	文字宽度用 Core Text 测量（第 27 步，原版用 GDI）。App 启动时调用一次。
+	不调用时用简单的估算（单元测试用）。
+*/
++ (void)useCoreTextMeasurement NS_SWIFT_NAME(useCoreTextMeasurement());
+/*!
+	排版用的字体：字体名和大小（点）。已经打开的文档要调用 -relayout。
+	字体名是 Core Text 能找到的名字（例如 "Menlo"）。
+*/
++ (void)setLayoutFontName:(NSString *)name size:(NSInteger)size NS_SWIFT_NAME(setLayoutFont(name:size:));
+
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
 /*!
 	一个文档（一个文件）。sakura::core::Document 的包装。
-	光标、选择、排版、绘制属于编辑画面，不在这里。只能在一个线程（通常是主线程）里使用。
+	排版（自动换行）也在这里（第 27 步）。光标、选择、绘制属于编辑画面，不在这里。
+	只能在一个线程（通常是主线程）里使用。
 */
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
@@ -184,6 +253,38 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECResult)executeCommand:(ECCommand)command NS_SWIFT_NAME(execute(_:));
 - (BOOL)isCommandEnabled:(ECCommand)command NS_SWIFT_NAME(isEnabled(_:));
 + (BOOL)isCommandSupported:(ECCommand)command NS_SWIFT_NAME(isSupported(_:));
+
+// ----- 排版（第 27 步） -----
+
+//! 显示设置（类型别设置；折り返し方法和桁数是现在的值）
+@property (readonly) ECViewSettings *viewSettings;
+/*!
+	改变折り返し方法并重新排版（原版的「折り返し方法」、窗口宽度变化时的「右端で折り返す」）。
+	columns 小于 10 时按 10。排版有变化时返回 YES。
+*/
+- (BOOL)setWrapMethod:(ECWrapMethod)method columns:(NSInteger)columns NS_SWIFT_NAME(setWrap(_:columns:));
+//! 「右端で折り返す」时，宽度 width（点）可以放下的折り返し桁数
+- (NSInteger)wrapColumnsForWidth:(NSInteger)width NS_SWIFT_NAME(wrapColumns(forWidth:));
+//! 按现在的字体和设置重新排版
+- (void)relayout;
+
+//! 排版行数（空文档是 0）
+@property (readonly) NSInteger layoutLineCount;
+//! 排版行。超出范围时全是 0
+- (ECLayoutLine)layoutLineAtIndex:(NSInteger)line NS_SWIFT_NAME(layoutLine(at:));
+/*!
+	排版行里每个 UTF-16 字符左端的横向位置（点），最后多一个（行末）。TAB 已经展开。
+	补充平面字符的后一半与前一半相同。
+*/
+- (NSArray<NSNumber *> *)charPositionsOfLayoutLine:(NSInteger)line NS_SWIFT_NAME(charPositions(ofLayoutLine:));
+//! 逻辑位置 → 排版位置
+- (ECLayoutPosition)layoutPositionOf:(ECPosition)position NS_SWIFT_NAME(layoutPosition(of:));
+//! 排版位置 → 逻辑位置
+- (ECPosition)logicPositionOf:(ECLayoutPosition)position NS_SWIFT_NAME(logicPosition(of:));
+//! 半角一字的宽度（点，包括文字间隔）
+@property (readonly) NSInteger charWidth;
+//! 文字部分的宽度（点）：折り返さない时是最长的行，其他时候是折り返し桁数的宽度
+@property (readonly) NSInteger layoutWidth;
 
 @end
 

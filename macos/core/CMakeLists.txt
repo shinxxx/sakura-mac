@@ -84,7 +84,7 @@ add_custom_command(
 # ---------------------------------------------------------------------------
 # 核心库
 # ---------------------------------------------------------------------------
-set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse doc/logic types env recent grep)
+set(SAKURA_CORE_DIRS basis charset config convert debug docplus io mem parse doc/logic doc/layout types env recent grep)
 # 暂不编入核心库的文件（依赖尚未移植的模块，或 Mac 版不需要）
 set(SAKURA_CORE_EXCLUDE
   # Mac 版不需要
@@ -130,7 +130,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/extmodule/CMigemo.cpp       # 第 21 步：用到共通设置里的 DLL 名和词典路径
   # 第 20 步：文档模型和语法类型（doc/logic、types 整个目录在上面的 SAKURA_CORE_DIRS）
   # doc 目录里只编入不依赖编辑画面的文件；CEditDoc、CDocEditor、CDocFileOperation 等是文档窗口的部分，
-  # 第 26 步（窗口框架）、第 29 步（打开与保存）加入。doc/layout（排版）是第 27 步
+  # 第 29 步（打开与保存）以后加入。doc/layout（排版）在第 27 步加进上面的 SAKURA_CORE_DIRS
   sakura_core/doc/CBlockComment.cpp
   sakura_core/doc/CLineComment.cpp
   sakura_core/doc/CDocTypeSetting.cpp
@@ -232,7 +232,7 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/ole_types.cpp"      # 第 20 步：BSTR、VARIANT
   "${SAKURA_ROOT}/macos/platform/src/file_api.cpp"       # 第 20 步：CreateFileW、文件映射
   "${SAKURA_ROOT}/macos/platform/src/resources.cpp"      # 第 21 步：FindResource、LoadResource
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/layout_stub.cpp"      # 第 24 步：排版移植（第 27 步）前的 LogicToLayout（原来在测试里）
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/layout_support.cpp"   # 第 27 步：排版用到的色分け、BlockingHook 的替代
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")

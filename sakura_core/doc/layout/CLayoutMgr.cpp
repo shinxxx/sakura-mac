@@ -35,6 +35,9 @@
 #include "charset/charcode.h"
 #include "config/app_constants.h"
 #include "util/window.h"
+#if !defined(_WIN32)
+#include "sakura_platform_hooks.h"	// Mac 版：文字幅は登録された測定関数（Core Text）で測る（移植計画のステップ 27）
+#endif
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                        生成と破棄                           //
@@ -141,6 +144,7 @@ void CLayoutMgr::SetLayoutInfo(
 	m_nSpacing = DpiScaleX(refType.m_nColumnSpace);
 	if( nCharLayoutXPerKeta == -1 )
 	{
+#if defined(_WIN32)
 		// Viewが持ってるフォント情報は古い、しょうがないので自分で作る
 		HWND hwnd = nullptr;
 		HDC hdc = ::GetDC(hwnd);
@@ -149,6 +153,12 @@ void CLayoutMgr::SetLayoutInfo(
 		temp.Update(hdc, viewFont.GetFontHan(), DpiScaleY(refType.m_nLineSpace), DpiScaleX(refType.m_nColumnSpace));
 		m_nCharLayoutXPerKeta = temp.GetHankakuWidth() + DpiScaleX(m_pTypeConfig->m_nColumnSpace);
 		::ReleaseDC(hwnd, hdc);
+#else
+		// Mac 版：CTextMetrics::Update と同じ計算で半角幅を求める。文字幅は Core Text で測る（移植計画のステップ 27）
+		static constexpr WCHAR szSample[] = LTEXT("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+		const int cx = pLogfont ? sakura::platform::MeasureTextWidth(*pLogfont, szSample, 52) : 0;
+		m_nCharLayoutXPerKeta = CLayoutXInt(t_max(1, (cx / 26 + 1) / 2) + DpiScaleX(m_pTypeConfig->m_nColumnSpace));
+#endif
 	}else{
 		m_nCharLayoutXPerKeta = nCharLayoutXPerKeta;
 	}
@@ -416,7 +426,11 @@ CLayout* CLayoutMgr::CreateLayout(
 	// パフォーマンスの低下が気にならない程なら全ての折り返し方法で計算する
 	// ようにしても良いと思う。
 	// （その場合CLayoutMgr::CalculateTextWidth()の呼び出し箇所をチェック）
+#if defined(_WIN32)
 	pLayout->SetLayoutWidth( ( m_pcEditDoc->m_nTextWrapMethodCur == WRAP_NO_TEXT_WRAP ) ? nPosX : CLayoutInt(0) );
+#else
+	pLayout->SetLayoutWidth( ( m_nTextWrapMethodCurMac == WRAP_NO_TEXT_WRAP ) ? nPosX : CLayoutInt(0) );	// 移植計画のステップ 27
+#endif
 
 	return pLayout;
 }

@@ -21,6 +21,9 @@ enum TestCore {
         try? FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         setenv("HOME", home.path, 1)
         precondition(EditorCore.startup(), "核心库启动失败")
+        // 与 App 相同：文字宽度用 Core Text 测（第 27 步）
+        EditorCore.useCoreTextMeasurement()
+        EditorCore.setLayoutFont(name: EditorTextView.fontName, size: EditorTextView.fontSize)
         XCTestObservationCenter.shared.addTestObserver(TestCoreObserver())
         startedHome = home
         return home

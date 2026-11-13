@@ -11,6 +11,9 @@
 	- 撤销、重做：cmd/CViewCommander_Edit.cpp 的 Command_UNDO、Command_REDO 中 OPE_REPLACE 的处理。
 	- 查找：CSearchAgent::SearchWord。全部替换：cmd/CViewCommander_Search.cpp 的 Command_REPLACE_ALL
 	  （整个文档、一括置换）。
+	- 排版（第 27 步）：doc/layout 的 CLayoutMgr。文档的编辑改成经过 CLayoutMgr::ReplaceData_CLayoutMgr
+	  （ReplaceData_CEditView3 的非 bFastMode 的处理），排版随编辑逐段更新，与原版相同。
+	  排版的设置与 CEditDoc::OnChangeSetting、CLoadAgent::OnLoad 相同。
 */
 /*
 	Copyright (C) 2026, Sakura Editor Organization
@@ -32,6 +35,10 @@
 #include "cmd/COpeBuf.h"
 #include "doc/logic/CDocLine.h"
 #include "doc/logic/CDocLineMgr.h"
+#include "doc/layout/CLayout.h"
+#include "doc/layout/CLayoutMgr.h"
+#include "mem/CMemoryIterator.h"
+#include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
 #include "CSelectLang.h"
 #include "env/CShareData.h"
@@ -41,7 +48,9 @@
 #include "io/CBinaryStream.h"
 #include "io/CFileLoad.h"
 #include "util/file.h"
+#include "sakura_platform_hooks.h"
 
+#include <atomic>
 #include <type_traits>
 #include <utility>
 
@@ -64,10 +73,35 @@ static_assert(command::FileSave == F_FILESAVE && command::Undo == F_UNDO && comm
 static_assert(command::NewLineCRLF == F_CHGMOD_EOL_CRLF && command::NewLineLF == F_CHGMOD_EOL_LF && command::NewLineCR == F_CHGMOD_EOL_CR);
 static_assert(command::NewLineNEL == F_CHGMOD_EOL_NEL && command::NewLinePS == F_CHGMOD_EOL_PS && command::NewLineLS == F_CHGMOD_EOL_LS);
 static_assert(std::is_same_v<Text::value_type, WCHAR>, "Text 与原版的 WCHAR 是同一种字符");
+static_assert(static_cast<int>(WrapMethod::None) == WRAP_NO_TEXT_WRAP && static_cast<int>(WrapMethod::SettingWidth) == WRAP_SETTING_WIDTH);
+static_assert(static_cast<int>(WrapMethod::WindowWidth) == WRAP_WINDOW_WIDTH);
+static_assert(static_cast<int>(TabMark::String) == TABARROW_STRING && static_cast<int>(TabMark::ShortArrow) == TABARROW_SHORT);
+static_assert(static_cast<int>(TabMark::LongArrow) == TABARROW_LONG);
 
 namespace {
 
 std::unique_ptr<CShareData> g_shareData;
+
+//! 排版用的字体（原版 CEditWnd::GetLogfont）。SetLayoutFont 改变
+LOGFONT g_layoutFont{};
+
+//! 界面层登记的测量函数（SetTextMeasureFunction）
+std::atomic<TextMeasureFunction> g_measure{ nullptr };
+
+//! 平台层的测量接口（LOGFONT）→ 界面层的测量函数（字体名、大小）
+int MeasureWithLogfont(const LOGFONT& lf, const WCHAR* text, size_t length)
+{
+	const TextMeasureFunction f = g_measure.load();
+	if (!f) return 0;
+	return f(lf.lfFaceName, lf.lfHeight < 0 ? -lf.lfHeight : lf.lfHeight, text, length);
+}
+
+//! 字体改变后，文字宽度的缓存重新开始（CEditDoc::OnChangeSetting 的 InitCharWidthCache）
+void ApplyLayoutFont()
+{
+	SelectCharWidthCache(CWM_FONT_EDIT, CWM_CACHE_LOCAL);
+	InitCharWidthCache(g_layoutFont);
+}
 
 bool ExtEolEnabled()
 {
@@ -127,7 +161,30 @@ bool Startup()
 		CShareData_IO::SaveShareData();
 	}
 	g_shareData->RefreshString();
+	// 排版的字体：先用共通设置的字体，界面层再用 SetLayoutFont 换成 Mac 的字体
+	g_layoutFont = GetDllShareData().m_Common.m_sView.m_lf;
+	ApplyLayoutFont();
 	return true;
+}
+
+void SetTextMeasureFunction(TextMeasureFunction func)
+{
+	g_measure.store(func);
+	sakura::platform::SetTextMeasureFunction(func ? &MeasureWithLogfont : nullptr);
+	if (IsStarted()) ApplyLayoutFont();	// 测量方法变了，宽度的缓存重新开始
+}
+
+void SetLayoutFont(const Text& faceName, std::int32_t size)
+{
+	LOGFONT lf{};
+	lf.lfHeight = -std::max(1, size);
+	lf.lfWeight = FW_NORMAL;
+	lf.lfCharSet = DEFAULT_CHARSET;
+	lf.lfPitchAndFamily = FIXED_PITCH;	// 等宽字体：比半角宽的字符算半角的 2 倍
+	const size_t n = std::min(faceName.size(), std::size(lf.lfFaceName) - 1);
+	std::copy_n(faceName.data(), n, lf.lfFaceName);
+	g_layoutFont = lf;
+	ApplyLayoutFont();
 }
 
 void Shutdown(bool saveSettings)
@@ -183,6 +240,10 @@ Text CommandName(FunctionCode code)
 
 struct Document::Impl {
 	CDocLineMgr lines;
+	CLayoutMgr layout;			//!< 排版（第 27 步）。行数据之后析构
+	STypeConfig typeConfig{};	//!< 类型别设置的复制（原版 CDocType::m_typeConfig）。layout 指着它
+	int wrapMethodCur = WRAP_SETTING_WIDTH;	//!< 现在的折り返し方法（原版 CEditDoc::m_nTextWrapMethodCur）
+	CKetaXInt wrapColumnsCur{ 80 };			//!< 现在的折り返し桁数
 	COpeBuf opeBuf;
 	COpeBlk* pOpeBlk = nullptr;	//!< BeginEdit 中的操作块（原版 CViewCommander 的 m_pcOpeBlk）
 	int editDepth = 0;
@@ -196,6 +257,9 @@ struct Document::Impl {
 		// 按文件名决定类型别设置（CDocTypeManager::GetDocumentTypeOfPath）
 		const CTypeConfig type = path.empty() ? CTypeConfig(0) : CDocTypeManager().GetDocumentTypeOfPath(path.c_str());
 		info.typeIndex = type.GetIndex();
+		if (!CDocTypeManager().GetTypeConfig(type, typeConfig)) {
+			(void)CDocTypeManager().GetTypeConfig(CTypeConfig(0), typeConfig);
+		}
 		const STypeConfigMini* mini = nullptr;
 		if (CDocTypeManager().GetTypeConfigMini(type, &mini)) {
 			info.typeName = Text(mini->m_szTypeName.c_str());
@@ -257,14 +321,51 @@ struct Document::Impl {
 	*/
 	CLogicPoint ReplaceRaw(const CLogicRange& range, COpeLineData* pInsData, COpeLineData* pDeleted, int nDelSeq, int* pnInsSeq)
 	{
-		DocLineReplaceArg arg;
-		arg.sDelRange = range;
+		// 经过排版来替换（CLayoutMgr::ReplaceData_CLayoutMgr 里调用 CSearchAgent::ReplaceData），排版随着更新
+		LayoutReplaceArg arg;
+		layout.LogicToLayout(range, &arg.sDelRange);
 		arg.pcmemDeleted = pDeleted;
 		arg.pInsData = pInsData;
 		arg.nDelSeq = nDelSeq;
-		CSearchAgent(&lines).ReplaceData(&arg, ExtEolEnabled());
+		layout.ReplaceData_CLayoutMgr(&arg);
 		if (pnInsSeq) *pnInsSeq = arg.nInsSeq;
-		return arg.ptNewPos;
+		CLogicPoint ptNew;
+		layout.LayoutToLogic(arg.ptLayoutNew, &ptNew);
+		return ptNew;
+	}
+
+	//! 折り返し方法回到类型别设置（CLoadAgent::OnAfterLoad：解除临时设置）
+	void ResetWrap()
+	{
+		wrapMethodCur = typeConfig.m_nTextWrapMethod;
+		wrapColumnsCur = typeConfig.m_nMaxLineKetas;
+	}
+
+	/*!
+		按现在的设置重新排版（CEditDoc::OnChangeSetting、CLoadAgent::OnLoad 的 SetLayoutInfo）。
+		「指定桁で折り返す」以外的折り返し桁数：「折り返さない」是 MAXLINEKETAS，
+		「右端で折り返す」是界面层按窗口宽度给的桁数（SetWrap）。
+	*/
+	void DoLayout()
+	{
+		const STypeConfig& ref = typeConfig;
+		CKetaXInt nMaxLineKetas = wrapColumnsCur;
+		if (wrapMethodCur == WRAP_NO_TEXT_WRAP) {
+			nMaxLineKetas = CKetaXInt(MAXLINEKETAS);
+		}
+		layout.m_nTextWrapMethodCurMac = wrapMethodCur;
+		// CLoadAgent::OnLoad：读入文件后重新计算 TAB 位置（TSV 模式）
+		if (ref.m_nTsvMode != TSV_MODE_NONE) {
+			layout.m_tsvInfo.m_nTsvMode = ref.m_nTsvMode;
+			layout.m_tsvInfo.CalcTabLength(&lines);
+		}
+		layout.SetLayoutInfo(true, false, ref, ref.m_nTabSpace, ref.m_nTsvMode, nMaxLineKetas, CLayoutXInt(-1), &g_layoutFont);
+		// 「折り返さない」时计算文字的最大宽度，其他时候清除
+		if (wrapMethodCur == WRAP_NO_TEXT_WRAP) {
+			layout.CalculateTextWidth(FALSE);
+		} else {
+			layout.ClearLayoutLineWidth();
+		}
 	}
 
 	//! 编辑（记入撤销缓冲）。序号与 ReplaceData_CEditView 相同
@@ -313,12 +414,18 @@ struct Document::Impl {
 		}
 		editDepth = 0;
 		opeBuf.ClearAll();
+		// 排版行指着行数据，先清空排版
+		layout._Empty();
+		layout.Init();
 		lines.DeleteAllLine();
 		modified = false;
 	}
 };
 
-Document::Document() : m_impl(std::make_unique<Impl>()) {}
+Document::Document() : m_impl(std::make_unique<Impl>())
+{
+	m_impl->layout.Create(nullptr, &m_impl->lines);	// Mac 版没有 CEditDoc
+}
 
 Document::~Document()
 {
@@ -337,6 +444,8 @@ std::unique_ptr<Document> Document::Create()
 		d.info.bom = mini->m_encoding.m_bDefaultBom;
 	}
 	d.ResetNewLineEol();
+	d.ResetWrap();
+	d.DoLayout();
 	return doc;
 }
 
@@ -351,6 +460,7 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 	d.ClearDocument();
 	d.info = FileInfo{};
 	d.ResetForType(path);
+	d.ResetWrap();
 	const STypeConfigMini* type = d.TypeMini();
 	if (!type) return Result::Failed;
 
@@ -389,10 +499,12 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 	}
 	catch (const CError_FileOpen&) {
 		d.lines.DeleteAllLine();
+		d.DoLayout();
 		return Result::Failed;
 	}
 	catch (const CError_FileRead&) {
 		d.lines.DeleteAllLine();
+		d.DoLayout();
 		return Result::Failed;
 	}
 
@@ -400,6 +512,7 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 	d.info.encoding = eCharCode;
 	d.info.bom = bBom;
 	d.ResetNewLineEol();
+	d.DoLayout();	// CLoadAgent::OnLoad
 	return FromConvertResult(eRet);
 }
 
@@ -484,7 +597,15 @@ Result Document::SaveAs(const Text& path, const SaveOptions& options)
 	d.info.path = path;
 	d.info.encoding = eCharCode;
 	d.info.bom = bBom;
-	if (bTypeChanged) d.ResetForType(path);	// 另存为：扩展名变了，类型别设置也跟着变
+	if (bTypeChanged) {
+		// 另存为：扩展名变了，类型别设置也跟着变（CEditDoc::OnChangeType → OnChangeSetting 重新排版）
+		const std::int32_t oldType = d.info.typeIndex;
+		d.ResetForType(path);
+		if (d.info.typeIndex != oldType) {
+			d.ResetWrap();
+			d.DoLayout();
+		}
+	}
 	d.modified = false;
 	d.opeBuf.SetNoModified();
 	return FromConvertResult(nRetVal);
@@ -874,6 +995,139 @@ Result Document::ExecuteCommand(FunctionCode code)
 	case F_CHGMOD_EOL_LS:   SetNewLineEol(Eol::LineSeparator); return Result::Ok;
 	default:                return Result::NotSupported;
 	}
+}
+
+
+// ----- 排版（第 27 步） -----
+
+ViewSettings Document::GetViewSettings() const
+{
+	const auto& d = *m_impl;
+	const STypeConfig& t = d.typeConfig;
+	ViewSettings v;
+	v.wrapMethod = static_cast<WrapMethod>(d.wrapMethodCur);
+	v.wrapColumns = static_cast<std::int32_t>(d.wrapColumnsCur);
+	v.typeWrapColumns = static_cast<std::int32_t>(t.m_nMaxLineKetas);
+	v.tabColumns = static_cast<std::int32_t>(d.layout.GetTabSpaceKetas());
+	v.columnSpacing = t.m_nColumnSpace;
+	v.lineSpacing = t.m_nLineSpace;
+	v.showLineNumbers = t.m_ColorInfoArr[COLORIDX_GYOU].m_bDisp;
+	v.lineNumberPerLogicalLine = t.m_bLineNumIsCRLF;
+	v.lineNumberMinDigits = t.m_nLineNumWidth;
+	v.showTab = t.m_ColorInfoArr[COLORIDX_TAB].m_bDisp;
+	v.tabMark = static_cast<TabMark>(t.m_bTabArrow);
+	v.tabString = Text(t.m_szTabViewString.c_str());
+	v.showSpace = t.m_ColorInfoArr[COLORIDX_SPACE].m_bDisp;
+	v.showFullWidthSpace = t.m_ColorInfoArr[COLORIDX_ZENSPACE].m_bDisp;
+	v.showEol = t.m_ColorInfoArr[COLORIDX_EOL].m_bDisp;
+	v.showWrapMark = t.m_ColorInfoArr[COLORIDX_WRAP].m_bDisp;
+	v.showEof = t.m_ColorInfoArr[COLORIDX_EOF].m_bDisp;
+	v.hideHanging = t.m_bKinsokuHide;
+	v.hangEol = t.m_bKinsokuRet;
+	v.hangPunctuation = t.m_bKinsokuKuto;
+	return v;
+}
+
+bool Document::SetWrap(WrapMethod method, std::int32_t columns)
+{
+	auto& d = *m_impl;
+	const int nMethod = static_cast<int>(method);
+	if (nMethod < WRAP_NO_TEXT_WRAP || WRAP_WINDOW_WIDTH < nMethod) return false;
+	// 折り返し桁数的范围（与 CEditWnd::ChangeLayoutParam、ViewColNumToWrapColNum 相同）
+	const CKetaXInt nColumns(std::clamp<std::int32_t>(columns, MINLINEKETAS, MAXLINEKETAS));
+	if (nMethod == d.wrapMethodCur && (nMethod == WRAP_NO_TEXT_WRAP || nColumns == d.wrapColumnsCur)) {
+		return false;
+	}
+	d.wrapMethodCur = nMethod;
+	if (nMethod != WRAP_NO_TEXT_WRAP) d.wrapColumnsCur = nColumns;
+	d.DoLayout();
+	return true;
+}
+
+std::int32_t Document::WrapColumnsForWidth(std::int32_t width) const
+{
+	// CEditView::GetWrapOverhang：减去折り返し記号和ぶら下げ的宽度
+	const auto& d = *m_impl;
+	const STypeConfig& t = d.typeConfig;
+	const std::int32_t nCharWidth = CharWidth();
+	std::int32_t nMargin = nCharWidth;	// 折り返し記号
+	if (!t.m_bKinsokuHide) {
+		if (t.m_bKinsokuRet) nMargin += nCharWidth;		// 改行ぶら下げ
+		if (t.m_bKinsokuKuto) nMargin += nCharWidth * 2;	// 句読点ぶら下げ
+	}
+	// CEditView::ViewColNumToWrapColNum：少于 MINLINEKETAS 时按 MINLINEKETAS
+	return std::max<std::int32_t>(MINLINEKETAS, (width - nMargin) / std::max<std::int32_t>(1, nCharWidth));
+}
+
+void Document::Relayout()
+{
+	m_impl->DoLayout();
+}
+
+std::int32_t Document::LayoutLineCount() const
+{
+	return static_cast<std::int32_t>(m_impl->layout.GetLineCount());
+}
+
+LayoutLine Document::GetLayoutLine(std::int32_t line) const
+{
+	const CLayout* pLayout = m_impl->layout.SearchLineByLayoutY(CLayoutInt(line));
+	if (line < 0 || !pLayout) return {};
+	LayoutLine result;
+	result.start = FromLogic(pLayout->GetLogicPos());
+	result.length = pLayout->GetLengthWithoutEOL();
+	result.eol = static_cast<Eol>(pLayout->GetLayoutEol().GetType());
+	result.indent = static_cast<std::int32_t>(pLayout->GetIndent());
+	return result;
+}
+
+std::vector<std::int32_t> Document::GetLayoutCharPositions(std::int32_t line) const
+{
+	const CLayout* pLayout = m_impl->layout.SearchLineByLayoutY(CLayoutInt(line));
+	if (line < 0 || !pLayout) return { 0 };
+	// 与 CEditView 的绘制相同，用 CMemoryIterator 一个字一个字地前进（包括 TAB 的展开、文字间隔）
+	const int nLength = pLayout->GetLengthWithoutEOL();
+	std::vector<std::int32_t> positions(nLength + 1, 0);
+	CMemoryIterator it = m_impl->layout.CreateCMemoryIterator(pLayout);
+	while (!it.end() && it.getIndex() < nLength) {
+		it.scanNext();
+		const int nIndex = it.getIndex();
+		const std::int32_t x = static_cast<std::int32_t>(it.getColumn());
+		for (int i = nIndex; i < nIndex + it.getIndexDelta() && i < nLength; i++) {
+			positions[i] = x;	// 补充平面字符的后一半与前一半位置相同
+		}
+		it.addDelta();
+	}
+	positions[nLength] = static_cast<std::int32_t>(it.getColumn());
+	return positions;
+}
+
+LayoutPosition Document::LogicToLayout(const Position& position) const
+{
+	CLayoutPoint ptLayout;
+	m_impl->layout.LogicToLayout(ToLogic(position), &ptLayout);
+	return LayoutPosition{ static_cast<std::int32_t>(ptLayout.GetY2()), static_cast<std::int32_t>(ptLayout.GetX2()) };
+}
+
+Position Document::LayoutToLogic(const LayoutPosition& position) const
+{
+	CLogicPoint ptLogic;
+	m_impl->layout.LayoutToLogic(CLayoutPoint(CLayoutInt(position.x), CLayoutInt(position.line)), &ptLogic);
+	return FromLogic(ptLogic);
+}
+
+std::int32_t Document::CharWidth() const
+{
+	return static_cast<std::int32_t>(m_impl->layout.GetWidthPerKeta());
+}
+
+std::int32_t Document::LayoutWidth() const
+{
+	const auto& d = *m_impl;
+	if (d.wrapMethodCur == WRAP_NO_TEXT_WRAP) {
+		return static_cast<std::int32_t>(d.layout.GetMaxTextWidth());
+	}
+	return static_cast<std::int32_t>(d.layout.GetMaxLineLayout());
 }
 
 } // namespace sakura::core

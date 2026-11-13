@@ -3,7 +3,7 @@
 
 	App 和桥接层只链接 sakura_core_api 和它依赖的静态库。
 	单元测试程序里有测试专用的代码，可能把核心库缺少的函数补上，发现不了链接错误；
-	这个小程序不用 GoogleTest，与 App 一样只链接核心库，确认能启动、编辑、查找。
+	这个小程序不用 GoogleTest，与 App 一样只链接核心库，确认能启动、编辑、查找、排版。
 */
 /*
 	Copyright (C) 2026, Sakura Editor Organization
@@ -34,6 +34,9 @@ int main()
 		if (!doc || doc->Insert(Position{ 0, 0 }, u"int main() {}\n") != Result::Ok) rc = 2;
 		const auto found = doc ? doc->Find(u"main", Position{}) : std::nullopt;
 		if (!found || found->from.column != 4) rc = 3;
+		// 第 27 步：排版（doc/layout 和它用到的替代函数也要链接进来）
+		if (doc && (!doc->SetWrap(WrapMethod::SettingWidth, 10) || doc->LayoutLineCount() != 2
+					|| doc->GetLayoutLine(1).start != Position{ 0, 10 })) rc = 4;
 	}
 	Shutdown(false);
 	std::filesystem::remove_all(home);

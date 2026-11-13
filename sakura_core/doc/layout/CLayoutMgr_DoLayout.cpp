@@ -11,7 +11,9 @@
 #include "doc/logic/CDocLine.h"/// 2002/2/10 aroka
 #include "doc/logic/CDocLineMgr.h"// 2002/2/10 aroka
 #include "charset/charcode.h"
+#if defined(_WIN32)	// Mac 版：編集画面（CEditView）はまだ移植していない（移植計画のステップ 27）
 #include "view/CEditView.h" // SColorStrategyInfo
+#endif
 #include "view/colors/CColorStrategy.h"
 #include "util/window.h"
 #include "debug/CRunningTimer.h"
@@ -668,7 +670,11 @@ CLayoutInt CLayoutMgr::DoLayout_Range(
 */
 void CLayoutMgr::CalculateTextWidth_Range( const CalTextWidthArg* pctwArg )
 {
+#if defined(_WIN32)
 	if( m_pcEditDoc->m_nTextWrapMethodCur == WRAP_NO_TEXT_WRAP ){	// 「折り返さない」
+#else
+	if( m_nTextWrapMethodCurMac == WRAP_NO_TEXT_WRAP ){	// 「折り返さない」（移植計画のステップ 27）
+#endif
 		CLayoutInt	nCalTextWidthLinesFrom(0);	// テキスト最大幅の算出開始レイアウト行
 		CLayoutInt	nCalTextWidthLinesTo(0);	// テキスト最大幅の算出終了レイアウト行
 		BOOL bCalTextWidth        = TRUE;		// テキスト最大幅の算出要求をON
@@ -736,6 +742,9 @@ void CLayoutMgr::_Prepare( const CLayoutMgr& other )
 	m_pcDocLineMgr			= other.m_pcDocLineMgr;
 	m_tsvInfo				= other.m_tsvInfo;
 	m_pcEditDoc				= other.m_pcEditDoc;
+#if !defined(_WIN32)
+	m_nTextWrapMethodCurMac	= other.m_nTextWrapMethodCurMac;	// 移植計画のステップ 27
+#endif
 
 	// 設定関係
 	m_pTypeConfig			= other.m_pTypeConfig;
