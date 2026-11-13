@@ -31,10 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newEditorWindow(_ sender: Any?) {
-        showWindow(EditorWindowController())
+        guard let document = EditorDocument() else {
+            NSSound.beep()
+            return
+        }
+        showWindow(EditorWindowController(document: document))
     }
 
-    /// ファイル > 開く（F_FILEOPEN）。目前只读显示，编辑在第 27～30 步。
+    /// ファイル > 開く（F_FILEOPEN）。保存在后面的步骤加入。
     @objc func openDocument(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
