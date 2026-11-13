@@ -22,6 +22,10 @@ enum MainMenuBuilder {
 
         let windowMenu = NSMenu(title: "ウィンドウ")
         windowMenu.addItem(withTitle: "しまう", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(.separator())
+        // 原版的 F_NEXTWINDOW / F_PREVWINDOW。窗口一览和标签的菜单项由 macOS 自动加在这个菜单里
+        windowMenu.addItem(withTitle: "次のウィンドウ", action: #selector(AppDelegate.activateNextWindow(_:)), keyEquivalent: "")
+        windowMenu.addItem(withTitle: "前のウィンドウ", action: #selector(AppDelegate.activatePreviousWindow(_:)), keyEquivalent: "")
         mainMenu.addItem(submenuItem(windowMenu))
         NSApp.windowsMenu = windowMenu
 
@@ -60,8 +64,14 @@ enum MainMenuBuilder {
 
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: "ファイル")
-        menu.addItem(withTitle: "新規作成", action: #selector(AppDelegate.newEditorWindow(_:)), keyEquivalent: "n")
-        menu.addItem(withTitle: "開く…", action: #selector(AppDelegate.openDocument(_:)), keyEquivalent: "o")
+        // 新建、打开、保存由 NSDocumentController / NSDocument 处理（第 26 步）
+        menu.addItem(withTitle: "新規作成", action: #selector(NSDocumentController.newDocument(_:)), keyEquivalent: "n")
+        menu.addItem(withTitle: "開く…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "上書き保存", action: #selector(NSDocument.save(_:)), keyEquivalent: "s")
+        let saveAs = NSMenuItem(title: "名前を付けて保存…", action: #selector(NSDocument.saveAs(_:)), keyEquivalent: "s")
+        saveAs.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(saveAs)
         menu.addItem(.separator())
         menu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         return menu

@@ -6,15 +6,16 @@ import AppKit
 import EditorBridge
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var windowControllers: [EditorWindowController] = []
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    // 在打开文件、新建无题文档之前启动核心库和建立菜单
+    func applicationWillFinishLaunching(_ notification: Notification) {
         // 核心库：建立共通设置，读入 sakura.ini（第 24 步）
         if !EditorCore.startup() {
             NSLog("Sakura core startup failed")
         }
         NSApp.mainMenu = MainMenuBuilder.build()
-        newEditorWindow(nil)
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -30,50 +31,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc func newEditorWindow(_ sender: Any?) {
-        guard let document = EditorDocument() else {
-            NSSound.beep()
-            return
-        }
-        showWindow(EditorWindowController(document: document))
+    // MARK: - ウィンドウ > 次のウィンドウ / 前のウィンドウ（F_NEXTWINDOW / F_PREVWINDOW）
+
+    /// 按打开的顺序排列的编辑窗口（标签也算一个窗口，与原版的窗口一览相同）
+    static func editorWindows() -> [NSWindow] {
+        NSDocumentController.shared.documents.flatMap { $0.windowControllers.compactMap(\.window) }
     }
 
-    /// ファイル > 開く（F_FILEOPEN）。保存在后面的步骤加入。
-    @objc func openDocument(_ sender: Any?) {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
-        for url in panel.urls {
-            openFile(url)
-        }
+    @objc func activateNextWindow(_ sender: Any?) {
+        activateWindow(offset: 1)
     }
 
-    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        openFile(URL(fileURLWithPath: filename))
+    @objc func activatePreviousWindow(_ sender: Any?) {
+        activateWindow(offset: -1)
     }
 
-    @discardableResult
-    private func openFile(_ url: URL) -> Bool {
-        guard let document = EditorDocument() else { return false }
-        let result = document.open(path: url.path)
-        guard result == .success || result == .lostSome else {
-            let alert = NSAlert()
-            alert.messageText = "ファイルを開けませんでした。"
-            alert.informativeText = url.path
-            alert.runModal()
-            return false
-        }
-        showWindow(EditorWindowController(document: document))
-        return true
-    }
-
-    private func showWindow(_ controller: EditorWindowController) {
-        windowControllers.append(controller)
-        controller.onClose = { [weak self, weak controller] in
-            self?.windowControllers.removeAll { $0 === controller }
-        }
-        controller.showWindow(nil)
+    private func activateWindow(offset: Int) {
+        let windows = Self.editorWindows()
+        guard windows.count > 1 else { return }
+        let current = windows.firstIndex { $0 === NSApp.mainWindow } ?? 0
+        let next = (current + offset + windows.count) % windows.count
+        windows[next].makeKeyAndOrderFront(nil)
     }
 }
