@@ -23,7 +23,7 @@ enum TestCore {
         precondition(EditorCore.startup(), "核心库启动失败")
         // 与 App 相同：文字宽度用 Core Text 测（第 27 步）
         EditorCore.useCoreTextMeasurement()
-        EditorCore.setLayoutFont(name: EditorTextView.fontName, size: EditorTextView.fontSize)
+        EditorTextView.resetFont()	// 默认字体（第 28 步起字体可以改，测试用默认的）
         XCTestObservationCenter.shared.addTestObserver(TestCoreObserver())
         startedHome = home
         return home

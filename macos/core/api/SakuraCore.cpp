@@ -37,6 +37,8 @@
 #include "doc/logic/CDocLineMgr.h"
 #include "doc/layout/CLayout.h"
 #include "doc/layout/CLayoutMgr.h"
+#include "docplus/CModifyManager.h"
+#include "view/colors/EColorIndexType.h"
 #include "mem/CMemoryIterator.h"
 #include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
@@ -1128,6 +1130,62 @@ std::int32_t Document::LayoutWidth() const
 		return static_cast<std::int32_t>(d.layout.GetMaxTextWidth());
 	}
 	return static_cast<std::int32_t>(d.layout.GetMaxLineLayout());
+}
+
+
+// ---------------------------------------------------------------------------
+// 颜色（第 28 步）
+// ---------------------------------------------------------------------------
+
+static_assert(static_cast<int>(ColorIndex::Text) == COLORIDX_TEXT);
+static_assert(static_cast<int>(ColorIndex::Caret) == COLORIDX_CARET);
+static_assert(static_cast<int>(ColorIndex::CaretIme) == COLORIDX_CARET_IME);
+static_assert(static_cast<int>(ColorIndex::CaretLineBackground) == COLORIDX_CARETLINEBG);
+static_assert(static_cast<int>(ColorIndex::CaretLineUnderline) == COLORIDX_UNDERLINE);
+static_assert(static_cast<int>(ColorIndex::CursorColumnLine) == COLORIDX_CURSORVLINE);
+static_assert(static_cast<int>(ColorIndex::LineNumber) == COLORIDX_GYOU);
+static_assert(static_cast<int>(ColorIndex::LineNumberModified) == COLORIDX_GYOU_MOD);
+static_assert(static_cast<int>(ColorIndex::EvenLineBackground) == COLORIDX_EVENLINEBG);
+static_assert(static_cast<int>(ColorIndex::Tab) == COLORIDX_TAB);
+static_assert(static_cast<int>(ColorIndex::FullWidthSpace) == COLORIDX_ZENSPACE);
+static_assert(static_cast<int>(ColorIndex::Eol) == COLORIDX_EOL);
+static_assert(static_cast<int>(ColorIndex::WrapMark) == COLORIDX_WRAP);
+static_assert(static_cast<int>(ColorIndex::Eof) == COLORIDX_EOF);
+static_assert(static_cast<int>(ColorIndex::Select) == COLORIDX_SELECT);
+
+namespace {
+
+//! COLORREF（0x00BBGGRR）→ 0xRRGGBB
+std::uint32_t ToRgb(COLORREF c)
+{
+	const auto v = static_cast<std::uint32_t>(c);
+	return ((v & 0xFFu) << 16) | (v & 0xFF00u) | ((v >> 16) & 0xFFu);
+}
+
+} // namespace
+
+ColorSetting Document::GetColor(ColorIndex index) const
+{
+	const int i = static_cast<int>(index);
+	if (i < 0 || COLORIDX_LAST <= i) return {};
+	const ColorInfo& info = m_impl->typeConfig.m_ColorInfoArr[i];
+	ColorSetting c;
+	c.display = info.m_bDisp;
+	c.bold = info.m_sFontAttr.m_bBoldFont;
+	c.underline = info.m_sFontAttr.m_bUnderLine;
+	c.text = ToRgb(info.m_sColorAttr.m_cTEXT);
+	c.back = ToRgb(info.m_sColorAttr.m_cBACK);
+	return c;
+}
+
+bool Document::IsLineModified(std::int32_t line) const
+{
+	const auto& d = *m_impl;
+	// 原版 CTextDrawer::DispLineNumber：文档没有修改时一律不算
+	if (!d.modified) return false;
+	const CDocLine* pDocLine = d.lines.GetLine(CLogicInt(line));
+	if (pDocLine == nullptr) return false;
+	return CModifyVisitor().IsLineModified(pDocLine, d.opeBuf.GetNoModifiedSeq());
 }
 
 } // namespace sakura::core

@@ -48,6 +48,10 @@ static_assert(ECWrapMethodWindowWidth == static_cast<NSInteger>(core::WrapMethod
 static_assert(ECTabMarkString == static_cast<NSInteger>(core::TabMark::String));
 static_assert(ECTabMarkShortArrow == static_cast<NSInteger>(core::TabMark::ShortArrow));
 static_assert(ECTabMarkLongArrow == static_cast<NSInteger>(core::TabMark::LongArrow));
+static_assert(ECColorIndexText == static_cast<NSInteger>(core::ColorIndex::Text));
+static_assert(ECColorIndexLineNumber == static_cast<NSInteger>(core::ColorIndex::LineNumber));
+static_assert(ECColorIndexEof == static_cast<NSInteger>(core::ColorIndex::Eof));
+static_assert(ECColorIndexSelect == static_cast<NSInteger>(core::ColorIndex::Select));
 
 namespace {
 
@@ -477,5 +481,18 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 - (NSInteger)charWidth { return _doc->CharWidth(); }
 - (NSInteger)layoutWidth { return _doc->LayoutWidth(); }
+
+- (ECColorSetting)colorFor:(ECColorIndex)index
+{
+	if (index < 0 || index > 255) return ECColorSetting{};
+	const core::ColorSetting c = _doc->GetColor(static_cast<core::ColorIndex>(index));
+	return ECColorSetting{ c.display, c.bold, c.underline, c.text, c.back };
+}
+
+- (BOOL)isLineModified:(NSInteger)line
+{
+	if (!FitsInt32(line)) return NO;
+	return _doc->IsLineModified(static_cast<std::int32_t>(line)) ? YES : NO;
+}
 
 @end

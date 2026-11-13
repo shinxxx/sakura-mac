@@ -37,6 +37,8 @@ int main()
 		// 第 27 步：排版（doc/layout 和它用到的替代函数也要链接进来）
 		if (doc && (!doc->SetWrap(WrapMethod::SettingWidth, 10) || doc->LayoutLineCount() != 2
 					|| doc->GetLayoutLine(1).start != Position{ 0, 10 })) rc = 4;
+		// 第 28 步：颜色、変更行（docplus/CModifyManager）
+		if (doc && (doc->GetColor(ColorIndex::Text).back != 0xFFFBF0u || !doc->IsLineModified(0))) rc = 5;
 	}
 	Shutdown(false);
 	std::filesystem::remove_all(home);
