@@ -13,7 +13,8 @@ import EditorBridge
 ///   TAB・全角空白・改行・折り返し・EOF 的记号、行号。字符放在核心库算出的位置上
 ///   （与原版用 ExtTextOut 的文字间隔数组逐字放置相同），所以换行位置、TAB 位置与原版一致。
 ///
-/// 颜色暂时用系统的颜色，按类型别设置的颜色、字体在第 28 步。
+/// - 第 28 步：按类型别设置的颜色绘制（与原版相同，深色模式下编辑区也用设置的颜色），
+///   光标（闪烁、输入法打开时的颜色）、カーソル行アンダーライン、选择范围（普通和矩形）、字体的选择。
 ///
 /// 未确定文字（marked text）不放进文档，只在画面上插在光标的位置显示，确定时才写进文档。
 /// 这样输入中的变化不进撤销记录，与原版相同（原版在确定时才收到文字）。
@@ -21,11 +22,49 @@ import EditorBridge
 ///
 /// NSTextInputClient 用的位置是“虚拟文字”里的 UTF-16 下标：文档全文在光标的位置插入未确定文字。
 /// 没有未确定文字时就是文档全文的下标。
-final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
-    /// 排版和绘制用的字体（第 27 步。按设置选择字体在第 28 步）。
-    /// 排版（核心库）和绘制必须用同一个字体，App 启动时用它调用 EditorCore.setLayoutFont
-    static let fontName = "Menlo"
-    static let fontSize = 13
+final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSFontChanging {
+    /// 默认的字体（第 27 步）。原版的默认是「ＭＳ ゴシック」10 点（13 像素），
+    /// Mac 版用系统自带的等宽字体 Menlo 13 点（日文由系统换成其他字体显示，宽度按全角 2 桁排）
+    static let defaultFontName = "Menlo"
+    static let defaultFontSize = 13
+
+    /// 现在的字体（第 28 步：設定 > フォント設定）。排版（核心库）和绘制必须用同一个字体。
+    /// 共通设置窗口（第 39 步）之前，暂时存在 UserDefaults 里
+    static var fontName: String {
+        UserDefaults.standard.string(forKey: fontNameKey) ?? defaultFontName
+    }
+    static var fontSize: Int {
+        let size = UserDefaults.standard.integer(forKey: fontSizeKey)
+        return size > 0 ? size : defaultFontSize
+    }
+    private static let fontNameKey = "EditorFontName"
+    private static let fontSizeKey = "EditorFontSize"
+
+    /// 现在的字体
+    static var currentFont: NSFont {
+        NSFont(name: fontName, size: CGFloat(fontSize))
+            ?? NSFont(name: defaultFontName, size: CGFloat(defaultFontSize))
+            ?? NSFont.monospacedSystemFont(ofSize: CGFloat(defaultFontSize), weight: .regular)
+    }
+
+    /// 字体改变后通知所有编辑视图（各自重新排版）
+    static let fontDidChangeNotification = Notification.Name("EditorFontDidChange")
+
+    /// 改变字体：保存，告诉核心库，所有窗口重新排版（原版 CEditWnd::OnChangeSetting）
+    static func setFont(_ font: NSFont) {
+        let size = max(6, min(72, Int(font.pointSize.rounded())))
+        UserDefaults.standard.set(font.fontName, forKey: fontNameKey)
+        UserDefaults.standard.set(size, forKey: fontSizeKey)
+        EditorCore.setLayoutFont(name: font.fontName, size: size)
+        NotificationCenter.default.post(name: fontDidChangeNotification, object: nil)
+    }
+
+    /// 测试用：回到默认的字体
+    static func resetFont() {
+        UserDefaults.standard.removeObject(forKey: fontNameKey)
+        UserDefaults.standard.removeObject(forKey: fontSizeKey)
+        EditorCore.setLayoutFont(name: defaultFontName, size: defaultFontSize)
+    }
 
     let document: EditorDocument
     /// 内容变化时调用（窗口用来更新标题的「(更新)」）
@@ -51,27 +90,80 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     /// 未确定文字里输入法选中的部分（正在转换的文节），相对于未确定文字的开头
     private var markedSelection = NSRange(location: 0, length: 0)
 
-    let font: NSFont
+    private(set) var font: NSFont
+    private var boldFont: NSFont
     /// 显示设置（类型别设置）。内容变化时重新取得（折り返し方法可能变了）
     private(set) var settings: EditorViewSettings
     let topMargin: CGFloat = 2
     /// 行的高度：文字的高度 + 行間（原版 CTextMetrics 的 GetHankakuDy）
-    let lineHeight: CGFloat
+    private(set) var lineHeight: CGFloat = 0
     /// 文字的高度（原版的 GetHankakuHeight）
-    private let charHeight: CGFloat
-    private let ascent: CGFloat
-    private var markColor: NSColor { .tertiaryLabelColor }
+    private var charHeight: CGFloat = 0
+    private var ascent: CGFloat = 0
+
+    /// 类型别设置的颜色（第 28 步）。下标是 EditorColorIndex 的数值
+    private var colors: [EditorColorSetting] = []
+
+    /// 选择的起点（逻辑位置）。nil 时没有选择。普通选择是起点到光标之间（原版 CViewSelect）
+    private(set) var selectionAnchor: EditorPosition?
+    /// 矩形选择（原版 Alt+拖动，Mac 版 Option+拖动）
+    private(set) var isBoxSelection = false
+    /// 矩形选择的起点和终点：画面上的行和横向位置（文字区域里的点，按桁对齐）
+    private var boxAnchor = BoxPoint(row: 0, x: 0)
+    private var boxEnd = BoxPoint(row: 0, x: 0)
+    struct BoxPoint: Equatable {
+        var row: Int
+        var x: CGFloat
+    }
+
+    /// 光标的闪烁
+    private var caretBlinkTimer: Timer?
+    private var caretBlinkOn = true
 
     init(document: EditorDocument, font: NSFont? = nil) {
         self.document = document
-        self.font = font
-            ?? NSFont(name: Self.fontName, size: CGFloat(Self.fontSize))
-            ?? NSFont.monospacedSystemFont(ofSize: CGFloat(Self.fontSize), weight: .regular)
+        self.font = font ?? Self.currentFont
+        boldFont = NSFontManager.shared.convert(self.font, toHaveTrait: .boldFontMask)
         settings = document.viewSettings
-        ascent = ceil(self.font.ascender)
-        charHeight = ceil(self.font.ascender - self.font.descender)
-        lineHeight = charHeight + CGFloat(max(0, settings.lineSpacing))
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        updateFontMetrics()
+        reloadColors()
+        NotificationCenter.default.addObserver(self, selector: #selector(fontDidChange(_:)),
+                                               name: Self.fontDidChangeNotification, object: nil)
+        // 输入法打开、关闭时，光标的颜色跟着变
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardInputSourceDidChange(_:)),
+                                               name: NSTextInputContext.keyboardSelectionDidChangeNotification, object: nil)
+    }
+
+    deinit {
+        caretBlinkTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func updateFontMetrics() {
+        ascent = ceil(font.ascender)
+        charHeight = ceil(font.ascender - font.descender)
+        lineHeight = charHeight + CGFloat(max(0, settings.lineSpacing))
+    }
+
+    /// 字体变了（設定 > フォント設定）：重新排版，重新计算行高
+    @objc private func fontDidChange(_ notification: Notification) {
+        font = Self.currentFont
+        boldFont = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+        document.relayout()
+        settings = document.viewSettings
+        updateFontMetrics()
+        clearSelection()
+        if settings.wrapMethod == .windowWidth {
+            _ = document.setWrap(.windowWidth, columns: windowWrapColumns)
+        }
+        let markedString = markedText
+        markedText = markedString	// 未确定文字也用新的字体
+        contentDidChange()
+    }
+
+    @objc private func keyboardInputSourceDidChange(_ notification: Notification) {
+        needsDisplay = true
     }
 
     @available(*, unavailable)
@@ -276,18 +368,133 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         return NSRect(x: x, y: lineTop(c.row), width: 2, height: lineHeight)
     }
 
+    // MARK: - 颜色（第 28 步）
+
+    /// 重新取得类型别设置的颜色
+    private func reloadColors() {
+        colors = (0...EditorColorIndex.select.rawValue).map {
+            document.color(for: EditorColorIndex(rawValue: $0) ?? .text)
+        }
+    }
+
+    func color(_ index: EditorColorIndex) -> EditorColorSetting {
+        index.rawValue < colors.count ? colors[index.rawValue] : document.color(for: index)
+    }
+
+    /// 0xRRGGBB → NSColor（原版的 COLORREF 是 sRGB）
+    static func nsColor(_ rgb: UInt32) -> NSColor {
+        NSColor(srgbRed: CGFloat((rgb >> 16) & 0xFF) / 255,
+                green: CGFloat((rgb >> 8) & 0xFF) / 255,
+                blue: CGFloat(rgb & 0xFF) / 255, alpha: 1)
+    }
+
+    /// 文字的背景色（原版的 m_crBack）
+    private var textBack: UInt32 { color(.text).back }
+
+    /// 原版 MakeColor2：a 占 alpha/256，b 占其余
+    static func mix(_ a: UInt32, _ b: UInt32, alpha: UInt32 = 255 * 30 / 100) -> UInt32 {
+        func channel(_ shift: UInt32) -> UInt32 {
+            (((a >> shift) & 0xFF) * alpha + ((b >> shift) & 0xFF) * (256 - alpha)) / 256
+        }
+        return (channel(16) << 16) | (channel(8) << 8) | channel(0)
+    }
+
+    /// 原版 CEditView::GetTextColorByColorInfo2：info（选择范围等）叠在 base 上时的文字色。
+    /// 文字色和背景色相同时是「反転表示」（背景是文字的背景色时）或 30% 的半透明
+    func overlayTextColor(_ info: EditorColorSetting, on base: UInt32) -> UInt32 {
+        if info.text != info.back { return info.text }
+        if info.back == textBack { return base ^ 0xFFFFFF }
+        return Self.mix(info.text, base)
+    }
+
+    /// 原版 CEditView::GetBackColorByColorInfo2：叠在 base 上时的背景色
+    func overlayBackColor(_ info: EditorColorSetting, on base: UInt32) -> UInt32 {
+        if info.text != info.back { return info.back }
+        if info.back == textBack { return base ^ 0xFFFFFF }
+        return Self.mix(info.back, base)
+    }
+
+    /// 行的背景色（原版：カーソル行背景色 > 奇数行の背景色 > テキスト）
+    func rowBackColor(_ r: Int) -> UInt32 {
+        let caretLine = color(.caretLineBackground)
+        if caretLine.display && r == caretRowAndIndex.row { return caretLine.back }
+        let even = color(.evenLineBackground)
+        if even.display && r % 2 == 1 { return even.back }
+        return textBack
+    }
+
+    /// 记号等的背景色：与文字的背景色相同时用行的背景色（原版的「透過」）
+    private func backColor(_ info: EditorColorSetting, rowBack: UInt32) -> UInt32 {
+        info.back == textBack ? rowBack : info.back
+    }
+
+    // MARK: - 选择（第 28 步）
+
+    private static func less(_ a: EditorPosition, _ b: EditorPosition) -> Bool {
+        a.line < b.line || (a.line == b.line && a.column < b.column)
+    }
+
+    /// 普通的选择范围（从前到后）。没有选择或矩形选择时 nil
+    var selection: EditorRange? {
+        guard let anchor = selectionAnchor, !isBoxSelection, !Self.same(anchor, caret) else { return nil }
+        return Self.less(anchor, caret) ? EditorRange(from: anchor, to: caret) : EditorRange(from: caret, to: anchor)
+    }
+
+    /// 矩形选择的范围：画面上的行（top...bottom）和横向位置（文字区域里的点，left..<right）
+    var boxSelection: (top: Int, bottom: Int, left: CGFloat, right: CGFloat)? {
+        guard isBoxSelection, boxAnchor.x != boxEnd.x else { return nil }
+        return (min(boxAnchor.row, boxEnd.row), max(boxAnchor.row, boxEnd.row),
+                min(boxAnchor.x, boxEnd.x), max(boxAnchor.x, boxEnd.x))
+    }
+
+    var hasSelection: Bool { selection != nil || boxSelection != nil }
+
+    func clearSelection() {
+        if selectionAnchor != nil || isBoxSelection { needsDisplay = true }
+        selectionAnchor = nil
+        isBoxSelection = false
+    }
+
+    /// 普通选择时，这一行里被选中的字符（行内下标）和是否选中了换行符
+    private func selectedIndices(row r: Int) -> (range: Range<Int>, eol: Bool)? {
+        guard let sel = selection else { return nil }
+        let current = row(r)
+        guard current.isLayoutLine else { return nil }
+        let line = current.start.line
+        if line < sel.from.line || line > sel.to.line { return nil }
+        let rowStart = current.start.column
+        let length = current.text.length
+        let from = line == sel.from.line ? sel.from.column - rowStart : Int.min / 2
+        let to = line == sel.to.line ? sel.to.column - rowStart : Int.max / 2
+        let lo = min(max(0, from), length)
+        let hi = max(lo, min(length, to))
+        let eol = current.eol != .none && line < sel.to.line && from <= length
+        if lo == hi && !eol { return nil }
+        return (lo..<hi, eol)
+    }
+
+    /// 这一行的这个字符是否被选中
+    private func isSelected(row r: Int, index i: Int, indices: (range: Range<Int>, eol: Bool)?) -> Bool {
+        if let indices { return indices.range.contains(i) }
+        if let box = boxSelection, r >= box.top && r <= box.bottom {
+            let x = row(r).xs[min(i, row(r).xs.count - 1)]
+            return x >= box.left && x < box.right
+        }
+        return false
+    }
+
     // MARK: - 绘制
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        NSColor.textBackgroundColor.setFill()
+        // 整体是文字的背景色。没有行的地方（[EOF] 的下面）行号区域也是这个颜色（原版 DispLineNumber）
+        Self.nsColor(textBack).setFill()
         dirtyRect.fill()
-        if settings.showLineNumbers {
-            NSColor.windowBackgroundColor.setFill()
+        if !settings.showLineNumbers {
+            // 不显示行号时左边 8 点的空白：行号的背景色（原版相同）
+            let number = color(.lineNumber)
+            Self.nsColor(backColor(number, rowBack: textBack)).setFill()
             NSRect(x: 0, y: dirtyRect.minY, width: gutterWidth, height: dirtyRect.height).fill()
-            // 行番号区切り（縦線）：原版的默认值
-            NSColor.separatorColor.setFill()
-            NSRect(x: gutterWidth - 2, y: dirtyRect.minY, width: 1, height: dirtyRect.height).fill()
         }
 
         let first = rowIndex(atY: dirtyRect.minY)
@@ -297,46 +504,82 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
                 drawRow(r, context: context)
             }
         }
-        if window?.firstResponder === self {
-            NSColor.textColor.setFill()
+
+        // カーソル位置縦線（原版 CCaret::DrawCursorVLine。默认不显示）
+        let columnLine = color(.cursorColumnLine)
+        if columnLine.display && !hasMarkedText() {
+            Self.nsColor(columnLine.text).setFill()
+            NSRect(x: caretRect.minX, y: dirtyRect.minY, width: 1, height: dirtyRect.height).fill()
+        }
+
+        if window?.firstResponder === self && caretBlinkOn {
+            Self.nsColor(caretColor).setFill()
             caretRect.fill()
         }
+    }
+
+    /// 光标的颜色：输入法打开时用「IMEキャレット」的颜色（原版 CCaret::ShowEditCaret）
+    var caretColor: UInt32 {
+        isInputMethodOn ? color(.caretIme).text : color(.caret).text
+    }
+
+    /// 输入法是否打开（日文、中文等的输入方式，罗马字输入的「英字」不算）
+    private var isInputMethodOn: Bool {
+        guard let source = inputContext?.selectedKeyboardInputSource else { return false }
+        return source.contains(".inputmethod.") && !source.hasSuffix(".Roman")
     }
 
     private func drawRow(_ r: Int, context: CGContext) {
         let current = row(r)
         let top = lineTop(r)
         let baseline = top + ascent
-        let markAttributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: markColor]
+        let rowBack = rowBackColor(r)
+        let textArea = NSRect(x: textOriginX, y: top, width: max(0, bounds.width - textOriginX), height: lineHeight)
+        if rowBack != textBack {
+            Self.nsColor(rowBack).setFill()
+            textArea.fill()
+        }
 
         // 行号（原版 CTextDrawer::DispLineNumber）：按逻辑行数时，折り返した行不显示行号。EOF 的空行没有行号
         if settings.showLineNumbers && current.isLayoutLine {
-            let number: String
-            if settings.lineNumberPerLogicalLine {
-                number = current.start.column == 0 ? String(current.start.line + 1) : ""
-            } else {
-                number = String(r + 1)
-            }
-            let columns = lineNumberDigits + 2
-            let x = CGFloat(columns - number.count - 1) * charWidth
-            (number as NSString).draw(at: NSPoint(x: x, y: top),
-                                      withAttributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor])
+            drawLineNumber(current, row: r, top: top, rowBack: rowBack)
+        } else if settings.showLineNumbers && rowBack != textBack {
+            Self.nsColor(rowBack).setFill()
+            NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
         }
 
-        drawGlyphs(current, row: r, baseline: baseline, context: context)
+        // 选择范围的背景
+        let indices = selectedIndices(row: r)
+        let select = color(.select)
+        let selectBack = Self.nsColor(overlayBackColor(select, on: rowBack))
+        if select.display {
+            selectBack.setFill()
+            if let indices, !indices.range.isEmpty {
+                let x0 = displayX(row: r, index: indices.range.lowerBound)
+                let x1 = displayX(row: r, index: indices.range.upperBound)
+                NSRect(x: x0, y: top, width: x1 - x0, height: lineHeight).fill()
+            }
+            if let box = boxSelection, r >= box.top && r <= box.bottom {
+                // 矩形选择：没有文字的部分也涂（原版「テキストのない部分の矩形選択を作画」）
+                NSRect(x: textOriginX + box.left, y: top, width: box.right - box.left, height: lineHeight).fill()
+            }
+        }
+
+        drawGlyphs(current, row: r, baseline: baseline, rowBack: rowBack, indices: indices, context: context)
 
         // 空白、TAB 的记号
         for i in 0..<current.text.length {
             let c = current.text.character(at: i)
             let x = displayX(row: r, index: i)
             let width = displayX(row: r, index: i + 1) - x
+            let selected = select.display && isSelected(row: r, index: i, indices: indices)
             switch c {
             case 0x09 where settings.showTab:
-                drawTab(x: x, width: width, top: top, attributes: markAttributes)
+                drawTab(x: x, width: width, top: top, color: markColor(.tab, selected: selected, rowBack: rowBack))
             case 0x3000 where settings.showFullWidthSpace:
-                drawFullWidthSpace(x: x, width: width, top: top)
+                drawFullWidthSpace(x: x, width: width, top: top, color: markColor(.fullWidthSpace, selected: selected, rowBack: rowBack))
             case 0x20 where settings.showSpace:
-                drawHalfWidthSpace(x: x, width: width, top: top, attributes: markAttributes)
+                drawHalfWidthSpace(x: x, width: width, top: top, color: markColor(.space, selected: selected, rowBack: rowBack))
             default:
                 break
             }
@@ -345,34 +588,110 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         // 行末：改行記号、折り返し記号、[EOF]（原版 CEditView::DrawLayoutLine）
         let endX = displayX(row: r, index: current.text.length)
         if current.eol != .none {
+            let eolSelected = select.display && (indices?.eol ?? false)
+            let eolRect = NSRect(x: endX, y: top, width: charWidth + 4, height: lineHeight)
+            if eolSelected {
+                selectBack.setFill()
+                eolRect.fill()
+            } else {
+                let eolBack = backColor(color(.eol), rowBack: rowBack)
+                if eolBack != rowBack {
+                    Self.nsColor(eolBack).setFill()
+                    eolRect.fill()
+                }
+            }
             if settings.showEol {
-                drawEol(current.eol, rect: NSRect(x: endX + 1, y: top, width: charWidth, height: charHeight))
+                drawEol(current.eol, rect: NSRect(x: endX + 1, y: top, width: charWidth, height: charHeight),
+                        color: markColor(.eol, selected: eolSelected, rowBack: rowBack))
             }
         } else if isWrapped(r) {
             if settings.showWrapMark {
-                ("<" as NSString).draw(at: NSPoint(x: endX, y: top), withAttributes: markAttributes)
+                drawMarkText("<", x: endX, top: top, info: color(.wrapMark), rowBack: rowBack)
             }
         } else if settings.showEof {
-            ("[EOF]" as NSString).draw(at: NSPoint(x: endX, y: top), withAttributes: markAttributes)
+            drawMarkText("[EOF]", x: endX, top: top, info: color(.eof), rowBack: rowBack)
+        }
+
+        // カーソル行アンダーライン（原版 CCaretUnderLine）：选择中不画
+        let underline = color(.caretLineUnderline)
+        if underline.display && r == caretRowAndIndex.row && !hasSelection {
+            Self.nsColor(underline.text).setFill()
+            NSRect(x: textOriginX, y: top + lineHeight - 1, width: textArea.width, height: 1).fill()
         }
 
         // 未确定文字
         if hasMarkedText() && r == caretRowAndIndex.row {
             let x = textOriginX + current.xs[caretRowAndIndex.index]
+            Self.nsColor(rowBack).setFill()
+            NSRect(x: x, y: top, width: markedWidth, height: lineHeight).fill()
             context.saveGState()
             context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)	// 视图是上下翻转的，Core Text 的文字要再翻回来
-            context.setFillColor(NSColor.textColor.cgColor)
+            let line = CTLineCreateWithAttributedString(NSAttributedString(
+                string: markedText.string,
+                attributes: [.font: font, .foregroundColor: Self.nsColor(color(.text).text)]))
             context.textPosition = CGPoint(x: x, y: baseline)
-            CTLineDraw(markedLine, context)
+            CTLineDraw(line, context)
             context.restoreGState()
             drawMarkedUnderlines(x: x, baseline: baseline)
         }
     }
 
-    /// 文字：Core Text 选字形（没有的字由系统换成其他字体），位置用核心库的排版结果
-    private func drawGlyphs(_ current: Row, row r: Int, baseline: CGFloat, context: CGContext) {
+    /// 行号（原版 CTextDrawer::DispLineNumber）。改过的行用「行番号（変更行）」的颜色、粗体
+    private func drawLineNumber(_ current: Row, row r: Int, top: CGFloat, rowBack: UInt32) {
+        var info = color(.lineNumber)
+        let modified = color(.lineNumberModified)
+        if modified.display && document.isLineModified(current.start.line) {
+            info = modified
+        }
+        let fg = Self.nsColor(info.text)
+        Self.nsColor(backColor(info, rowBack: rowBack)).setFill()
+        NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
+        let number: String
+        if settings.lineNumberPerLogicalLine {
+            number = current.start.column == 0 ? String(current.start.line + 1) : ""
+        } else {
+            number = String(r + 1)
+        }
+        let columns = lineNumberDigits + 2
+        let x = CGFloat(columns - number.count - 1) * charWidth
+        var attributes: [NSAttributedString.Key: Any] = [.font: info.bold.boolValue ? boldFont : font, .foregroundColor: fg]
+        if info.underline.boolValue { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+        (number as NSString).draw(at: NSPoint(x: x, y: top), withAttributes: attributes)
+        // 行番号区切り（縦线，原版的默认值）：行号的文字色
+        fg.setFill()
+        NSRect(x: gutterWidth - 2, y: top, width: 1, height: lineHeight).fill()
+    }
+
+    /// 记号的颜色：选中时叠上选择范围的颜色
+    private func markColor(_ index: EditorColorIndex, selected: Bool, rowBack: UInt32) -> NSColor {
+        let info = color(index)
+        if selected { return Self.nsColor(overlayTextColor(color(.select), on: info.text)) }
+        return Self.nsColor(info.text)
+    }
+
+    /// 文字的记号（折り返し記号「<」、[EOF]）：记号的文字色和背景色
+    private func drawMarkText(_ text: String, x: CGFloat, top: CGFloat, info: EditorColorSetting, rowBack: UInt32) {
+        let back = backColor(info, rowBack: rowBack)
+        let string = text as NSString
+        let attributes: [NSAttributedString.Key: Any] = [.font: info.bold.boolValue ? boldFont : font,
+                                                         .foregroundColor: Self.nsColor(info.text)]
+        if back != rowBack {
+            Self.nsColor(back).setFill()
+            NSRect(x: x, y: top, width: CGFloat(string.length) * charWidth, height: lineHeight).fill()
+        }
+        string.draw(at: NSPoint(x: x, y: top), withAttributes: attributes)
+    }
+
+    /// 文字：Core Text 选字形（没有的字由系统换成其他字体），位置用核心库的排版结果。
+    /// 选中的字用选择范围的颜色
+    private func drawGlyphs(_ current: Row, row r: Int, baseline: CGFloat, rowBack: UInt32,
+                            indices: (range: Range<Int>, eol: Bool)?, context: CGContext) {
         guard current.text.length > 0 else { return }
-        let attributed = NSAttributedString(string: current.text as String, attributes: [.font: font])
+        let text = color(.text)
+        let select = color(.select)
+        let normalColor = Self.nsColor(text.text).cgColor
+        let selectedColor = Self.nsColor(overlayTextColor(select, on: text.text)).cgColor
+        let attributed = NSAttributedString(string: current.text as String, attributes: [.font: text.bold.boolValue ? boldFont : font])
         let line = CTLineCreateWithAttributedString(attributed)
         guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return }
         context.saveGState()
@@ -380,41 +699,48 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         context.translateBy(x: 0, y: baseline)
         context.scaleBy(x: 1, y: -1)
         context.textMatrix = .identity
-        context.setFillColor(NSColor.textColor.cgColor)
         for run in runs {
             let count = CTRunGetGlyphCount(run)
             guard count > 0 else { continue }
             var glyphs = [CGGlyph](repeating: 0, count: count)
-            var indices = [CFIndex](repeating: 0, count: count)
+            var indicesInRun = [CFIndex](repeating: 0, count: count)
             CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
-            CTRunGetStringIndices(run, CFRange(location: 0, length: 0), &indices)
+            CTRunGetStringIndices(run, CFRange(location: 0, length: 0), &indicesInRun)
             // 这一段的字体（这个字体里没有的字，Core Text 换成了其他字体）
             let attributes = CTRunGetAttributes(run) as NSDictionary
             let runFont: CTFont = attributes[kCTFontAttributeName as String].map { $0 as! CTFont } ?? (font as CTFont)
-            var drawn: [CGGlyph] = []
-            var positions: [CGPoint] = []
+            var normal: ([CGGlyph], [CGPoint]) = ([], [])
+            var selected: ([CGGlyph], [CGPoint]) = ([], [])
             for k in 0..<count {
-                let index = indices[k]
+                let index = indicesInRun[k]
                 let c = current.text.character(at: index)
                 // TAB、全角空白（显示记号时）不画字形
                 if c == 0x09 || (c == 0x3000 && settings.showFullWidthSpace) { continue }
-                drawn.append(glyphs[k])
-                positions.append(CGPoint(x: displayX(row: r, index: index), y: 0))
+                let point = CGPoint(x: displayX(row: r, index: index), y: 0)
+                if select.display && isSelected(row: r, index: index, indices: indices) {
+                    selected.0.append(glyphs[k])
+                    selected.1.append(point)
+                } else {
+                    normal.0.append(glyphs[k])
+                    normal.1.append(point)
+                }
             }
-            if !drawn.isEmpty {
-                CTFontDrawGlyphs(runFont, drawn, positions, drawn.count, context)
+            for (group, cgColor) in [(normal, normalColor), (selected, selectedColor)] where !group.0.isEmpty {
+                context.setFillColor(cgColor)
+                CTFontDrawGlyphs(runFont, group.0, group.1, group.0.count, context)
             }
         }
         context.restoreGState()
     }
 
     /// TAB 記号（原版 CFigure_Tab）
-    private func drawTab(x: CGFloat, width: CGFloat, top: CGFloat, attributes: [NSAttributedString.Key: Any]) {
+    private func drawTab(x: CGFloat, width: CGFloat, top: CGFloat, color: NSColor) {
         switch settings.tabMark {
         case .string:
             // 文字指定：一个字占一桁，只画 TAB 宽度里放得下的部分
             NSGraphicsContext.saveGraphicsState()
             NSBezierPath.clip(NSRect(x: x, y: top, width: width, height: lineHeight))
+            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
             let string = settings.tabString as NSString
             for i in 0..<string.length {
                 let cx = x + CGFloat(i) * charWidth
@@ -424,16 +750,16 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
             }
             NSGraphicsContext.restoreGraphicsState()
         case .shortArrow:
-            drawTabArrow(x: x, width: charWidth, top: top)
+            drawTabArrow(x: x, width: charWidth, top: top, color: color)
         case .longArrow:
-            drawTabArrow(x: x, width: width, top: top)
+            drawTabArrow(x: x, width: width, top: top, color: color)
         @unknown default:
             break
         }
     }
 
     /// 原版 _DrawTabArrow：横线和箭头
-    private func drawTabArrow(x: CGFloat, width: CGFloat, top: CGFloat) {
+    private func drawTabArrow(x: CGFloat, width: CGFloat, top: CGFloat, color: NSColor) {
         let sx = x + width - 2
         let sy = top + floor(charHeight / 2) + 0.5
         let sa = floor(charHeight / 4)
@@ -443,26 +769,26 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         path.line(to: NSPoint(x: sx - sa, y: sy + sa))
         path.move(to: NSPoint(x: sx, y: sy))
         path.line(to: NSPoint(x: sx - sa, y: sy - sa))
-        strokeMark(path)
+        strokeMark(path, color: color)
     }
 
     /// 日本語空白（原版 CFigure_ZenSpace）：「□」
-    private func drawFullWidthSpace(x: CGFloat, width: CGFloat, top: CGFloat) {
+    private func drawFullWidthSpace(x: CGFloat, width: CGFloat, top: CGFloat, color: NSColor) {
         let rect = NSRect(x: x + 1.5, y: top + 1.5,
                           width: max(1, width - CGFloat(settings.columnSpacing) - 3), height: max(1, charHeight - 3))
-        strokeMark(NSBezierPath(rect: rect))
+        strokeMark(NSBezierPath(rect: rect), color: color)
     }
 
     /// 半角空白（原版 CFigure_HanSpace）：「o」的下半部分
-    private func drawHalfWidthSpace(x: CGFloat, width: CGFloat, top: CGFloat, attributes: [NSAttributedString.Key: Any]) {
+    private func drawHalfWidthSpace(x: CGFloat, width: CGFloat, top: CGFloat, color: NSColor) {
         NSGraphicsContext.saveGraphicsState()
         NSBezierPath.clip(NSRect(x: x, y: top + floor(charHeight / 2), width: width, height: lineHeight))
-        ("o" as NSString).draw(at: NSPoint(x: x, y: top), withAttributes: attributes)
+        ("o" as NSString).draw(at: NSPoint(x: x, y: top), withAttributes: [.font: font, .foregroundColor: color])
         NSGraphicsContext.restoreGraphicsState()
     }
 
     /// 改行記号（原版 _DrawEOL）。换行符的种类不同，形状不同
-    private func drawEol(_ eol: EditorEol, rect: NSRect) {
+    private func drawEol(_ eol: EditorEol, rect: NSRect, color: NSColor) {
         let path = NSBezierPath()
         let w = rect.width, h = rect.height
         let q = floor(h / 4)
@@ -500,12 +826,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         default:
             return
         }
-        strokeMark(path)
+        strokeMark(path, color: color)
     }
 
-    private func strokeMark(_ path: NSBezierPath) {
+    private func strokeMark(_ path: NSBezierPath, color: NSColor) {
         path.lineWidth = 1
-        markColor.setStroke()
+        color.setStroke()
         path.stroke()
     }
 
@@ -517,7 +843,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
             let x1 = x + CTLineGetOffsetForStringIndex(line, NSMaxRange(segment), nil)
             let selected = markedSelection.length > 0 && NSIntersectionRange(segment, markedSelection).length > 0
             let thickness: CGFloat = selected ? 2 : 1
-            NSColor.textColor.setFill()
+            Self.nsColor(color(.text).text).setFill()
             NSRect(x: x0 + 1, y: baseline + 2, width: max(0, x1 - x0 - 2), height: thickness).fill()
         }
     }
@@ -538,6 +864,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     func contentDidChange() {
         rowCache.removeAll()
         settings = document.viewSettings
+        reloadColors()
+        // 滚动到头时露出的部分也是文字的背景色
+        enclosingScrollView?.backgroundColor = Self.nsColor(textBack)
+        restartCaretBlink()
         let visible = enclosingScrollView?.contentSize ?? frame.size
         // 文字部分的宽度 + 行末的记号（改行記号 1 桁 + 4 点，[EOF] 5 桁）
         let textWidth = CGFloat(document.layoutWidth) + charWidth * 6 + markedWidth
@@ -553,6 +883,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     private func textChanged() {
         preferredX = nil
         caretAtLineEnd = false
+        clearSelection()
         contentDidChange()
         onChange?()
     }
@@ -570,7 +901,40 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         caret = EditorPosition(line: line, column: column)
         caretAtLineEnd = atLineEnd
         if !keepPreferredX { preferredX = nil }
+        if !extendingSelection { clearSelection() }
         contentDidChange()
+    }
+
+    /// 选择范围扩展中（Shift+方向键等）：移动光标时不取消选择
+    private var extendingSelection = false
+
+    /// 移动光标并扩展选择范围（原版 Shift+移动：起点不动，光标移动）
+    private func modifySelection(_ move: () -> Void) {
+        let anchor = (isBoxSelection ? nil : selectionAnchor) ?? caret
+        isBoxSelection = false
+        extendingSelection = true
+        move()
+        extendingSelection = false
+        selectionAnchor = anchor
+        needsDisplay = true
+    }
+
+    // MARK: - 光标的闪烁
+
+    /// 光标移动、输入后重新开始闪烁（先显示）
+    private func restartCaretBlink() {
+        caretBlinkOn = true
+        caretBlinkTimer?.invalidate()
+        caretBlinkTimer = nil
+        guard window?.firstResponder === self else { return }
+        let interval = max(0.2, UserDefaults.standard.double(forKey: "NSTextInsertionPointBlinkPeriodOn") / 1000)
+        let timer = Timer(timeInterval: interval.isFinite && interval < 5 ? interval : 0.53, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.caretBlinkOn.toggle()
+            self.setNeedsDisplay(self.caretRect.insetBy(dx: -1, dy: 0))
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        caretBlinkTimer = timer
     }
 
     // MARK: - 折り返し方法（第 27 步：設定 > 折り返し方法。原版 F_TMPWRAPNOWRAP 等）
@@ -598,6 +962,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         default: columns = 0
         }
         if document.setWrap(method, columns: columns) {
+            if isBoxSelection { clearSelection() }	// 矩形选择是排版上的位置，排版变了就取消
             contentDidChange()
         }
     }
@@ -611,6 +976,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     /// 窗口的大小变了：「右端で折り返す」时让折り返し桁数跟着变（原版 CEditWnd::WrapWindowWidth）
     @objc private func visibleSizeDidChange(_ notification: Notification) {
         if settings.wrapMethod == .windowWidth && document.setWrap(.windowWidth, columns: windowWrapColumns) {
+            if isBoxSelection { clearSelection() }
             contentDidChange()
         } else {
             needsDisplay = true
@@ -636,11 +1002,14 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
 
     override func becomeFirstResponder() -> Bool {
         needsDisplay = true
+        DispatchQueue.main.async { [weak self] in self?.restartCaretBlink() }
         return true
     }
 
     override func resignFirstResponder() -> Bool {
         needsDisplay = true
+        caretBlinkTimer?.invalidate()
+        caretBlinkTimer = nil
         return true
     }
 
@@ -657,10 +1026,67 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
             inputContext?.discardMarkedText()
         }
         let point = convert(event.locationInWindow, from: nil)
+        let flags = event.modifierFlags
+        if flags.contains(.option) {
+            // 矩形选择（原版 Alt+拖动）
+            clearSelection()
+            moveCaret(to: point)
+            isBoxSelection = true
+            boxAnchor = boxPoint(at: point)
+            boxEnd = boxAnchor
+        } else if flags.contains(.shift) {
+            // Shift+点击：从原来的起点（没有选择时是光标）选择到点击的位置
+            modifySelection { moveCaret(to: point) }
+        } else {
+            moveCaret(to: point)
+            selectionAnchor = caret		// 拖动时从这里开始选择
+        }
+        needsDisplay = true
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        if inputContext?.handleEvent(event) == true { return }
+        autoscroll(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        if isBoxSelection {
+            extendingSelection = true
+            moveCaret(to: point)
+            extendingSelection = false
+            boxEnd = boxPoint(at: point)
+        } else {
+            let anchor = selectionAnchor ?? caret
+            extendingSelection = true
+            moveCaret(to: point)
+            extendingSelection = false
+            selectionAnchor = anchor
+        }
+        needsDisplay = true
+    }
+
+    /// 视图坐标里的一点 → 光标。点在折り返した行的右边时，光标在这一行的末尾（不是下一行的开头）
+    private func moveCaret(to point: NSPoint) {
         let r = rowIndex(atY: point.y)
         let i = index(row: r, x: point.x)
-        // 点在折り返した行的右边时，光标在这一行的末尾（不是下一行的开头）
         setCaret(position(row: r, index: i), atLineEnd: isWrapped(r) && i == row(r).text.length)
+    }
+
+    /// 矩形选择的位置：行和按桁对齐的横向位置（原版的矩形选择也按桁）
+    private func boxPoint(at point: NSPoint) -> BoxPoint {
+        let column = max(0, ((point.x - textOriginX) / charWidth).rounded())
+        return BoxPoint(row: rowIndex(atY: point.y), x: column * charWidth)
+    }
+
+    /// 编辑 > すべて選択（F_SELECTALL）
+    override func selectAll(_ sender: Any?) {
+        guard !hasMarkedText() else { return }
+        setCaret(document.endPosition)
+        selectionAnchor = EditorPosition(line: 0, column: 0)
+        needsDisplay = true
+    }
+
+    /// Esc：取消选择（原版 F_CANCEL_MODE）
+    override func cancelOperation(_ sender: Any?) {
+        clearSelection()
     }
 
     override func doCommand(by selector: Selector) {
@@ -680,15 +1106,27 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
         textChanged()
     }
 
+    /// 输入的文字放到哪里：有选择时替换选择范围，否则插在光标处。
+    /// 矩形选择的编辑（每行插入、删除）在第 29 步，现在先取消矩形选择
+    private var insertionRange: EditorRange {
+        if let selection { return selection }
+        if isBoxSelection { clearSelection() }
+        return EditorRange(from: caret, to: caret)
+    }
+
     override func insertNewline(_ sender: Any?) {
-        replace(EditorRange(from: caret, to: caret), with: EditorCore.text(ofEol: document.newLineEol))
+        replace(insertionRange, with: EditorCore.text(ofEol: document.newLineEol))
     }
 
     override func insertTab(_ sender: Any?) {
-        replace(EditorRange(from: caret, to: caret), with: "\t")
+        replace(insertionRange, with: "\t")
     }
 
     override func deleteBackward(_ sender: Any?) {
+        if let selection {
+            replace(selection, with: "")
+            return
+        }
         let start: EditorPosition
         if caret.column > 0 {
             let text = lineText(caret.line)
@@ -702,6 +1140,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     }
 
     override func deleteForward(_ sender: Any?) {
+        if let selection {
+            replace(selection, with: "")
+            return
+        }
         let text = lineText(caret.line)
         let end: EditorPosition
         if caret.column < text.length {
@@ -767,6 +1209,33 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     override func moveToLeftEndOfLine(_ sender: Any?) { moveToBeginningOfLine(sender) }
     override func moveToRightEndOfLine(_ sender: Any?) { moveToEndOfLine(sender) }
 
+    // Shift+移动：扩展选择范围（原版 F_LEFT_SEL 等）
+    override func moveLeftAndModifySelection(_ sender: Any?) { modifySelection { moveLeft(sender) } }
+    override func moveRightAndModifySelection(_ sender: Any?) { modifySelection { moveRight(sender) } }
+    override func moveUpAndModifySelection(_ sender: Any?) { modifySelection { moveUp(sender) } }
+    override func moveDownAndModifySelection(_ sender: Any?) { modifySelection { moveDown(sender) } }
+    override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfLine(sender) } }
+    override func moveToEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfLine(sender) } }
+    override func moveToLeftEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfLine(sender) } }
+    override func moveToRightEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfLine(sender) } }
+    override func moveToBeginningOfDocumentAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfDocument(sender) } }
+    override func moveToEndOfDocumentAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfDocument(sender) } }
+
+    // MARK: - 字体（第 28 步：設定 > フォント設定。原版 F_FONT）
+
+    /// 打开字体面板
+    @objc func showFontPanel(_ sender: Any?) {
+        let manager = NSFontManager.shared
+        manager.target = self
+        manager.setSelectedFont(font, isMultiple: false)
+        manager.orderFrontFontPanel(sender)
+    }
+
+    func changeFont(_ sender: NSFontManager?) {
+        guard let sender else { return }
+        Self.setFont(sender.convert(font))
+    }
+
     // 編集 > 元に戻す / やり直し（F_UNDO / F_REDO）
     @objc func undo(_ sender: Any?) {
         guard !hasMarkedText(), document.canUndo else { return }
@@ -791,6 +1260,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
+        case #selector(selectAll(_:)): return !hasMarkedText()
         case #selector(undo(_:)): return !hasMarkedText() && document.canUndo
         case #selector(redo(_:)): return !hasMarkedText() && document.canRedo
         // 折り返し方法：现在的方法打勾（原版 IsFuncChecked）
@@ -816,7 +1286,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
 
     func insertText(_ string: Any, replacementRange: NSRange) {
         let text = Self.plainString(string)
-        var range = EditorRange(from: caret, to: caret)
+        var range = hasMarkedText() ? EditorRange(from: caret, to: caret) : insertionRange
         if replacementRange.location != NSNotFound {
             let from = position(ofOffset: documentOffset(fromVirtual: replacementRange.location))
             let to = position(ofOffset: documentOffset(fromVirtual: NSMaxRange(replacementRange)))
@@ -827,6 +1297,14 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     }
 
     func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        // 开始输入时有选择范围：先删掉（与直接输入文字时相同）
+        if !hasMarkedText() && replacementRange.location == NSNotFound {
+            if let selection {
+                replace(selection, with: "")
+            } else if isBoxSelection {
+                clearSelection()
+            }
+        }
         // 重新转换等：输入法要求把文档里的一段换成未确定文字
         if replacementRange.location != NSNotFound {
             let from = position(ofOffset: documentOffset(fromVirtual: replacementRange.location))
@@ -872,6 +1350,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation {
     func selectedRange() -> NSRange {
         if hasMarkedText() {
             return NSRange(location: markedStart + markedSelection.location, length: markedSelection.length)
+        }
+        if let selection {
+            let from = offset(of: selection.from)
+            return NSRange(location: from, length: offset(of: selection.to) - from)
         }
         return NSRange(location: offset(of: caret), length: 0)
     }

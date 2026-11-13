@@ -45,4 +45,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/mac-test-home.cpp"        # 第 21 步：测试时把 HOME 换成临时文件夹（不碰真正的 sakura.ini）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-core-api.cpp"    # 第 22 步：核心库的对外接口（打开、编辑、保存、查找、命令）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-layout.cpp"      # 第 27 步：排版（换行位置、TAB、禁则、位置换算、编辑后的排版）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-view.cpp"        # 第 28 步：编辑画面的颜色、変更行
 )

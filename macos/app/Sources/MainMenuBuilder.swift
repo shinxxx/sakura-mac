@@ -77,18 +77,22 @@ enum MainMenuBuilder {
         return menu
     }
 
-    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），其余按原版在后面的步骤加入
+    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），第 28 步加「すべて選択」，其余按原版在后面的步骤加入
     private static func editMenu() -> NSMenu {
         let menu = NSMenu(title: "編集")
         menu.addItem(withTitle: "元に戻す", action: #selector(EditorTextView.undo(_:)), keyEquivalent: "z")
         let redo = NSMenuItem(title: "やり直し", action: #selector(EditorTextView.redo(_:)), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(redo)
+        menu.addItem(.separator())
+        // 第 28 步：すべて選択（F_SELECTALL）
+        menu.addItem(withTitle: "すべて選択", action: #selector(EditorTextView.selectAll(_:)), keyEquivalent: "a")
         return menu
     }
 
     /// 設定：第 27 步先放「折り返し方法」（原版 MainMenu.ini 里 F_TEXTWRAPMETHOD 下面的
-    /// F_TMPWRAPNOWRAP / F_TMPWRAPSETTING / F_TMPWRAPWINDOW）。现在的方法打勾
+    /// F_TMPWRAPNOWRAP / F_TMPWRAPSETTING / F_TMPWRAPWINDOW）。现在的方法打勾。
+    /// 第 28 步加「フォント設定」
     private static func settingsMenu() -> NSMenu {
         let menu = NSMenu(title: "設定")
         let wrap = NSMenu(title: "折り返し方法")
@@ -96,6 +100,8 @@ enum MainMenuBuilder {
         wrap.addItem(withTitle: "指定桁で折り返す", action: #selector(EditorTextView.wrapSettingWidth(_:)), keyEquivalent: "")
         wrap.addItem(withTitle: "右端で折り返す", action: #selector(EditorTextView.wrapWindowWidth(_:)), keyEquivalent: "")
         menu.addItem(submenuItem(wrap))
+        // 第 28 步：フォント設定（F_FONT）。macOS 的字体面板
+        menu.addItem(withTitle: "フォント設定…", action: #selector(EditorTextView.showFontPanel(_:)), keyEquivalent: "")
         return menu
     }
 

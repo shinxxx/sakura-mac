@@ -115,6 +115,41 @@ typedef struct ECLayoutLine {
 	NSInteger indent;		//!< 行首的缩进（点）
 } NS_SWIFT_NAME(EditorLayoutLine) ECLayoutLine;
 
+//! 颜色的种类（第 28 步。数值与原版的 EColorIndexType 相同）
+typedef NS_ENUM(NSInteger, ECColorIndex) {
+	ECColorIndexText NS_SWIFT_NAME(text) = 0,									//!< テキスト
+	ECColorIndexRuler NS_SWIFT_NAME(ruler) = 1,									//!< ルーラー
+	ECColorIndexCaret NS_SWIFT_NAME(caret) = 2,									//!< キャレット
+	ECColorIndexCaretIme NS_SWIFT_NAME(caretIme) = 3,							//!< IMEキャレット
+	ECColorIndexCaretLineBackground NS_SWIFT_NAME(caretLineBackground) = 4,		//!< カーソル行背景色
+	ECColorIndexCaretLineUnderline NS_SWIFT_NAME(caretLineUnderline) = 5,		//!< カーソル行アンダーライン
+	ECColorIndexCursorColumnLine NS_SWIFT_NAME(cursorColumnLine) = 6,			//!< カーソル位置縦線
+	ECColorIndexNoteLine NS_SWIFT_NAME(noteLine) = 7,							//!< ノート線
+	ECColorIndexLineNumber NS_SWIFT_NAME(lineNumber) = 8,						//!< 行番号
+	ECColorIndexLineNumberModified NS_SWIFT_NAME(lineNumberModified) = 9,		//!< 行番号（変更行）
+	ECColorIndexEvenLineBackground NS_SWIFT_NAME(evenLineBackground) = 10,		//!< 奇数行の背景色
+	ECColorIndexTab NS_SWIFT_NAME(tab) = 11,									//!< TAB記号
+	ECColorIndexSpace NS_SWIFT_NAME(space) = 12,								//!< 半角空白
+	ECColorIndexFullWidthSpace NS_SWIFT_NAME(fullWidthSpace) = 13,				//!< 日本語空白
+	ECColorIndexControlCode NS_SWIFT_NAME(controlCode) = 14,					//!< コントロールコード
+	ECColorIndexEol NS_SWIFT_NAME(eol) = 15,									//!< 改行記号
+	ECColorIndexWrapMark NS_SWIFT_NAME(wrapMark) = 16,							//!< 折り返し記号
+	ECColorIndexVerticalLine NS_SWIFT_NAME(verticalLine) = 17,					//!< 指定桁縦線
+	ECColorIndexEof NS_SWIFT_NAME(eof) = 18,									//!< EOF記号
+	ECColorIndexDigit NS_SWIFT_NAME(digit) = 19,								//!< 半角数値
+	ECColorIndexBracketPair NS_SWIFT_NAME(bracketPair) = 20,					//!< 対括弧
+	ECColorIndexSelect NS_SWIFT_NAME(select) = 21,								//!< 選択範囲
+} NS_SWIFT_NAME(EditorColorIndex);
+
+//! 一种颜色的设置（原版的 ColorInfo）。颜色是 0xRRGGBB
+typedef struct ECColorSetting {
+	BOOL display;		//!< 表示
+	BOOL bold;			//!< 太字
+	BOOL underline;		//!< 下線
+	uint32_t text;		//!< 文字色
+	uint32_t back;		//!< 背景色
+} NS_SWIFT_NAME(EditorColorSetting) ECColorSetting;
+
 /*!
 	编辑画面的显示设置：类型别设置里与排版、记号有关的部分（sakura::core::ViewSettings）
 */
@@ -285,6 +320,13 @@ NS_SWIFT_NAME(EditorDocument)
 @property (readonly) NSInteger charWidth;
 //! 文字部分的宽度（点）：折り返さない时是最长的行，其他时候是折り返し桁数的宽度
 @property (readonly) NSInteger layoutWidth;
+
+// ----- 颜色（第 28 步） -----
+
+//! 类型别设置的颜色
+- (ECColorSetting)colorFor:(ECColorIndex)index NS_SWIFT_NAME(color(for:));
+//! 这一逻辑行在上次保存（或打开）之后改过（行号用「変更行」的颜色）
+- (BOOL)isLineModified:(NSInteger)line NS_SWIFT_NAME(isLineModified(_:));
 
 @end
 

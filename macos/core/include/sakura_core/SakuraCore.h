@@ -243,6 +243,52 @@ struct LayoutLine {
 };
 
 // ---------------------------------------------------------------------------
+// 颜色（第 28 步）
+// ---------------------------------------------------------------------------
+
+/*!
+	颜色的种类。数值与原版的 EColorIndexType（COLORIDX_TEXT 等）相同。
+	这里只列出编辑画面本身用到的部分，语法颜色（注释、字符串、关键字等）在第 33 步。
+*/
+enum class ColorIndex : std::uint8_t {
+	Text = 0,				//!< テキスト
+	Ruler,					//!< ルーラー
+	Caret,					//!< キャレット
+	CaretIme,				//!< IMEキャレット
+	CaretLineBackground,	//!< カーソル行背景色
+	CaretLineUnderline,		//!< カーソル行アンダーライン
+	CursorColumnLine,		//!< カーソル位置縦線
+	NoteLine,				//!< ノート線
+	LineNumber,				//!< 行番号
+	LineNumberModified,		//!< 行番号（変更行）
+	EvenLineBackground,		//!< 奇数行の背景色
+	Tab,					//!< TAB記号
+	Space,					//!< 半角空白
+	FullWidthSpace,			//!< 日本語空白
+	ControlCode,			//!< コントロールコード
+	Eol,					//!< 改行記号
+	WrapMark,				//!< 折り返し記号
+	VerticalLine,			//!< 指定桁縦線
+	Eof,					//!< EOF記号
+	Digit,					//!< 半角数値
+	BracketPair,			//!< 対括弧
+	Select,					//!< 選択範囲
+};
+
+/*!
+	一种颜色的设置（原版的 ColorInfo：类型别设置「カラー」页的一行）。
+	颜色是 0xRRGGBB。文字色和背景色相同时，原版把它当作「反転表示」或半透明处理
+	（CEditView::GetTextColorByColorInfo2），选择范围的默认值就是这样。
+*/
+struct ColorSetting {
+	bool display = false;		//!< 表示
+	bool bold = false;			//!< 太字
+	bool underline = false;		//!< 下線
+	std::uint32_t text = 0;		//!< 文字色
+	std::uint32_t back = 0;		//!< 背景色
+};
+
+// ---------------------------------------------------------------------------
 // 命令
 // ---------------------------------------------------------------------------
 
@@ -447,6 +493,17 @@ public:
 		其他时候是折り返し桁数的宽度。横向滚动条用。
 	*/
 	std::int32_t LayoutWidth() const;
+
+	// ----- 颜色（第 28 步） -----
+
+	//! 类型别设置的颜色。种类超出范围时是全 0 的 ColorSetting
+	ColorSetting GetColor(ColorIndex index) const;
+
+	/*!
+		这一逻辑行在上次保存（或打开）之后改过（原版 CModifyVisitor::IsLineModified，
+		行号用「変更行」的颜色显示）。撤销回到保存时的内容后就不算改过。
+	*/
+	bool IsLineModified(std::int32_t line) const;
 
 private:
 	Document();
