@@ -12,10 +12,10 @@ import EditorBridge
 /// （Core Text 绘制 + NSTextInputClient 输入法支持）。
 final class EditorWindowController: NSWindowController, NSWindowDelegate {
     var onClose: (() -> Void)?
-    let document: EditorDocument?
+    let editorDocument: EditorDocument?
 
     init(document: EditorDocument? = EditorDocument()) {
-        self.document = document
+        self.editorDocument = document
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -43,7 +43,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     /// 标题与原版相同显示文件名（无题时是「(無題)」）；副标题显示编码
     private func updateTitle() {
         guard let window else { return }
-        guard let document, !document.path.isEmpty else {
+        guard let document = editorDocument, !document.path.isEmpty else {
             window.title = "(無題)"
             return
         }
