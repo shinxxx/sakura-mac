@@ -61,6 +61,7 @@ enum MainMenuBuilder {
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: "ファイル")
         menu.addItem(withTitle: "新規作成", action: #selector(AppDelegate.newEditorWindow(_:)), keyEquivalent: "n")
+        menu.addItem(withTitle: "開く…", action: #selector(AppDelegate.openDocument(_:)), keyEquivalent: "o")
         menu.addItem(.separator())
         menu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         return menu

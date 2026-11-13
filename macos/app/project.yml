@@ -2,6 +2,10 @@
 #   brew install xcodegen
 #   cd macos/app && xcodegen generate
 # 生成的 SakuraMac.xcodeproj 不提交到仓库。
+#
+# 构建前还需要（第 24 步起，核心库用 CMake 构建）：
+#   brew install cmake
+#   git submodule update --init externals/Onigmo externals/bregonig externals/cmigemo
 name: SakuraMac
 options:
   createIntermediateGroups: true
@@ -26,4 +30,58 @@ targets:
       configs:
         Release:
           ONLY_ACTIVE_ARCH: NO
-    scheme: {}
+    dependencies:
+      - target: EditorBridge
+    scheme:
+      testTargets:
+        - SakuraMacTests
+
+  # 桥接层（第 24 步）：把核心库（macos/core，C++）用 Objective-C++ 包装，提供给 Swift。
+  # 构建前先运行 Scripts/build-core.sh，用 CMake 构建核心库的静态库，再链接进这个框架。
+  EditorBridge:
+    type: framework
+    platform: macOS
+    sources:
+      - path: ../bridge/src
+      - path: ../bridge/include
+        headerVisibility: public
+    preBuildScripts:
+      - name: Build sakura core (CMake)
+        script: '"${SRCROOT}/Scripts/build-core.sh"'
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_NAME: EditorBridge
+        PRODUCT_MODULE_NAME: EditorBridge
+        PRODUCT_BUNDLE_IDENTIFIER: $(inherited).EditorBridge
+        GENERATE_INFOPLIST_FILE: YES
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+        CLANG_ENABLE_OBJC_ARC: YES
+        CLANG_CXX_LANGUAGE_STANDARD: c++20
+        CLANG_CXX_LIBRARY: libc++
+        SAKURA_CORE_BUILD_DIR: $(SRCROOT)/../../build/xcode-core/$(CONFIGURATION)
+        HEADER_SEARCH_PATHS: $(SRCROOT)/../core/include
+        LIBRARY_SEARCH_PATHS: $(SAKURA_CORE_BUILD_DIR)
+        OTHER_LDFLAGS: -lsakura_core_api -lsakura_core -lbregonig -lonigmo -lcmigemo
+        # 脚本要读写仓库里的 build/ 目录
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+      configs:
+        Release:
+          ONLY_ACTIVE_ARCH: NO
+
+  # 桥接层的单元测试（第 24 步）。Swift 通过 EditorBridge 打开文件、读出文字
+  SakuraMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: EditorBridge
+    settings:
+      base:
+        PRODUCT_NAME: SakuraMacTests
+        PRODUCT_BUNDLE_IDENTIFIER: $(inherited).tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @loader_path/../Frameworks @executable_path/../Frameworks

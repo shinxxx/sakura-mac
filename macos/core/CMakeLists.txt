@@ -229,6 +229,7 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/ole_types.cpp"      # 第 20 步：BSTR、VARIANT
   "${SAKURA_ROOT}/macos/platform/src/file_api.cpp"       # 第 20 步：CreateFileW、文件映射
   "${SAKURA_ROOT}/macos/platform/src/resources.cpp"      # 第 21 步：FindResource、LoadResource
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/layout_stub.cpp"      # 第 24 步：排版移植（第 27 步）前的 LogicToLayout（原来在测试里）
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")
@@ -316,6 +317,10 @@ if(SAKURA_BUILD_TESTS)
     target_compile_options(sakura_core_tests PRIVATE -w)
   endif()
   enable_testing()
+  # 第 24 步：与 App 一样只链接核心库接口（不链接测试代码），确认没有缺少的函数
+  add_executable(sakura_core_api_link_check "${CMAKE_CURRENT_SOURCE_DIR}/tests/core-api-link-check.cpp")
+  target_link_libraries(sakura_core_api_link_check PRIVATE sakura_core_api)
+  add_test(NAME CoreApiLinkCheck COMMAND sakura_core_api_link_check)
   include(GoogleTest)
   gtest_discover_tests(sakura_core_tests DISCOVERY_MODE PRE_TEST)
 endif()
