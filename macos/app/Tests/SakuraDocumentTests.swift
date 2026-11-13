@@ -89,7 +89,12 @@ final class SakuraDocumentTests: XCTestCase {
 
         wb.makeKeyAndOrderFront(nil)
         XCTAssertTrue(wa.tabGroup?.selectedWindow === wb)
+        // 标签的切换在事件循环里完成，等一会儿
         wb.selectNextTab(nil)
+        let deadline = Date().addingTimeInterval(3)
+        while !(wa.tabGroup?.selectedWindow === wa) && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
         XCTAssertTrue(wa.tabGroup?.selectedWindow === wa)
     }
 
