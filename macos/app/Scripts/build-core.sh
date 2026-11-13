@@ -17,7 +17,7 @@ CONFIGURATION="${CONFIGURATION:-Debug}"
 BUILD_DIR="${SAKURA_CORE_BUILD_DIR:-${REPO_ROOT}/build/xcode-core/${CONFIGURATION}}"
 # Xcode 的 ARCHS 用空格分隔，CMake 用分号
 ARCHS_CMAKE="$(echo "${ARCHS:-$(uname -m)}" | tr ' ' ';')"
-DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.0}"
+DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.3}"
 
 if ! command -v cmake > /dev/null; then
   echo "error: 找不到 cmake。请先安装：brew install cmake" >&2

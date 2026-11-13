@@ -49,6 +49,7 @@ EditorBridge.framework（macos/bridge，Objective-C++）
 
 ## 核心库的小改动
 
+- **最低系统版本改成 macOS 13.3**：原版代码用 `std::format`，它的浮点数格式化用到 `std::to_chars`，这个函数在 macOS 13.3 的 C++ 标准库里才有。以前核心库单独构建时用的是构建机器的系统版本，没有发现；按 App 的最低版本 13.0 构建时编译失败。改成 13.3 仍然属于“支持 macOS 13”（2026-11-08 的决定），macOS 13 的用户都能免费更新到 13.3 以上。`App.xcconfig`、`build-core.sh` 和核心库的 `CMakeLists.txt`（默认值）一起改了，核心库的 CI 测试也按 13.3 构建。
 - **`LogicToLayout` 的占位移进核心库**：只链接核心库（不链接测试程序）时，`types/CType_*.cpp` 用到的 `CLayoutMgr::LogicToLayout` 找不到定义，链接失败。这个占位原来在测试里（`macos/core/tests/mac-layout-stub.cpp`），现在移到 `macos/core/src/layout_stub.cpp`，编进 `sakura_core`。内容不变（不换行，排版位置等于逻辑位置），第 27 步移植排版时删除。
 - **链接检查**：新加 `macos/core/tests/core-api-link-check.cpp`，一个不用 GoogleTest 的小程序，与 App 一样只链接 `sakura_core_api`，启动、插入、查找后结束。`ctest` 里的名字是 `CoreApiLinkCheck`。以后核心库缺少函数时，在 CMake 构建阶段就能发现，不用等 Xcode。
 
@@ -92,7 +93,8 @@ git submodule update --init externals/Onigmo externals/bregonig externals/cmigem
 
 - `macos/app/project.yml`：加入框架 `EditorBridge` 和测试 `SakuraMacTests`，App 依赖并嵌入框架
 - `macos/app/Sources/AppDelegate.swift`、`EditorWindowController.swift`、`MainMenuBuilder.swift`：启动和结束核心库、打开文件、显示内容
-- `macos/core/CMakeLists.txt`、`macos/core/tests/tests.cmake`：占位的位置、链接检查
+- `macos/core/CMakeLists.txt`、`macos/core/tests/tests.cmake`：占位的位置、链接检查、最低系统版本
+- `macos/app/Config/App.xcconfig`：最低系统版本 13.3
 - `.github/workflows/build-macos.yml`：子模块、桥接层测试、框架检查
 - `macos/README.md`：目录结构、构建前提、文档链接
 

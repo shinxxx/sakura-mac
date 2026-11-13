@@ -9,6 +9,9 @@
 # 核心库只包含已经移植到非 Windows 平台的目录，见 SAKURA_CORE_DIRS。
 # 后续步骤每移植一个目录，就加到这里。
 cmake_minimum_required(VERSION 3.24)
+# 与 App 的最低系统版本（macos/app/Config/App.xcconfig）相同。
+# 原版代码用 std::format，浮点数的格式化（std::to_chars）从 macOS 13.3 起才有（第 24 步）
+set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3" CACHE STRING "Minimum macOS version")
 project(sakura_core_mac LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
