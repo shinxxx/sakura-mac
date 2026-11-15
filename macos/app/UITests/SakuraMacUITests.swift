@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Zlib
 
 import AppKit
+import Carbon
 import XCTest
 
 /// 自动界面测试：真的启动 App，用键盘和菜单操作，确认已经完成的步骤的主要功能。
@@ -249,7 +250,13 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(first.textViews["editor"].waitForExistence(timeout: 10), "无题窗口")
         first.typeKey("o", modifierFlags: .command)
         let panel = openPanel(of: first)
-        XCTAssertTrue(panel.waitForExistence(timeout: 10), "出现了「開く」对话框")
+        // 对话框的输入框不像编辑区那样限制成英文输入：日文、中文输入法打开时路径会变成未确定文字。
+        // 输入路径的这段时间换成英文键盘，之后换回原来的
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() {
+            TISSelectInputSource(ascii)
+        }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
         panel.typeKey("g", modifierFlags: [.command, .shift])
         sleep(1)
         panel.typeText(file.path + "\n")
@@ -279,15 +286,15 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(window.textViews["editor"].value as? String, content)
     }
 
-    /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程显示，在两边都找
+    /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
+    /// 但辅助功能里算 App 的窗口。找不到时返回 App 本身（键盘输入照样进对话框）
     private func openPanel(of app: XCUIApplication) -> XCUIElement {
-        let service = XCUIApplication(bundleIdentifier: "com.apple.appkit.xpc.openAndSavePanelService")
         for _ in 0..<20 {
-            for candidate in [app.dialogs.firstMatch, app.sheets.firstMatch, service.windows.firstMatch] where candidate.exists {
+            for candidate in [app.dialogs.firstMatch, app.sheets.firstMatch] where candidate.exists {
                 return candidate
             }
             usleep(500_000)
         }
-        return app.dialogs.firstMatch
+        return app
     }
 }
