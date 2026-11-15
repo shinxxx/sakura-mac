@@ -204,13 +204,16 @@ final class SakuraMacUITests: XCTestCase {
 
     /// 沙盒外的文件用「開く」对话框选了打开，退出再启动后从「最近使ったファイル」还能打开（安全书签有效）。
     ///
-    /// 只在 macos/tools/run-tests.sh 里运行（它设置 SAKURA_SANDBOX_TEST=1）：要操作系统的文件对话框，
-    /// GitHub 的机器上不稳定。文件放在 ~/SakuraMacUITest（不放「文稿」：测试程序访问「文稿」时系统会弹出权限确认）
+    /// 只在 macos/tools/run-tests.sh 里运行：要操作系统的文件对话框，GitHub 的机器上不稳定。
+    /// 为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的沙盒例外，测不出限制，
+    /// 所以用 run-tests.sh 去掉例外重新签名的那一份（SAKURA_SANDBOX_APP 是它的位置）。
+    /// 文件放在 ~/SakuraMacUITest（不放「文稿」：测试程序访问「文稿」时系统会弹出权限确认）
     func testSandboxedFileReopensFromRecentFilesAfterRestart() throws {
-        guard ProcessInfo.processInfo.environment["SAKURA_SANDBOX_TEST"] == "1" else {
+        guard let appPath = ProcessInfo.processInfo.environment["SAKURA_SANDBOX_APP"] else {
             throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
         }
         app.terminate()
+        let appURL = URL(fileURLWithPath: appPath)
 
         // 沙盒外的文件（App 的容器以外）
         let realHome = URL(fileURLWithPath: NSHomeDirectoryForUser(NSUserName()) ?? NSHomeDirectory())
@@ -231,7 +234,7 @@ final class SakuraMacUITests: XCTestCase {
         let byTitle = NSPredicate(format: "title CONTAINS %@", name)
 
         // 1. App 在沙盒里：不经过对话框直接打开，应该被拒绝
-        let check = XCUIApplication()
+        let check = XCUIApplication(url: appURL)
         check.launchArguments = base + ["-SakuraUITestingOpenPath", file.path]
         check.launch()
         let opened = check.windows.matching(byTitle).firstMatch.waitForExistence(timeout: 5)
@@ -240,7 +243,7 @@ final class SakuraMacUITests: XCTestCase {
         if opened { return }
 
         // 2. 用「開く」对话框选这个文件打开（Cmd+Shift+G 输入路径）
-        let first = XCUIApplication()
+        let first = XCUIApplication(url: appURL)
         first.launchArguments = base
         first.launch()
         XCTAssertTrue(first.textViews["editor"].waitForExistence(timeout: 10), "无题窗口")
@@ -259,7 +262,7 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "Cmd+Q 结束了")
 
         // 3. 重启后从「最近使ったファイル」打开：用书签取回权限，能读
-        app = XCUIApplication()
+        app = XCUIApplication(url: appURL)
         app.launchArguments = base
         app.launch()
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "无题窗口")

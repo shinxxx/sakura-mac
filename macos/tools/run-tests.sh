@@ -64,29 +64,58 @@ if ! command -v xcodegen > /dev/null; then
 fi
 xcodegen generate --quiet
 
+# 沙盒外的文件重启后从历史打开的界面测试（第 31 步）用的 App。
+# 为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的例外（temporary-exception.files.absolute-path.read-only = /），
+# 用它测不出沙盒的限制。所以复制一份，去掉这个例外重新签名（别的 bundle ID，用自己的容器），告诉测试它的位置。
+# xcodebuild 把 TEST_RUNNER_ 开头的环境变量去掉前缀传给测试
+prepare_sandbox_app() {
+    local src="$ROOT/macos/app/build/Build/Products/Debug/Sakura Editor for Mac.app"
+    local dir="$ROOT/macos/app/build/sandbox-test"
+    local app="$dir/Sakura Editor for Mac.app"
+    local ent="$dir/entitlements.plist"
+    rm -rf "$dir" && mkdir -p "$dir"
+    if [ ! -d "$src" ]; then
+        say "（没有找到 App，跳过沙盒外文件的测试）"
+        return
+    fi
+    ditto "$src" "$app"
+    codesign -d --entitlements :- "$app" > "$ent" 2> /dev/null
+    /usr/libexec/PlistBuddy -c "Delete :com.apple.security.temporary-exception.files.absolute-path.read-only" "$ent" > /dev/null 2>&1
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.hanagumo.texteditor.sandboxtest" "$app/Contents/Info.plist"
+    if codesign --force --sign - --entitlements "$ent" "$app" > "$OUT/sandbox-app-sign.log" 2>&1; then
+        export TEST_RUNNER_SAKURA_SANDBOX_APP="$app"
+    else
+        say "（沙盒测试用的 App 签名失败，跳过沙盒外文件的测试：$OUT/sandbox-app-sign.log）"
+    fi
+}
+
 ONLY=(-only-testing:SakuraMacTests)
 TITLE="App 单元测试"
 if [ "$RUN_UI" = 1 ]; then
     ONLY+=(-only-testing:SakuraMacUITests)
     TITLE="App 单元测试 + 界面测试"
-    # 沙盒外的文件重启后从历史打开的界面测试（第 31 步）只在这里运行。
-    # xcodebuild 把 TEST_RUNNER_ 开头的环境变量去掉前缀传给测试
-    export TEST_RUNNER_SAKURA_SANDBOX_TEST=1
 fi
 say ""
 say "== $TITLE =="
 RESULT="$OUT/app.xcresult"
 # 不需要开发者账号：在本机签名（ad-hoc）就能运行
-if ! xcodebuild \
-    -project SakuraMac.xcodeproj \
-    -scheme SakuraMac \
-    -configuration Debug \
-    -derivedDataPath build \
-    -resultBundlePath "$RESULT" \
-    CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
-    "${ONLY[@]}" \
-    test > "$OUT/app-tests.log" 2>&1; then
+XCODEBUILD=(xcodebuild
+    -project SakuraMac.xcodeproj
+    -scheme SakuraMac
+    -configuration Debug
+    -derivedDataPath build
+    CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=)
+if "${XCODEBUILD[@]}" build-for-testing > "$OUT/app-build.log" 2>&1; then
+    if [ "$RUN_UI" = 1 ]; then
+        prepare_sandbox_app
+    fi
+    if ! "${XCODEBUILD[@]}" -resultBundlePath "$RESULT" "${ONLY[@]}" \
+        test-without-building > "$OUT/app-tests.log" 2>&1; then
+        FAILED=1
+    fi
+else
     FAILED=1
+    cp "$OUT/app-build.log" "$OUT/app-tests.log"
 fi
 
 if [ -d "$RESULT" ]; then
@@ -103,8 +132,8 @@ PY
     else
         grep -E 'Executed [0-9]+ tests|error:|failed \(' "$OUT/app-tests.log" | tail -30 | tee -a "$SUMMARY"
     fi
-    # 失败时的截图
-    if xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT/failures" --only-failures > /dev/null 2>&1; then
+    # 失败时的截图（界面测试只在失败时附截图。截图附在 tearDown 里，不算「与失败关联」，所以不用 --only-failures）
+    if xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT/failures" > /dev/null 2>&1; then
         SHOTS=$(find "$OUT/failures" -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.heic' \) 2>/dev/null | wc -l | tr -d ' ')
         [ "$SHOTS" != 0 ] && say "失败时的截图：$OUT/failures（$SHOTS 张）"
     fi
