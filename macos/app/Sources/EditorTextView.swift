@@ -1515,7 +1515,24 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 編集 > 高度な操作 > 逆TABインデント（F_UNINDENT_TAB）
     @objc func unindentTab(_ sender: Any?) { insertBacktab(sender) }
 
+    /// 原版 Command_LEFT / Command_RIGHT：有选择时这一次只取消选择（Command_CANCEL_MODE），
+    /// 光标移到选择范围的开头（←）或末尾（→）。Shift+方向键扩展选择时不取消
+    private func cancelSelectionBeforeMove(toEnd: Bool) -> Bool {
+        guard !extendingSelection else { return false }
+        if let selection {
+            setCaret(toEnd ? selection.to : selection.from)
+            return true
+        }
+        if boxSelection != nil {
+            clearSelection()
+            needsDisplay = true
+            return true
+        }
+        return false
+    }
+
     override func moveLeft(_ sender: Any?) {
+        if cancelSelectionBeforeMove(toEnd: false) { return }
         if caret.column > 0 {
             let text = lineText(caret.line)
             setCaret(EditorPosition(line: caret.line, column: text.rangeOfComposedCharacterSequence(at: caret.column - 1).location))
@@ -1525,6 +1542,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     override func moveRight(_ sender: Any?) {
+        if cancelSelectionBeforeMove(toEnd: true) { return }
         let text = lineText(caret.line)
         if caret.column < text.length {
             setCaret(EditorPosition(line: caret.line, column: NSMaxRange(text.rangeOfComposedCharacterSequence(at: caret.column))))

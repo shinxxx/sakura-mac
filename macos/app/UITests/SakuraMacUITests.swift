@@ -141,20 +141,17 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "", "菜单的「削除」删除选择范围")
     }
 
-    /// 「設定」>「折り返し方法」：现在的方法打勾
+    /// 「設定」>「折り返し方法」能从菜单选择（打勾的状态 XCUITest 读不出来，由单元测试确认）
     func testWrapMenu() {
+        editor.typeText("abc")
         let menu = app.menuBars.menuBarItems["設定"]
         menu.click()
         let wrap = menu.menuItems["折り返し方法"]
         wrap.hover()
-        XCTAssertTrue(wrap.menuItems["折り返さない"].waitForExistence(timeout: 3))
+        for title in ["折り返さない", "指定桁で折り返す", "右端で折り返す"] {
+            XCTAssertTrue(wrap.menuItems[title].waitForExistence(timeout: 3), "「折り返し方法」>「\(title)」")
+        }
         wrap.menuItems["折り返さない"].click()
-        menu.click()
-        menu.menuItems["折り返し方法"].hover()
-        let item = menu.menuItems["折り返し方法"].menuItems["折り返さない"]
-        XCTAssertTrue(item.waitForExistence(timeout: 3))
-        XCTAssertEqual(item.value as? Int, 1, "选中的方法打勾")
-        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
-        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        XCTAssertEqual(text, "abc", "选择后文字不变")
     }
 }

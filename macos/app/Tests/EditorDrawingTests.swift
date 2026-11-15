@@ -119,10 +119,23 @@ final class EditorDrawingTests: XCTestCase {
         view.doCommand(by: #selector(NSResponder.moveUpAndModifySelection(_:)))
         view.doCommand(by: #selector(NSResponder.moveLeftAndModifySelection(_:)))
         XCTAssertEqual(view.selection?.to.column, 2)
-        // 不按 Shift 移动：取消选择（与原版相同）
+        // 不按 Shift 移动：这一次只取消选择，光标在选择范围的末尾（→）或开头（←）（与原版 Command_RIGHT、Command_LEFT 相同）
         view.doCommand(by: #selector(NSResponder.moveRight(_:)))
         XCTAssertNil(view.selection)
+        XCTAssertEqual(view.caret.column, 2)
+        view.doCommand(by: #selector(NSResponder.moveRight(_:)))
         XCTAssertEqual(view.caret.column, 3)
+        view.doCommand(by: #selector(NSResponder.moveLeftAndModifySelection(_:)))
+        view.doCommand(by: #selector(NSResponder.moveLeftAndModifySelection(_:)))
+        view.doCommand(by: #selector(NSResponder.moveLeft(_:)))
+        XCTAssertNil(view.selection)
+        XCTAssertEqual(view.caret.column, 1)
+        // 文件末尾也一样能取消选择
+        view.selectAll(nil)
+        view.doCommand(by: #selector(NSResponder.moveRight(_:)))
+        XCTAssertNil(view.selection)
+        XCTAssertEqual(view.caret.line, document.endPosition.line)
+        XCTAssertEqual(view.caret.column, document.endPosition.column)
     }
 
     /// 有选择时输入、删除：替换选择范围
