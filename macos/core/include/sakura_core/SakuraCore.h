@@ -84,6 +84,30 @@ Text EncodingName(Encoding code);
 //! 能否用于打开和保存
 bool IsValidEncoding(Encoding code);
 
+//! 文件对话框的编码列表里的一项（第 30 步）
+struct EncodingChoice {
+	Encoding code = encoding::None;
+	Text name;		//!< 列表里显示的名字（"自動選択"、"EUC-JP"、"932 (ANSI/OEM - Japanese Shift-JIS)" 等）
+};
+
+/*!
+	打开、保存对话框的「文字コードセット」列表（原版 CCodeTypesForCombobox）。
+	第一项是「自動選択」（encoding::AutoDetect），保存对话框不用这一项。
+*/
+std::vector<EncodingChoice> EncodingChoices();
+
+/*!
+	勾选「CP」后追加到列表里的代码页（原版 CDlgOpenFile::AddComboCodePages）：
+	CP_ACP、CP_OEM，然后是系统的代码页和 UTF-32。
+*/
+std::vector<EncodingChoice> CodePageChoices();
+
+//! 这个编码能否加 BOM（原版 CCodeTypeName::UseBom）。不能时保存对话框的 BOM 不可选
+bool EncodingCanHaveBom(Encoding code);
+
+//! 保存对话框里换成这个编码时 BOM 是否默认勾选（原版 CCodeTypeName::IsBomDefOn）
+bool EncodingBomDefault(Encoding code);
+
 //! 换行符。数值与原版的 EEolType 相同
 enum class Eol : std::uint8_t {
 	None               = 0,	//!< 没有换行符（最后一行）。保存时表示“不转换”
@@ -141,6 +165,23 @@ struct SaveOptions {
 	std::optional<Encoding> encoding;	//!< 不指定时用打开时的编码
 	std::optional<bool> bom;			//!< 不指定时与打开时相同
 	Eol eol = Eol::None;				//!< 统一换行符。None 是不转换（原版“名前を付けて保存”的改行コード）
+};
+
+/*!
+	保存前的检查结果（原版 CCodeChecker::OnCheckSave，第 30 步）。
+	界面层据此问用户：换行符统一吗？有字符会丢失，继续保存吗？
+*/
+struct SaveCheck {
+	//! 换行符混在。只在类型别设置「保存時に改行コードの混在を警告する」打开、并且保存时不转换换行符时检查
+	bool eolMixed = false;
+	//! 有不能用这个编码表示的字符
+	bool lostSome = false;
+	//! 最初不能表示的位置。column 为 -1 表示行内的位置不明
+	Position lostAt;
+	//! 不能表示的那个字（不明时是空）
+	Text lostChar;
+	//! 那个字的代码（"U+3042" 等，与状态栏的显示方式相同；不明时是空）
+	Text lostCharCode;
 };
 
 //! 文件的信息（原版的 SFileInfo 的一部分）
@@ -391,6 +432,9 @@ public:
 
 	//! 保存到打开时的文件（上書き保存）。新文件（没有路径）时返回 InvalidArgument
 	Result Save();
+
+	//! 用 options 保存之前的检查（原版 CCodeChecker::OnCheckSave）。不改文档
+	SaveCheck CheckSave(const SaveOptions& options = {}) const;
 
 	const FileInfo& GetFileInfo() const;
 	bool IsModified() const;

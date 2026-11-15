@@ -49,6 +49,8 @@
 #include "extmodule/CBregexp.h"
 #include "io/CBinaryStream.h"
 #include "io/CFileLoad.h"
+#include "io/CIoBridge.h"
+#include "charset/charset.h"
 #include "util/file.h"
 #include "sakura_platform_hooks.h"
 
@@ -221,6 +223,43 @@ Text EncodingName(Encoding code)
 bool IsValidEncoding(Encoding code)
 {
 	return IsValidCodeOrCPType(code);
+}
+
+// 文件对话框的编码列表（第 30 步）
+
+std::vector<EncodingChoice> EncodingChoices()
+{
+	// 顺序与原版 CDlgOpenFile_CommonItemDialog::Customize 相同
+	std::vector<EncodingChoice> result;
+	CCodeTypesForCombobox cCodeTypes;
+	for (size_t i = 0; i < cCodeTypes.GetCount(); ++i) {
+		result.push_back({ cCodeTypes.GetCode(i), Text(cCodeTypes.GetName(i)) });
+	}
+	return result;
+}
+
+std::vector<EncodingChoice> CodePageChoices()
+{
+	// 与原版 CDlgOpenFile_CommonItemDialog::AddComboCodePages 相同
+	std::vector<EncodingChoice> result;
+	result.push_back({ CODE_CPACP, Text(LTEXT("CP_ACP")) });
+	result.push_back({ CODE_CPOEM, Text(LTEXT("CP_OEM")) });
+	for (const auto& cp : CCodePage::GetCodePageList()) {
+		result.push_back({ cp.first, Text(cp.second) });
+	}
+	return result;
+}
+
+bool EncodingCanHaveBom(Encoding code)
+{
+	if (!IsValidCodeOrCPType(code)) return false;
+	return CCodeTypeName(static_cast<ECodeType>(code)).UseBom();
+}
+
+bool EncodingBomDefault(Encoding code)
+{
+	if (!IsValidCodeOrCPType(code)) return false;
+	return CCodeTypeName(static_cast<ECodeType>(code)).IsBomDefOn();
 }
 
 Text EolText(Eol eol)
@@ -617,6 +656,146 @@ Result Document::Save()
 {
 	if (m_impl->info.path.empty()) return Result::InvalidArgument;
 	return SaveAs(Text(m_impl->info.path));
+}
+
+// 保存前的检查（与原版 CCodeChecker::OnCheckSave 相同，第 30 步）。注释是原版的
+
+namespace {
+
+//! CDocLineMgrが保持するデータに異なる改行コードが混在しているかどうか判定する（原版 CCodeChecker.cpp 的 _CheckSavingEolcode）
+bool CheckSavingEolcode(const CDocLineMgr& pcDocLineMgr, CEol cEolType)
+{
+	bool bMix = false;
+	if( cEolType.IsNone() ){	//改行コード変換なし
+		CEol cEolCheck;	//比較対象EOL
+		const CDocLine* pcDocLine = pcDocLineMgr.GetDocLineTop();
+		if( pcDocLine ){
+			cEolCheck = pcDocLine->GetEol();
+		}
+		while( pcDocLine ){
+			CEol cEol = pcDocLine->GetEol();
+			if( cEol != cEolCheck && cEol.IsValid() ){
+				bMix = true;
+				break;
+			}
+			pcDocLine = pcDocLine->GetNextLine();
+		}
+	}
+	return bMix;
+}
+
+//! CDocLineMgrが保持するデータを指定文字コードで安全に保存できるかどうか判定する（原版 CCodeChecker.cpp 的 _CheckSavingCharcode）
+EConvertResult CheckSavingCharcode(const CDocLineMgr& pcDocLineMgr, ECodeType eCodeType, CLogicPoint& point, CNativeW& wc)
+{
+	const CDocLine*	pcDocLine = pcDocLineMgr.GetDocLineTop();
+	const bool bCodePageMode = IsValidCodeOrCPType(eCodeType) && !IsValidCodeType(eCodeType);
+	std::unique_ptr<CCodeBase> pCodeBase(CCodeFactory::CreateCodeBase(eCodeType,0));
+	CMemory cmemTmp;	// バッファを再利用
+	CNativeW cmemTmp2;
+	CLogicInt nLine = CLogicInt(0);
+	while( pcDocLine ){
+		// コード変換 pcDocLine -> cmemTmp
+		EConvertResult e = CIoBridge::ImplToFile(
+			pcDocLine->_GetDocLineDataWithEOL(),
+			&cmemTmp,
+			pCodeBase.get()
+		);
+		if( bCodePageMode ){
+			// コードページはRESULT_LOSESOMEを返さないので、自分で文字列比較する
+			CIoBridge::FileToImpl(
+				cmemTmp,
+				&cmemTmp2,
+				pCodeBase.get(),
+				0
+			);
+			const int nDocLineLen = (Int)pcDocLine->GetLengthWithEOL();
+			const int nConvertLen = (Int)cmemTmp2.GetStringLength();
+			const int nDataMinLen = t_min(nDocLineLen, nConvertLen);
+			const WCHAR* p = pcDocLine->GetPtr();
+			const WCHAR* r = cmemTmp2.GetStringPtr();
+			int nPos = -1;
+			for( int i = 0; i < nDataMinLen; i++ ){
+				if( p[i] != r[i] ){
+					nPos = i;
+					break;
+				}
+			}
+			if( nPos == -1 && nDocLineLen != nConvertLen ){
+				nPos = nDataMinLen;
+			}
+			if( nPos != -1 ){
+				point.y = nLine;
+				point.x = CLogicInt(nPos);
+				// 変換できなかった位置の1文字取得
+				wc.SetString( p + nPos, (Int)CNativeW::GetSizeOfChar( p, nDocLineLen, nPos ) );
+				return RESULT_LOSESOME;
+			}
+		}
+		if(e!=RESULT_COMPLETE){
+			if( e == RESULT_LOSESOME ){
+				// 行内の位置を特定
+				point.y = nLine;
+				point.x = CLogicInt(-1);
+				const WCHAR* pLine = pcDocLine->GetPtr();
+				const CLogicInt nLineLen = pcDocLine->GetLengthWithEOL();
+				CLogicInt chars = CNativeW::GetSizeOfChar( pLine, nLineLen, 0 );
+				CLogicInt nPos = CLogicInt(0);
+				CNativeW mem;
+				while( 0 < chars ){
+					mem.SetStringHoldBuffer( pLine + nPos, chars );
+					EConvertResult e2 = CIoBridge::ImplToFile(
+						mem,
+						&cmemTmp,
+						pCodeBase.get()
+					);
+					if( e2 == RESULT_LOSESOME ){
+						point.x = nPos;
+						wc = mem;
+						break;
+					}
+					nPos += chars;
+					chars = CNativeW::GetSizeOfChar( pLine, nLineLen, nPos );
+				}
+			}
+			return e;
+		}
+
+		//次の行へ
+		pcDocLine = pcDocLine->GetNextLine();
+		nLine++;
+	}
+	return RESULT_COMPLETE;
+}
+
+} // namespace
+
+SaveCheck Document::CheckSave(const SaveOptions& options) const
+{
+	const auto& d = *m_impl;
+	SaveCheck result;
+	const ECodeType eCharCode = static_cast<ECodeType>(options.encoding.value_or(d.info.encoding));
+
+	//改行コードが混在しているかどうか判定
+	if (d.typeConfig.m_bChkEnterAtEnd) {
+		result.eolMixed = CheckSavingEolcode(d.lines, CEol(static_cast<EEolType>(options.eol)));
+	}
+
+	//指定文字コードで安全に保存できるかどうか判定
+	if (!IsValidCodeOrCPType(eCharCode)) return result;
+	CLogicPoint point;
+	CNativeW cmemChar(LTEXT(""), 0);
+	if (CheckSavingCharcode(d.lines, eCharCode, point, cmemChar) == RESULT_LOSESOME) {
+		result.lostSome = true;
+		result.lostAt = { point.y, point.x };
+		if (point.x != -1) {
+			result.lostChar = Text(cmemChar.GetStringPtr(), cmemChar.GetStringLength());
+			WCHAR szCharCode[32] = {};	// U+12ab or 1234abcd（原版是 12，异体字选择符的格式 "1234, U+E0100" 放不下，这里放大）
+			CUnicode().UnicodeToHex(cmemChar.GetStringPtr(), cmemChar.GetStringLength(),
+				szCharCode, &GetDllShareData().m_Common.m_sStatusbar);
+			result.lostCharCode = Text(szCharCode);
+		}
+	}
+	return result;
 }
 
 const FileInfo& Document::GetFileInfo() const { return m_impl->info; }

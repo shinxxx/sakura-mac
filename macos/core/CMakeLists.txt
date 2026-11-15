@@ -94,15 +94,15 @@ set(SAKURA_CORE_EXCLUDE
   types/CTypeSupport.cpp          # 按类型设置绘制颜色和字体（CGraphics）：第 28 步（Core Text 绘制）
   # 第 21 步：env 里属于界面或编辑画面的部分
   env/CAppNodeManager.cpp         # 编辑窗口的列表和切换（窗口消息）：第 26 步（窗口框架）
-  env/CCodeChecker.cpp            # 保存时的字符检查（依赖编辑画面）：第 29 步（打开与保存）
-  env/CReadManager.cpp            # 读入文件（依赖编辑画面的进度显示）：第 29 步
-  env/CWriteManager.cpp           # 保存文件：第 29 步
+  env/CCodeChecker.cpp            # 保存时的检查（依赖编辑画面、消息框）：第 30 步把检查部分移植到 api/SakuraCore.cpp（Document::CheckSave），询问由界面层做
+  env/CReadManager.cpp            # 读入文件（依赖编辑画面的进度显示）：api/SakuraCore.cpp 的 Document::Open 按同样的步骤读入
+  env/CWriteManager.cpp           # 保存文件：api/SakuraCore.cpp 的 Document::SaveAs 按同样的步骤写出
   env/CHokanMgr.cpp               # 输入补全的弹出窗口：之后的界面步骤
   env/CFormatManager.cpp          # 日期、时间的格式（插入日期命令、打印页眉）：与这些命令一起移植
   env/CSakuraEnvironment.cpp      # 展开 $F 等宏参数（标题栏、打印页眉、外部命令）：与这些功能一起移植
   recent/CMRUFile.cpp             # “最近的文件”菜单：第 26 步之后的菜单步骤（历史记录本身在 recent 的其他文件）
   recent/CMRUFolder.cpp           # “最近的文件夹”菜单：同上
-  recent/CMruListener.cpp         # 打开、关闭文件时更新历史：第 29 步（打开与保存）
+  recent/CMruListener.cpp         # 打开、关闭文件时更新历史：Mac 版现在用 macOS 的「最近使用的文件」，原版的历史与菜单步骤一起移植
   env/CPropertyManager.cpp        # 打开共通设置对话框：之后的设置对话框步骤
 )
 
