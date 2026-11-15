@@ -1,4 +1,4 @@
-﻿# Mac 版核心库的单元测试：沿用原版 src/test/cpp/tests1 的测试代码。
+# Mac 版核心库的单元测试：沿用原版 src/test/cpp/tests1 的测试代码。
 # test-design_template.cpp 依赖 Windows 的模块句柄，不在 Mac 上运行。
 # 只列出对应模块已经移植完成的测试文件。后续步骤每移植一个模块，就把相应的测试加进来。
 set(SAKURA_CORE_TEST_SOURCES
@@ -47,4 +47,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-layout.cpp"      # 第 27 步：排版（换行位置、TAB、禁则、位置换算、编辑后的排版）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-view.cpp"        # 第 28 步：编辑画面的颜色、変更行
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-edit.cpp"        # 第 29 步：基本编辑（矩形、缩进、复制）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-save.cpp"        # 第 30 步：打开与保存（编码列表、BOM、保存前的检查）
 )

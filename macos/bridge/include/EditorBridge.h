@@ -206,6 +206,33 @@ NS_SWIFT_NAME(EditorViewSettings)
 @end
 
 /*!
+	文件对话框的编码列表里的一项（sakura::core::EncodingChoice，第 30 步）
+*/
+NS_SWIFT_NAME(EditorEncodingChoice)
+@interface ECEncodingChoice : NSObject
+@property (readonly) ECEncoding encoding;
+@property (readonly, copy) NSString *name;		//!< 列表里显示的名字（"自動選択"、"EUC-JP" 等）
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	保存前的检查结果（sakura::core::SaveCheck，原版 CCodeChecker::OnCheckSave，第 30 步）
+*/
+NS_SWIFT_NAME(EditorSaveCheck)
+@interface ECSaveCheck : NSObject
+//! 换行符混在（类型别设置「保存時に改行コードの混在を警告する」打开、并且不转换换行符时）
+@property (readonly) BOOL eolMixed;
+//! 有不能用这个编码表示的字符
+@property (readonly) BOOL lostSome;
+//! 最初不能表示的位置。column 为 -1 表示行内的位置不明
+@property (readonly) NSInteger lostLine;
+@property (readonly) NSInteger lostColumn;
+@property (readonly, copy) NSString *lostCharacter;	//!< 不能表示的那个字（不明时是空）
+@property (readonly, copy) NSString *lostCharCode;	//!< 那个字的代码（"U+3042" 等）
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
 */
@@ -226,6 +253,15 @@ NS_SWIFT_NAME(EditorCore)
 + (NSString *)nameOfCommand:(ECCommand)command NS_SWIFT_NAME(name(ofCommand:));
 //! 换行符的文字（"\r\n" 等）
 + (NSString *)textOfEol:(ECEol)eol NS_SWIFT_NAME(text(ofEol:));
+
+//! 打开、保存对话框的「文字コードセット」列表（原版 CCodeTypesForCombobox）。第一项是「自動選択」
+@property (class, readonly, copy) NSArray<ECEncodingChoice *> *encodingChoices;
+//! 勾选「CP」后追加的代码页（CP_ACP、CP_OEM、系统的代码页、UTF-32）
+@property (class, readonly, copy) NSArray<ECEncodingChoice *> *codePageChoices;
+//! 这个编码能否加 BOM（原版 CCodeTypeName::UseBom）
++ (BOOL)encodingCanHaveBOM:(ECEncoding)encoding NS_SWIFT_NAME(canHaveBOM(_:));
+//! 换成这个编码时 BOM 是否默认勾选（原版 CCodeTypeName::IsBomDefOn）
++ (BOOL)encodingBOMDefault:(ECEncoding)encoding NS_SWIFT_NAME(bomDefault(_:));
 
 /*!
 	文字宽度用 Core Text 测量（第 27 步，原版用 GDI）。App 启动时调用一次。
@@ -263,6 +299,8 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECResult)saveToPath:(NSString *)path NS_SWIFT_NAME(save(to:));
 //! 覆盖保存（无题文档返回 ECResultInvalidArgument）
 - (ECResult)save;
+//! 用这些设置保存之前的检查（原版 CCodeChecker::OnCheckSave）。不改文档。eol 为 ECEolNone 时不转换换行符
+- (ECSaveCheck *)checkSaveWithEncoding:(ECEncoding)encoding eol:(ECEol)eol NS_SWIFT_NAME(checkSave(encoding:eol:));
 
 @property (readonly, copy) NSString *path;				//!< 无题时是空字符串
 @property (readonly) ECEncoding encoding;

@@ -172,6 +172,51 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 - (instancetype)initWithSettings:(const core::ViewSettings&)v;
 @end
 
+@implementation ECEncodingChoice
+
+- (instancetype)initWithChoice:(const core::EncodingChoice&)c
+{
+	self = [super init];
+	if (self) {
+		_encoding = c.code;
+		_name = ToNSString(c.name);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECSaveCheck
+
+- (instancetype)initWithCheck:(const core::SaveCheck&)c
+{
+	self = [super init];
+	if (self) {
+		_eolMixed = c.eolMixed ? YES : NO;
+		_lostSome = c.lostSome ? YES : NO;
+		_lostLine = c.lostAt.line;
+		_lostColumn = c.lostAt.column;
+		_lostCharacter = ToNSString(c.lostChar);
+		_lostCharCode = ToNSString(c.lostCharCode);
+	}
+	return self;
+}
+
+@end
+
+namespace {
+
+NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& list)
+{
+	NSMutableArray<ECEncodingChoice *> *result = [NSMutableArray arrayWithCapacity:list.size()];
+	for (const auto& c : list) {
+		[result addObject:[[ECEncodingChoice alloc] initWithChoice:c]];
+	}
+	return result;
+}
+
+} // namespace
+
 @implementation ECCore
 
 + (BOOL)startup
@@ -210,6 +255,28 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 {
 	if (eol < ECEolNone || ECEolParagraphSeparator < eol) return @"";
 	return ToNSString(core::EolText(static_cast<core::Eol>(eol)));
+}
+
++ (NSArray<ECEncodingChoice *> *)encodingChoices
+{
+	return ToChoices(core::EncodingChoices());
+}
+
++ (NSArray<ECEncodingChoice *> *)codePageChoices
+{
+	return ToChoices(core::CodePageChoices());
+}
+
++ (BOOL)encodingCanHaveBOM:(ECEncoding)encoding
+{
+	if (!FitsInt32(encoding)) return NO;
+	return core::EncodingCanHaveBom(static_cast<core::Encoding>(encoding)) ? YES : NO;
+}
+
++ (BOOL)encodingBOMDefault:(ECEncoding)encoding
+{
+	if (!FitsInt32(encoding)) return NO;
+	return core::EncodingBomDefault(static_cast<core::Encoding>(encoding)) ? YES : NO;
 }
 
 + (void)useCoreTextMeasurement
@@ -329,6 +396,14 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 - (ECResult)save
 {
 	return FromCore(_doc->Save());
+}
+
+- (ECSaveCheck *)checkSaveWithEncoding:(ECEncoding)encoding eol:(ECEol)eol
+{
+	core::SaveOptions options;
+	if (FitsInt32(encoding)) options.encoding = static_cast<core::Encoding>(encoding);
+	if (ECEolNone <= eol && eol <= ECEolParagraphSeparator) options.eol = static_cast<core::Eol>(eol);
+	return [[ECSaveCheck alloc] initWithCheck:_doc->CheckSave(options)];
 }
 
 - (NSString *)path { return ToNSString(_doc->GetFileInfo().path); }

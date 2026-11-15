@@ -10,6 +10,8 @@ import AppKit
 // 这里只对本 App 关掉。重音字符仍可以用 Option 键输入
 EditorTextView.registerInputDefaults()
 let app = NSApplication.shared
+// 打开对话框加编码选择（第 30 步）：最先建立的实例成为 NSDocumentController.shared
+_ = SakuraDocumentController()
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.regular)
