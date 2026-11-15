@@ -98,11 +98,17 @@ final class SakuraDocument: NSDocument {
                 return
             }
             nextSaveSettings = confirmed
-            super.save(to: url, ofType: typeName, for: saveOperation) { [self] error in
+            writeConfirmed(to: url, ofType: typeName, for: saveOperation) { [self] error in
                 nextSaveSettings = nil
                 completionHandler(error)
             }
         }
+    }
+
+    /// 检查通过后交给 NSDocument 写出（闭包里不能直接调用 super）
+    private func writeConfirmed(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
+                                completionHandler: @escaping (Error?) -> Void) {
+        super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
     }
 
     /// 写出：直接用核心库写到目标文件（与原版相同，不经过临时文件）
