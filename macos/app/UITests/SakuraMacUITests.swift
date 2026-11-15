@@ -208,7 +208,7 @@ final class SakuraMacUITests: XCTestCase {
     /// 只在 macos/tools/run-tests.sh 里运行：要操作系统的文件对话框，GitHub 的机器上不稳定。
     /// 为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的沙盒例外，测不出限制，
     /// 所以用 run-tests.sh 去掉例外重新签名的那一份（SAKURA_SANDBOX_APP 是它的位置）。
-    /// 文件放在 ~/SakuraMacUITest（不放「文稿」：测试程序访问「文稿」时系统会弹出权限确认）
+    /// 文件放在测试程序的容器里（测试程序也在沙盒里，写不了别处；不放「文稿」：会弹出权限确认）
     func testSandboxedFileReopensFromRecentFilesAfterRestart() throws {
         guard let appPath = ProcessInfo.processInfo.environment["SAKURA_SANDBOX_APP"] else {
             throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
@@ -216,9 +216,11 @@ final class SakuraMacUITests: XCTestCase {
         app.terminate()
         let appURL = URL(fileURLWithPath: appPath)
 
-        // 沙盒外的文件（App 的容器以外）
-        let realHome = URL(fileURLWithPath: NSHomeDirectoryForUser(NSUserName()) ?? NSHomeDirectory())
-        let dir = realHome.appendingPathComponent("SakuraMacUITest")
+        // 沙盒外的文件（App 的容器以外）。测试程序本身也在沙盒里，文件放在测试程序的容器里
+        // （~/Library/Containers/…uitests.xctrunner/Data/SakuraMacUITest）：对 App 来说是别的 App 的地方，同样不能直接读。
+        // 以前失败时留下的文件先删掉
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest")
+        try? FileManager.default.removeItem(at: dir)
         let name = "sandbox-\(UUID().uuidString.prefix(8)).txt"
         let file = dir.appendingPathComponent(name)
         let content = "outside\nsandbox\n"
@@ -261,7 +263,13 @@ final class SakuraMacUITests: XCTestCase {
         sleep(1)
         panel.typeText(file.path + "\n")
         sleep(1)
-        panel.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        // 文件选中后按「開く」（Return 键有时不起作用：按钮直接点）
+        let openButton = first.buttons.matching(NSPredicate(format: "title IN %@ OR label IN %@", ["開く", "Open"], ["開く", "Open"])).firstMatch
+        if openButton.waitForExistence(timeout: 5) {
+            openButton.click()
+        } else {
+            panel.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        }
         let firstWindow = first.windows.matching(byTitle).firstMatch
         XCTAssertTrue(firstWindow.waitForExistence(timeout: 10), "从对话框打开了沙盒外的文件")
         XCTAssertEqual(firstWindow.textViews["editor"].value as? String, content)
