@@ -88,6 +88,9 @@ targets:
       - path: Sources/SecurityScopedBookmarks.swift
       - path: Sources/RecentMenu.swift
       - path: Sources/SakuraDocumentController.swift
+      # 第 32 步：查找、置换、指定行へジャンプ
+      - path: Sources/SearchCommands.swift
+      - path: Sources/SearchDialogs.swift
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

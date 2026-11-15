@@ -16,7 +16,7 @@ enum MainMenuBuilder {
         mainMenu.addItem(submenuItem(fileMenu()))
         mainMenu.addItem(submenuItem(editMenu()))
         mainMenu.addItem(submenuItem(NSMenu(title: "変換")))
-        mainMenu.addItem(submenuItem(NSMenu(title: "検索")))
+        mainMenu.addItem(submenuItem(searchMenu()))
         mainMenu.addItem(submenuItem(NSMenu(title: "ツール")))
         mainMenu.addItem(submenuItem(settingsMenu()))
 
@@ -115,6 +115,32 @@ enum MainMenuBuilder {
         advanced.addItem(withTitle: NSLocalizedString("逆TABインデント", comment: "編集 > 高度な操作 > F_UNINDENT_TAB"),
                          action: #selector(EditorTextView.unindentTab(_:)), keyEquivalent: "")
         menu.addItem(submenuItem(advanced))
+        return menu
+    }
+
+    /// 検索：第 32 步按原版 MainMenu.ini 的顺序放查找、置换、指定行へジャンプ
+    /// （インクリメンタルサーチ、比較、Grep 等在后面的步骤加入）。
+    /// 快捷键按 Mac 的习惯：⌘F 検索、⌘G 次を検索、⇧⌘G 前を検索、⌥⌘F 置換、⌘L 指定行へジャンプ（原版是 Ctrl+F、F3、Shift+F3、Ctrl+R、Ctrl+J）
+    private static func searchMenu() -> NSMenu {
+        let menu = NSMenu(title: "検索")
+        menu.addItem(withTitle: NSLocalizedString("検索...", comment: "検索 > F_SEARCH_DIALOG"),
+                     action: #selector(EditorTextView.showFindPanel(_:)), keyEquivalent: "f")
+        menu.addItem(withTitle: NSLocalizedString("次を検索", comment: "検索 > F_SEARCH_NEXT"),
+                     action: #selector(EditorTextView.searchNext(_:)), keyEquivalent: "g")
+        let prev = NSMenuItem(title: NSLocalizedString("前を検索", comment: "検索 > F_SEARCH_PREV"),
+                              action: #selector(EditorTextView.searchPrevious(_:)), keyEquivalent: "g")
+        prev.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(prev)
+        let replace = NSMenuItem(title: NSLocalizedString("置換...", comment: "検索 > F_REPLACE_DIALOG"),
+                                 action: #selector(EditorTextView.showReplacePanel(_:)), keyEquivalent: "f")
+        replace.keyEquivalentModifierMask = [.command, .option]
+        menu.addItem(replace)
+        menu.addItem(withTitle: NSLocalizedString("検索マークの切替え", comment: "検索 > F_SEARCH_CLEARMARK"),
+                     action: #selector(EditorTextView.toggleSearchMark(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: NSLocalizedString("検索開始位置へ戻る", comment: "検索 > F_JUMP_SRCHSTARTPOS"),
+                     action: #selector(EditorTextView.jumpToSearchStart(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: NSLocalizedString("指定行へジャンプ...", comment: "検索 > F_JUMP_DIALOG"),
+                     action: #selector(EditorTextView.showJumpDialog(_:)), keyEquivalent: "l")
         return menu
     }
 

@@ -49,4 +49,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-edit.cpp"        # 第 29 步：基本编辑（矩形、缩进、复制）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-save.cpp"        # 第 30 步：打开与保存（编码列表、BOM、保存前的检查）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-recent.cpp"      # 第 31 步：最近使ったファイル・フォルダー、前回の文字コード、カーソル位置復元
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-search.cpp"      # 第 32 步：検索・置換・すべて置換・指定行へジャンプ、検索文字列の色、検索の設定と履歴
 )

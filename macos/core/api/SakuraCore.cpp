@@ -45,6 +45,10 @@
 #include "CSelectLang.h"
 #include "env/CShareData.h"
 #include "env/CShareData_IO.h"
+#include "env/CSearchKeywordManager.h"
+#include "parse/CWordParse.h"
+#include "recent/CRecentSearch.h"
+#include "recent/CRecentReplace.h"
 #include "env/DLLSHAREDATA.h"
 #include "extmodule/CBregexp.h"
 #include "io/CBinaryStream.h"
@@ -58,6 +62,7 @@
 #include "sakura_platform_hooks.h"
 
 #include <atomic>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -363,6 +368,8 @@ Text CommandName(FunctionCode code)
 // 文档
 // ---------------------------------------------------------------------------
 
+struct SearchMarkCache;	// 第 32 步：查找文字标记用的条件（定义在后面）
+
 struct Document::Impl {
 	CDocLineMgr lines;
 	CLayoutMgr layout;			//!< 排版（第 27 步）。行数据之后析构
@@ -377,6 +384,7 @@ struct Document::Impl {
 	FileInfo info;
 	Text lastSearchError;
 	std::optional<RestoredView> restoredView;	//!< 打开时从历史恢复的位置（第 31 步）
+	std::shared_ptr<SearchMarkCache> searchMarkCache;	//!< 查找文字标记用的条件（第 32 步）
 
 	//! typeId 是历史里上次的类型（原版 EditInfo::m_nTypeId）。-1 或找不到时按文件名决定
 	void ResetForType(const Text& path, int typeId = -1)
@@ -1210,65 +1218,21 @@ std::vector<Range> Document::FindAll(const Text& pattern, const SearchOptions& o
 
 std::int32_t Document::ReplaceAll(const Text& pattern, const Text& replacement, const SearchOptions& options)
 {
+	// 第 32 步：Command_REPLACE_ALL の移植（下の ReplaceAll）で、ファイル全体・選択文字の置換をする
 	auto& d = *m_impl;
 	d.lastSearchError.clear();
-	PreparedPattern prepared(pattern, options);
-	if (!prepared.ok) {
-		d.lastSearchError = prepared.error;
+	if (pattern.empty()) {
+		d.lastSearchError = u"empty pattern";
 		return -1;
 	}
-
-	// 准备正则表达式的替换（Command_REPLACE_ALL：一括置换用 optGlobal）
-	CBregexp cRegexp;
-	if (prepared.option.bRegularExp) {
-		if (!InitRegexp(nullptr, cRegexp, false)) {
-			d.lastSearchError = u"regular expression library is not available";
-			return -1;
-		}
-		int nFlag = prepared.option.bLoHiCase ? CBregexp::optCaseSensitive : CBregexp::optNothing;
-		nFlag |= CBregexp::optGlobal;
-		if (!cRegexp.Compile(pattern.c_str(), replacement.c_str(), nFlag)) {
-			d.lastSearchError = Text(cRegexp.GetLastMessage());
-			return -1;
-		}
+	ReplaceOptions o;
+	o.search = options;
+	const ReplaceResult r = ReplaceAll(pattern, replacement, o, SearchView{});
+	if (r.status == SearchStatus::InvalidPattern) {
+		d.lastSearchError = r.error;
+		return -1;
 	}
-
-	std::int32_t nReplaceNum = 0;
-	BeginEdit();
-	CLogicPoint ptFrom(CLogicInt(0), CLogicInt(0));
-	CLogicRange match;
-	while (CSearchAgent(&d.lines).SearchWord(ptFrom, SEARCH_FORWARD, &match, prepared.pattern)) {
-		const CLogicInt nLogicLineNum = match.GetFrom().GetY2();
-		const CDocLine* pcDocLine = d.lines.GetLine(nLogicLineNum);
-		if (!pcDocLine) break;
-		CLogicPoint ptNext;
-		if (prepared.option.bRegularExp) {
-			// 按行替换：把匹配开头到行末（包括换行符）换成替换后的文字
-			const WCHAR* pLine = pcDocLine->GetPtr();
-			const CLogicInt nIdx = match.GetFrom().GetX2();
-			const CLogicInt nLen = pcDocLine->GetLengthWithEOL();
-			const int nReplace = cRegexp.Replace(pLine, nLen, nIdx);
-			if (nReplace <= 0) {
-				ptNext = CLogicPoint(CLogicInt(0), nLogicLineNum + 1);
-			} else {
-				nReplaceNum += nReplace;
-				const Text replaced(cRegexp.GetString(), cRegexp.GetStringLen());
-				const CLogicRange sRange(CLogicPoint(nIdx, nLogicLineNum), CLogicPoint(nLen, nLogicLineNum));
-				ptNext = d.ReplaceWithUndo(sRange, replaced.data(), static_cast<int>(replaced.size()));
-				// 替换后的文字不以换行结束时，跳到下一行（这一行已经用 optGlobal 全部替换了）
-				if (ptNext.GetX2() != 0) {
-					ptNext = CLogicPoint(CLogicInt(0), ptNext.GetY2() + 1);
-				}
-			}
-		} else {
-			ptNext = d.ReplaceWithUndo(match, replacement.data(), static_cast<int>(replacement.size()));
-			nReplaceNum++;
-		}
-		if (ptNext.GetY2() >= d.lines.GetLineCount()) break;
-		ptFrom = ptNext;
-	}
-	EndEdit();
-	return nReplaceNum;
+	return r.count;
 }
 
 Text Document::GetLastSearchError() const { return m_impl->lastSearchError; }
@@ -1486,6 +1450,7 @@ static_assert(static_cast<int>(ColorIndex::Eol) == COLORIDX_EOL);
 static_assert(static_cast<int>(ColorIndex::WrapMark) == COLORIDX_WRAP);
 static_assert(static_cast<int>(ColorIndex::Eof) == COLORIDX_EOF);
 static_assert(static_cast<int>(ColorIndex::Select) == COLORIDX_SELECT);
+static_assert(static_cast<int>(ColorIndex::Search) == COLORIDX_SEARCH && static_cast<int>(ColorIndex::Search5) == COLORIDX_SEARCH5);
 
 namespace {
 
@@ -2078,6 +2043,773 @@ Position Document::DeleteLayoutLine(std::int32_t layoutLine, std::int32_t x)
 		xNew = LineIndexToColumn(d.layout, pcNew, nIndex);
 	}
 	return LayoutToLogicInLine(*this, LayoutPosition{ layoutLine, static_cast<std::int32_t>(xNew) });
+}
+
+} // namespace sakura::core
+
+// ---------------------------------------------------------------------------
+// 查找、替换、跳转（第 32 步）
+// ---------------------------------------------------------------------------
+
+namespace sakura::core {
+
+SearchSettings GetSearchSettings()
+{
+	const auto& sShare = GetDllShareData();
+	const auto& s = sShare.m_Common.m_sSearch;
+	SearchSettings r;
+	r.options.regularExpression = s.m_sSearchOption.bRegularExp;
+	r.options.matchCase = s.m_sSearchOption.bLoHiCase;
+	r.options.wholeWord = s.m_sSearchOption.bWordOnly;
+	r.notifyNotFound = s.m_bNOTIFYNOTFOUND != FALSE;
+	r.autoCloseFind = s.m_bAutoCloseDlgFind != FALSE;
+	r.autoCloseReplace = s.m_bAutoCloseDlgReplace != FALSE;
+	r.searchAll = s.m_bSearchAll != FALSE;
+	r.consecutiveAll = s.m_bConsecutiveAll != FALSE;
+	r.selectedArea = s.m_bSelectedArea != FALSE;
+	r.caretTextForSearch = s.m_bCaretTextForSearch != FALSE;
+	r.inheritKeyOtherView = s.m_bInheritKeyOtherView;
+	r.jumpLineNumIsCRLF = sShare.m_bLineNumIsCRLF_ForJump;
+	return r;
+}
+
+void SetSearchSettings(const SearchSettings& r)
+{
+	auto& sShare = GetDllShareData();
+	auto& s = sShare.m_Common.m_sSearch;
+	s.m_sSearchOption = SSearchOption(r.options.regularExpression, r.options.matchCase, r.options.wholeWord);
+	s.m_bNOTIFYNOTFOUND = r.notifyNotFound;
+	s.m_bAutoCloseDlgFind = r.autoCloseFind;
+	s.m_bAutoCloseDlgReplace = r.autoCloseReplace;
+	s.m_bSearchAll = r.searchAll;
+	s.m_bConsecutiveAll = r.consecutiveAll;
+	s.m_bSelectedArea = r.selectedArea;
+	s.m_bCaretTextForSearch = r.caretTextForSearch;
+	s.m_bInheritKeyOtherView = r.inheritKeyOtherView;
+	sShare.m_bLineNumIsCRLF_ForJump = r.jumpLineNumIsCRLF;
+}
+
+namespace {
+
+template <class TRecent>
+std::vector<Text> RecentTexts()
+{
+	TRecent recent;
+	std::vector<Text> result;
+	for (int i = 0; i < recent.GetItemCount(); i++) {
+		if (const WCHAR* p = recent.GetItemText(i)) result.emplace_back(p);
+	}
+	return result;
+}
+
+} // namespace
+
+std::vector<Text> SearchKeyHistory() { return RecentTexts<CRecentSearch>(); }
+std::vector<Text> ReplaceKeyHistory() { return RecentTexts<CRecentReplace>(); }
+
+void AddSearchKey(const Text& key)
+{
+	// CDlgFind::GetData：_MAX_PATH 以上の長さは履歴に入れない
+	if (key.size() < _MAX_PATH) CSearchKeywordManager().AddToSearchKeyArr(key.c_str());
+}
+
+void AddReplaceKey(const Text& key)
+{
+	if (key.size() < _MAX_PATH) CSearchKeywordManager().AddToReplaceKeyArr(key.c_str());
+}
+
+std::int32_t SearchKeySequence() { return GetDllShareData().m_Common.m_sSearch.m_nSearchKeySequence; }
+std::int32_t ReplaceKeySequence() { return GetDllShareData().m_Common.m_sSearch.m_nReplaceKeySequence; }
+
+std::optional<Text> RegexpSyntaxError(const Text& pattern, bool matchCase)
+{
+	// CheckRegexpSyntax（メッセージは界面层が「正規表現の構文に誤りがあります。」と一緒に出す）
+	CBregexp cRegexp;
+	if (!InitRegexp(nullptr, cRegexp, false)) {
+		return Text(u"regular expression library is not available");
+	}
+	const int nOption = matchCase ? CBregexp::optCaseSensitive : CBregexp::optNothing;
+	if (!cRegexp.Compile(pattern.c_str(), nullptr, nOption, false)) {
+		return Text(cRegexp.GetLastMessage());
+	}
+	return std::nullopt;
+}
+
+Text RegexpVersion()
+{
+	CBregexp cRegexp;
+	if (!InitRegexp(nullptr, cRegexp, false)) return Text();
+	const WCHAR* p = cRegexp.GetVersionW();
+	return p ? Text(p) : Text();
+}
+
+//! 查找文字标记用的条件（每次绘制一行都要用，编译好留着）
+struct SearchMarkCache {
+	Text key;
+	SearchOptions options;
+	std::unique_ptr<PreparedPattern> prepared;
+};
+
+namespace {
+
+//! 指向换行符中间或之后的位置改成下一行的开头（与 Document::Impl::NormalizePosition 相同）
+Position NormalizeLogic(const CDocLineMgr& lines, const CLogicPoint& pt)
+{
+	const CDocLine* pLine = lines.GetLine(pt.GetY2());
+	if (pLine && pt.GetX2() > pLine->GetLengthWithoutEOL()) {
+		return Position{ pt.GetY2() + 1, 0 };
+	}
+	return FromLogic(pt);
+}
+
+//! 一个字的长度（原版 CNativeW::GetSizeOfChar：补充平面的字是 2，其余是 1）
+int CharSizeAt(const WCHAR* pLine, int nLen, int nIdx)
+{
+	return CNativeW::GetSizeOfChar(pLine, nLen, nIdx) == 2 ? 2 : 1;
+}
+
+} // namespace
+
+/*!
+	Command_SEARCH_NEXT（選択状態のロックなし）を論理位置で行う。
+	@param bReplaceAll すべて置換の途中（先頭からの再検索はしない）
+	@param pMatch [out] 見つかった範囲（論理位置そのまま。NormalizePosition の前）
+*/
+static SearchStatus SearchNextLogic(CDocLineMgr& lines, const CSearchStringPattern& pattern, const SearchView& view,
+									bool searchAll, bool bReplaceAll, CLogicRange* pMatch)
+{
+	// 検索開始位置を調整：選択があれば選択の終わりから。長さ０の選択（長さ０の一致）は１文字進める
+	bool b0Match = false;
+	CLogicPoint ptStart = ToLogic(view.caret);
+	if (view.selection) {
+		ptStart = ToLogic(view.selection->to);
+		b0Match = view.selection->IsEmpty();
+	}
+	CLogicInt nLineNum = ptStart.GetY2();
+	CLogicInt nIdx = ptStart.GetX2();
+	if (b0Match) {
+		const CDocLine* pDocLine = lines.GetLine(nLineNum);
+		const int nLineLen = pDocLine ? pDocLine->GetLengthWithEOL() : 0;
+		if (pDocLine && nIdx < nLineLen) {
+			nIdx += CLogicInt(CharSizeAt(pDocLine->GetPtr(), nLineLen, nIdx));
+		} else {
+			++nIdx;	// 念のため行末は別処理
+		}
+	}
+	const CLogicInt nLineNumOld = nLineNum;
+	const CLogicInt nIdxOld = nIdx;
+
+	CSearchAgent agent(&lines);
+	if (agent.SearchWord(CLogicPoint(nIdx, nLineNum), SEARCH_FORWARD, pMatch, pattern)) {
+		return SearchStatus::Found;
+	}
+	// 先頭から再検索（すべて置換の実行中は行わない）
+	if (searchAll && !bReplaceAll) {
+		if (agent.SearchWord(CLogicPoint(0, 0), SEARCH_FORWARD, pMatch, pattern)) {
+			// 原版：(nLineNumOld > nLineNum) || (nLineNumOld == nLineNum && nIdxOld > nIdx) で「▼先頭から再検索しました」
+			return (0 < nLineNumOld || 0 < nIdxOld) ? SearchStatus::Wrapped : SearchStatus::Found;
+		}
+	}
+	return SearchStatus::NotFound;
+}
+
+//! 見つかった範囲を選択して、カーソルを先頭へ（原版 SetSelectArea、MoveCursor(sRangeA.GetFrom())）
+static SearchView SelectMatch(const CDocLineMgr& lines, const CLogicRange& match)
+{
+	const Range range{ NormalizeLogic(lines, match.GetFrom()), NormalizeLogic(lines, match.GetTo()) };
+	return SearchView{ range.from, range };
+}
+
+SearchResult Document::SearchNext(const Text& key, const SearchOptions& options, const SearchView& view, bool searchAll)
+{
+	auto& d = *m_impl;
+	SearchResult r;
+	// 選択を解除して、カーソルは選択の終わりへ（原版：見つからないときもこの位置）
+	r.view = SearchView{ view.selection ? view.selection->to : view.caret, std::nullopt };
+	if (key.empty()) return r;
+	PreparedPattern prepared(key, options);
+	if (!prepared.ok) {
+		r.status = SearchStatus::InvalidPattern;
+		r.error = prepared.error;
+		return r;
+	}
+	CLogicRange match;
+	r.status = SearchNextLogic(d.lines, prepared.pattern, view, searchAll, false, &match);
+	if (r.status == SearchStatus::Found || r.status == SearchStatus::Wrapped) {
+		r.view = SelectMatch(d.lines, match);
+	}
+	return r;
+}
+
+SearchResult Document::SearchPrev(const Text& key, const SearchOptions& options, const SearchView& view, bool searchAll)
+{
+	auto& d = *m_impl;
+	SearchResult r;
+	r.view = SearchView{ view.caret, std::nullopt };	// 選択を解除（カーソルはそのまま）
+	if (key.empty()) return r;
+	PreparedPattern prepared(key, options);
+	if (!prepared.ok) {
+		r.status = SearchStatus::InvalidPattern;
+		r.error = prepared.error;
+		return r;
+	}
+
+	CLogicInt nLineNum = CLogicInt(view.caret.line);
+	CLogicInt nIdx = CLogicInt(view.caret.column);
+	bool bStart = true;
+	if (d.lines.GetLineCount() <= nLineNum) {
+		// [EOF] から前検索：１行前の行末（行末の \0 にも一致させるため +1）から
+		nLineNum = CLogicInt(d.lines.GetLineCount() - 1);
+		const CDocLine* pDocLine = d.lines.GetLine(nLineNum);
+		if (!pDocLine) {
+			bStart = false;
+		} else {
+			nIdx = CLogicInt(pDocLine->GetLengthWithEOL() + 1);
+		}
+	}
+	CSearchAgent agent(&d.lines);
+	CLogicRange match;
+	if (bStart && agent.SearchWord(CLogicPoint(nIdx, nLineNum), SEARCH_BACKWARD, &match, prepared.pattern)) {
+		r.status = SearchStatus::Found;
+	} else if (searchAll) {
+		// 末尾から再検索（原版は最終レイアウト行の MAXLINEKETAS から）
+		const CLogicInt nLast = CLogicInt(d.lines.GetLineCount() - 1);
+		if (0 <= nLast && agent.SearchWord(CLogicPoint(CLogicInt(std::numeric_limits<int>::max() / 2), nLast),
+										   SEARCH_BACKWARD, &match, prepared.pattern)) {
+			r.status = bStart ? SearchStatus::Wrapped : SearchStatus::Found;
+		}
+	}
+	if (r.status != SearchStatus::NotFound) {
+		r.view = SelectMatch(d.lines, match);
+	}
+	return r;
+}
+
+namespace {
+
+//! 正規表現の置換後文字列：選択始点挿入は「置換後$&」、選択終点追加は「$&置換後」（原版 Command_REPLACE）
+Text RegexReplacementFor(const Text& replacement, ReplaceTarget target)
+{
+	switch (target) {
+	case ReplaceTarget::InsertBefore: return replacement + u"$&";
+	case ReplaceTarget::InsertAfter:  return u"$&" + replacement;
+	default:                          return replacement;
+	}
+}
+
+//! 行削除の範囲：行頭から次の行の行頭まで（最終行に改行がなければ行末まで）
+CLogicRange LineRange(const CDocLineMgr& lines, CLogicInt nLine)
+{
+	CLogicPoint ptTo(CLogicInt(0), nLine + 1);
+	if (lines.GetLineCount() <= nLine + 1) {
+		const CDocLine* pDocLine = lines.GetLine(nLine);
+		if (pDocLine && pDocLine->GetEol().IsNone()) {
+			ptTo = CLogicPoint(pDocLine->GetLengthWithEOL(), nLine);
+		}
+	}
+	return CLogicRange(CLogicPoint(CLogicInt(0), nLine), ptTo);
+}
+
+} // namespace
+
+ReplaceResult Document::ReplaceNext(const Text& key, const Text& replacement, const ReplaceOptions& options, const SearchView& view)
+{
+	auto& d = *m_impl;
+	ReplaceResult r;
+	// 選択があれば、その先頭にカーソルを移して選択を解除（原版 Command_LEFT）
+	const SearchView start{ view.selection ? view.selection->from : view.caret, std::nullopt };
+	r.view = start;
+	if (key.empty()) return r;
+	PreparedPattern prepared(key, options.search);
+	if (!prepared.ok) {
+		r.status = SearchStatus::InvalidPattern;
+		r.error = prepared.error;
+		return r;
+	}
+	const bool bRegularExp = options.search.regularExpression;
+	const ReplaceTarget target = options.target;
+	const bool bPaste = options.paste && target != ReplaceTarget::DeleteLine;	// 行削除のときは貼り付けない
+
+	CBregexp cRegexp;
+	if (bRegularExp && !bPaste && target != ReplaceTarget::DeleteLine) {
+		if (!InitRegexp(nullptr, cRegexp, false)) {
+			r.status = SearchStatus::InvalidPattern;
+			r.error = u"regular expression library is not available";
+			return r;
+		}
+	}
+
+	/* 次を検索 */
+	CLogicRange match;
+	r.status = SearchNextLogic(d.lines, prepared.pattern, start, options.searchAll, false, &match);
+	if (r.status == SearchStatus::NotFound) return r;
+	r.view = SelectMatch(d.lines, match);
+
+	BeginEdit();
+	CLogicRange sel = match;						// 置換する範囲（選択範囲）
+	CLogicPoint ptCaret = match.GetFrom();
+	CLogicPoint ptTmp(CLogicInt(0), CLogicInt(0));	// 選択始点挿入のときの、挿入後に進める量
+	if (bPaste || !bRegularExp) {
+		if (target == ReplaceTarget::InsertBefore) {
+			ptTmp = CLogicPoint(sel.GetTo().GetX2() - sel.GetFrom().GetX2(), sel.GetTo().GetY2() - sel.GetFrom().GetY2());
+			sel.SetTo(sel.GetFrom());
+		} else if (target == ReplaceTarget::InsertAfter) {
+			ptCaret = sel.GetTo();
+			sel.SetFrom(sel.GetTo());
+		}
+	}
+	if (target == ReplaceTarget::DeleteLine) {
+		sel = LineRange(d.lines, match.GetFrom().GetY2());
+	}
+
+	bool bReplaced = true;
+	CLogicPoint ptNew = ptCaret;
+	if (bPaste) {
+		const Text text = GetEditSettings().convertEolOnPaste ? ConvertEolToNewLine(replacement) : replacement;
+		ptNew = d.ReplaceWithUndo(sel, text.data(), static_cast<int>(text.size()));
+	} else if (target == ReplaceTarget::DeleteLine) {
+		ptNew = d.ReplaceWithUndo(sel, nullptr, 0);
+	} else if (bRegularExp) {
+		// 物理行、物理行長、物理行での検索マッチ位置
+		const CLogicInt nLine = sel.GetFrom().GetY2();
+		const CDocLine* pcDocLine = d.lines.GetLine(nLine);
+		const WCHAR* pLine = pcDocLine->GetPtr();
+		const CLogicInt nIdx = sel.GetFrom().GetX2();
+		const CLogicInt nLen = pcDocLine->GetLengthWithEOL();
+		const Text rep2 = RegexReplacementFor(replacement, target);
+		const int nFlag = options.search.matchCase ? CBregexp::optCaseSensitive : CBregexp::optNothing;
+		cRegexp.Compile(key.c_str(), rep2.c_str(), nFlag);
+		if (cRegexp.Replace(pLine, nLen, nIdx)) {
+			const CLogicInt matchLen = cRegexp.GetMatchLen();
+			CLogicInt nIdxTo = nIdx + matchLen;		// 検索文字列の末尾
+			if (matchLen == 0) {
+				// ０文字マッチの時(無限置換にならないように１文字進める)
+				if (nIdxTo < nLen) {
+					nIdxTo += CLogicInt(CharSizeAt(pLine, nLen, nIdxTo));
+				}
+				sel.SetTo(CLogicPoint(nIdxTo, nLine));
+			}
+			// 行末から検索文字列末尾までの文字数
+			CLogicInt colDiff = nLen - nIdxTo;
+			// \rを置換するとその後ろの\nが消えてしまう問題の対応：改行にかかっていたら、行全体を置換する
+			if (colDiff < pcDocLine->GetEol().GetLen()) {
+				colDiff = CLogicInt(0);
+				sel.SetTo(CLogicPoint(nLen, nLine));
+			}
+			const Text replaced(cRegexp.GetString(), cRegexp.GetStringLen() - colDiff);
+			ptNew = d.ReplaceWithUndo(sel, replaced.data(), static_cast<int>(replaced.size()));
+		} else {
+			bReplaced = false;
+		}
+	} else {
+		ptNew = d.ReplaceWithUndo(sel, replacement.data(), static_cast<int>(replacement.size()));
+	}
+	if (bReplaced) r.count = 1;
+
+	// 挿入後の検索開始位置を調整
+	if (target == ReplaceTarget::InsertBefore) {
+		ptNew = CLogicPoint(ptNew.GetX2() + ptTmp.GetX2(), ptNew.GetY2() + ptTmp.GetY2());
+	}
+	const SearchView after{ bReplaced ? d.NormalizePosition(ptNew) : FromLogic(ptCaret), std::nullopt };
+	EndEdit();
+
+	/* 次を検索 */
+	r.view = after;
+	r.next = SearchNextLogic(d.lines, prepared.pattern, after, options.searchAll, false, &match);
+	if (r.next != SearchStatus::NotFound) {
+		r.view = SelectMatch(d.lines, match);
+	}
+	return r;
+}
+
+ReplaceResult Document::ReplaceAll(const Text& key, const Text& replacement, const ReplaceOptions& options, const SearchView& view)
+{
+	auto& d = *m_impl;
+	ReplaceResult r;
+	r.view = view;
+	if (key.empty()) return r;
+	PreparedPattern prepared(key, options.search);
+	if (!prepared.ok) {
+		r.status = SearchStatus::InvalidPattern;
+		r.error = prepared.error;
+		return r;
+	}
+	const bool bRegularExp = options.search.regularExpression;
+	const ReplaceTarget target = options.target;
+	const bool bPaste = options.paste && target != ReplaceTarget::DeleteLine;
+	const bool bConsecutiveAll = options.consecutiveAll;
+	const bool bSelectedArea = options.selectedArea && view.selection && !view.selection->IsEmpty();
+
+	// 置換後文字列（原版：「改行コードを変換して貼り付ける」のときは、貼り付けでなくても変換する）
+	Text repKey = replacement;
+	if (GetEditSettings().convertEolOnPaste) repKey = ConvertEolToNewLine(repKey);
+
+	CBregexp cRegexp;
+	if (bRegularExp && !bPaste) {
+		if (!InitRegexp(nullptr, cRegexp, false)) {
+			r.status = SearchStatus::InvalidPattern;
+			r.error = u"regular expression library is not available";
+			return r;
+		}
+		int nFlag = options.search.matchCase ? CBregexp::optCaseSensitive : CBregexp::optNothing;
+		nFlag |= bConsecutiveAll ? CBregexp::optNothing : CBregexp::optGlobal;
+		const Text rep2 = RegexReplacementFor(repKey, target);
+		if (!cRegexp.Compile(key.c_str(), rep2.c_str(), nFlag)) {
+			r.status = SearchStatus::InvalidPattern;
+			r.error = Text(cRegexp.GetLastMessage());
+			return r;
+		}
+	}
+	r.status = SearchStatus::Found;
+
+	// 範囲：選択範囲置換は選択の始点から、ファイル全体置換はファイルの先頭から
+	CLogicPoint ptColLineP;	// 選択範囲の終点
+	Position ptStart{ 0, 0 };
+	if (bSelectedArea) {
+		ptColLineP = ToLogic(view.selection->to);
+		ptStart = view.selection->from;
+	}
+	CLogicPoint ptLastLogic = ToLogic(ptStart);
+
+	BeginEdit();
+	CLogicRange cSelectLogic;
+	SearchView cur{ ptStart, std::nullopt };
+	bool bFound = SearchNextLogic(d.lines, prepared.pattern, cur, false, true, &cSelectLogic) != SearchStatus::NotFound;
+
+	int lineCnt = 0;				// 置換前の行数
+	int linDif = 0;					// 置換後の行調整
+	int colDif = 0;					// 置換後の桁調整
+	int linOldLen = 0;				// 検査後の行の長さ
+	CLogicPoint ptOld(CLogicInt(0), CLogicInt(-1));
+	std::optional<CLogicPoint> ptPrevEnd;	// 前回の置換の後ろ（長さ０の一致の無限置換を止めるため）
+	while (bFound) {
+		const CLogicRange found = cSelectLogic;
+		// 文書の末尾で長さ０の一致を置換した直後に、また同じ位置で一致したら止める（原版は止まらない）
+		if (found.GetFrom() == found.GetTo() && ptPrevEnd && *ptPrevEnd == found.GetFrom()
+			&& d.NormalizePosition(found.GetFrom()) == EndPosition()) {
+			break;
+		}
+
+		/* 検索後の位置を確認 */
+		if (bSelectedArea) {
+			lineCnt = d.lines.GetLineCount();
+			ptOld = cSelectLogic.GetTo();
+			// 置換前の行の長さ(改行は１文字と数える)
+			linOldLen = d.lines.GetLine(ptOld.GetY2())->GetLengthWithoutEOL() + 1;
+			// 行は範囲内？ 選択終点が行頭なら、その行は範囲に含まない
+			if ((ptColLineP.y + linDif == ptOld.y && (ptColLineP.x + colDif < ptOld.x || ptColLineP.x == 0))
+				|| ptColLineP.y + linDif < ptOld.y) {
+				break;
+			}
+		}
+
+		CLogicPoint ptCaret = cSelectLogic.GetFrom();	// MoveCursorFastMode(pcSelectLogic->GetFrom())
+		CLogicPoint ptTmpLogic(CLogicInt(0), CLogicInt(0));
+		if (bPaste || !bRegularExp) {
+			if (target == ReplaceTarget::InsertBefore) {
+				ptTmpLogic = CLogicPoint(cSelectLogic.GetTo().x - cSelectLogic.GetFrom().x, cSelectLogic.GetTo().y - cSelectLogic.GetFrom().y);
+				cSelectLogic.SetTo(cSelectLogic.GetFrom());
+			} else if (target == ReplaceTarget::InsertAfter) {
+				ptCaret = cSelectLogic.GetTo();
+				cSelectLogic.SetFrom(cSelectLogic.GetTo());
+			}
+		}
+		// 行削除 選択範囲を行全体に拡大。カーソル位置を行頭へ
+		if (target == ReplaceTarget::DeleteLine) {
+			cSelectLogic = LineRange(d.lines, cSelectLogic.GetFrom().GetY2());
+			ptCaret = cSelectLogic.GetFrom();
+		}
+
+		bool bReplaced = true;
+		bool bWholeLine = false;	// 一括置換で行の残りを全部置換した
+		CLogicPoint ptNew = ptCaret;
+		if (bPaste || target == ReplaceTarget::DeleteLine || !bRegularExp) {
+			const Text& text = (target == ReplaceTarget::DeleteLine) ? Text() : repKey;
+			ptNew = d.ReplaceWithUndo(cSelectLogic, text.data(), static_cast<int>(text.size()));
+			++r.count;
+		} else {
+			// 物理行、物理行長、物理行での検索マッチ位置
+			const CLogicInt nLogicLineNum = cSelectLogic.GetFrom().GetY2();
+			const CDocLine* pcDocLine = d.lines.GetLine(nLogicLineNum);
+			const WCHAR* pLine = pcDocLine->GetPtr();
+			const CLogicInt nIdx = cSelectLogic.GetFrom().GetX2();
+			CLogicInt nLen = pcDocLine->GetLengthWithEOL();
+			if (!bConsecutiveAll && bSelectedArea) {
+				// 選択範囲置換の場合は行内の選択範囲末尾まで置換範囲を縮める
+				if (ptColLineP.y + linDif == ptOld.y) {
+					if (nLen - pcDocLine->GetEol().GetLen() > ptColLineP.x + colDif) {
+						nLen = ptColLineP.GetX2() + CLogicInt(colDif);
+					}
+				}
+			}
+			if (const int nReplace = cRegexp.Replace(pLine, nLen, nIdx)) {
+				r.count += nReplace;
+				CLogicInt exTail(0);	// 置換せずに残す部分の長さ
+				if (!bConsecutiveAll) {
+					// 行単位での置換処理：選択範囲を物理行末までのばす
+					cSelectLogic.SetTo(CLogicPoint(nLen, nLogicLineNum));
+					bWholeLine = true;
+				} else {
+					CLogicInt nIdxTo = nIdx + cRegexp.GetMatchLen();	// 検索文字列の末尾
+					if (nIdx == nIdxTo && nIdxTo < nLen) {
+						// ０文字マッチの時：無限置換にならないように１文字進める
+						nIdxTo += CLogicInt(CharSizeAt(pLine, nLen, nIdxTo));
+					}
+					// \rを置換するとその後ろの\nが消えてしまう問題の対応：改行にかかっていたら、行全体を置換する
+					if (nLen < nIdxTo + pcDocLine->GetEol().GetLen()) {
+						nIdxTo = nLen;
+					}
+					exTail = nLen - nIdxTo;
+					if (nIdxTo != nIdx + cRegexp.GetMatchLen()) {
+						cSelectLogic.SetTo(CLogicPoint(nIdxTo, nLogicLineNum));
+					}
+				}
+				ptOld.x = nLen - exTail;
+				const Text replaced(cRegexp.GetString(), cRegexp.GetStringLen() - exTail);
+				ptNew = d.ReplaceWithUndo(cSelectLogic, replaced.data(), static_cast<int>(replaced.size()));
+			} else {
+				bReplaced = false;
+			}
+		}
+
+		// 挿入後の位置調整
+		if (bReplaced) {
+			if (target == ReplaceTarget::InsertBefore) {
+				ptNew = CLogicPoint(ptNew.x + ptTmpLogic.x, ptNew.y + ptTmpLogic.y);
+			}
+			ptLastLogic = ptNew;
+		} else {
+			// 置換できなかった（原版は同じ位置を探し続ける）：一致の後ろから探す
+			ptNew = found.GetTo();
+			if (found.GetFrom() == found.GetTo()) ptNew.x += 1;
+		}
+
+		/* 置換後の位置を確認 */
+		if (bSelectedArea && bReplaced) {
+			const CLogicPoint ptTmp2 = ptNew;
+			const int linDif_thistime = d.lines.GetLineCount() - lineCnt;	// 今回置換での行数変化
+			linDif += linDif_thistime;
+			if (ptColLineP.y + linDif == ptTmp2.y) {
+				// 最終行で置換した時、又は、置換の結果、選択エリア最終行まで到達した時
+				colDif += ptTmp2.GetX2() - ptOld.GetX2();
+				// 行連結や改行の置換で、置換前後で行が異なってしまうときは行の長さで補正する
+				if (linDif_thistime < 0 || ptTmp2.y != ptOld.y) {
+					colDif += linOldLen;
+				}
+			}
+		}
+
+		/* 次を検索 */
+		CLogicPoint ptNext = ptNew;
+		if (bWholeLine && ptNext.x != 0) {
+			// 行の残りを一括置換した：置換後の文字列が改行で終わらないとき（改行のない最終行）は次の行から
+			ptNext = CLogicPoint(CLogicInt(0), ptNext.y + 1);
+		}
+		ptPrevEnd = ptNew;
+		cur = SearchView{ FromLogic(ptNext), std::nullopt };
+		bFound = d.lines.GetLine(ptNext.GetY2()) != nullptr
+			&& SearchNextLogic(d.lines, prepared.pattern, cur, false, true, &cSelectLogic) != SearchStatus::NotFound;
+	}
+	EndEdit();
+
+	/* カーソル・選択範囲復元 */
+	if (!bSelectedArea) {
+		// 最後に置換した文字列の右へ
+		r.view = SearchView{ d.NormalizePosition(ptLastLogic), std::nullopt };
+	} else {
+		ptColLineP.x += colDif;
+		if (ptColLineP.x < 0) ptColLineP.x = 0;
+		ptColLineP.y += linDif;
+		if (ptColLineP.y < 0) ptColLineP.y = 0;
+		Position to = d.NormalizePosition(ptColLineP);
+		if (EndPosition() < to) to = EndPosition();
+		r.view.caret = to;
+		r.view.selection = (view.selection->from < to) ? std::optional<Range>(Range{ view.selection->from, to }) : std::nullopt;
+	}
+	return r;
+}
+
+std::optional<Position> Document::JumpPosition(const JumpOptions& options) const
+{
+	const auto& d = *m_impl;
+	if (d.layout.GetLineCount() == 0) return std::nullopt;	// ErrorBeep
+
+	int nLineNum = options.lineNumber;
+	if (!options.plsql) {
+		if (nLineNum <= 0) nLineNum = 1;
+		if (options.lineNumIsCRLF) {
+			// 改行単位：その論理行の先頭
+			if (d.lines.GetLineCount() <= nLineNum - 1) return EndPosition();
+			return Position{ nLineNum - 1, 0 };
+		}
+		// 折り返し単位：そのレイアウト行の先頭
+		if (nLineNum > d.layout.GetLineCount()) nLineNum = static_cast<int>(d.layout.GetLineCount());
+		CLogicPoint pt;
+		d.layout.LayoutToLogic(CLayoutPoint(CLayoutInt(0), CLayoutInt(nLineNum - 1)), &pt);
+		return d.NormalizePosition(pt);
+	}
+
+	// PL/SQLコンパイルエラー行を処理する：ブロックの１行目から、有効な行（空行とコメントだけの行以外）を数える
+	int nMode = 0;
+	int nCurrentLine = 0;			// m_nPLSQL_E2 - 1（原版は常に 1）
+	int nCommentBegin = 0;
+	int nLineCount = options.plsqlBlockFirstLine - 1;
+	if (!d.typeConfig.m_bLineNumIsCRLF) {
+		// 行番号がレイアウト単位のとき：レイアウト位置→物理位置
+		CLogicPoint ptPosXY;
+		d.layout.LayoutToLogic(CLayoutPoint(CLayoutInt(0), CLayoutInt(nLineCount)), &ptPosXY);
+		nLineCount = ptPosXY.y;
+	}
+	const bool bExtEol = ExtEolEnabled();
+	for (; nLineCount < d.lines.GetLineCount(); ++nLineCount) {
+		CLogicInt nLineLen;
+		const WCHAR* pLine = d.lines.GetLine(CLogicInt(nLineCount))->GetDocLineStrWithEOL(&nLineLen);
+		bool bValidLine = false;
+		int i;
+		for (i = 0; i < nLineLen; ++i) {
+			if (L' ' != pLine[i] && WCODE::TAB != pLine[i]) break;
+		}
+		const int nBgn = i;
+		for (i = nBgn; i < nLineLen; ++i) {
+			if (20 == nMode) {			// シングルクォーテーション文字列読み込み中
+				bValidLine = true;
+				if (L'\'' == pLine[i] && !(i > 0 && L'\\' == pLine[i - 1])) {
+					nMode = 0;
+					continue;
+				}
+			} else if (21 == nMode) {	// ダブルクォーテーション文字列読み込み中
+				bValidLine = true;
+				if (L'"' == pLine[i] && !(i > 0 && L'\\' == pLine[i - 1])) {
+					nMode = 0;
+					continue;
+				}
+			} else if (8 == nMode) {	// コメント読み込み中
+				if (i < nLineLen - 1 && L'*' == pLine[i] && L'/' == pLine[i + 1]) {
+					if (nCommentBegin != 0) bValidLine = true;
+					++i;
+					nMode = 0;
+					continue;
+				}
+			} else if (0 == nMode) {	// ノーマルモード
+				if (L'\t' == pLine[i] || L' ' == pLine[i] || WCODE::IsLineDelimiter(pLine[i], bExtEol)) {
+					continue;
+				} else if (i < nLineLen - 1 && L'-' == pLine[i] && L'-' == pLine[i + 1]) {
+					bValidLine = true;
+					break;
+				} else if (i < nLineLen - 1 && L'/' == pLine[i] && L'*' == pLine[i + 1]) {
+					++i;
+					nMode = 8;
+					nCommentBegin = nLineCount;
+					continue;
+				} else if (L'\'' == pLine[i]) {
+					nMode = 20;
+					continue;
+				} else if (L'"' == pLine[i]) {
+					nMode = 21;
+					continue;
+				} else {
+					bValidLine = true;
+				}
+			}
+		}
+		if (8 == nMode) {
+			if (nCommentBegin != 0) bValidLine = true;
+			// コメントブロック内の改行だけの行
+			if (nBgn < nLineLen && WCODE::IsLineDelimiter(pLine[nBgn], bExtEol)) bValidLine = false;
+		}
+		if (bValidLine) {
+			++nCurrentLine;
+			if (nCurrentLine >= nLineNum) break;
+		}
+	}
+	if (d.lines.GetLineCount() <= nLineCount) return EndPosition();
+	return Position{ nLineCount, 0 };
+}
+
+namespace {
+
+/*!
+	単語単位で探すとき、一致した単語が検索語の何番目の単語か（原版 CEditView::IsSearchString。最初は 1）
+*/
+int WordIndexInKey(const Text& key, const WCHAR* pWord, int wordLength, bool bLoHiCase)
+{
+	const bool bExtEol = ExtEolEnabled();
+	const auto fcmp = [bLoHiCase](const WCHAR* a, const WCHAR* b, size_t n) {
+		return bLoHiCase ? wcsncmp(a, b, n) : _wcsnicmp(a, b, n);
+	};
+	int wordIndex = 0;
+	const WCHAR* const searchKeyEnd = key.data() + key.size();
+	for (const WCHAR* p = key.data(); p < searchKeyEnd;) {
+		CLogicInt begin, end;
+		if (CWordParse::WhereCurrentWord_2(p, CLogicInt(searchKeyEnd - p), CLogicInt(0), bExtEol, &begin, &end, nullptr, nullptr)
+			&& begin == 0 && begin < end) {
+			if (!WCODE::IsWordDelimiter(*p)) {
+				++wordIndex;
+				if (wordLength == end && 0 == fcmp(p, pWord, wordLength)) {
+					return wordIndex;
+				}
+			}
+			p += end;
+		} else {
+			p += CNativeW::GetSizeOfChar(p, searchKeyEnd - p, 0);
+		}
+	}
+	return 1;
+}
+
+} // namespace
+
+std::vector<SearchMark> Document::SearchMarks(std::int32_t line, const Text& key, const SearchOptions& options)
+{
+	auto& d = *m_impl;
+	std::vector<SearchMark> result;
+	const CDocLine* pDocLine = d.lines.GetLine(CLogicInt(line));
+	if (!pDocLine || key.empty()) return result;
+
+	// チェックが付いている検索文字列色（CColor_Found::OnStartScanLogic）
+	std::vector<std::uint8_t> colors;
+	for (int color = COLORIDX_SEARCH; color <= COLORIDX_SEARCHTAIL; ++color) {
+		if (d.typeConfig.m_ColorInfoArr[color].m_bDisp) colors.push_back(static_cast<std::uint8_t>(color));
+	}
+	if (colors.empty()) return result;
+
+	auto& cache = d.searchMarkCache;
+	if (!cache || cache->key != key || cache->options.regularExpression != options.regularExpression
+		|| cache->options.matchCase != options.matchCase || cache->options.wholeWord != options.wholeWord) {
+		cache = std::make_shared<SearchMarkCache>();
+		cache->key = key;
+		cache->options = options;
+		cache->prepared = std::make_unique<PreparedPattern>(key, options);
+	}
+	if (!cache->prepared->ok) return result;
+
+	const CLineMatchFinder finder(cache->prepared->pattern, cache->prepared->pattern.GetRegexp());
+	const WCHAR* pLine = pDocLine->GetPtr();
+	const int nLen = pDocLine->GetLengthWithEOL();
+	const bool bWordOnly = options.wholeWord && !options.regularExpression;
+	int nStart = 0;
+	while (nStart < nLen) {
+		const auto m = finder.Find(pLine, nLen, nStart);
+		if (!m) break;
+		if (0 < m->nLength) {
+			const int n = bWordOnly ? WordIndexInKey(key, pLine + m->nIndex, m->nLength, options.matchCase) : 1;
+			result.push_back(SearchMark{ m->nIndex, m->nIndex + m->nLength, colors[(n - 1) % colors.size()] });
+		}
+		nStart = CLineMatchFinder::GetNextStart(pLine, nLen, *m);
+	}
+	return result;
+}
+
+std::optional<Range> Document::WordRangeAt(const Position& position) const
+{
+	const auto& d = *m_impl;
+	if (!d.IsValidPosition(position) || d.lines.GetLineCount() <= position.line) return std::nullopt;
+	CLogicInt nFrom, nTo;
+	if (!CSearchAgent(const_cast<CDocLineMgr*>(&d.lines)).WhereCurrentWord(
+			CLogicInt(position.line), CLogicInt(position.column), &nFrom, &nTo, nullptr, nullptr)) {
+		return std::nullopt;
+	}
+	return Range{ Position{ position.line, nFrom }, Position{ position.line, nTo } };
 }
 
 } // namespace sakura::core

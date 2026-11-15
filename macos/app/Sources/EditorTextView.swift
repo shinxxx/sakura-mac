@@ -122,6 +122,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         var x: CGFloat
     }
 
+    /// 查找的状态（第 32 步。原版 CEditView 的 m_strCurSearchKey 等。SearchCommands.swift）
+    var searchState = SearchState()
+    /// 查找、置换对话框（第 32 步。原版的 CEditWnd::m_cDlgFind、m_cDlgReplace，一个窗口一个）
+    var findPanel: FindPanelController?
+    var replacePanel: ReplacePanelController?
+
     /// 光标的闪烁
     private var caretBlinkTimer: Timer?
     private var caretBlinkOn = true
@@ -198,7 +204,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     private var lineCount: Int { document.lineCount }
 
-    private func lineText(_ line: Int) -> NSString {
+    func lineText(_ line: Int) -> NSString {
         line < lineCount ? document.line(at: line) as NSString : ""
     }
 
@@ -206,7 +212,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         (document.line(at: line, withEol: true) as NSString).length
     }
 
-    private static func same(_ a: EditorPosition, _ b: EditorPosition) -> Bool {
+    static func same(_ a: EditorPosition, _ b: EditorPosition) -> Bool {
         a.line == b.line && a.column == b.column
     }
 
@@ -391,7 +397,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 重新取得类型别设置的颜色
     private func reloadColors() {
-        colors = (0...EditorColorIndex.select.rawValue).map {
+        // 第 32 步：検索文字列の色（search〜search5）も
+        colors = (0...EditorColorIndex.search5.rawValue).map {
             document.color(for: EditorColorIndex(rawValue: $0) ?? .text)
         }
     }
@@ -567,6 +574,18 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
         }
 
+        // 検索文字列の背景（第 32 步。原版 CColor_Found：与文字的背景色相同时透過）
+        let marks = searchMarkColors(row: r)
+        for (i, info) in marks.enumerated() {
+            guard let info else { continue }
+            let back = backColor(info, rowBack: rowBack)
+            if back != rowBack {
+                Self.nsColor(back).setFill()
+                NSRect(x: displayX(row: r, index: i), y: top,
+                       width: displayX(row: r, index: i + 1) - displayX(row: r, index: i), height: lineHeight).fill()
+            }
+        }
+
         // 选择范围的背景
         let indices = selectedIndices(row: r)
         let select = color(.select)
@@ -582,9 +601,16 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                 // 矩形选择：没有文字的部分也涂（原版「テキストのない部分の矩形選択を作画」）
                 NSRect(x: textOriginX + box.left, y: top, width: box.right - box.left, height: lineHeight).fill()
             }
+            // 選択範囲が検索文字列に重なる部分は、検索文字列の背景色に重ねる（原版 GetBackColorByColorInfo2）
+            for (i, info) in marks.enumerated() {
+                guard let info, isSelected(row: r, index: i, indices: indices) else { continue }
+                Self.nsColor(overlayBackColor(select, on: backColor(info, rowBack: rowBack))).setFill()
+                NSRect(x: displayX(row: r, index: i), y: top,
+                       width: displayX(row: r, index: i + 1) - displayX(row: r, index: i), height: lineHeight).fill()
+            }
         }
 
-        drawGlyphs(current, row: r, baseline: baseline, rowBack: rowBack, indices: indices, context: context)
+        drawGlyphs(current, row: r, baseline: baseline, rowBack: rowBack, indices: indices, marks: marks, context: context)
 
         // 空白、TAB 的记号
         for i in 0..<current.text.length {
@@ -655,6 +681,33 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
     }
 
+    /// 这一行的每个字符的検索文字列的颜色（不是查找文字的字符是 nil。第 32 步，原版 CColor_Found）。
+    /// 检索标记关着、没有查找文字时是空的数组
+    func searchMarkColors(row r: Int) -> [EditorColorSetting?] {
+        let current = row(r)
+        guard current.isLayoutLine, current.text.length > 0, searchState.markOn, !searchState.key.isEmpty else { return [] }
+        let line = current.start.line
+        let marks: [EditorSearchMark]
+        if let cached = searchState.markCache[line] {
+            marks = cached
+        } else {
+            marks = document.searchMarks(line: line, key: searchState.key, options: searchState.options)
+            searchState.markCache[line] = marks
+        }
+        guard !marks.isEmpty else { return [] }
+        var result = [EditorColorSetting?](repeating: nil, count: current.text.length)
+        let rowStart = current.start.column
+        for mark in marks {
+            let lo = max(0, mark.from - rowStart)
+            let hi = min(current.text.length, mark.to - rowStart)
+            if lo < hi {
+                let info = color(mark.color)
+                for i in lo..<hi { result[i] = info }
+            }
+        }
+        return result
+    }
+
     /// 行号（原版 CTextDrawer::DispLineNumber）。改过的行用「行番号（変更行）」的颜色、粗体
     private func drawLineNumber(_ current: Row, row r: Int, top: CGFloat, rowBack: UInt32) {
         var info = color(.lineNumber)
@@ -704,12 +757,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 文字：Core Text 选字形（没有的字由系统换成其他字体），位置用核心库的排版结果。
     /// 选中的字用选择范围的颜色
     private func drawGlyphs(_ current: Row, row r: Int, baseline: CGFloat, rowBack: UInt32,
-                            indices: (range: Range<Int>, eol: Bool)?, context: CGContext) {
+                            indices: (range: Range<Int>, eol: Bool)?, marks: [EditorColorSetting?], context: CGContext) {
         guard current.text.length > 0 else { return }
         let text = color(.text)
         let select = color(.select)
-        let normalColor = Self.nsColor(text.text).cgColor
-        let selectedColor = Self.nsColor(overlayTextColor(select, on: text.text)).cgColor
         let attributed = NSAttributedString(string: current.text as String, attributes: [.font: text.bold ? boldFont : font])
         let line = CTLineCreateWithAttributedString(attributed)
         guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return }
@@ -728,24 +779,23 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             // 这一段的字体（这个字体里没有的字，Core Text 换成了其他字体）
             let attributes = CTRunGetAttributes(run) as NSDictionary
             let runFont: CTFont = attributes[kCTFontAttributeName as String].map { $0 as! CTFont } ?? (font as CTFont)
-            var normal: ([CGGlyph], [CGPoint]) = ([], [])
-            var selected: ([CGGlyph], [CGPoint]) = ([], [])
+            // 文字色ごとにまとめて描く（第 32 步：検索文字列の色）
+            var groups: [UInt32: ([CGGlyph], [CGPoint])] = [:]
             for k in 0..<count {
                 let index = indicesInRun[k]
                 let c = current.text.character(at: index)
                 // TAB、全角空白（显示记号时）不画字形
                 if c == 0x09 || (c == 0x3000 && settings.showFullWidthSpace) { continue }
                 let point = CGPoint(x: displayX(row: r, index: index), y: 0)
+                var rgb = index < marks.count ? marks[index]?.text ?? text.text : text.text
                 if select.display && isSelected(row: r, index: index, indices: indices) {
-                    selected.0.append(glyphs[k])
-                    selected.1.append(point)
-                } else {
-                    normal.0.append(glyphs[k])
-                    normal.1.append(point)
+                    rgb = overlayTextColor(select, on: rgb)
                 }
+                groups[rgb, default: ([], [])].0.append(glyphs[k])
+                groups[rgb, default: ([], [])].1.append(point)
             }
-            for (group, cgColor) in [(normal, normalColor), (selected, selectedColor)] where !group.0.isEmpty {
-                context.setFillColor(cgColor)
+            for (rgb, group) in groups.sorted(by: { $0.key < $1.key }) {
+                context.setFillColor(Self.nsColor(rgb).cgColor)
                 CTFontDrawGlyphs(runFont, group.0, group.1, group.0.count, context)
             }
         }
@@ -882,6 +932,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 内容、光标、排版变化后：重新取得排版，决定视图的大小，让光标可见
     func contentDidChange() {
         rowCache.removeAll()
+        searchState.markCache.removeAll()
         settings = document.viewSettings
         reloadColors()
         // 滚动到头时露出的部分也是文字的背景色
@@ -899,7 +950,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         inputContext?.invalidateCharacterCoordinates()
     }
 
-    private func textChanged() {
+    func textChanged() {
+        searchState.zeroMatch = nil
         preferredX = nil
         caretAtLineEnd = false
         clearSelection()
@@ -1248,7 +1300,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 到第一个换行为止（原版 Command_INSTEXT 的矩形选择：改行までを抜き出す）
-    private static func firstLine(_ text: String) -> String {
+    static func firstLine(_ text: String) -> String {
         let utf16 = Array(text.utf16)
         let end = utf16.firstIndex(where: isLineDelimiter) ?? utf16.count
         return String(utf16CodeUnits: utf16, count: end)
@@ -1267,7 +1319,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 剪贴板里的文字
-    private var clipboardText: String? {
+    var clipboardText: String? {
         guard let text = pasteboard.string(forType: .string), !text.isEmpty else { return nil }
         return text
     }
@@ -1708,7 +1760,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         case #selector(wrapWindowWidth(_:)):
             menuItem.state = settings.wrapMethod == .windowWidth ? .on : .off
             return !hasMarkedText()
-        default: return true
+        default: return validateSearchMenuItem(menuItem) ?? true	// 第 32 步：検索メニュー（SearchCommands.swift）
         }
     }
 

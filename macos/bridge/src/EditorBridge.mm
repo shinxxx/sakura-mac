@@ -106,6 +106,47 @@ core::SearchOptions ToCore(ECSearchOptions o)
 	return so;
 }
 
+ECSearchOptions FromCore(const core::SearchOptions& o)
+{
+	ECSearchOptions r = 0;
+	if (o.regularExpression) r |= ECSearchOptionsRegularExpression;
+	if (o.matchCase) r |= ECSearchOptionsMatchCase;
+	if (o.wholeWord) r |= ECSearchOptionsWholeWord;
+	return r;
+}
+
+//! 第 32 步：查找命令的光标和选择
+core::SearchView ToCore(const ECSearchView& v)
+{
+	core::SearchView r;
+	r.caret = ToCore(v.caret);
+	if (v.hasSelection) r.selection = ToCore(v.selection);
+	return r;
+}
+
+ECSearchView FromCore(const core::SearchView& v)
+{
+	ECSearchView r{};
+	r.caret = FromCore(v.caret);
+	r.hasSelection = v.selection.has_value();
+	r.selection = v.selection ? FromCore(*v.selection) : ECRange{ r.caret, r.caret };
+	return r;
+}
+
+core::ReplaceOptions ToCore(const ECReplaceOptions& o)
+{
+	core::ReplaceOptions r;
+	r.search = ToCore(o.search);
+	if (ECReplaceTargetSelection <= o.target && o.target <= ECReplaceTargetDeleteLine) {
+		r.target = static_cast<core::ReplaceTarget>(o.target);
+	}
+	r.paste = o.paste;
+	r.searchAll = o.searchAll;
+	r.consecutiveAll = o.consecutiveAll;
+	r.selectedArea = o.selectedArea;
+	return r;
+}
+
 //! 超出 int32 的值（Swift 的 Int 是 64 位）当作无效的位置
 bool FitsInt32(NSInteger v)
 {
@@ -170,6 +211,53 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @interface ECViewSettings ()
 - (instancetype)initWithSettings:(const core::ViewSettings&)v;
+@end
+
+// ----- 查找、替换（第 32 步） -----
+
+@interface ECSearchResult ()
+- (instancetype)initWithStatus:(core::SearchStatus)status next:(core::SearchStatus)next count:(std::int32_t)count
+						  view:(const core::SearchView&)view error:(const core::Text&)error;
+@end
+
+@implementation ECSearchResult
+
+- (instancetype)initWithStatus:(core::SearchStatus)status next:(core::SearchStatus)next count:(std::int32_t)count
+						  view:(const core::SearchView&)view error:(const core::Text&)error
+{
+	self = [super init];
+	if (self) {
+		_status = static_cast<ECSearchStatus>(status);
+		_next = static_cast<ECSearchStatus>(next);
+		_count = count;
+		_view = FromCore(view);
+		_error = ToNSString(error);
+	}
+	return self;
+}
+
+@end
+
+@interface ECSearchMark ()
+- (instancetype)initWithMark:(const core::SearchMark&)m;
+@end
+
+@implementation ECSearchMark
+
+- (instancetype)initWithMark:(const core::SearchMark&)m
+{
+	self = [super init];
+	if (self) {
+		_from = m.from;
+		_to = m.to;
+		_color = static_cast<ECColorIndex>(m.color);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECSearchSettings
 @end
 
 @implementation ECEncodingChoice
@@ -365,6 +453,68 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 {
 	if (!FitsInt32(size)) return;
 	core::SetLayoutFont(ToText(name), static_cast<std::int32_t>(size));
+}
+
+// ----- 查找、替换（第 32 步） -----
+
++ (ECSearchSettings *)searchSettings
+{
+	const core::SearchSettings v = core::GetSearchSettings();
+	ECSearchSettings *r = [[ECSearchSettings alloc] init];
+	r.options = FromCore(v.options);
+	r.notifyNotFound = v.notifyNotFound;
+	r.autoCloseFind = v.autoCloseFind;
+	r.autoCloseReplace = v.autoCloseReplace;
+	r.searchAll = v.searchAll;
+	r.consecutiveAll = v.consecutiveAll;
+	r.selectedArea = v.selectedArea;
+	r.caretTextForSearch = v.caretTextForSearch;
+	r.inheritKeyOtherView = v.inheritKeyOtherView;
+	r.jumpLineNumIsCRLF = v.jumpLineNumIsCRLF;
+	return r;
+}
+
++ (void)setSearchSettings:(ECSearchSettings *)s
+{
+	core::SearchSettings v;
+	v.options = ToCore(s.options);
+	v.notifyNotFound = s.notifyNotFound;
+	v.autoCloseFind = s.autoCloseFind;
+	v.autoCloseReplace = s.autoCloseReplace;
+	v.searchAll = s.searchAll;
+	v.consecutiveAll = s.consecutiveAll;
+	v.selectedArea = s.selectedArea;
+	v.caretTextForSearch = s.caretTextForSearch;
+	v.inheritKeyOtherView = s.inheritKeyOtherView;
+	v.jumpLineNumIsCRLF = s.jumpLineNumIsCRLF;
+	core::SetSearchSettings(v);
+}
+
++ (NSArray<NSString *> *)searchKeyHistory
+{
+	NSMutableArray<NSString *> *r = [NSMutableArray array];
+	for (const auto& t : core::SearchKeyHistory()) [r addObject:ToNSString(t)];
+	return r;
+}
+
++ (NSArray<NSString *> *)replaceKeyHistory
+{
+	NSMutableArray<NSString *> *r = [NSMutableArray array];
+	for (const auto& t : core::ReplaceKeyHistory()) [r addObject:ToNSString(t)];
+	return r;
+}
+
++ (void)addSearchKey:(NSString *)key { core::AddSearchKey(ToText(key)); }
++ (void)addReplaceKey:(NSString *)key { core::AddReplaceKey(ToText(key)); }
++ (NSInteger)searchKeySequence { return core::SearchKeySequence(); }
++ (NSInteger)replaceKeySequence { return core::ReplaceKeySequence(); }
+
++ (NSString *)regexpVersion { return ToNSString(core::RegexpVersion()); }
+
++ (NSString *)regexpSyntaxErrorForPattern:(NSString *)pattern matchCase:(BOOL)matchCase
+{
+	const auto error = core::RegexpSyntaxError(ToText(pattern), matchCase == YES);
+	return error ? ToNSString(*error) : nil;
 }
 
 @end
@@ -603,6 +753,82 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 }
 
 - (NSString *)lastSearchError { return ToNSString(_doc->GetLastSearchError()); }
+
+static ECSearchResult *MakeResult(const core::SearchResult& r)
+{
+	return [[ECSearchResult alloc] initWithStatus:r.status next:core::SearchStatus::NotFound count:0 view:r.view error:r.error];
+}
+
+static ECSearchResult *MakeResult(const core::ReplaceResult& r)
+{
+	return [[ECSearchResult alloc] initWithStatus:r.status next:r.next count:r.count view:r.view error:r.error];
+}
+
+static bool FitsInt32(const ECSearchView& v)
+{
+	return FitsInt32(v.caret.line) && FitsInt32(v.caret.column) && (!v.hasSelection || FitsInt32(v.selection));
+}
+
+static ECSearchResult *InvalidViewResult()
+{
+	return [[ECSearchResult alloc] initWithStatus:core::SearchStatus::NotFound next:core::SearchStatus::NotFound count:0
+											 view:core::SearchView{} error:core::Text()];
+}
+
+- (ECSearchResult *)searchNext:(NSString *)key options:(ECSearchOptions)options view:(ECSearchView)view searchAll:(BOOL)searchAll
+{
+	if (!FitsInt32(view)) return InvalidViewResult();
+	return MakeResult(_doc->SearchNext(ToText(key), ToCore(options), ToCore(view), searchAll == YES));
+}
+
+- (ECSearchResult *)searchPrev:(NSString *)key options:(ECSearchOptions)options view:(ECSearchView)view searchAll:(BOOL)searchAll
+{
+	if (!FitsInt32(view)) return InvalidViewResult();
+	return MakeResult(_doc->SearchPrev(ToText(key), ToCore(options), ToCore(view), searchAll == YES));
+}
+
+- (ECSearchResult *)replaceNext:(NSString *)key with:(NSString *)replacement options:(ECReplaceOptions)options view:(ECSearchView)view
+{
+	if (!FitsInt32(view)) return InvalidViewResult();
+	return MakeResult(_doc->ReplaceNext(ToText(key), ToText(replacement), ToCore(options), ToCore(view)));
+}
+
+- (ECSearchResult *)replaceAll:(NSString *)key with:(NSString *)replacement options:(ECReplaceOptions)options view:(ECSearchView)view
+{
+	if (!FitsInt32(view)) return InvalidViewResult();
+	return MakeResult(_doc->ReplaceAll(ToText(key), ToText(replacement), ToCore(options), ToCore(view)));
+}
+
+- (BOOL)jumpPosition:(ECJumpOptions)options position:(ECPosition *)outPosition
+{
+	core::JumpOptions o;
+	o.lineNumber = static_cast<std::int32_t>(std::clamp<NSInteger>(options.lineNumber, INT32_MIN, INT32_MAX));
+	o.lineNumIsCRLF = options.lineNumIsCRLF;
+	o.plsql = options.plsql;
+	o.plsqlBlockFirstLine = static_cast<std::int32_t>(std::clamp<NSInteger>(options.plsqlBlockFirstLine, INT32_MIN, INT32_MAX));
+	const auto p = _doc->JumpPosition(o);
+	if (!p) return NO;
+	if (outPosition) *outPosition = FromCore(*p);
+	return YES;
+}
+
+- (BOOL)wordRangeAt:(ECPosition)position range:(ECRange *)outRange
+{
+	if (!FitsInt32(position.line) || !FitsInt32(position.column)) return NO;
+	const auto r = _doc->WordRangeAt(ToCore(position));
+	if (!r) return NO;
+	if (outRange) *outRange = FromCore(*r);
+	return YES;
+}
+
+- (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options
+{
+	if (!FitsInt32(line)) return @[];
+	const auto marks = _doc->SearchMarks(static_cast<std::int32_t>(line), ToText(key), ToCore(options));
+	NSMutableArray<ECSearchMark *> *r = [NSMutableArray arrayWithCapacity:marks.size()];
+	for (const auto& m : marks) [r addObject:[[ECSearchMark alloc] initWithMark:m]];
+	return r;
+}
 
 // ----- 命令 -----
 
