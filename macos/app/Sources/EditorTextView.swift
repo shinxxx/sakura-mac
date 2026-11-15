@@ -541,7 +541,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 输入法是否打开（日文、中文等的输入方式，罗马字输入的「英字」不算）
-    private var isInputMethodOn: Bool {
+    var isInputMethodOn: Bool {
         guard let source = inputContext?.selectedKeyboardInputSource else { return false }
         return source.contains(".inputmethod.") && !source.hasSuffix(".Roman")
     }
