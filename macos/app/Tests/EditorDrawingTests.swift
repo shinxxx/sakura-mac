@@ -56,7 +56,11 @@ final class EditorDrawingTests: XCTestCase {
         XCTAssertEqual(view.color(.text).text, 0x000000)
         XCTAssertEqual(view.color(.lineNumber).text, 0x0000FF)
         XCTAssertTrue(view.color(.caretLineUnderline).display)
-        XCTAssertEqual(view.caretColor, 0x000000, "输入法关闭时是「キャレット」的颜色")
+        // 光标颜色：输入法关闭时「キャレット」（黑），打开时「IMEキャレット」（红）。
+        // 运行测试的 Mac 当时的输入方式决定是哪一个（运行者用中文、日文输入法时是红），两种都确认
+        XCTAssertEqual(view.color(.caret).text, 0x000000)
+        XCTAssertEqual(view.color(.caretIme).text, 0xFF0000)
+        XCTAssertEqual(view.caretColor, view.isInputMethodOn ? 0xFF0000 : 0x000000, "光标颜色跟着输入法的状态")
         let background = view.enclosingScrollView?.backgroundColor.usingColorSpace(.sRGB)
         XCTAssertEqual(background?.redComponent ?? 0, 1.0, accuracy: 0.01)
         XCTAssertEqual(background?.blueComponent ?? 0, 240.0 / 255, accuracy: 0.01)

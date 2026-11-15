@@ -28,6 +28,7 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 ```
 
 需要 Xcode、CMake、XcodeGen（`brew install xcodegen cmake`）。不需要开发者账号：测试用本机签名（ad-hoc）。
+`xcode-select` 指向 Command Line Tools 时，脚本自动改用 `/Applications` 里的 Xcode（只在这次运行里，不改系统设置）。
 界面测试运行时会真的打开窗口、操作键盘，这期间不要动鼠标和键盘。
 第一次运行界面测试时，macOS 可能要求允许 Xcode 控制电脑（「辅助功能」或「自动化」），点允许即可。
 
