@@ -125,7 +125,13 @@ final class RecentFilesTests: XCTestCase {
         view.restoreView(caret: EditorPosition(line: 120, column: 3), topRow: 100, toEnd: false)
         let top = view.topVisibleRow
         XCTAssertGreaterThan(top, 50, "滚动了")
+        XCTAssertEqual(view.caret.line, 120)
+        XCTAssertNotNil(first.fileURL)
+        XCTAssertEqual(first.editor.path, file.path, "核心库的路径")
+        XCTAssertIdentical((first.windowControllers.first as? EditorWindowController)?.textView, view)
         first.close()	// 关闭前登记（原版 OnBeforeClose）
+        XCTAssertEqual(EditorCore.recentFiles.first?.path, file.path, "最新的一项")
+        XCTAssertEqual(EditorCore.recentFiles.first?.caret.line, 120, "最新的一项的光标")
         documents.removeAll { $0 === first }
 
         let recent = try XCTUnwrap(EditorCore.recentFile(path: file.path))
@@ -232,8 +238,12 @@ final class RecentFilesTests: XCTestCase {
     }
 
     func testRecentMenuGrayedWhenEmpty() throws {
-        let saved = EditorCore.recentFiles.map(\.path)
-        for path in saved { EditorCore.removeRecentFile(path: path) }
+        // 菜单只显示「ファイルの履歴MAX」个，后面还有：全部删掉
+        for _ in 0..<100 {
+            guard let path = EditorCore.recentFiles.first?.path else { break }
+            EditorCore.removeRecentFile(path: path)
+        }
+        XCTAssertTrue(EditorCore.recentFiles.isEmpty)
         let files = RecentMenu(kind: .files)
         XCTAssertNil(files.item.submenu, "历史是空的：没有子菜单")
         XCTAssertNil(files.item.action, "没有动作的项 macOS 自动变灰")

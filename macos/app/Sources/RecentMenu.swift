@@ -70,7 +70,10 @@ final class RecentMenu: NSObject, NSMenuDelegate {
         }
         // 空的时变灰（原版 CEditWnd::InitMenu_Function 的 MF_GRAYED）
         if entries.isEmpty {
-            if item.submenu != nil { item.submenu = nil }
+            if item.submenu != nil {
+                item.submenu = nil
+                item.action = nil	// 挂子菜单时 AppKit 设了 submenuAction:，去掉
+            }
         } else if item.submenu !== menu {
             item.submenu = menu
         }
