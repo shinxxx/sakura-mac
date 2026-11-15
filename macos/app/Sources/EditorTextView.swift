@@ -139,6 +139,17 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         // 输入法打开、关闭时，光标的颜色跟着变
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardInputSourceDidChange(_:)),
                                                name: NSTextInputContext.keyboardSelectionDidChangeNotification, object: nil)
+        // 辅助功能：编辑区是一个文本区域，值是全文（旁白和自动界面测试读取）
+        setAccessibilityElement(true)
+        setAccessibilityRole(.textArea)
+        setAccessibilityIdentifier("editor")
+        if Self.romanInputOnly {
+            inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
+        }
+    }
+
+    override func accessibilityValue() -> Any? {
+        document.text
     }
 
     deinit {
@@ -1120,8 +1131,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     // MARK: - 基本编辑（第 29 步。原版 CViewCommander_Edit.cpp、CViewCommander_Clipboard.cpp）
 
-    /// 剪贴板（测试时换成别的）
-    var pasteboard: NSPasteboard = .general
+    /// 新视图用的剪贴板。自动界面测试时换成测试专用的（UITesting.swift）
+    static var defaultPasteboard: NSPasteboard = .general
+    /// 只用英文输入（自动界面测试时：日文、中文输入法打开时，测试输入的字母会变成未确定文字）
+    static var romanInputOnly = false
+
+    /// 剪贴板（单元测试时换成别的）
+    var pasteboard: NSPasteboard = EditorTextView.defaultPasteboard
 
     /// 矩形选择的复制（原版 Windows 剪贴板的 MSDEVColumnSelect 形式）。贴付时按矩形贴付
     static let columnSelectType = NSPasteboard.PasteboardType("jp.sakura-editor.MSDEVColumnSelect")
@@ -1499,7 +1515,24 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 編集 > 高度な操作 > 逆TABインデント（F_UNINDENT_TAB）
     @objc func unindentTab(_ sender: Any?) { insertBacktab(sender) }
 
+    /// 原版 Command_LEFT / Command_RIGHT：有选择时这一次只取消选择（Command_CANCEL_MODE），
+    /// 光标移到选择范围的开头（←）或末尾（→）。Shift+方向键扩展选择时不取消
+    private func cancelSelectionBeforeMove(toEnd: Bool) -> Bool {
+        guard !extendingSelection else { return false }
+        if let selection {
+            setCaret(toEnd ? selection.to : selection.from)
+            return true
+        }
+        if boxSelection != nil {
+            clearSelection()
+            needsDisplay = true
+            return true
+        }
+        return false
+    }
+
     override func moveLeft(_ sender: Any?) {
+        if cancelSelectionBeforeMove(toEnd: false) { return }
         if caret.column > 0 {
             let text = lineText(caret.line)
             setCaret(EditorPosition(line: caret.line, column: text.rangeOfComposedCharacterSequence(at: caret.column - 1).location))
@@ -1509,6 +1542,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     override func moveRight(_ sender: Any?) {
+        if cancelSelectionBeforeMove(toEnd: true) { return }
         let text = lineText(caret.line)
         if caret.column < text.length {
             setCaret(EditorPosition(line: caret.line, column: NSMaxRange(text.rangeOfComposedCharacterSequence(at: caret.column))))

@@ -23,6 +23,8 @@
 | `macos/bridge/` | Objective-C++ 桥接层：把核心库接口包装成 Swift 能用的框架 `EditorBridge`（`include/EditorBridge.h`、`src/EditorBridge.mm`）（阶段 2 第 24 步） |
 | `macos/app/Scripts/` | Xcode 构建时调用的脚本（`build-core.sh`：用 CMake 构建核心库的静态库） |
 | `macos/app/Tests/` | 桥接层的单元测试（Swift、XCTest） |
+| `macos/app/UITests/` | 自动界面测试（XCUITest）：真的启动 App 用键盘和菜单操作 |
+| `macos/tools/run-tests.sh` | 一次跑完全部自动测试，只打印结果摘要（见 [docs/testing.md](docs/testing.md)） |
 
 核心逻辑继续使用 `sakura_core/` 中的原版代码，不复制到本目录。
 
@@ -42,6 +44,8 @@ open SakuraMac.xcodeproj
 App 名称、Bundle ID、最低系统版本都集中在 `macos/app/Config/App.xcconfig`。
 构建时 Xcode 先运行 `macos/app/Scripts/build-core.sh`，用 CMake 把核心库构建到仓库根目录的 `build/xcode-core/<Debug|Release>/`，再链接进桥接层框架。按 Cmd+U 运行桥接层的单元测试。
 
+一次跑完全部自动测试（核心库、App 单元测试、界面测试）：`macos/tools/run-tests.sh`（见 [自动测试](docs/testing.md)）。
+
 核心库和单元测试可以不经 Xcode 单独构建：
 
 ```sh
@@ -60,5 +64,6 @@ ctest --test-dir build/mac-core --output-on-failure
 
 - [功能对照表](docs/feature-matrix.md)
 - [与上游同步的流程](docs/upstream-sync.md)
+- [自动测试](docs/testing.md)
 - 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md) · [编码往返测试](docs/phase1-roundtrip.md) · [换掉 DLL](docs/phase1-extmodule.md) · [文档模型和语法类型](docs/phase1-doc-types.md) · [设置模块 env](docs/phase1-env.md) · [核心库接口](docs/phase1-core-api.md) · [阶段 1 验收](docs/phase1-review.md)
 - 阶段 2：[桥接层](docs/phase2-bridge.md) · [输入法原型](docs/phase2-ime.md) · [窗口框架](docs/phase2-windows.md) · [排版](docs/phase2-layout.md) · [绘制和颜色](docs/phase2-drawing.md) · [基本编辑](docs/phase2-edit.md)

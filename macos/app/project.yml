@@ -35,6 +35,7 @@ targets:
     scheme:
       testTargets:
         - SakuraMacTests
+        - SakuraMacUITests
 
   # 桥接层（第 24 步）：把核心库（macos/core，C++）用 Objective-C++ 包装，提供给 Swift。
   # 构建前先运行 Scripts/build-core.sh，用 CMake 构建核心库的静态库，再链接进这个框架。
@@ -91,3 +92,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.0"
         LD_RUNPATH_SEARCH_PATHS: $(inherited) @loader_path/../Frameworks @executable_path/../Frameworks
+
+  # 自动界面测试（XCUITest）：真的启动 App 用键盘和菜单操作，确认已经完成的步骤的主要功能。
+  # 在自己的 Mac 上一次跑完全部测试：macos/tools/run-tests.sh
+  SakuraMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: SakuraMac
+    settings:
+      base:
+        PRODUCT_NAME: SakuraMacUITests
+        PRODUCT_BUNDLE_IDENTIFIER: $(inherited).uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        TEST_TARGET_NAME: SakuraMac
