@@ -199,4 +199,92 @@ final class SakuraMacUITests: XCTestCase {
         app.typeText("X")
         XCTAssertEqual(window.textViews["editor"].value as? String, "line1\nline2\nXline3\nline4\n")
     }
+
+    // MARK: - 第 31 步：沙盒外的文件，重启后从「最近使ったファイル」打开（只在自己的 Mac 上）
+
+    /// 沙盒外的文件用「開く」对话框选了打开，退出再启动后从「最近使ったファイル」还能打开（安全书签有效）。
+    ///
+    /// 只在 macos/tools/run-tests.sh 里运行（它设置 SAKURA_SANDBOX_TEST=1）：要操作系统的文件对话框，
+    /// GitHub 的机器上不稳定。文件放在 ~/SakuraMacUITest（不放「文稿」：测试程序访问「文稿」时系统会弹出权限确认）
+    func testSandboxedFileReopensFromRecentFilesAfterRestart() throws {
+        guard ProcessInfo.processInfo.environment["SAKURA_SANDBOX_TEST"] == "1" else {
+            throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
+        }
+        app.terminate()
+
+        // 沙盒外的文件（App 的容器以外）
+        let realHome = URL(fileURLWithPath: NSHomeDirectoryForUser(NSUserName()) ?? NSHomeDirectory())
+        let dir = realHome.appendingPathComponent("SakuraMacUITest")
+        let name = "sandbox-\(UUID().uuidString.prefix(8)).txt"
+        let file = dir.appendingPathComponent(name)
+        let content = "outside\nsandbox\n"
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try content.write(to: file, atomically: true, encoding: .utf8)
+        } catch {
+            throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let home = "sandbox-\(UUID().uuidString)"
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let byTitle = NSPredicate(format: "title CONTAINS %@", name)
+
+        // 1. App 在沙盒里：不经过对话框直接打开，应该被拒绝
+        let check = XCUIApplication()
+        check.launchArguments = base + ["-SakuraUITestingOpenPath", file.path]
+        check.launch()
+        let opened = check.windows.matching(byTitle).firstMatch.waitForExistence(timeout: 5)
+        XCTAssertFalse(opened, "App 没有在沙盒里运行：不经过对话框也打开了沙盒外的文件（这个测试就没有意义了）")
+        check.terminate()
+        if opened { return }
+
+        // 2. 用「開く」对话框选这个文件打开（Cmd+Shift+G 输入路径）
+        let first = XCUIApplication()
+        first.launchArguments = base
+        first.launch()
+        XCTAssertTrue(first.textViews["editor"].waitForExistence(timeout: 10), "无题窗口")
+        first.typeKey("o", modifierFlags: .command)
+        let panel = openPanel(of: first)
+        XCTAssertTrue(panel.waitForExistence(timeout: 10), "出现了「開く」对话框")
+        panel.typeKey("g", modifierFlags: [.command, .shift])
+        sleep(1)
+        panel.typeText(file.path + "\n")
+        sleep(1)
+        panel.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        let firstWindow = first.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(firstWindow.waitForExistence(timeout: 10), "从对话框打开了沙盒外的文件")
+        XCTAssertEqual(firstWindow.textViews["editor"].value as? String, content)
+        first.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "Cmd+Q 结束了")
+
+        // 3. 重启后从「最近使ったファイル」打开：用书签取回权限，能读
+        app = XCUIApplication()
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), "无题窗口")
+        let fileMenu = app.menuBars.menuBarItems["ファイル"]
+        fileMenu.click()
+        let recent = fileMenu.menuItems["最近使ったファイル"]
+        XCTAssertTrue(recent.waitForExistence(timeout: 3))
+        recent.hover()
+        let item = recent.menuItems.matching(byTitle).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "历史里有这个文件")
+        item.click()
+        let window = app.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "重启后从历史打开了沙盒外的文件")
+        XCTAssertEqual(window.textViews["editor"].value as? String, content)
+    }
+
+    /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程显示，在两边都找
+    private func openPanel(of app: XCUIApplication) -> XCUIElement {
+        let service = XCUIApplication(bundleIdentifier: "com.apple.appkit.xpc.openAndSavePanelService")
+        for _ in 0..<20 {
+            for candidate in [app.dialogs.firstMatch, app.sheets.firstMatch, service.windows.firstMatch] where candidate.exists {
+                return candidate
+            }
+            usleep(500_000)
+        }
+        return app.dialogs.firstMatch
+    }
 }

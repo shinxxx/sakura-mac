@@ -69,6 +69,9 @@ TITLE="App 单元测试"
 if [ "$RUN_UI" = 1 ]; then
     ONLY+=(-only-testing:SakuraMacUITests)
     TITLE="App 单元测试 + 界面测试"
+    # 沙盒外的文件重启后从历史打开的界面测试（第 31 步）只在这里运行。
+    # xcodebuild 把 TEST_RUNNER_ 开头的环境变量去掉前缀传给测试
+    export TEST_RUNNER_SAKURA_SANDBOX_TEST=1
 fi
 say ""
 say "== $TITLE =="
