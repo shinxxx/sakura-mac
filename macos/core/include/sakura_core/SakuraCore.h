@@ -256,6 +256,132 @@ struct SearchOptions {
 
 enum class SearchDirection { Forward, Backward };
 
+/*!
+	查找、替换、跳转的共通设置（第 32 步。原版 CommonSetting_Search 里对话框用的部分，
+	和 DLLSHAREDATA::m_bLineNumIsCRLF_ForJump）。保存在 sakura.ini，与原版相同。
+*/
+struct SearchSettings {
+	SearchOptions options;				//!< 上次的查找条件（m_sSearchOption）
+	bool notifyNotFound = false;		//!< 見つからないときにメッセージを表示（m_bNOTIFYNOTFOUND）
+	bool autoCloseFind = false;			//!< 検索ダイアログを自動的に閉じる（m_bAutoCloseDlgFind）
+	bool autoCloseReplace = false;		//!< 置換ダイアログを自動的に閉じる（m_bAutoCloseDlgReplace）
+	bool searchAll = false;				//!< 先頭（末尾）から再検索する（m_bSearchAll）
+	bool consecutiveAll = false;		//!< 「すべて置換」は置換の繰返し（m_bConsecutiveAll）
+	bool selectedArea = false;			//!< 置換の範囲が「選択範囲」（m_bSelectedArea）
+	bool caretTextForSearch = true;		//!< カーソル位置の文字列をデフォルトの検索文字列にする（m_bCaretTextForSearch）
+	bool inheritKeyOtherView = true;	//!< 次・前検索で他のビューの検索条件を引き継ぐ（m_bInheritKeyOtherView）
+	bool jumpLineNumIsCRLF = true;		//!< 指定行へジャンプ：改行単位の行番号（m_bLineNumIsCRLF_ForJump）
+};
+
+SearchSettings GetSearchSettings();
+void SetSearchSettings(const SearchSettings& settings);
+
+/*!
+	查找、置换后的文字的历史（原版 CRecentSearch、CRecentReplace，sakura.ini 的 [Keys]）。新的在前。
+*/
+std::vector<Text> SearchKeyHistory();
+std::vector<Text> ReplaceKeyHistory();
+
+/*!
+	登记到历史（原版 CSearchKeywordManager::AddToSearchKeyArr、AddToReplaceKeyArr）。
+	与原版的对话框相同，_MAX_PATH 以上长度的不登记。登记后序号加 1。
+*/
+void AddSearchKey(const Text& key);
+void AddReplaceKey(const Text& key);
+
+/*!
+	历史的序号（原版 m_nSearchKeySequence、m_nReplaceKeySequence）：每次登记加 1，不保存。
+	画面和对话框记住上次用的序号，用来知道别的窗口登记了新的文字。
+*/
+std::int32_t SearchKeySequence();
+std::int32_t ReplaceKeySequence();
+
+/*!
+	正则表达式的语法检查（原版 CheckRegexpSyntax）。
+	@return 错误时是正则表达式库的消息（原版在「正規表現の構文に誤りがあります。」后面显示的部分），没有错误时是 nullopt
+*/
+std::optional<Text> RegexpSyntaxError(const Text& pattern, bool matchCase);
+
+//! 正则表达式库的版本（查找对话框里显示的，原版 CheckRegexpVersion）。不能用时是空
+Text RegexpVersion();
+
+/*!
+	编辑画面的光标和选择范围（第 32 步：查找、替换命令的输入和结果）。
+	原版的命令直接移动 CEditView 的光标、改变选择范围；Mac 版的编辑画面在界面层，
+	所以命令接受现在的光标和选择，返回之后的光标和选择。
+*/
+struct SearchView {
+	Position caret;
+	/*!
+		普通选择（from <= to）。没有选择时是 nullopt。
+		from == to 的选择是上次长度 0 的匹配（原版 IsOne() 的选择），下検索时先前进一个字。
+	*/
+	std::optional<Range> selection;
+};
+
+enum class SearchStatus : std::uint8_t {
+	Found,			//!< 找到了
+	Wrapped,		//!< 找到了，是从先頭（末尾）再查找的（原版状态栏的「▼先頭から再検索しました」）
+	NotFound,		//!< 没有找到
+	InvalidPattern,	//!< 正则表达式有错误（error 是原因）
+};
+
+struct SearchResult {
+	SearchStatus status = SearchStatus::NotFound;
+	SearchView view;	//!< 之后的光标和选择（找到时选中匹配的部分，光标在匹配的开头）
+	Text error;
+};
+
+//! 置換対象（置换对话框的「置換対象」。数值与原版的 m_nReplaceTarget 相同）
+enum class ReplaceTarget : std::uint8_t {
+	Selection = 0,		//!< 選択文字：换成置换后的文字
+	InsertBefore = 1,	//!< 選択始点挿入：插在匹配的前面
+	InsertAfter = 2,	//!< 選択終点追加：加在匹配的后面
+	DeleteLine = 3,		//!< 行削除：删除匹配所在的行
+};
+
+struct ReplaceOptions {
+	SearchOptions search;
+	ReplaceTarget target = ReplaceTarget::Selection;
+	/*!
+		クリップボードから貼り付ける：replacement 是剪贴板的文字。
+		与原版相同，这时正则表达式也不做「$1」等的替换，原样插入；
+		共通设置「改行コードを変換して貼り付ける」打开时换成输入用的换行符。
+	*/
+	bool paste = false;
+	bool searchAll = false;			//!< 先頭（末尾）から再検索する（置換时的下一次查找）
+	bool consecutiveAll = false;	//!< 「すべて置換」は置換の繰返し（只在正则表达式时有用）
+	bool selectedArea = false;		//!< すべて置換：只换选择范围里的（没有选择时换整个文件）
+};
+
+struct ReplaceResult {
+	/*!
+		置換：第一次查找（找要换的地方）的结果。NotFound 时什么也没换。
+		すべて置換：正则表达式有错误时是 InvalidPattern，否则是 Found。
+	*/
+	SearchStatus status = SearchStatus::NotFound;
+	//! 置換：换了之后下一次查找的结果（NotFound 时原版显示「最後まで置換しました。」）
+	SearchStatus next = SearchStatus::NotFound;
+	std::int32_t count = 0;		//!< 换了的个数
+	SearchView view;			//!< 之后的光标和选择
+	Text error;
+};
+
+//! 指定行へジャンプ（原版 CDlgJump 的设置）
+struct JumpOptions {
+	std::int32_t lineNumber = 1;		//!< 行番号（从 1 开始）
+	bool lineNumIsCRLF = true;			//!< true：改行単位の行番号，false：折り返し単位の行番号
+	bool plsql = false;					//!< PL/SQLコンパイルエラー行を処理する
+	std::int32_t plsqlBlockFirstLine = 1;	//!< PL/SQL：「テキストの n 行目をブロックの1行目とする」
+};
+
+//! 查找文字的标记（第 32 步：画面上用「検索文字列」的颜色显示查找到的文字，原版 CColor_Found）
+struct SearchMark {
+	std::int32_t from = 0;		//!< 逻辑行内的 UTF-16 下标
+	std::int32_t to = 0;
+	std::uint8_t color = 0;		//!< ColorIndex（Search～Search5）
+};
+
 // ---------------------------------------------------------------------------
 // 排版（第 27 步）
 // ---------------------------------------------------------------------------
@@ -364,6 +490,11 @@ enum class ColorIndex : std::uint8_t {
 	Digit,					//!< 半角数値
 	BracketPair,			//!< 対括弧
 	Select,					//!< 選択範囲
+	Search,					//!< 検索文字列（第 32 步）
+	Search2,				//!< 検索文字列2（単語単位で探す时第 2 个单词）
+	Search3,				//!< 検索文字列3
+	Search4,				//!< 検索文字列4
+	Search5,				//!< 検索文字列5
 };
 
 /*!
@@ -572,6 +703,46 @@ public:
 
 	//! 最近一次查找、替换的正则表达式错误（没有错误时是空）
 	Text GetLastSearchError() const;
+
+	// ----- 查找、替换命令（第 32 步） -----
+	//
+	// 与原版 CViewCommander 的同名命令相同（cmd/CViewCommander_Search.cpp）。
+	// 原版在排版位置上处理，这里在逻辑位置上处理（原版的 bFastMode 也是这样），结果相同。
+
+	//! 次を検索（原版 Command_SEARCH_NEXT）：从选择的末尾（没有选择时从光标）往后找
+	SearchResult SearchNext(const Text& key, const SearchOptions& options, const SearchView& view, bool searchAll);
+
+	//! 前を検索（原版 Command_SEARCH_PREV）：从光标往前找
+	SearchResult SearchPrev(const Text& key, const SearchOptions& options, const SearchView& view, bool searchAll);
+
+	/*!
+		置換（原版 Command_REPLACE）：从选择的开头找下一个，换掉，再找下一个。
+		作为撤销的一步。
+	*/
+	ReplaceResult ReplaceNext(const Text& key, const Text& replacement, const ReplaceOptions& options, const SearchView& view);
+
+	/*!
+		すべて置換（原版 Command_REPLACE_ALL）。options.selectedArea 并且有选择时只换选择范围里的，
+		之后的选择是换了以后的范围；否则换整个文件，光标在最后换的地方后面。作为撤销的一步。
+	*/
+	ReplaceResult ReplaceAll(const Text& key, const Text& replacement, const ReplaceOptions& options, const SearchView& view);
+
+	/*!
+		指定行へジャンプ（原版 Command_JUMP）：跳转后的光标（行首）。文档是空的时是 nullopt（原版 ErrorBeep）。
+	*/
+	std::optional<Position> JumpPosition(const JumpOptions& options) const;
+
+	/*!
+		这一逻辑行里要用「検索文字列」的颜色显示的部分（原版 CColor_Found + CEditView::IsSearchString）。
+		类型别设置里「検索文字列」的颜色都不显示时、条件有错误时是空。长度 0 的匹配不返回。
+	*/
+	std::vector<SearchMark> SearchMarks(std::int32_t line, const Text& key, const SearchOptions& options);
+
+	/*!
+		光标所在的单词的范围（原版 CSearchAgent::WhereCurrentWord：查找对话框的初始文字、检索マークの切替え用）。
+		没有单词时是 nullopt。
+	*/
+	std::optional<Range> WordRangeAt(const Position& position) const;
 
 	// ----- 命令 -----
 

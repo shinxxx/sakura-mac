@@ -139,6 +139,11 @@ typedef NS_ENUM(NSInteger, ECColorIndex) {
 	ECColorIndexDigit NS_SWIFT_NAME(digit) = 19,								//!< 半角数値
 	ECColorIndexBracketPair NS_SWIFT_NAME(bracketPair) = 20,					//!< 対括弧
 	ECColorIndexSelect NS_SWIFT_NAME(select) = 21,								//!< 選択範囲
+	ECColorIndexSearch NS_SWIFT_NAME(search) = 22,								//!< 検索文字列（第 32 步）
+	ECColorIndexSearch2 NS_SWIFT_NAME(search2) = 23,							//!< 検索文字列2
+	ECColorIndexSearch3 NS_SWIFT_NAME(search3) = 24,							//!< 検索文字列3
+	ECColorIndexSearch4 NS_SWIFT_NAME(search4) = 25,							//!< 検索文字列4
+	ECColorIndexSearch5 NS_SWIFT_NAME(search5) = 26,							//!< 検索文字列5
 } NS_SWIFT_NAME(EditorColorIndex);
 
 //! 一种颜色的设置（原版的 ColorInfo）。颜色是 0xRRGGBB
@@ -176,6 +181,94 @@ typedef struct ECEditSettings {
 	bool insertSpacesForTab;		//!< スペースの挿入（TAB 键输入空白）
 	bool autoIndent;				//!< オートインデント
 } NS_SWIFT_NAME(EditorEditSettings) ECEditSettings;
+
+// ----- 查找、替换、跳转（第 32 步） -----
+
+//! 查找的结果（sakura::core::SearchStatus）
+typedef NS_ENUM(NSInteger, ECSearchStatus) {
+	ECSearchStatusFound NS_SWIFT_NAME(found) = 0,						//!< 找到了
+	ECSearchStatusWrapped NS_SWIFT_NAME(wrapped) = 1,					//!< 找到了，是从先頭（末尾）再查找的
+	ECSearchStatusNotFound NS_SWIFT_NAME(notFound) = 2,					//!< 没有找到
+	ECSearchStatusInvalidPattern NS_SWIFT_NAME(invalidPattern) = 3,		//!< 正则表达式有错误
+} NS_SWIFT_NAME(EditorSearchStatus);
+
+//! 置換対象（数值与原版的 m_nReplaceTarget 相同）
+typedef NS_ENUM(NSInteger, ECReplaceTarget) {
+	ECReplaceTargetSelection NS_SWIFT_NAME(selection) = 0,			//!< 選択文字
+	ECReplaceTargetInsertBefore NS_SWIFT_NAME(insertBefore) = 1,	//!< 選択始点挿入
+	ECReplaceTargetInsertAfter NS_SWIFT_NAME(insertAfter) = 2,		//!< 選択終点追加
+	ECReplaceTargetDeleteLine NS_SWIFT_NAME(deleteLine) = 3,		//!< 行削除
+} NS_SWIFT_NAME(EditorReplaceTarget);
+
+//! 编辑画面的光标和选择（查找、替换命令的输入和结果。sakura::core::SearchView）
+typedef struct ECSearchView {
+	ECPosition caret;
+	bool hasSelection;		//!< 有普通选择。selection 是 from == to 时表示上次长度 0 的匹配
+	ECRange selection;
+} NS_SWIFT_NAME(EditorSearchView) ECSearchView;
+
+//! 置换的条件（sakura::core::ReplaceOptions）
+typedef struct ECReplaceOptions {
+	ECSearchOptions search;
+	ECReplaceTarget target;
+	bool paste;				//!< クリップボードから貼り付ける（置换后的文字是剪贴板的文字，原样插入）
+	bool searchAll;			//!< 先頭（末尾）から再検索する
+	bool consecutiveAll;	//!< 「すべて置換」は置換の繰返し
+	bool selectedArea;		//!< すべて置換：選択範囲
+} NS_SWIFT_NAME(EditorReplaceOptions) ECReplaceOptions;
+
+//! 指定行へジャンプ的条件（sakura::core::JumpOptions）
+typedef struct ECJumpOptions {
+	NSInteger lineNumber;			//!< 行番号（从 1 开始）
+	bool lineNumIsCRLF;				//!< 改行単位の行番号（false 是折り返し単位）
+	bool plsql;						//!< PL/SQLコンパイルエラー行を処理する
+	NSInteger plsqlBlockFirstLine;	//!< 「テキストの n 行目をブロックの1行目とする」
+} NS_SWIFT_NAME(EditorJumpOptions) ECJumpOptions;
+
+/*!
+	查找、替换命令的结果（sakura::core::SearchResult、ReplaceResult）
+*/
+NS_SWIFT_NAME(EditorSearchResult)
+@interface ECSearchResult : NSObject
+//! 查找：结果。置換：第一次查找（找要换的地方）的结果。すべて置換：正则表达式有错误时是 invalidPattern
+@property (readonly) ECSearchStatus status;
+//! 置換：换了之后下一次查找的结果（notFound 时原版显示「最後まで置換しました。」）
+@property (readonly) ECSearchStatus next;
+//! 换了的个数
+@property (readonly) NSInteger count;
+//! 之后的光标和选择
+@property (readonly) ECSearchView view;
+//! 正则表达式的错误（原版在「正規表現の構文に誤りがあります。」后面显示的部分）
+@property (readonly, copy) NSString *error;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 查找文字的标记（逻辑行内 from..<to 用 color 的颜色显示）
+NS_SWIFT_NAME(EditorSearchMark)
+@interface ECSearchMark : NSObject
+@property (readonly) NSInteger from;
+@property (readonly) NSInteger to;
+@property (readonly) ECColorIndex color;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	查找、替换、跳转的共通设置（sakura::core::SearchSettings，保存在 sakura.ini）。
+	改了以后用 +[ECCore setSearchSettings:] 放回去。
+*/
+NS_SWIFT_NAME(EditorSearchSettings)
+@interface ECSearchSettings : NSObject
+@property ECSearchOptions options;			//!< 上次的查找条件
+@property BOOL notifyNotFound;				//!< 見つからないときにメッセージを表示
+@property BOOL autoCloseFind;				//!< 検索ダイアログを自動的に閉じる
+@property BOOL autoCloseReplace;			//!< 置換ダイアログを自動的に閉じる
+@property BOOL searchAll;					//!< 先頭（末尾）から再検索する
+@property BOOL consecutiveAll;				//!< 「すべて置換」は置換の繰返し
+@property BOOL selectedArea;				//!< 置換の範囲が「選択範囲」
+@property BOOL caretTextForSearch;			//!< カーソル位置の文字列をデフォルトの検索文字列にする
+@property BOOL inheritKeyOtherView;			//!< 次・前検索で他のビューの検索条件を引き継ぐ
+@property BOOL jumpLineNumIsCRLF;			//!< 指定行へジャンプ：改行単位の行番号
+@end
 
 /*!
 	编辑画面的显示设置：类型别设置里与排版、记号有关的部分（sakura::core::ViewSettings）
@@ -319,6 +412,25 @@ NS_SWIFT_NAME(EditorCore)
 */
 + (void)setLayoutFontName:(NSString *)name size:(NSInteger)size NS_SWIFT_NAME(setLayoutFont(name:size:));
 
+// ----- 查找、替换（第 32 步） -----
+
+//! 查找、替换、跳转的共通设置
+@property (class, copy) ECSearchSettings *searchSettings;
+//! 查找的文字的历史（新的在前）
+@property (class, readonly, copy) NSArray<NSString *> *searchKeyHistory;
+//! 置换后的文字的历史（新的在前）
+@property (class, readonly, copy) NSArray<NSString *> *replaceKeyHistory;
+//! 登记到历史（_MAX_PATH 以上长度的不登记）。登记后序号加 1
++ (void)addSearchKey:(NSString *)key NS_SWIFT_NAME(addSearchKey(_:));
++ (void)addReplaceKey:(NSString *)key NS_SWIFT_NAME(addReplaceKey(_:));
+//! 历史的序号（每次登记加 1）
+@property (class, readonly) NSInteger searchKeySequence;
+@property (class, readonly) NSInteger replaceKeySequence;
+//! 正则表达式的语法错误（没有错误时是 nil）
+//! 正则表达式库的版本（查找对话框里显示）
+@property (class, readonly, copy) NSString *regexpVersion;
++ (nullable NSString *)regexpSyntaxErrorForPattern:(NSString *)pattern matchCase:(BOOL)matchCase NS_SWIFT_NAME(regexpSyntaxError(_:matchCase:));
+
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
@@ -405,6 +517,21 @@ NS_SWIFT_NAME(EditorDocument)
 //! 全部替换。返回替换的个数，正则表达式有错误时是 -1
 - (NSInteger)replaceAllPattern:(NSString *)pattern with:(NSString *)replacement options:(ECSearchOptions)options NS_SWIFT_NAME(replaceAll(_:with:options:));
 @property (readonly, copy) NSString *lastSearchError;
+
+//! 次を検索（原版 Command_SEARCH_NEXT）：从选择的末尾（没有选择时从光标）往后找
+- (ECSearchResult *)searchNext:(NSString *)key options:(ECSearchOptions)options view:(ECSearchView)view searchAll:(BOOL)searchAll NS_SWIFT_NAME(searchNext(_:options:view:searchAll:));
+//! 前を検索（原版 Command_SEARCH_PREV）：从光标往前找
+- (ECSearchResult *)searchPrev:(NSString *)key options:(ECSearchOptions)options view:(ECSearchView)view searchAll:(BOOL)searchAll NS_SWIFT_NAME(searchPrev(_:options:view:searchAll:));
+//! 置換（原版 Command_REPLACE）：从选择的开头找下一个，换掉，再找下一个
+- (ECSearchResult *)replaceNext:(NSString *)key with:(NSString *)replacement options:(ECReplaceOptions)options view:(ECSearchView)view NS_SWIFT_NAME(replaceNext(_:with:options:view:));
+//! すべて置換（原版 Command_REPLACE_ALL）
+- (ECSearchResult *)replaceAll:(NSString *)key with:(NSString *)replacement options:(ECReplaceOptions)options view:(ECSearchView)view NS_SWIFT_NAME(replaceAll(_:with:options:view:));
+//! 指定行へジャンプ（原版 Command_JUMP）：跳转后的光标。文档是空的时返回 NO
+- (BOOL)jumpPosition:(ECJumpOptions)options position:(ECPosition *)outPosition NS_SWIFT_NAME(jumpPosition(_:position:));
+//! 这一逻辑行里用「検索文字列」的颜色显示的部分
+//! 这个位置的单词的范围（原版 WhereCurrentWord）。没有单词时返回 NO
+- (BOOL)wordRangeAt:(ECPosition)position range:(ECRange *)outRange NS_SWIFT_NAME(wordRange(at:range:));
+- (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(searchMarks(line:key:options:));
 
 // ----- 命令 -----
 
