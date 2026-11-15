@@ -19,6 +19,15 @@ for arg in "$@"; do
     esac
 done
 
+# 开发者目录指向 Command Line Tools 时 xcodebuild 不能用：这次运行改用 /Applications 里的 Xcode（不改系统设置）
+if [ -z "${DEVELOPER_DIR:-}" ] && ! xcodebuild -version > /dev/null 2>&1; then
+    XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | head -1)
+    if [ -n "$XCODE" ]; then
+        export DEVELOPER_DIR="$XCODE/Contents/Developer"
+        echo "使用 $XCODE（想固定下来：sudo xcode-select -s $DEVELOPER_DIR）"
+    fi
+fi
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="$ROOT/macos/app/build/test-results/$STAMP"
