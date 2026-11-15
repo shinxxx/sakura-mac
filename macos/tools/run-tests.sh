@@ -112,6 +112,7 @@ if "${XCODEBUILD[@]}" build-for-testing > "$OUT/app-build.log" 2>&1; then
     if ! "${XCODEBUILD[@]}" -resultBundlePath "$RESULT" "${ONLY[@]}" \
         test-without-building > "$OUT/app-tests.log" 2>&1; then
         FAILED=1
+        APP_FAILED=1
     fi
 else
     FAILED=1
@@ -133,7 +134,7 @@ PY
         grep -E 'Executed [0-9]+ tests|error:|failed \(' "$OUT/app-tests.log" | tail -30 | tee -a "$SUMMARY"
     fi
     # 失败时的截图（界面测试只在失败时附截图。截图附在 tearDown 里，不算「与失败关联」，所以不用 --only-failures）
-    if xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT/failures" > /dev/null 2>&1; then
+    if [ "${APP_FAILED:-0}" = 1 ] && xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT/failures" > /dev/null 2>&1; then
         SHOTS=$(find "$OUT/failures" -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.heic' \) 2>/dev/null | wc -l | tr -d ' ')
         [ "$SHOTS" != 0 ] && say "失败时的截图：$OUT/failures（$SHOTS 张）"
     fi
