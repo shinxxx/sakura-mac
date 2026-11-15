@@ -177,7 +177,30 @@ jobs:
             -configuration Debug \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
+            -only-testing:SakuraMacTests \
             test
+
+      # 自动界面测试（XCUITest）：真的启动 App 用键盘和菜单操作。界面测试的运行器必须签名，用本机签名（ad-hoc）
+      - name: UI tests (Debug)
+        working-directory: macos/app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project SakuraMac.xcodeproj \
+            -scheme SakuraMac \
+            -configuration Debug \
+            -derivedDataPath build \
+            -resultBundlePath build/ui-tests.xcresult \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            -only-testing:SakuraMacUITests \
+            test
+
+      - name: Upload UI test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-test-results
+          path: macos/app/build/ui-tests.xcresult
 
       - name: Check app bundle
         working-directory: macos/app

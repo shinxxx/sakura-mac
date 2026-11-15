@@ -8,6 +8,8 @@ import EditorBridge
 final class AppDelegate: NSObject, NSApplicationDelegate {
     // 在打开文件、新建无题文档之前启动核心库和建立菜单
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // 自动界面测试时用临时的设置和剪贴板（UITesting.swift）
+        UITesting.prepare()
         // 核心库：建立共通设置，读入 sakura.ini（第 24 步）
         if !EditorCore.startup() {
             NSLog("Sakura core startup failed")
@@ -30,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // 原版在控制进程结束时写出 sakura.ini
     func applicationWillTerminate(_ notification: Notification) {
         if EditorCore.isStarted {
-            EditorCore.shutdown(savingSettings: true)
+            EditorCore.shutdown(savingSettings: !UITesting.isEnabled)
         }
     }
 
