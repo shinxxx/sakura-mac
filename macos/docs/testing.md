@@ -30,6 +30,12 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 需要 Xcode、CMake、XcodeGen（`brew install xcodegen cmake`）。不需要开发者账号：测试用本机签名（ad-hoc）。
 `xcode-select` 指向 Command Line Tools 时，脚本自动改用 `/Applications` 里的 Xcode（只在这次运行里，不改系统设置）。
 界面测试运行时会真的打开窗口、操作键盘，这期间不要动鼠标和键盘。
+
+`testSandboxedFileReopensFromRecentFilesAfterRestart`（第 31 步）只在 run-tests.sh 里运行（CI 上跳过）：
+为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的沙盒例外（`temporary-exception.files.absolute-path.read-only = /`），
+所以 run-tests.sh 复制一份 App 到 `macos/app/build/sandbox-test/`，去掉这个例外、换一个 bundle ID 重新签名，测试用这一份。
+它在测试程序自己的容器（测试程序也在沙盒里）的 `SakuraMacUITest/` 放一个文件（对 App 来说是沙盒外），先确认不经过对话框打不开（App 真的在沙盒里），
+再用「開く」对话框选它打开，退出重开后从「最近使ったファイル」打开，确认安全书签有效。测试完删掉文件。
 第一次运行界面测试时，macOS 可能要求允许 Xcode 控制电脑（「辅助功能」或「自动化」），点允许即可。
 
 结果放在 `macos/app/build/test-results/<时间>/`：

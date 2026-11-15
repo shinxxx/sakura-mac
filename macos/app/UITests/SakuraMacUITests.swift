@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Zlib
 
 import AppKit
+import Carbon
 import XCTest
 
 /// 自动界面测试：真的启动 App，用键盘和菜单操作，确认已经完成的步骤的主要功能。
@@ -198,5 +199,110 @@ final class SakuraMacUITests: XCTestCase {
         // 光标在上次的位置（第 3 行的开头）：输入的字在 line3 前面
         app.typeText("X")
         XCTAssertEqual(window.textViews["editor"].value as? String, "line1\nline2\nXline3\nline4\n")
+    }
+
+    // MARK: - 第 31 步：沙盒外的文件，重启后从「最近使ったファイル」打开（只在自己的 Mac 上）
+
+    /// 沙盒外的文件用「開く」对话框选了打开，退出再启动后从「最近使ったファイル」还能打开（安全书签有效）。
+    ///
+    /// 只在 macos/tools/run-tests.sh 里运行：要操作系统的文件对话框，GitHub 的机器上不稳定。
+    /// 为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的沙盒例外，测不出限制，
+    /// 所以用 run-tests.sh 去掉例外重新签名的那一份（SAKURA_SANDBOX_APP 是它的位置）。
+    /// 文件放在测试程序的容器里（测试程序也在沙盒里，写不了别处；不放「文稿」：会弹出权限确认）
+    func testSandboxedFileReopensFromRecentFilesAfterRestart() throws {
+        guard let appPath = ProcessInfo.processInfo.environment["SAKURA_SANDBOX_APP"] else {
+            throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
+        }
+        app.terminate()
+        let appURL = URL(fileURLWithPath: appPath)
+
+        // 沙盒外的文件（App 的容器以外）。测试程序本身也在沙盒里，文件放在测试程序的容器里
+        // （~/Library/Containers/…uitests.xctrunner/Data/SakuraMacUITest）：对 App 来说是别的 App 的地方，同样不能直接读。
+        // 以前失败时留下的文件先删掉
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest")
+        try? FileManager.default.removeItem(at: dir)
+        let name = "sandbox-\(UUID().uuidString.prefix(8)).txt"
+        let file = dir.appendingPathComponent(name)
+        let content = "outside\nsandbox\n"
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try content.write(to: file, atomically: true, encoding: .utf8)
+        } catch {
+            throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let home = "sandbox-\(UUID().uuidString)"
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let byTitle = NSPredicate(format: "title CONTAINS %@", name)
+
+        // 1. App 在沙盒里：不经过对话框直接打开，应该被拒绝
+        let check = XCUIApplication(url: appURL)
+        check.launchArguments = base + ["-SakuraUITestingOpenPath", file.path]
+        check.launch()
+        let opened = check.windows.matching(byTitle).firstMatch.waitForExistence(timeout: 5)
+        XCTAssertFalse(opened, "App 没有在沙盒里运行：不经过对话框也打开了沙盒外的文件（这个测试就没有意义了）")
+        check.terminate()
+        if opened { return }
+
+        // 2. 用「開く」对话框选这个文件打开（Cmd+Shift+G 输入路径）
+        let first = XCUIApplication(url: appURL)
+        first.launchArguments = base
+        first.launch()
+        XCTAssertTrue(first.textViews["editor"].waitForExistence(timeout: 10), "无题窗口")
+        first.typeKey("o", modifierFlags: .command)
+        let panel = openPanel(of: first)
+        // 对话框的输入框不像编辑区那样限制成英文输入：日文、中文输入法打开时路径会变成未确定文字。
+        // 输入路径的这段时间换成英文键盘，之后换回原来的
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() {
+            TISSelectInputSource(ascii)
+        }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        panel.typeKey("g", modifierFlags: [.command, .shift])
+        sleep(1)
+        panel.typeText(file.path + "\n")
+        sleep(1)
+        // 文件选中后按「開く」（Return 键有时不起作用：按钮直接点）
+        let openButton = first.buttons.matching(NSPredicate(format: "title IN %@ OR label IN %@", ["開く", "Open"], ["開く", "Open"])).firstMatch
+        if openButton.waitForExistence(timeout: 5) {
+            openButton.click()
+        } else {
+            panel.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        }
+        let firstWindow = first.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(firstWindow.waitForExistence(timeout: 10), "从对话框打开了沙盒外的文件")
+        XCTAssertEqual(firstWindow.textViews["editor"].value as? String, content)
+        first.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "Cmd+Q 结束了")
+
+        // 3. 重启后从「最近使ったファイル」打开：用书签取回权限，能读
+        app = XCUIApplication(url: appURL)
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), "无题窗口")
+        let fileMenu = app.menuBars.menuBarItems["ファイル"]
+        fileMenu.click()
+        let recent = fileMenu.menuItems["最近使ったファイル"]
+        XCTAssertTrue(recent.waitForExistence(timeout: 3))
+        recent.hover()
+        let item = recent.menuItems.matching(byTitle).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "历史里有这个文件")
+        item.click()
+        let window = app.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "重启后从历史打开了沙盒外的文件")
+        XCTAssertEqual(window.textViews["editor"].value as? String, content)
+    }
+
+    /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
+    /// 但辅助功能里算 App 的窗口。找不到时返回 App 本身（键盘输入照样进对话框）
+    private func openPanel(of app: XCUIApplication) -> XCUIElement {
+        for _ in 0..<20 {
+            for candidate in [app.dialogs.firstMatch, app.sheets.firstMatch] where candidate.exists {
+                return candidate
+            }
+            usleep(500_000)
+        }
+        return app
     }
 }

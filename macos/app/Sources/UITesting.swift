@@ -15,6 +15,8 @@ import AppKit
 /// 第 31 步（重启后从「最近使ったファイル」打开）的测试另外用：
 /// - `-SakuraUITestingHome 名字`：设置放在临时目录里这个名字的文件夹（两次启动用同一个），结束时写出设置
 /// - `-SakuraUITestingOpenFile 名字`：在这个文件夹里做一个测试用的文件并打开（沙盒里测试那边放不了文件）
+/// - `-SakuraUITestingOpenPath 路径`：不经过对话框直接打开这个文件，打不开时显示错误。
+///   用来确认 App 真的在沙盒里（沙盒外的文件应该打不开）
 enum UITesting {
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: "SakuraUITesting")
@@ -53,12 +55,20 @@ enum UITesting {
 
     /// 启动时打开测试用的文件
     static var opensTestFile: Bool {
-        isEnabled && UserDefaults.standard.string(forKey: "SakuraUITestingOpenFile") != nil
+        isEnabled && (UserDefaults.standard.string(forKey: "SakuraUITestingOpenFile") != nil
+                      || UserDefaults.standard.string(forKey: "SakuraUITestingOpenPath") != nil)
     }
 
     /// `-SakuraUITestingOpenFile` 指定时，做测试用的文件（已经有时不改）并打开
     static func openTestFileIfRequested() {
-        guard isEnabled, let home, let name = UserDefaults.standard.string(forKey: "SakuraUITestingOpenFile") else { return }
+        guard isEnabled else { return }
+        if let path = UserDefaults.standard.string(forKey: "SakuraUITestingOpenPath") {
+            NSDocumentController.shared.openDocument(withContentsOf: URL(fileURLWithPath: path), display: true) { _, _, error in
+                if let error { NSApp.presentError(error) }
+            }
+            return
+        }
+        guard let home, let name = UserDefaults.standard.string(forKey: "SakuraUITestingOpenFile") else { return }
         let url = home.appendingPathComponent(name)
         if !FileManager.default.fileExists(atPath: url.path) {
             try? testFileContent.write(to: url, atomically: true, encoding: .utf8)

@@ -40,7 +40,7 @@
 - `macos/app/Tests/RecentFilesTests.swift`（App）：**书签存进文件、新的实例（相当于重启）读回来能打开**、移动后的文件也找得到、整理、打开时记下书签和历史、光标和表示域的恢复、编码的询问、菜单的内容和变灰、拖放。
 - `macos/app/UITests/SakuraMacUITests.swift` 的 `testReopenFromRecentFilesAfterRestart`：**真的结束 App 再启动，从「最近使ったファイル」打开，光标在上次的位置**。
 
-沙盒外的文件（比如「文稿」里的）重启后能不能打开，要用签名后的 App 实际试，放在集中手动确认里看。
+- 同一个文件里的 `testSandboxedFileReopensFromRecentFilesAfterRestart`（只在自己的 Mac 上用 run-tests.sh 运行）：**沙盒外的文件**用「開く」对话框选了打开，退出再启动后从「最近使ったファイル」还能打开。先确认不经过对话框打不开，证明 App 真的在沙盒里。文件放在测试程序自己的容器里（测试程序也在沙盒里，写不了别处）而不是「文稿」：测试程序访问「文稿」时系统会弹出权限确认，测试会停住；对 App 来说两处都是沙盒外（别的 App 的地方），书签的机制相同。
 
 ## 文件
 
