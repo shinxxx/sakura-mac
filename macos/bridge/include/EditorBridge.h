@@ -415,7 +415,7 @@ NS_SWIFT_NAME(EditorCore)
 // ----- 查找、替换（第 32 步） -----
 
 //! 查找、替换、跳转的共通设置
-@property (class, copy) ECSearchSettings *searchSettings;
+@property (class, strong) ECSearchSettings *searchSettings;
 //! 查找的文字的历史（新的在前）
 @property (class, readonly, copy) NSArray<NSString *> *searchKeyHistory;
 //! 置换后的文字的历史（新的在前）
@@ -426,9 +426,9 @@ NS_SWIFT_NAME(EditorCore)
 //! 历史的序号（每次登记加 1）
 @property (class, readonly) NSInteger searchKeySequence;
 @property (class, readonly) NSInteger replaceKeySequence;
-//! 正则表达式的语法错误（没有错误时是 nil）
 //! 正则表达式库的版本（查找对话框里显示）
 @property (class, readonly, copy) NSString *regexpVersion;
+//! 正则表达式的语法错误（没有错误时是 nil）
 + (nullable NSString *)regexpSyntaxErrorForPattern:(NSString *)pattern matchCase:(BOOL)matchCase NS_SWIFT_NAME(regexpSyntaxError(_:matchCase:));
 
 - (instancetype)init NS_UNAVAILABLE;

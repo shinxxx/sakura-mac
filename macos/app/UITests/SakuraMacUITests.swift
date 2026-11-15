@@ -156,6 +156,95 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abc", "选择后文字不变")
     }
 
+    // MARK: - 第 32 步：検索・置換・指定行へジャンプ
+
+    /// 「検索」菜单有第 32 步的项目
+    func testSearchMenu() {
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        for title in ["検索...", "次を検索", "前を検索", "置換...", "検索マークの切替え", "検索開始位置へ戻る", "指定行へジャンプ..."] {
+            XCTAssertTrue(menu.menuItems[title].exists, "「検索」>「\(title)」")
+        }
+        key(XCUIKeyboardKey.escape.rawValue)
+    }
+
+    /// 组合框的文字换成 text
+    private func setComboText(_ combo: XCUIElement, _ text: String) {
+        combo.click()
+        combo.typeKey("a", modifierFlags: .command)
+        combo.typeText(text)
+    }
+
+    /// 关掉还开着的对话框（「検索ダイアログを自動的に閉じる」关着时）
+    private func closePanel(_ title: String, cancel: String) {
+        let panel = app.windows[title]
+        if panel.exists { panel.buttons[cancel].click() }
+    }
+
+    /// 消息框的 OK
+    private func dismissMessage(containing part: String, file: StaticString = #filePath, line: UInt = #line) {
+        let message = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", part)).firstMatch
+        XCTAssertTrue(message.waitForExistence(timeout: 5), "显示了消息「\(part)」", file: file, line: line)
+        app.buttons["OK"].firstMatch.click()
+    }
+
+    /// 完成标志：検索ダイアログで下検索、次を検索（⌘G）、指定行へジャンプ（⌘L）
+    func testFindNextAndJump() {
+        editor.typeText("apple banana apple\nline2\nline3")
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文档的开头
+        key("f", .command)
+        let combo = app.comboBoxes["findText"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 5), "検索ダイアログが開いた")
+        XCTAssertEqual(combo.value as? String, "apple", "カーソル位置の単語が検索文字列")
+        app.buttons["findNext"].click()
+        closePanel("検索", cancel: "findCancel")
+        app.typeText("X")
+        XCTAssertEqual(normalizedText, "X banana apple\nline2\nline3", "見つかった文字列が選択されている")
+
+        key("g", .command)	// 次を検索
+        app.typeText("Y")
+        XCTAssertEqual(normalizedText, "X banana Y\nline2\nline3", "次を検索")
+
+        key("l", .command)	// 指定行へジャンプ
+        let line = app.textFields["jumpLine"]
+        XCTAssertTrue(line.waitForExistence(timeout: 5), "指定行へジャンプが開いた")
+        line.typeText("3\r")
+        let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: line)
+        wait(for: [closed], timeout: 5)	// ジャンプで閉じる
+        app.typeText("Z")
+        XCTAssertEqual(normalizedText, "X banana Y\nline2\nZline3", "3 行目の先頭へジャンプ")
+    }
+
+    /// 見つからないときにメッセージを表示
+    func testFindNotFoundMessage() {
+        editor.typeText("abc")
+        key("f", .command)
+        let combo = app.comboBoxes["findText"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 5))
+        setComboText(combo, "zzz")
+        app.buttons["findNext"].click()
+        dismissMessage(containing: "zzz")
+        closePanel("検索", cancel: "findCancel")
+        XCTAssertEqual(text, "abc")
+    }
+
+    /// 完成标志：置換ダイアログですべて置換
+    func testReplaceAll() {
+        editor.typeText("cat dog cat")
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)
+        key("f", [.command, .option])	// 置換
+        let combo = app.comboBoxes["replaceText"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 5), "置換ダイアログが開いた")
+        XCTAssertEqual(combo.value as? String, "cat")
+        setComboText(app.comboBoxes["replaceText2"], "cow")
+        app.buttons["replaceAll"].click()
+        dismissMessage(containing: "2箇所を置換しました。")
+        closePanel("置換", cancel: "replaceCancel")
+        XCTAssertEqual(text, "cow dog cow")
+        key("z", .command)
+        XCTAssertEqual(text, "cat dog cat", "すべて置換は 1 回で元に戻る")
+    }
+
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
 
     /// 完成标志：重启 App 后最近文件仍能直接打开，光标回到上次的位置。
