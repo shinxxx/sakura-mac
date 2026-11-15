@@ -114,13 +114,18 @@ final class SakuraDocument: NSDocument {
 
     /// 现在的光标和表示域的第一行登记到「最近使ったファイル」（原版：保存后、关闭前）。无题时什么也不做
     func addToRecent() {
-        guard fileURL != nil else { return }
-        let controller = windowControllers.lazy.compactMap { $0 as? EditorWindowController }.first
-        editor.addToRecent(caret: controller?.textView.caret ?? EditorPosition(line: 0, column: 0),
-                           viewTopLine: controller?.textView.topVisibleRow ?? 0)
+        // 窗口已经没有了时不登记（关闭中 AppKit 会再调用一次 close，那时光标是 0 会盖掉刚登记的位置）
+        guard fileURL != nil,
+              let controller = windowControllers.lazy.compactMap({ $0 as? EditorWindowController }).first else { return }
+        editor.addToRecent(caret: controller.textView.caret, viewTopLine: controller.textView.topVisibleRow)
     }
 
+    private var isClosing = false
+
     override func close() {
+        guard !isClosing else { return super.close() }
+        isClosing = true
+        defer { isClosing = false }
         addToRecent()
         super.close()
         securityScopedURL?.stopAccessingSecurityScopedResource()

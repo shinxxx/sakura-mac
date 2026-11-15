@@ -256,3 +256,26 @@ TEST_F(MacRecentTest, HistorySurvivesRestart)
 	Shutdown(true);
 	ASSERT_TRUE(Startup());
 }
+
+TEST_F(MacRecentTest, UpdatesWhenHistoryIsFull)
+{
+	// 履歴が満杯（App の単体テストは 80 以上のファイルを開く）でも、閉じる前の登録で位置が更新される
+	for (int i = 0; i < 60; ++i) {
+		const auto name = "fill" + std::to_string(i) + ".txt";
+		Open(File(name.c_str(), "x\n"));
+	}
+	std::string lines;
+	for (int i = 1; i <= 200; ++i) lines += "line " + std::to_string(i) + "\n";
+	const auto a = File("caret.txt", lines);
+	{
+		auto doc = Open(a);
+		doc->AddToRecent(Position{ 120, 3 }, 100);
+	}
+	const auto found = FindRecentFile(ToText(a));
+	ASSERT_TRUE(found.has_value());
+	EXPECT_EQ(120, found->caret.line);
+	EXPECT_EQ(3, found->caret.column);
+	EXPECT_EQ(100, found->viewTopLine);
+	EXPECT_EQ(ToText(a), RecentFiles()[0].path);
+	EXPECT_EQ(120, RecentFiles()[0].caret.line);
+}

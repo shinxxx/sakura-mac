@@ -129,6 +129,8 @@ final class RecentFilesTests: XCTestCase {
         XCTAssertNotNil(first.fileURL)
         XCTAssertEqual(first.editor.path, file.path, "核心库的路径")
         XCTAssertIdentical((first.windowControllers.first as? EditorWindowController)?.textView, view)
+        first.addToRecent()
+        XCTAssertEqual(EditorCore.recentFile(path: file.path)?.caret.line, 120, "关闭前也能登记")
         first.close()	// 关闭前登记（原版 OnBeforeClose）
         XCTAssertEqual(EditorCore.recentFiles.first?.path, file.path, "最新的一项")
         XCTAssertEqual(EditorCore.recentFiles.first?.caret.line, 120, "最新的一项的光标")
