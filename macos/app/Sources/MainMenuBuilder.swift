@@ -74,6 +74,11 @@ enum MainMenuBuilder {
         menu.addItem(saveAs)
         menu.addItem(.separator())
         menu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        // 第 31 步：原版 MainMenu.ini 的 34006「最近使ったファイル」、34007「最近使ったフォルダー」
+        menu.addItem(.separator())
+        menu.addItem(RecentMenu(kind: .files).item)
+        menu.addItem(RecentMenu(kind: .folders).item)
+        menu.delegate = FileMenuUpdater.shared
         return menu
     }
 

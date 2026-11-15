@@ -146,6 +146,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if Self.romanInputOnly {
             inputContext?.allowedInputSourceLocales = [NSAllRomanInputSourcesLocaleIdentifier]
         }
+        // 从 Finder 拖进来的文件打开（第 31 步。原版 CDropTarget 的文件拖放）
+        registerForDraggedTypes([.fileURL])
     }
 
     override func accessibilityValue() -> Any? {
@@ -1013,6 +1015,55 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             _ = document.setWrap(.windowWidth, columns: windowWrapColumns)
             contentDidChange()
         }
+    }
+
+    // MARK: - 上次的位置（第 31 步：最近使ったファイル）
+
+    /// 表示域的第一行（画面上的行。原版 EditInfo::m_nViewTopLine）
+    var topVisibleRow: Int {
+        guard lineHeight > 0 else { return 0 }
+        return rowIndex(atY: visibleRect.minY + lineHeight / 2)
+    }
+
+    /// 打开时恢复上次的位置（原版 CMruListener::OnAfterLoad）：表示域的第一行放到最上面，再放光标。
+    /// toEnd 时（上次的位置超过了现在的文件末尾）移到文件末尾
+    func restoreView(caret position: EditorPosition, topRow: Int, toEnd: Bool) {
+        if toEnd {
+            setCaret(document.endPosition)
+            return
+        }
+        setCaret(position)
+        let top = min(max(0, topRow), displayLineCount - 1)
+        scroll(NSPoint(x: visibleRect.minX, y: lineTop(top) - topMargin))
+        scrollToVisible(caretRect.insetBy(dx: -8, dy: 0))
+    }
+
+    // MARK: - 文件的拖放（第 31 步）
+
+    /// 拖进来的东西里的文件
+    static func droppedFileURLs(_ pasteboard: NSPasteboard) -> [URL] {
+        (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        Self.droppedFileURLs(sender.draggingPasteboard).isEmpty ? [] : .copy
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        draggingEntered(sender)
+    }
+
+    /// 拖进来的文件各自在窗口里打开（已经打开的只是显示出来）。
+    /// 沙盒里拖放的文件可以读写，打开后 SakuraDocument 记下书签
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = Self.droppedFileURLs(sender.draggingPasteboard)
+        guard !urls.isEmpty else { return false }
+        for url in urls {
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+                if let error { NSApp.presentError(error) }
+            }
+        }
+        return true
     }
 
     // MARK: - 键盘和鼠标

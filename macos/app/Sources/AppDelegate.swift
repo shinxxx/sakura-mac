@@ -22,6 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
+        UITesting.openTestFileIfRequested()
+    }
+
+    // 界面测试打开测试用的文件时不另外开无题窗口（键盘输入要进那个文件的窗口）
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        !UITesting.opensTestFile
     }
 
     // 原版在最后一个编辑窗口关闭时退出（不常驻任务托盘），这里保持一致。
@@ -32,7 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // 原版在控制进程结束时写出 sakura.ini
     func applicationWillTerminate(_ notification: Notification) {
         if EditorCore.isStarted {
-            EditorCore.shutdown(savingSettings: !UITesting.isEnabled)
+            // 结束时还开着的文件也登记到「最近使ったファイル」（原版是每个窗口关闭时，第 31 步）
+            for case let document as SakuraDocument in NSDocumentController.shared.documents {
+                document.addToRecent()
+            }
+            BookmarkStore.shared.pruneToRecentFiles()
+            EditorCore.shutdown(savingSettings: UITesting.savesSettings)
         }
     }
 

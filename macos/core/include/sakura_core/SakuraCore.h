@@ -20,6 +20,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -159,6 +160,19 @@ enum class Result {
 
 struct OpenOptions {
 	Encoding encoding = encoding::AutoDetect;	//!< 指定编码，或者自动识别
+	/*!
+		「最近使ったファイル」的历史（原版 CMruListener，第 31 步）：
+		- 历史里有这个文件时，用上次的类型别设置；自动识别的结果与上次的编码不同时用上次的编码
+		- 打开后恢复光标位置（GetRestoredView），并登记到历史
+		false 时这些都不做（测试、内部用）。
+	*/
+	bool useHistory = true;
+	/*!
+		打开时的编码与上次不同、并且共通设置「前回と異なる文字コードの時に問い合わせを行う」打开时调用
+		（原版的确认消息 STR_ERR_DLGEDITDOC6）。返回 true 用上次的编码，false 用这次的编码。
+		没有设置时与不问时相同：自动识别时用上次的编码，指定时用指定的编码。
+	*/
+	std::function<bool(Encoding current, Encoding previous)> askUsePreviousEncoding;
 };
 
 struct SaveOptions {
@@ -182,6 +196,42 @@ struct SaveCheck {
 	Text lostChar;
 	//! 那个字的代码（"U+3042" 等，与状态栏的显示方式相同；不明时是空）
 	Text lostCharCode;
+};
+
+// ---------------------------------------------------------------------------
+// 最近使ったファイル、最近使ったフォルダー（原版 CMRUFile、CMRUFolder，第 31 步）
+// ---------------------------------------------------------------------------
+
+struct RecentFile {
+	Text path;
+	Encoding encoding = encoding::None;		//!< 上次的编码
+	Position caret;							//!< 上次的光标位置
+	std::int32_t viewTopLine = 0;			//!< 上次表示域的第一行（排版行）
+	bool favorite = false;					//!< お気に入り
+	//! 菜单里显示的文字（原版 GetMenuFullLabel_MRU。开头是快捷键 "&1 " 这样的部分，编码不是 SJIS 时后面加 "  [UTF-8]"）
+	Text menuLabel;
+};
+
+struct RecentFolder {
+	Text path;								//!< 末尾带 "/"
+	bool favorite = false;
+	Text menuLabel;
+};
+
+//! 菜单里显示的历史（新的在前。个数是共通设置「ファイルの履歴MAX」，默认 15）
+std::vector<RecentFile> RecentFiles();
+//! 同上（「フォルダーの履歴MAX」）
+std::vector<RecentFolder> RecentFolders();
+//! 历史里这个文件的记录（菜单里不显示的也算）
+std::optional<RecentFile> FindRecentFile(const Text& path);
+//! 删除这个文件的历史（打不开的文件，原版 F_FILE_USED_RECENTLY 打开失败时）
+void RemoveRecentFile(const Text& path);
+
+//! 打开时从历史恢复的位置（原版 CMruListener::OnAfterLoad）
+struct RestoredView {
+	Position caret;
+	std::int32_t viewTopLine = 0;	//!< 表示域的第一行（排版行）
+	bool toEnd = false;				//!< 上次的位置超过了文件末尾：移到文件末尾（原版 F_GOFILEEND）
 };
 
 //! 文件的信息（原版的 SFileInfo 的一部分）
@@ -435,6 +485,18 @@ public:
 
 	//! 用 options 保存之前的检查（原版 CCodeChecker::OnCheckSave）。不改文档
 	SaveCheck CheckSave(const SaveOptions& options = {}) const;
+
+	/*!
+		打开时从历史恢复的光标位置（第 31 步）。共通设置「カーソル位置を復元する」关掉时、历史里没有时是 nullopt。
+		界面层打开后把光标放到这里。
+	*/
+	std::optional<RestoredView> GetRestoredView() const;
+
+	/*!
+		把现在的状态（光标位置、表示域、编码、类型）登记到「最近使ったファイル」，同时登记文件夹
+		（原版 CMruListener：保存后、关闭前、打开后）。新文件（没有路径）时什么也不做。
+	*/
+	void AddToRecent(const Position& caret, std::int32_t viewTopLine);
 
 	const FileInfo& GetFileInfo() const;
 	bool IsModified() const;
