@@ -24,6 +24,8 @@ enum TestCore {
         // 与 App 相同：文字宽度用 Core Text 测（第 27 步）
         EditorCore.useCoreTextMeasurement()
         EditorTextView.resetFont()	// 默认字体（第 28 步起字体可以改，测试用默认的）
+        // 编码与上次不同时不出对话框（第 31 步。runModal 会让测试停住）：用这次的编码
+        SakuraDocument.askUsePreviousEncoding = { _, _, _ in false }
         XCTestObservationCenter.shared.addTestObserver(TestCoreObserver())
         startedHome = home
         return home

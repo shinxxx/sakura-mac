@@ -42,9 +42,11 @@ public:
 	~CMRUFile();
 
 	//	メニューを取得する
+#if defined(_WIN32)	// Mac 版のメニューは AppKit で作る（移植計画のステップ 31）
 	HMENU CreateMenu( CMenuDrawer* pCMenuDrawer ) const;	//	うーん。pCMenuDrawerが必要なくなるといいなぁ。
 	HMENU CreateMenu( HMENU hMenu, CMenuDrawer* pCMenuDrawer ) const;	//	2010/5/21 Uchi
 	BOOL DestroyMenu( HMENU hMenu ) const;
+#endif
 	
 	//	ファイル名の一覧を教えて
 	std::vector<LPCWSTR> GetPathList() const;

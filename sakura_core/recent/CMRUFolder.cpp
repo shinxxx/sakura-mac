@@ -19,7 +19,9 @@
 #include "CMRUFolder.h"
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
+#if defined(_WIN32)	// Mac 版のメニューは AppKit で作る（移植計画のステップ 31）
 #include "uiparts/CMenuDrawer.h"	//	これでいいのか？
+#endif
 #include "util/string_ex2.h"
 #include "util/window.h"
 
@@ -38,6 +40,7 @@ CMRUFolder::~CMRUFolder()
 	m_cRecentFolder.Terminate();
 }
 
+#if defined(_WIN32)	// Mac 版のメニューは AppKit で作る（移植計画のステップ 31）
 /*!
 	フォルダー履歴メニューの作成
 	
@@ -91,6 +94,8 @@ HMENU CMRUFolder::CreateMenu( HMENU	hMenuPopUp, CMenuDrawer* pCMenuDrawer ) cons
 	}
 	return hMenuPopUp;
 }
+
+#endif
 
 std::vector<LPCWSTR> CMRUFolder::GetPathList() const
 {

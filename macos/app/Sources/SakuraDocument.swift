@@ -11,6 +11,7 @@ import EditorBridge
 /// 「最近使用的文件」、Finder 的「打开方式」都交给 NSDocumentController。
 /// 内容本身在核心库的文档（EditorDocument）里，读写也用核心库（编码识别、BOM、换行符与原版相同）。
 /// 打开、保存对话框里可以选编码、BOM、换行符（第 30 步，FileDialogAccessory）。
+/// 打开、保存、关闭时登记到原版的「最近使ったファイル」，并记下沙盒的访问权限（第 31 步）。
 ///
 /// 原版是一个编辑窗口一个进程（CNormalProcess），Mac 版所有窗口在同一个进程里。
 @objc(SakuraDocument)
@@ -59,7 +60,12 @@ final class SakuraDocument: NSDocument {
             throw CocoaError(.fileReadUnknown, userInfo: [NSURLErrorKey: url])
         }
         let encoding = Self.requestedEncodings[Self.encodingKey(url)] ?? ECEncodingAutoDetect
-        switch editor.open(path: url.path, encoding: encoding) {
+        let path = url.path
+        // 用「最近使ったファイル」的历史：上次的编码、类型，打开后恢复光标（第 31 步。原版 CMruListener）
+        let result = editor.open(path: path, encoding: encoding) { current, previous in
+            Self.askUsePreviousEncoding(path, current, previous)
+        }
+        switch result {
         case .success:
             self.editor = editor
             lostSomeOnLoad = false
@@ -72,6 +78,58 @@ final class SakuraDocument: NSDocument {
         default:
             throw CocoaError(.fileReadUnknown, userInfo: [NSURLErrorKey: url])
         }
+        // 记下访问权限，重启后从「最近使ったファイル」打开时用（第 31 步）
+        BookmarkStore.shared.remember(url)
+        BookmarkStore.shared.pruneToRecentFiles()
+    }
+
+    // MARK: - 最近使ったファイル（第 31 步。原版 CMruListener）
+
+    /// 打开时的编码与上次不同时问用哪个（原版 CMruListener::OnBeforeLoad 的 MB_YESNO）。
+    /// 参数是路径、这次的编码、上次的编码，返回 true 用上次的编码。单元测试换成不出对话框的
+    static var askUsePreviousEncoding: (String, EditorEncoding, EditorEncoding) -> Bool = { path, current, previous in
+        let currentName = EditorCore.name(ofEncoding: current)
+        let previousName = EditorCore.name(ofEncoding: previous)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = NSLocalizedString("文字コード情報", comment: "STR_ERR_DLGEDITDOC5")
+        alert.informativeText = String(
+            format: NSLocalizedString("%@\n\nこのファイルを文字コード %@ で開こうとしていますが、前回は別の文字コード %@ で開かれています。\n前回と同じ文字コードを使いますか？\n\n・[はい(Y)]  ＝%@\n・[いいえ(N)]＝%@\n",
+                                      comment: "STR_ERR_DLGEDITDOC6"),
+            path, currentName, previousName, previousName, currentName)
+        alert.addButton(withTitle: NSLocalizedString("はい", comment: "メッセージボックス"))
+        alert.addButton(withTitle: NSLocalizedString("いいえ", comment: "メッセージボックス"))
+        NSSound.beep()	// 原版 ConfirmBeep
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// 从书签打开时取回的访问权限（关闭时还回去）
+    private var securityScopedURL: URL?
+
+    /// 从「最近使ったファイル」打开时，拿着书签的访问权限直到关闭（SakuraDocumentController 调用）
+    func holdSecurityScope(_ url: URL) {
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+        securityScopedURL = url
+    }
+
+    /// 现在的光标和表示域的第一行登记到「最近使ったファイル」（原版：保存后、关闭前）。无题时什么也不做
+    func addToRecent() {
+        // 窗口已经没有了时不登记（关闭中 AppKit 会再调用一次 close，那时光标是 0 会盖掉刚登记的位置）
+        guard fileURL != nil,
+              let controller = windowControllers.lazy.compactMap({ $0 as? EditorWindowController }).first else { return }
+        editor.addToRecent(caret: controller.textView.caret, viewTopLine: controller.textView.topVisibleRow)
+    }
+
+    private var isClosing = false
+
+    override func close() {
+        guard !isClosing else { return super.close() }
+        isClosing = true
+        defer { isClosing = false }
+        addToRecent()
+        super.close()
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+        securityScopedURL = nil
     }
 
     /// 现在的编码和 BOM，不转换换行符（上書き保存）
@@ -100,6 +158,12 @@ final class SakuraDocument: NSDocument {
             nextSaveSettings = confirmed
             writeConfirmed(to: url, ofType: typeName, for: saveOperation) { [self] error in
                 nextSaveSettings = nil
+                if error == nil {
+                    // 原版 CMruListener::OnAfterSave。另存为的新文件也记下访问权限（第 31 步）
+                    addToRecent()
+                    BookmarkStore.shared.remember(url)
+                    BookmarkStore.shared.pruneToRecentFiles()
+                }
                 completionHandler(error)
             }
         }
@@ -283,7 +347,12 @@ final class SakuraDocument: NSDocument {
     // MARK: - 窗口
 
     override func makeWindowControllers() {
-        addWindowController(EditorWindowController(document: editor))
+        let controller = EditorWindowController(document: editor)
+        addWindowController(controller)
+        // 上次的光标位置和表示域（原版 CMruListener::OnAfterLoad。第 31 步）
+        if let view = editor.restoredView {
+            controller.textView.restoreView(caret: view.caret, topRow: view.viewTopLine, toEnd: view.toEnd)
+        }
     }
 
     override func showWindows() {

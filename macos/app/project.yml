@@ -84,6 +84,10 @@ targets:
       - path: Sources/EditorWindowController.swift
       - path: Sources/SakuraDocument.swift
       - path: Sources/FileDialogAccessory.swift
+      # 第 31 步：安全书签、历史菜单（菜单的动作用 SakuraDocumentController）
+      - path: Sources/SecurityScopedBookmarks.swift
+      - path: Sources/RecentMenu.swift
+      - path: Sources/SakuraDocumentController.swift
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

@@ -204,6 +204,54 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @end
 
+@implementation ECRecentFile
+
+- (instancetype)initWithRecent:(const core::RecentFile&)r
+{
+	self = [super init];
+	if (self) {
+		_path = ToNSString(r.path);
+		_encoding = r.encoding;
+		_caret = FromCore(r.caret);
+		_viewTopLine = r.viewTopLine;
+		_favorite = r.favorite ? YES : NO;
+		_menuLabel = ToNSString(r.menuLabel);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECRecentFolder
+
+- (instancetype)initWithRecent:(const core::RecentFolder&)r
+{
+	self = [super init];
+	if (self) {
+		_path = ToNSString(r.path);
+		_favorite = r.favorite ? YES : NO;
+		_menuLabel = ToNSString(r.menuLabel);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECRestoredView
+
+- (instancetype)initWithView:(const core::RestoredView&)v
+{
+	self = [super init];
+	if (self) {
+		_caret = FromCore(v.caret);
+		_viewTopLine = v.viewTopLine;
+		_toEnd = v.toEnd ? YES : NO;
+	}
+	return self;
+}
+
+@end
+
 namespace {
 
 NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& list)
@@ -277,6 +325,35 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 {
 	if (!FitsInt32(encoding)) return NO;
 	return core::EncodingBomDefault(static_cast<core::Encoding>(encoding)) ? YES : NO;
+}
+
++ (NSArray<ECRecentFile *> *)recentFiles
+{
+	NSMutableArray<ECRecentFile *> *result = [NSMutableArray array];
+	for (const auto& r : core::RecentFiles()) {
+		[result addObject:[[ECRecentFile alloc] initWithRecent:r]];
+	}
+	return result;
+}
+
++ (NSArray<ECRecentFolder *> *)recentFolders
+{
+	NSMutableArray<ECRecentFolder *> *result = [NSMutableArray array];
+	for (const auto& r : core::RecentFolders()) {
+		[result addObject:[[ECRecentFolder alloc] initWithRecent:r]];
+	}
+	return result;
+}
+
++ (nullable ECRecentFile *)recentFileForPath:(NSString *)path
+{
+	const auto r = core::FindRecentFile(ToText(path));
+	return r ? [[ECRecentFile alloc] initWithRecent:*r] : nil;
+}
+
++ (void)removeRecentFileAtPath:(NSString *)path
+{
+	core::RemoveRecentFile(ToText(path));
 }
 
 + (void)useCoreTextMeasurement
@@ -367,10 +444,33 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 
 - (ECResult)openFileAtPath:(NSString *)path encoding:(ECEncoding)encoding
 {
+	return [self openFileAtPath:path encoding:encoding askUsePreviousEncoding:nil];
+}
+
+- (ECResult)openFileAtPath:(NSString *)path encoding:(ECEncoding)encoding
+	askUsePreviousEncoding:(nullable BOOL (NS_NOESCAPE ^)(ECEncoding current, ECEncoding previous))ask
+{
 	if (!FitsInt32(encoding)) return ECResultInvalidArgument;
 	core::OpenOptions options;
 	options.encoding = static_cast<core::Encoding>(encoding);
+	if (ask) {
+		options.askUsePreviousEncoding = [ask](core::Encoding current, core::Encoding previous) {
+			return ask(current, previous) == YES;
+		};
+	}
 	return FromCore(_doc->Open(ToText(path), options));
+}
+
+- (nullable ECRestoredView *)restoredView
+{
+	const auto v = _doc->GetRestoredView();
+	return v ? [[ECRestoredView alloc] initWithView:*v] : nil;
+}
+
+- (void)addToRecentWithCaret:(ECPosition)caret viewTopLine:(NSInteger)viewTopLine
+{
+	if (!FitsInt32(viewTopLine)) return;
+	_doc->AddToRecent(ToCore(caret), static_cast<std::int32_t>(viewTopLine));
 }
 
 - (ECResult)openFileAtPath:(NSString *)path

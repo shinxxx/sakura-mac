@@ -56,7 +56,7 @@ void ShareData_IO_VertLineIdx<CKetaXInt(&)[MAX_VERTLINES]>(
  */
 TEST(CProfile, ReadProfile_ExpandLineBuffer)
 {
-	std::filesystem::path iniPath{ "test.ini" };
+	std::filesystem::path iniPath{ "test-expand.ini" };	// ctest -j で並行に動く他のテストと別のファイルにする（移植計画のステップ 31）
 
 	std::error_code ec;
 	std::filesystem::remove(iniPath, ec);
@@ -99,7 +99,7 @@ TEST(CProfile, ReadProfile_ExpandLineBuffer)
  */
 TEST(CProfile, ReadProfile_LineTerminatorCr)
 {
-	std::filesystem::path iniPath{ "test.ini" };
+	std::filesystem::path iniPath{ "test-cr.ini" };	// ctest -j で並行に動く他のテストと別のファイルにする（移植計画のステップ 31）
 
 	std::error_code ec;
 	std::filesystem::remove(iniPath, ec);

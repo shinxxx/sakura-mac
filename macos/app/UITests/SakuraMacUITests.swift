@@ -154,4 +154,49 @@ final class SakuraMacUITests: XCTestCase {
         wrap.menuItems["折り返さない"].click()
         XCTAssertEqual(text, "abc", "选择后文字不变")
     }
+
+    // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
+
+    /// 完成标志：重启 App 后最近文件仍能直接打开，光标回到上次的位置。
+    /// 两次启动用同一个设置文件夹（-SakuraUITestingHome），结束时写出 sakura.ini
+    func testReopenFromRecentFilesAfterRestart() {
+        app.terminate()
+        let home = "restart-\(UUID().uuidString)"
+        let name = "recent-sample.txt"
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let byTitle = NSPredicate(format: "title CONTAINS %@", name)
+
+        // 1 回目：测试用的文件打开，光标移到第 3 行，Cmd+Q 结束
+        let first = XCUIApplication()
+        first.launchArguments = base + ["-SakuraUITestingOpenFile", name]
+        first.launch()
+        let firstWindow = first.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(firstWindow.waitForExistence(timeout: 10), "测试用的文件打开了")
+        XCTAssertEqual(firstWindow.textViews["editor"].value as? String, "line1\nline2\nline3\nline4\n")
+        first.typeKey(XCUIKeyboardKey.downArrow.rawValue, modifierFlags: [])
+        first.typeKey(XCUIKeyboardKey.downArrow.rawValue, modifierFlags: [])
+        first.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "Cmd+Q 结束了")
+
+        // 2 回目：ファイル > 最近使ったファイル 里有这个文件，选它打开
+        app = XCUIApplication()
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), "无题窗口")
+        let fileMenu = app.menuBars.menuBarItems["ファイル"]
+        fileMenu.click()
+        let recent = fileMenu.menuItems["最近使ったファイル"]
+        XCTAssertTrue(recent.waitForExistence(timeout: 3), "「ファイル」>「最近使ったファイル」")
+        recent.hover()
+        let item = recent.menuItems.matching(byTitle).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "历史里有上次的文件")
+        XCTAssertTrue(fileMenu.menuItems["最近使ったフォルダー"].exists, "「ファイル」>「最近使ったフォルダー」")
+        item.click()
+
+        let window = app.windows.matching(byTitle).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "从历史打开了")
+        // 光标在上次的位置（第 3 行的开头）：输入的字在 line3 前面
+        app.typeText("X")
+        XCTAssertEqual(window.textViews["editor"].value as? String, "line1\nline2\nXline3\nline4\n")
+    }
 }

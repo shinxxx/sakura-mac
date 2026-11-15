@@ -100,9 +100,7 @@ set(SAKURA_CORE_EXCLUDE
   env/CHokanMgr.cpp               # 输入补全的弹出窗口：之后的界面步骤
   env/CFormatManager.cpp          # 日期、时间的格式（插入日期命令、打印页眉）：与这些命令一起移植
   env/CSakuraEnvironment.cpp      # 展开 $F 等宏参数（标题栏、打印页眉、外部命令）：与这些功能一起移植
-  recent/CMRUFile.cpp             # “最近的文件”菜单：第 26 步之后的菜单步骤（历史记录本身在 recent 的其他文件）
-  recent/CMRUFolder.cpp           # “最近的文件夹”菜单：同上
-  recent/CMruListener.cpp         # 打开、关闭文件时更新历史：Mac 版现在用 macOS 的「最近使用的文件」，原版的历史与菜单步骤一起移植
+  recent/CMruListener.cpp         # 打开、关闭文件时更新历史（依赖 CEditDoc）：第 31 步在 api/SakuraCore.cpp 里按同样的步骤处理
   env/CPropertyManager.cpp        # 打开共通设置对话框：之后的设置对话框步骤
 )
 

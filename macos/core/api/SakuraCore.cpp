@@ -50,6 +50,9 @@
 #include "io/CBinaryStream.h"
 #include "io/CFileLoad.h"
 #include "io/CIoBridge.h"
+#include "recent/CMRUFile.h"
+#include "recent/CMRUFolder.h"
+#include "env/CFileNameManager.h"
 #include "charset/charset.h"
 #include "util/file.h"
 #include "sakura_platform_hooks.h"
@@ -225,6 +228,87 @@ bool IsValidEncoding(Encoding code)
 	return IsValidCodeOrCPType(code);
 }
 
+// 最近使ったファイル、最近使ったフォルダー（第 31 步）
+
+namespace {
+
+Text MenuLabelOfRecentFile(const EditInfo& fi, int index, bool bFavorite)
+{
+	WCHAR szMenu[_MAX_PATH * 2 + 10] = {};
+	CFileNameManager::getInstance()->TransformFileName_MakeCache();
+	CFileNameManager::getInstance()->GetMenuFullLabel_MRU(szMenu, int(std::size(szMenu)), &fi, -1, bFavorite, index, nullptr);
+	return Text(szMenu);
+}
+
+RecentFile ToRecentFile(const EditInfo& fi)
+{
+	RecentFile r;
+	r.path = Text(fi.m_szPath.c_str());
+	r.encoding = fi.m_nCharCode;
+	r.caret = Position{ std::max(0, static_cast<int>(fi.m_ptCursor.y)), std::max(0, static_cast<int>(fi.m_ptCursor.x)) };
+	r.viewTopLine = std::max(0, static_cast<int>(fi.m_nViewTopLine));
+	return r;
+}
+
+} // namespace
+
+std::vector<RecentFile> RecentFiles()
+{
+	// 与原版 CMRUFile::CreateMenu 相同（到「ファイルの履歴MAX」为止）
+	std::vector<RecentFile> result;
+	if (!IsStarted()) return result;
+	CRecentFile cRecentFile;
+	for (int i = 0; i < cRecentFile.GetItemCount() && i < cRecentFile.GetViewCount(); ++i) {
+		const EditInfo* p = cRecentFile.GetItem(i);
+		if (!p) continue;
+		RecentFile r = ToRecentFile(*p);
+		r.favorite = cRecentFile.IsFavorite(i);
+		r.menuLabel = MenuLabelOfRecentFile(*p, i, false);
+		result.push_back(std::move(r));
+	}
+	cRecentFile.Terminate();
+	return result;
+}
+
+std::vector<RecentFolder> RecentFolders()
+{
+	// 与原版 CMRUFolder::CreateMenu 相同（到「フォルダーの履歴MAX」为止）
+	std::vector<RecentFolder> result;
+	if (!IsStarted()) return result;
+	CRecentFolder cRecentFolder;
+	CFileNameManager::getInstance()->TransformFileName_MakeCache();
+	for (int i = 0; i < cRecentFolder.GetItemCount() && i < cRecentFolder.GetViewCount(); ++i) {
+		const WCHAR* pszFolder = cRecentFolder.GetItemText(i);
+		if (!pszFolder) continue;
+		RecentFolder r;
+		r.path = Text(pszFolder);
+		r.favorite = cRecentFolder.IsFavorite(i);
+		WCHAR szMenu[_MAX_PATH * 2 + 10] = {};
+		CFileNameManager::getInstance()->GetMenuFullLabel(szMenu, int(std::size(szMenu)), false, pszFolder, -1, false, CODE_NONE, false, i, true, nullptr);
+		r.menuLabel = Text(szMenu);
+		result.push_back(std::move(r));
+	}
+	cRecentFolder.Terminate();
+	return result;
+}
+
+std::optional<RecentFile> FindRecentFile(const Text& path)
+{
+	if (!IsStarted() || path.empty()) return std::nullopt;
+	EditInfo fi;
+	if (!CMRUFile().GetEditInfo(path.c_str(), &fi)) return std::nullopt;
+	return ToRecentFile(fi);
+}
+
+void RemoveRecentFile(const Text& path)
+{
+	if (!IsStarted() || path.empty()) return;
+	CRecentFile cRecentFile;
+	const int n = cRecentFile.FindItemByPath(path.c_str());
+	if (0 <= n) cRecentFile.DeleteItem(n);
+	cRecentFile.Terminate();
+}
+
 // 文件对话框的编码列表（第 30 步）
 
 std::vector<EncodingChoice> EncodingChoices()
@@ -292,11 +376,16 @@ struct Document::Impl {
 	CEol newLineEol{ EEolType::cr_and_lf };
 	FileInfo info;
 	Text lastSearchError;
+	std::optional<RestoredView> restoredView;	//!< 打开时从历史恢复的位置（第 31 步）
 
-	void ResetForType(const Text& path)
+	//! typeId 是历史里上次的类型（原版 EditInfo::m_nTypeId）。-1 或找不到时按文件名决定
+	void ResetForType(const Text& path, int typeId = -1)
 	{
 		// 按文件名决定类型别设置（CDocTypeManager::GetDocumentTypeOfPath）
-		const CTypeConfig type = path.empty() ? CTypeConfig(0) : CDocTypeManager().GetDocumentTypeOfPath(path.c_str());
+		CTypeConfig type = (0 <= typeId) ? CDocTypeManager().GetDocumentTypeOfId(typeId) : CTypeConfig(-1);
+		if (!type.IsValidType()) {
+			type = path.empty() ? CTypeConfig(0) : CDocTypeManager().GetDocumentTypeOfPath(path.c_str());
+		}
 		info.typeIndex = type.GetIndex();
 		if (!CDocTypeManager().GetTypeConfig(type, typeConfig)) {
 			(void)CDocTypeManager().GetTypeConfig(CTypeConfig(0), typeConfig);
@@ -500,19 +589,38 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 
 	d.ClearDocument();
 	d.info = FileInfo{};
-	d.ResetForType(path);
+	d.restoredView.reset();
+
+	// 历史里上次的编码和类型（CMruListener::OnBeforeLoad。第 31 步）
+	EditInfo fiPrev;
+	const bool bInMRU = options.useHistory && CMRUFile().GetEditInfo(path.c_str(), &fiPrev);
+	const ECodeType ePrevCode = bInMRU ? fiPrev.m_nCharCode : CODE_NONE;
+	d.ResetForType(path, bInMRU ? fiPrev.m_nTypeId : -1);
 	d.ResetWrap();
 	const STypeConfigMini* type = d.TypeMini();
 	if (!type) return Result::Failed;
 
 	// 以下与 CReadManager::ReadFile_To_CDocLineMgr 相同
 	ECodeType eCharCode = static_cast<ECodeType>(options.encoding);
+	const bool bSpecified = IsValidCodeOrCPType(eCharCode);	// 是否指定了编码
 	if (CODE_AUTODETECT == eCharCode) {
 		CCodeMediator cmediator(type->m_encoding);
 		eCharCode = cmediator.CheckKanjiCodeOfFile(path.c_str());
 	}
 	if (!IsValidCodeOrCPType(eCharCode)) {
 		eCharCode = type->m_encoding.m_eDefaultCodetype;
+	}
+	// 与上次的编码不同时（原版 CMruListener::OnBeforeLoad）
+	if (IsValidCodeOrCPType(ePrevCode) && eCharCode != ePrevCode) {
+		if (GetDllShareData().m_Common.m_sFile.GetQueryIfCodeChange() && options.askUsePreviousEncoding) {
+			// 共通设置「前回と異なる文字コードの時に問い合わせを行う」
+			if (options.askUsePreviousEncoding(eCharCode, ePrevCode)) {
+				eCharCode = ePrevCode;
+			}
+		} else if (!bSpecified) {
+			// 不问时：自动识别时用上次的编码，指定时用指定的编码（原版的默认回答）
+			eCharCode = ePrevCode;
+		}
 	}
 	bool bBom;
 	if (eCharCode == type->m_encoding.m_eDefaultCodetype) {
@@ -554,6 +662,34 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 	d.info.bom = bBom;
 	d.ResetNewLineEol();
 	d.DoLayout();	// CLoadAgent::OnLoad
+
+	// 恢复光标位置，登记到历史（与原版 CMruListener::OnAfterLoad 相同，第 31 步）
+	if (options.useHistory) {
+		Position caret{};
+		std::int32_t viewTopLine = 0;
+		if (bInMRU && GetDllShareData().m_Common.m_sFile.GetRestoreCurPosition()) {
+			RestoredView view;
+			CLayoutPoint ptCaretPos;
+			d.layout.LogicToLayout(fiPrev.m_ptCursor, &ptCaretPos);
+			if (ptCaretPos.GetY2() >= d.layout.GetLineCount()) {
+				// 超过文件末尾时移到文件末尾
+				view.toEnd = true;
+				view.caret = EndPosition();
+			} else {
+				// 光标不放在换行符的中间（原版在排版位置上退 1 桁；这里收在行的长度以内）
+				CLogicInt x = fiPrev.m_ptCursor.x;
+				if (const CDocLine* pTmpDocLine = d.lines.GetLine(fiPrev.m_ptCursor.GetY2())) {
+					if (pTmpDocLine->GetLengthWithoutEOL() < x) x = pTmpDocLine->GetLengthWithoutEOL();
+				}
+				view.caret = Position{ static_cast<std::int32_t>(fiPrev.m_ptCursor.y), static_cast<std::int32_t>(x) };
+				view.viewTopLine = std::max<std::int32_t>(0, static_cast<std::int32_t>(fiPrev.m_nViewTopLine));
+			}
+			d.restoredView = view;
+			caret = view.caret;
+			viewTopLine = view.viewTopLine;
+		}
+		AddToRecent(caret, viewTopLine);
+	}
 	return FromConvertResult(eRet);
 }
 
@@ -796,6 +932,25 @@ SaveCheck Document::CheckSave(const SaveOptions& options) const
 		}
 	}
 	return result;
+}
+
+std::optional<RestoredView> Document::GetRestoredView() const { return m_impl->restoredView; }
+
+void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
+{
+	// 原版 CMruListener::_HoldBookmarks_And_AddToMRU（内容是 CEditDoc::GetEditInfo）。书签（ブックマーク）还没有移植
+	const auto& d = *m_impl;
+	if (d.info.path.empty() || d.info.path.size() >= _MAX_PATH) return;
+	EditInfo fi;
+	fi.m_szPath = d.info.path.c_str();
+	fi.m_nViewTopLine = CLayoutInt(viewTopLine);
+	fi.m_nViewLeftCol = CLayoutInt(0);
+	fi.m_ptCursor.Set(CLogicInt(caret.column), CLogicInt(caret.line));
+	fi.m_bIsModified = d.modified;
+	fi.m_nCharCode = static_cast<ECodeType>(d.info.encoding);
+	fi.m_bBom = d.info.bom;
+	fi.m_nTypeId = d.typeConfig.m_id;
+	CMRUFile().Add(&fi);
 }
 
 const FileInfo& Document::GetFileInfo() const { return m_impl->info; }

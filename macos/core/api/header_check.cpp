@@ -34,7 +34,12 @@ static_assert(sizeof(sakura::core::Position) == 2 * sizeof(std::int32_t));
 	auto doc = Document::Create();
 	bool ok = doc != nullptr;
 	if (doc) {
-		ok = ok && doc->Open(u"/tmp/a.txt", OpenOptions{ encoding::AutoDetect }) == Result::Ok;
+		OpenOptions open;
+		open.encoding = encoding::AutoDetect;
+		open.askUsePreviousEncoding = [](Encoding, Encoding) { return true; };
+		ok = ok && doc->Open(u"/tmp/a.txt", open) == Result::Ok;
+		doc->AddToRecent(Position{}, 0);
+		ok = ok && !RecentFiles().empty() && !doc->GetRestoredView().has_value();
 		Position end;
 		ok = ok && doc->Insert(Position{ 0, 0 }, u"abc\r\n", &end) == Result::Ok;
 		const std::optional<Range> found = doc->Find(u"b", Position{}, SearchDirection::Forward, SearchOptions{ false, true, false });

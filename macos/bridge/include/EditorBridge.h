@@ -233,6 +233,42 @@ NS_SWIFT_NAME(EditorSaveCheck)
 @end
 
 /*!
+	「最近使ったファイル」的一项（sakura::core::RecentFile，原版 CMRUFile，第 31 步）
+*/
+NS_SWIFT_NAME(EditorRecentFile)
+@interface ECRecentFile : NSObject
+@property (readonly, copy) NSString *path;
+@property (readonly) ECEncoding encoding;				//!< 上次的编码
+@property (readonly) ECPosition caret;					//!< 上次的光标位置
+@property (readonly) NSInteger viewTopLine;			//!< 上次表示域的第一行
+@property (readonly) BOOL favorite;					//!< お気に入り
+@property (readonly, copy) NSString *menuLabel;		//!< 菜单的文字（原版 GetMenuFullLabel_MRU："&1 路径  [UTF-8]"）
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	「最近使ったフォルダー」的一项（原版 CMRUFolder）
+*/
+NS_SWIFT_NAME(EditorRecentFolder)
+@interface ECRecentFolder : NSObject
+@property (readonly, copy) NSString *path;				//!< 末尾带 "/"
+@property (readonly) BOOL favorite;
+@property (readonly, copy) NSString *menuLabel;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	打开时从历史恢复的位置（sakura::core::RestoredView，原版 CMruListener::OnAfterLoad）
+*/
+NS_SWIFT_NAME(EditorRestoredView)
+@interface ECRestoredView : NSObject
+@property (readonly) ECPosition caret;
+@property (readonly) NSInteger viewTopLine;			//!< 表示域的第一行（排版行）
+@property (readonly) BOOL toEnd;						//!< 上次的位置超过了文件末尾：移到文件末尾
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
 */
@@ -262,6 +298,15 @@ NS_SWIFT_NAME(EditorCore)
 + (BOOL)encodingCanHaveBOM:(ECEncoding)encoding NS_SWIFT_NAME(canHaveBOM(_:));
 //! 换成这个编码时 BOM 是否默认勾选（原版 CCodeTypeName::IsBomDefOn）
 + (BOOL)encodingBOMDefault:(ECEncoding)encoding NS_SWIFT_NAME(bomDefault(_:));
+
+//! 「最近使ったファイル」菜单里显示的历史（新的在前，「ファイルの履歴MAX」个）（第 31 步）
+@property (class, readonly, copy) NSArray<ECRecentFile *> *recentFiles;
+//! 「最近使ったフォルダー」菜单里显示的历史
+@property (class, readonly, copy) NSArray<ECRecentFolder *> *recentFolders;
+//! 历史里这个文件的记录（菜单里不显示的也算）
++ (nullable ECRecentFile *)recentFileForPath:(NSString *)path NS_SWIFT_NAME(recentFile(path:));
+//! 从历史里删除这个文件
++ (void)removeRecentFileAtPath:(NSString *)path NS_SWIFT_NAME(removeRecentFile(path:));
 
 /*!
 	文字宽度用 Core Text 测量（第 27 步，原版用 GDI）。App 启动时调用一次。
@@ -293,12 +338,25 @@ NS_SWIFT_NAME(EditorDocument)
 //! 打开文件。encoding 用 ECEncodingAutoDetect 时自动识别
 - (ECResult)openFileAtPath:(NSString *)path encoding:(ECEncoding)encoding NS_SWIFT_NAME(open(path:encoding:));
 - (ECResult)openFileAtPath:(NSString *)path NS_SWIFT_NAME(open(path:));
+/*!
+	打开文件，用「最近使ったファイル」的历史（第 31 步）。打开时的编码与上次不同、并且共通设置
+	「前回と異なる文字コードの時に問い合わせを行う」打开时调用 ask，返回 YES 用上次的编码。
+	ask 为 nil 时与不问时相同（自动识别用上次的编码，指定时用指定的编码）。
+	上面两个 open 也用历史（ask 为 nil）。
+*/
+- (ECResult)openFileAtPath:(NSString *)path encoding:(ECEncoding)encoding
+	askUsePreviousEncoding:(nullable BOOL (NS_NOESCAPE ^)(ECEncoding current, ECEncoding previous))ask
+	NS_SWIFT_NAME(open(path:encoding:askUsePreviousEncoding:));
 //! 另存为。eol 为 ECEolNone 时不转换换行符
 - (ECResult)saveToPath:(NSString *)path encoding:(ECEncoding)encoding bom:(BOOL)bom eol:(ECEol)eol NS_SWIFT_NAME(save(to:encoding:bom:eol:));
 //! 用打开时的编码、BOM 另存为
 - (ECResult)saveToPath:(NSString *)path NS_SWIFT_NAME(save(to:));
 //! 覆盖保存（无题文档返回 ECResultInvalidArgument）
 - (ECResult)save;
+//! 打开时从历史恢复的位置（共通设置「カーソル位置を復元する」关掉时、历史里没有时是 nil）（第 31 步）
+@property (readonly, nullable) ECRestoredView *restoredView;
+//! 把现在的状态登记到「最近使ったファイル」（原版 CMruListener：保存后、关闭前）。新文件时什么也不做
+- (void)addToRecentWithCaret:(ECPosition)caret viewTopLine:(NSInteger)viewTopLine NS_SWIFT_NAME(addToRecent(caret:viewTopLine:));
 //! 用这些设置保存之前的检查（原版 CCodeChecker::OnCheckSave）。不改文档。eol 为 ECEolNone 时不转换换行符
 - (ECSaveCheck *)checkSaveWithEncoding:(ECEncoding)encoding eol:(ECEol)eol NS_SWIFT_NAME(checkSave(encoding:eol:));
 

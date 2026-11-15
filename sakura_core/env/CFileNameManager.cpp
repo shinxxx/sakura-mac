@@ -96,12 +96,16 @@ LPWSTR CFileNameManager::GetTransformFileNameFast( LPCWSTR pszSrc, LPWSTR pszDes
 				m_szTransformFileNameFromExp[i],
 				m_pShareData->m_Common.m_sFileName.m_szTransformFileNameTo[m_nTransformFileNameOrgId[i]] );
 		}
+#if defined(_WIN32)	// Mac 版は nPxWidth が常に -1（上の Mac 版の分岐を参照。移植計画のステップ 31）
 		if( nPxWidth != -1 ){
 			wcscpy( szBuf, pszDest );
 			GetShortViewPath( pszDest, nDestLen, szBuf, hDC, nPxWidth, bFitMode );
 		}
+#endif
+#if defined(_WIN32)
 	}else if( nPxWidth != -1 ){
 		GetShortViewPath( pszDest, nDestLen, pszSrc, hDC, nPxWidth, bFitMode );
+#endif
 	}else{
 		// 変換する必要がない コピーだけする
 		wcsncpy( pszDest, pszSrc, nDestLen - 1 );

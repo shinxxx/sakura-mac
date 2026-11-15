@@ -23,8 +23,10 @@
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
 #include "env/CFileNameManager.h"
+#if defined(_WIN32)	// Mac 版のメニューは AppKit で作る（移植計画のステップ 31）
 #include "uiparts/CMenuDrawer.h"	//	これでいいのか？
 #include "window/CEditWnd.h"
+#endif
 #include "util/string_ex2.h"
 #include "util/window.h"
 
@@ -42,6 +44,7 @@ CMRUFile::~CMRUFile()
 	m_cRecentFile.Terminate();
 }
 
+#if defined(_WIN32)	// Mac 版のメニューは AppKit で作る（移植計画のステップ 31）
 /*!
 	ファイル履歴メニューの作成
 	
@@ -107,6 +110,7 @@ BOOL CMRUFile::DestroyMenu( HMENU hMenuPopUp ) const
 {
 	return ::DestroyMenu( hMenuPopUp );
 }
+#endif
 
 /*!
 	ファイル履歴の一覧を返す
@@ -210,6 +214,7 @@ void CMRUFile::Add( EditInfo* pEditInfo )
 	EditInfo tmpEditInfo = *pEditInfo;
 	tmpEditInfo.m_bIsModified = FALSE; // 変更フラグを無効に
 
+#if defined(_WIN32)
 	WCHAR	szDrive[_MAX_DRIVE];
 	WCHAR	szDir[_MAX_DIR];
 	WCHAR	szFolder[_MAX_PATH + 1];	//	ドライブ＋フォルダー
@@ -226,6 +231,13 @@ void CMRUFile::Add( EditInfo* pEditInfo )
 	//	szFolder作成
 	wcscpy( szFolder, szDrive );
 	wcscat( szFolder, szDir );
+#else
+	// Mac 版：最後の / までがフォルダー（Windows 版と同じく末尾の区切りを含む。移植計画のステップ 31）
+	WCHAR	szFolder[_MAX_PATH + 1] = {};
+	if( const WCHAR* pszSep = wcsrchr( pEditInfo->m_szPath, LCHAR('/') ) ){
+		wcsncpy( szFolder, pEditInfo->m_szPath, std::min<size_t>( pszSep - pEditInfo->m_szPath + 1, _MAX_PATH ) );
+	}
+#endif
 
 	//	Folderを、CMRUFolderに登録
 	CMRUFolder cMRUFolder;
@@ -233,7 +245,9 @@ void CMRUFile::Add( EditInfo* pEditInfo )
 
 	m_cRecentFile.AppendItem( &tmpEditInfo );
 	
+#if defined(_WIN32)	// Mac 版は App 側が「最近使った項目」に登録する（移植計画のステップ 31）
 	::SHAddToRecentDocs( SHARD_PATH, pEditInfo->m_szPath );
+#endif
 }
 
 /*EOF*/

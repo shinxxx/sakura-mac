@@ -559,7 +559,7 @@ TEST(CoreApiHeader, IncludesOnlyStandardHeaders)
 	const fs::path header = fs::path(SAKURA_ROOT_DIR) / "macos" / "core" / "include" / "sakura_core" / "SakuraCore.h";
 	std::ifstream in(header);
 	ASSERT_TRUE(in) << header;
-	const std::set<std::string> allowed = { "cstdint", "memory", "optional", "string", "vector" };
+	const std::set<std::string> allowed = { "cstdint", "functional", "memory", "optional", "string", "vector" };	// functional：打开时的询问回调（第 31 步）
 	const std::regex include(R"(^\s*#\s*include\s*([<"])([^>"]+)[>"])");
 	std::string line;
 	int count = 0;
