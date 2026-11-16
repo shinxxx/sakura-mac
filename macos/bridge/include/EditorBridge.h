@@ -210,6 +210,7 @@ typedef struct ECEditSettings {
 	bool addEolAtWrapOnCopy;		//!< 折り返し行に改行を付けてコピー
 	bool insertSpacesForTab;		//!< スペースの挿入（TAB 键输入空白）
 	bool autoIndent;				//!< オートインデント
+	bool boxSelectLock;				//!< 矩形選択移動で選択をロックする（第 34 步）
 } NS_SWIFT_NAME(EditorEditSettings) ECEditSettings;
 
 // ----- 查找、替换、跳转（第 32 步） -----
@@ -614,6 +615,17 @@ NS_SWIFT_NAME(EditorDocument)
 - (BOOL)jumpPosition:(ECJumpOptions)options position:(ECPosition *)outPosition NS_SWIFT_NAME(jumpPosition(_:position:));
 //! 这个位置的单词的范围（原版 WhereCurrentWord）。没有单词时返回 NO
 - (BOOL)wordRangeAt:(ECPosition)position range:(ECRange *)outRange NS_SWIFT_NAME(wordRange(at:range:));
+
+// ----- 光标移动的目标（第 34 步） -----
+
+//! 単語の左端／右端に移動（原版 PrevOrNextWord）的目标。行内找不到时返回 NO
+- (BOOL)wordMoveTargetFrom:(ECPosition)position left:(BOOL)left position:(ECPosition *)outPosition NS_SWIFT_NAME(wordMoveTarget(from:left:position:));
+//! 前／次の段落へ 的目标逻辑行。不移动时 -1
+- (NSInteger)paragraphTargetFromLine:(NSInteger)line next:(BOOL)next NS_SWIFT_NAME(paragraphTarget(fromLine:next:));
+//! 前／次の変更行へ 的目标。找不到时返回 NO。wrapped：绕到了开头（末尾）
+- (BOOL)modifiedLineTargetFrom:(ECPosition)position next:(BOOL)next position:(ECPosition *)outPosition wrapped:(BOOL *)outWrapped NS_SWIFT_NAME(modifiedLineTarget(from:next:position:wrapped:));
+//! 逻辑行 line 的 [from, to) 里缩进之后第一个字的下标（行頭に移動 用）。只有缩进时是 from
+- (NSInteger)indentEndInLine:(NSInteger)line from:(NSInteger)from to:(NSInteger)to NS_SWIFT_NAME(indentEnd(line:from:to:));
 //! 这一逻辑行里用「検索文字列」的颜色显示的部分
 - (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(searchMarks(line:key:options:));
 /*!

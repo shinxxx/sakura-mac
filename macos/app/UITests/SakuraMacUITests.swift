@@ -276,6 +276,20 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abcabc", "F8 コピー → Esc → F9 貼り付け")
     }
 
+    /// 第 34 步（第 2 个 PR）：⌥→ 単語の右端に移動、F6 範囲選択開始（锁定后方向键扩展选择）
+    func testWordMoveAndSelectionLock() {
+        editor.typeText("abc def")
+        key(XCUIKeyboardKey.leftArrow.rawValue, .command)	// 行頭
+        key(XCUIKeyboardKey.rightArrow.rawValue, .option)	// 単語の右端に移動
+        editor.typeText("X")
+        XCTAssertEqual(text, "abc Xdef")
+        key(XCUIKeyboardKey.F6.rawValue)					// 範囲選択開始
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        editor.typeText("Y")
+        XCTAssertEqual(text, "abc XYf", "F6 之后方向键选择，输入替换选择范围")
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")
@@ -289,9 +303,9 @@ final class SakuraMacUITests: XCTestCase {
         settings.click()
         settings.menuItems["Windows のキー割り当てを使う"].click()
         editor.typeText("yz")
-        key("a", .control)						// Mac 方案：⌃ 组合交给 macOS，不是すべて選択
+        key("a", .control)						// Mac 方案：⌃ 组合交给 macOS（⌃A 是「段落の先頭へ」），不是すべて選択
         editor.typeText("_")
-        XCTAssertEqual(text, "Xyz_", "回到 Mac 方案后 ⌃A 不是すべて選択")
+        XCTAssertEqual(text, "_Xyz", "回到 Mac 方案后 ⌃A 移到行头（第 34 步起 macOS 的移动也走原版的論理行頭に移動），不是すべて選択")
     }
 
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开

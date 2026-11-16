@@ -1672,6 +1672,7 @@ EditSettings Document::GetEditSettings() const
 	e.addEolAtWrapOnCopy = sEdit.m_bAddCRLFWhenCopy;
 	e.insertSpacesForTab = t.m_bInsSpace;
 	e.autoIndent = t.m_bAutoIndent;
+	e.boxSelectLock = sEdit.m_bBoxSelectLock;
 	return e;
 }
 
@@ -2960,6 +2961,224 @@ std::optional<Range> Document::WordRangeAt(const Position& position) const
 		return std::nullopt;
 	}
 	return Range{ Position{ position.line, nFrom }, Position{ position.line, nTo } };
+}
+
+// ---------------------------------------------------------------------------
+// 光标移动的目标（第 34 步）
+// ---------------------------------------------------------------------------
+
+std::optional<Position> Document::WordMoveTarget(const Position& position, bool left) const
+{
+	const auto& d = *m_impl;
+	if (!d.IsValidPosition(position) || d.lines.GetLineCount() <= position.line) return std::nullopt;
+	CLogicInt nNew;
+	if (!CSearchAgent(const_cast<CDocLineMgr*>(&d.lines)).PrevOrNextWord(CLogicInt(position.line), CLogicInt(position.column),
+			&nNew, left ? TRUE : FALSE, GetDllShareData().m_Common.m_sGeneral.m_bStopsBothEndsWhenSearchWord ? TRUE : FALSE)) {
+		return std::nullopt;
+	}
+	return Position{ position.line, nNew };
+}
+
+std::optional<std::int32_t> Document::ParagraphTarget(std::int32_t line, bool next) const
+{
+	const auto& d = *m_impl;
+	const bool bStopsBothEnds = GetDllShareData().m_Common.m_sGeneral.m_bStopsBothEndsWhenSearchParagraph;
+	auto getLine = [&d](std::int32_t y) -> const CDocLine* { return 0 <= y ? d.lines.GetLine(CLogicInt(y)) : nullptr; };
+	const CDocLine* pcDocLine;
+	if (next) {
+		// 原版 Command_GONEXTPARAGRAPH
+		int nCaretPointer = 0;
+		bool bFirstEmpty = false;
+		if ((pcDocLine = getLine(line + nCaretPointer)) != nullptr) {
+			bFirstEmpty = pcDocLine->IsEmptyLine();
+			nCaretPointer++;
+		} else {
+			return std::nullopt;	// EOF 行
+		}
+		while ((pcDocLine = getLine(line + nCaretPointer)) != nullptr && pcDocLine->IsEmptyLine() == bFirstEmpty) {
+			nCaretPointer++;
+		}
+		if (!bFirstEmpty && !bStopsBothEnds) {
+			while ((pcDocLine = getLine(line + nCaretPointer)) != nullptr && pcDocLine->IsEmptyLine()) {
+				nCaretPointer++;
+			}
+		}
+		return line + nCaretPointer;
+	}
+	// 原版 Command_GOPREVPARAGRAPH
+	int nCaretPointer = -1;
+	bool bFirstEmpty;
+	if ((pcDocLine = getLine(line + nCaretPointer)) != nullptr) {
+		bFirstEmpty = pcDocLine->IsEmptyLine();
+	} else {
+		bFirstEmpty = true;
+	}
+	nCaretPointer--;
+	while ((pcDocLine = getLine(line + nCaretPointer)) != nullptr && pcDocLine->IsEmptyLine() == bFirstEmpty) {
+		nCaretPointer--;
+	}
+	if (bFirstEmpty) {
+		if (!bStopsBothEnds) {
+			while ((pcDocLine = getLine(line + nCaretPointer)) != nullptr && !pcDocLine->IsEmptyLine()) {
+				nCaretPointer--;
+			}
+		}
+		nCaretPointer++;	// 空行の最上行（段落の末端の次の行）で止まる
+	} else {
+		nCaretPointer++;
+	}
+	if (line + nCaretPointer < 0) return std::nullopt;
+	return line + nCaretPointer;
+}
+
+std::optional<Document::ModifiedLineJump> Document::ModifiedLineTarget(const Position& position, bool next) const
+{
+	const auto& d = *m_impl;
+	const int nSaveSeq = d.opeBuf.GetNoModifiedSeq();
+	const bool bSearchAll = GetDllShareData().m_Common.m_sSearch.m_bSearchAll;
+	auto isModified = [nSaveSeq](const CDocLine* p) { return CModifyVisitor().IsLineModified(p, nSaveSeq); };
+	const int nLineCount = d.lines.GetLineCount();
+	const CLogicPoint ptCaret(position.column, position.line);
+	auto at = [](CLogicInt x, CLogicInt y, bool wrapped) { return ModifiedLineJump{ Position{ y, x }, wrapped }; };
+
+	if (next) {
+		// 原版 Command_MODIFYLINE_NEXT
+		const CLogicInt nYOld = CLogicInt(position.line);
+		CLogicPoint ptXY(0, nYOld);
+		const CDocLine* pcDocLine = d.lines.GetLine(ptXY.GetY2());
+		bool bModified = false;
+		if (nLineCount == 0) return std::nullopt;
+		if (pcDocLine) {
+			bModified = isModified(pcDocLine);
+			ptXY.y++;
+			pcDocLine = pcDocLine->GetNextLine();
+		}
+		for (int n = 0; n < 2; n++) {
+			while (pcDocLine) {
+				if (isModified(pcDocLine) != bModified || (0 == ptXY.y && isModified(pcDocLine))) {
+					return at(ptXY.x, ptXY.y, nYOld >= ptXY.GetY2());
+				}
+				ptXY.y++;
+				pcDocLine = pcDocLine->GetNextLine();
+			}
+			if (n == 0 && bModified) {
+				const CDocLine* pcDocLineLast = d.lines.GetDocLineBottom();
+				bool bSkip = false;
+				CLogicPoint pos;
+				if (pcDocLineLast != nullptr) {
+					if (pcDocLineLast->GetEol().IsNone()) {
+						// ぶら下がり[EOF]
+						pos.x = pcDocLineLast->GetLengthWithoutEOL();
+						pos.y = CLogicInt(nLineCount - 1);
+						if (ptCaret == pos) bSkip = true;
+					} else {
+						pos = ptXY;	// 単独[EOF]
+					}
+				} else {
+					bSkip = true;
+				}
+				if (!bSkip) return at(pos.x, pos.y, false);
+			}
+			if (n == 0) {
+				ptXY.y = CLogicInt(0);
+				pcDocLine = d.lines.GetLine(ptXY.GetY2());
+				bModified = false;
+			}
+			if (!bSearchAll) break;
+		}
+		return std::nullopt;
+	}
+
+	// 原版 Command_MODIFYLINE_PREV
+	CLogicPoint ptXY(0, CLogicInt(position.line));
+	CLogicInt nYOld2 = ptXY.y;
+	const CDocLine* pcDocLine = d.lines.GetLine(ptXY.GetY2());
+	bool bModified = false;
+	bool bLast = false;
+	if (pcDocLine == nullptr) {
+		// [EOF]
+		const CDocLine* pcDocLineLast = d.lines.GetLine(ptXY.GetY2() - 1);
+		if (nullptr == pcDocLineLast) return std::nullopt;	// 1行もない
+		ptXY.y--;
+		pcDocLine = pcDocLineLast;
+		bLast = true;
+	}
+	if (!bLast) {
+		const CDocLine* pcDocLineLast = d.lines.GetDocLineBottom();
+		if (pcDocLineLast != nullptr && pcDocLineLast->GetEol().IsNone()) {
+			CLogicPoint pos;
+			pos.x = pcDocLine->GetLengthWithoutEOL();
+			pos.y = CLogicInt(nLineCount - 1);
+			if (ptCaret == pos) bLast = true;	// ぶら下がり[EOF]の位置だった
+		}
+	}
+	bModified = isModified(pcDocLine);
+	nYOld2 = ptXY.y;
+	ptXY.y--;
+	pcDocLine = pcDocLine->GetPrevLine();
+	if (pcDocLine && !bLast) {
+		bModified = isModified(pcDocLine);
+		nYOld2 = ptXY.y;
+		ptXY.y--;
+		pcDocLine = pcDocLine->GetPrevLine();
+	}
+	for (int n = 0; n < 2; n++) {
+		while (pcDocLine) {
+			if (isModified(pcDocLine) != bModified) {
+				// 検出された位置の1行後ろ(MODIFYLINE_NEXTと同じ位置)に止まる
+				return at(CLogicInt(0), nYOld2, n == 1);
+			}
+			nYOld2 = ptXY.y;
+			ptXY.y--;
+			pcDocLine = pcDocLine->GetPrevLine();
+		}
+		if (n == 0) {
+			// 先頭行チェック
+			const CDocLine* pcDocLineTemp = d.lines.GetDocLineTop();
+			if (pcDocLineTemp && isModified(pcDocLineTemp) && ptCaret != CLogicPoint(0, 0)) {
+				return at(CLogicInt(0), CLogicInt(0), false);
+			}
+			ptXY.y = CLogicInt(nLineCount - 1);
+			nYOld2 = ptXY.y;
+			pcDocLine = d.lines.GetLine(ptXY.GetY2());
+			bModified = false;
+		}
+		if (!bSearchAll) break;
+		if (n == 0) {
+			const CDocLine* pcDocLineTemp = d.lines.GetDocLineBottom();
+			if (pcDocLineTemp && isModified(pcDocLineTemp)) {
+				// 最終行が変更行の場合は、[EOF]に止まる
+				CLogicPoint pos;
+				if (pcDocLineTemp->GetEol().IsValid()) {
+					pos.x = CLogicInt(0);
+					pos.y = CLogicInt(nLineCount);
+				} else {
+					pos.x = pcDocLineTemp->GetLengthWithoutEOL();
+					pos.y = CLogicInt(nLineCount - 1);
+				}
+				if (ptCaret != pos) return at(pos.x, pos.y, true);
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+std::int32_t Document::IndentEnd(std::int32_t line, std::int32_t from, std::int32_t to) const
+{
+	const auto& d = *m_impl;
+	const CDocLine* pDocLine = (0 <= line) ? d.lines.GetLine(CLogicInt(line)) : nullptr;
+	if (pDocLine == nullptr) return from;
+	const WCHAR* pLine = pDocLine->GetPtr();
+	const int nLen = std::min<int>(to, pDocLine->GetLengthWithEOL());
+	const bool bZenSpace = d.typeConfig.m_bAutoIndent_ZENSPACE;
+	const bool bExtEol = GetDllShareData().m_Common.m_sEdit.m_bEnableExtEol;
+	// 原版 Command_GOLINETOP：空白或TAB以外的第一个字。只有空白和换行时是行头
+	for (int i = std::max(0, from); i < nLen; ++i) {
+		if (WCODE::IsIndentChar(pLine[i], bZenSpace)) continue;
+		if (WCODE::IsLineDelimiter(pLine[i], bExtEol)) return from;
+		return i;
+	}
+	return from;
 }
 
 } // namespace sakura::core
