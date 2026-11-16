@@ -388,15 +388,17 @@ final class SakuraMacUITests: XCTestCase {
     /// 实际的 App 画出语法颜色：无题文档（「基本」）里的 URL 用蓝色、带下划线显示（原版的默认设置）。
     /// 辅助功能读不到颜色，所以截取编辑区的画面数蓝色的像素
     func testSyntaxColorDrawsUrl() {
+        // 行号和カーソル行アンダーライン也是蓝色。每加一行，多一个蓝色的行号（EOF 的空行没有行号），
+        // 所以比较「加一行普通文字」和「加一行 URL」各自增加的蓝色像素
         editor.typeText("plain text here\n")
-        let before = bluePixels(editor.screenshot().image)
-        editor.typeText("http://example.com/\n")
-        let after = bluePixels(editor.screenshot().image)
-        // 行号和カーソル行アンダーライン也是蓝色，两次都有。增加的是 URL 的文字和下划线
-        XCTAssertGreaterThan(after, before + 100, "URL 用蓝色显示（之前 \(before)，之后 \(after)）")
-        editor.typeText("plain text again")
+        let start = bluePixels(editor.screenshot().image)
+        editor.typeText("plain text more\n")
         let plain = bluePixels(editor.screenshot().image)
-        XCTAssertLessThan(plain, after + 60, "普通文字不是蓝色（\(plain)）")
+        editor.typeText("http://example.com/\n")
+        let url = bluePixels(editor.screenshot().image)
+        let plainAdded = plain - start, urlAdded = url - plain
+        XCTAssertGreaterThan(urlAdded, plainAdded + 100,
+                             "URL 用蓝色显示（普通文字的行增加 \(plainAdded)，URL 的行增加 \(urlAdded)）")
     }
 
     /// 画面里接近纯蓝（0x0000FF）的像素数。截图的颜色空间可能与 sRGB 稍有不同，范围放宽
