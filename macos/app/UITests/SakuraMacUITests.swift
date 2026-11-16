@@ -303,9 +303,9 @@ final class SakuraMacUITests: XCTestCase {
         settings.click()
         settings.menuItems["Windows のキー割り当てを使う"].click()
         editor.typeText("yz")
-        key("a", .control)						// Mac 方案：⌃ 组合交给 macOS，不是すべて選択
+        key("a", .control)						// Mac 方案：⌃ 组合交给 macOS（⌃A 是「段落の先頭へ」），不是すべて選択
         editor.typeText("_")
-        XCTAssertEqual(text, "Xyz_", "回到 Mac 方案后 ⌃A 不是すべて選択")
+        XCTAssertEqual(text, "_Xyz", "回到 Mac 方案后 ⌃A 移到行头（第 34 步起 macOS 的移动也走原版的論理行頭に移動），不是すべて選択")
     }
 
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
