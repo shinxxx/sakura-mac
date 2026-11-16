@@ -270,7 +270,7 @@ final class FileModeCommandTests: XCTestCase {
         XCTAssertTrue(CommandTable.perform(31140, from: view))
         XCTAssertEqual(view.settings.wrapColumns, 10240, "最大値")
         XCTAssertTrue(CommandTable.perform(31140, from: view))
-        // 最大値 → 設定値。設定値も最大値（10240）のときは遷移が省略されてウィンドウ幅に戻る（原版 GetWrapMode の b）
+        // 最大値 → 設定値。設定値也是最大値（10240）时跳过这一步，回到ウィンドウ幅（原版 GetWrapMode 的 b）
         let typeColumns = view.settings.typeWrapColumns
         XCTAssertEqual(view.settings.wrapColumns, typeColumns == 10240 ? windowColumns : typeColumns, "設定値")
     }
