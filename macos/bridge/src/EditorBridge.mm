@@ -800,6 +800,17 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 	return ToNSString(_doc->GetLine(static_cast<std::int32_t>(line), withEol == YES));
 }
 
+- (NSUInteger)changeCount
+{
+	return static_cast<NSUInteger>(_doc->ChangeCount());
+}
+
+- (NSInteger)lengthOfLineAtIndex:(NSInteger)line
+{
+	if (!FitsInt32(line)) return 0;
+	return _doc->LineLength(static_cast<std::int32_t>(line));
+}
+
 - (ECEol)eolOfLineAtIndex:(NSInteger)line
 {
 	if (!FitsInt32(line)) return ECEolNone;

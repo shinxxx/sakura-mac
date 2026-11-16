@@ -794,6 +794,12 @@ public:
 	//! 一行的文字。withEol 为 true 时包括换行符。行号超出范围时是空
 	Text GetLine(std::int32_t line, bool withEol = false) const;
 
+	//! 一行的长度（不含换行符，UTF-16 单位）。不取出文字（第 36 步：超长行）。行号超出范围时是 0
+	std::int32_t LineLength(std::int32_t line) const;
+
+	//! 文字或排版变了的次数（编辑、撤销、重新排版、打开时增加）。界面层用来判断缓存是否还有效（第 36 步）
+	std::uint64_t ChangeCount() const;
+
 	//! 行的换行符（最后一行没有换行时是 Eol::None）
 	Eol GetLineEol(std::int32_t line) const;
 

@@ -183,6 +183,7 @@ TEST_F(MacPerfTest, LongLine)
 	ASSERT_EQ(1, doc->LineCount());
 	const int rows = doc->LayoutLineCount();
 	EXPECT_GT(rows, 1);
+	std::cout << "[PERF] long: layout rows = " << rows << std::endl;
 
 	Measure("long: find at the end", 3000, [&] {
 		auto r = doc->Find(u"needle", Position{});
@@ -199,6 +200,13 @@ TEST_F(MacPerfTest, LongLine)
 			total += doc->GetLayoutCharPositions(rows / 2 + i).size();
 		}
 		EXPECT_GT(total, 0u);
+	});
+	// 画面的每一行都换算光标的位置（光标在超长行的末尾时）
+	Measure("long: caret position to layout x50 (end of the line)", 500, [&] {
+		const auto end = doc->EndPosition();
+		for (int i = 0; i < 50; ++i) {
+			EXPECT_EQ(rows - 1, doc->LogicToLayout(end).line);
+		}
 	});
 	Measure("long: offset and position at the end", 500, [&] {
 		const auto end = doc->EndPosition();
@@ -260,6 +268,36 @@ TEST(MacOffsetTest, OffsetAndPosition)
 		ASSERT_EQ(Result::Ok, doc->Insert(Position{}, u"a\n"));
 		EXPECT_EQ(2, doc->OffsetOf(doc->EndPosition()));
 		EXPECT_EQ(doc->EndPosition(), doc->PositionAtOffset(2));
+	}
+	Shutdown(false);
+}
+
+// 行的长度（不取出文字）和变更次数（界面层的缓存是否还有效）
+TEST(MacOffsetTest, LineLengthAndChangeCount)
+{
+	ASSERT_TRUE(Startup());
+	{
+		auto doc = Document::Create();
+		ASSERT_EQ(Result::Ok, doc->Insert(Position{}, u"ab\r\ncde\nf"));
+		EXPECT_EQ(2, doc->LineLength(0));
+		EXPECT_EQ(3, doc->LineLength(1));
+		EXPECT_EQ(1, doc->LineLength(2));
+		EXPECT_EQ(0, doc->LineLength(3));
+		EXPECT_EQ(0, doc->LineLength(-1));
+
+		// 编辑、撤销、重新排版时增加，只是读的时候不变
+		auto count = doc->ChangeCount();
+		(void)doc->GetText();
+		(void)doc->Find(u"cd", Position{});
+		EXPECT_EQ(count, doc->ChangeCount());
+		ASSERT_EQ(Result::Ok, doc->Insert(Position{ 0, 0 }, u"x"));
+		EXPECT_LT(count, doc->ChangeCount());
+		count = doc->ChangeCount();
+		ASSERT_EQ(Result::Ok, doc->Undo());
+		EXPECT_LT(count, doc->ChangeCount());
+		count = doc->ChangeCount();
+		EXPECT_TRUE(doc->SetWrap(WrapMethod::SettingWidth, 20));
+		EXPECT_LT(count, doc->ChangeCount());
 	}
 	Shutdown(false);
 }

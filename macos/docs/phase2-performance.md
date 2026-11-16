@@ -47,7 +47,13 @@ Windows 版的时间包括宏的解释和画面的更新，Mac 的核心库测�
    17 MB 的文件里每打一个字要等很久。现在：
    - 核心库加了 `Document::TextLength`、`OffsetOf`、`PositionAtOffset`（逐行只加长度，不复制），桥接层 `textLength`、`offset(of:)`、`position(atOffset:)`。
    - `attributedSubstring` 只取需要的几行（`documentSubstring`），不做整个文档的文字。
-2. **超长行画的时候反复复制整个逻辑行（App）**。一个逻辑行有很多折り返し行时，画每一行都复制一次 200 万字。现在缓存这一个逻辑行的文字（文字改了就清除）。
+2. **超长行的画面、光标移动、输入慢（App。CI 的 App 性能测试发现：翻一页约 1 秒，输入法一轮约 8 秒）**。
+   - 排版行（「折り返さない」时最多 10240 桁）的全部文字都排、都画。现在只画看得见的横向范围（`visibleIndices`）。
+   - 每个排版行都取出整个逻辑行再切。现在只取出这一段（`document.text(in:)`）。
+   - 每次移动光标、输入法的未确定文字变了都清除行和颜色的缓存（整行的色分け重新计算）。
+     核心库加了 `ChangeCount`（编辑、撤销、重新排版时增加），文档没变时留着缓存。
+   - 光标移动、BackSpace/Delete 为了行的长度、一个字的范围取出整行。核心库加了 `LineLength`，一个字的范围只取前后的文字（`composedCharacterRange`）。
+   - 输入法要求的一段文字（`attributedSubstring`）只取那一段。
 3. **优化构建时排版异常终了（原版代码）**。`CLayoutMgr::CreateLayout` 用 `allocate(sizeof(CLayout))` 向内存池要内存，
    对齐用默认值（`alignof(max_align_t)` = 16），但内存池的节点只对齐到 8。-O2 时编译器按 16 字节对齐优化，
    在 CLayout 的构造里异常终了。改成 `allocate(sizeof(CLayout), alignof(CLayout))`。

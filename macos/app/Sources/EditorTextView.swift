@@ -241,6 +241,24 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         line < lineCount ? document.line(at: line) as NSString : ""
     }
 
+    /// 逻辑行里 column 处的一个字（组合字符、补充平面字符算一个字）的范围。
+    /// 只取出前后的一点文字（第 36 步：超长行里移动光标、删除一个字时不取出整行）
+    func composedCharacterRange(line: Int, at column: Int) -> NSRange {
+        let window = 64
+        let from = max(0, column - window)
+        let to = min(lineLength(line), column + window)
+        guard from < to else { return NSRange(location: column, length: 0) }
+        let text = document.text(in: EditorRange(from: EditorPosition(line: line, column: from),
+                                                 to: EditorPosition(line: line, column: to))) as NSString
+        let range = text.rangeOfComposedCharacterSequence(at: min(max(0, column - from), text.length - 1))
+        return NSRange(location: range.location + from, length: range.length)
+    }
+
+    /// 一行的长度（不含换行符）。不取出文字（第 36 步：超长行里每次移动光标都复制整行会很慢）
+    func lineLength(_ line: Int) -> Int {
+        line < lineCount ? document.lineLength(at: line) : 0
+    }
+
     static func same(_ a: EditorPosition, _ b: EditorPosition) -> Bool {
         a.line == b.line && a.column == b.column
     }
@@ -258,8 +276,14 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 文档全文的一部分（range 是全文的下标）。只取出涉及的行（第 36 步：大文件里不做出全文）
     func documentSubstring(_ range: NSRange) -> String {
         guard range.length > 0 else { return "" }
-        let first = position(ofOffset: range.location).line
-        let last = position(ofOffset: range.location + range.length).line
+        // 两端都是字符的边界（不在换行符的中间）时直接取这一段：超长行里不取出整行
+        let start = position(ofOffset: range.location)
+        let stop = position(ofOffset: range.location + range.length)
+        if offset(of: start) == range.location && offset(of: stop) == range.location + range.length {
+            return document.text(in: EditorRange(from: start, to: stop))
+        }
+        let first = start.line
+        let last = stop.line
         let from = EditorPosition(line: first, column: 0)
         let end = document.endPosition
         let to = last + 1 < lineCount ? EditorPosition(line: last + 1, column: 0) : end
@@ -294,8 +318,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     private var rowCache: [Int: Row] = [:]
-    /// row() 用的逻辑行的文字（与 rowCache 一起清除）。很长的行折り返し成很多排版行时，不必每行都重新取出整行（第 36 步）
-    private var rowLineText: (line: Int, text: NSString)?
+    /// 缓存做出来时文档的 changeCount
+    private var cachedChangeCount: UInt = .max
 
     /// 画面上的行数
     var displayLineCount: Int {
@@ -309,16 +333,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let row: Row
         if index >= 0 && index < document.layoutLineCount {
             let layout = document.layoutLine(at: index)
-            let text: NSString
-            if let cached = rowLineText, cached.line == layout.start.line {
-                text = cached.text
-            } else {
-                text = lineText(layout.start.line)
-                rowLineText = (layout.start.line, text)
-            }
-            let length = max(0, min(layout.length, text.length - layout.start.column))
+            // 只取出这一段（第 36 步：很长的逻辑行折り返し成很多排版行时，不取出整行）
+            let end = EditorPosition(line: layout.start.line, column: layout.start.column + layout.length)
             row = Row(start: layout.start,
-                      text: text.substring(with: NSRange(location: layout.start.column, length: length)) as NSString,
+                      text: document.text(in: EditorRange(from: layout.start, to: end)) as NSString,
                       eol: layout.eol,
                       xs: document.charPositions(ofLayoutLine: index).map { CGFloat($0.intValue) },
                       isLayoutLine: true)
@@ -569,7 +587,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let last = min(displayLineCount, Int((dirtyRect.maxY - topMargin) / lineHeight) + 1)
         if first < last {
             for r in first..<last {
-                drawRow(r, context: context)
+                drawRow(r, context: context, minX: dirtyRect.minX, maxX: dirtyRect.maxX)
             }
         }
 
@@ -599,8 +617,39 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         return source.contains(".inputmethod.") && !source.hasSuffix(".Roman")
     }
 
-    private func drawRow(_ r: Int, context: CGContext) {
+    /// 这一行里横向范围 [minX, maxX]（视图坐标）涉及的字符下标（第 36 步：很长的排版行只画看得见的部分）。
+    /// 两边多留几个字（组合字符、补充平面字符不从中间切开），画到外面的部分被裁掉
+    func visibleIndices(row r: Int, minX: CGFloat, maxX: CGFloat) -> Range<Int> {
         let current = row(r)
+        let length = current.text.length
+        guard length > 0 else { return 0..<0 }
+        let xs = current.xs
+        // 未确定文字让开的宽度也算进去
+        let left = minX - textOriginX - (hasMarkedText() ? markedWidth : 0)
+        let right = maxX - textOriginX
+        // xs 是递增的：第一个右端（xs[i + 1]）到 left 的字、第一个左端超过 right 的字
+        func firstIndex(_ predicate: (CGFloat) -> Bool) -> Int {
+            var lo = 0, hi = length
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if predicate(xs[min(mid + 1, xs.count - 1)]) { hi = mid } else { lo = mid + 1 }
+            }
+            return lo
+        }
+        let margin = 8
+        let from = max(0, firstIndex { $0 >= left } - margin)
+        var lo = 0, hi = length
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if xs[min(mid, xs.count - 1)] > right { hi = mid } else { lo = mid + 1 }
+        }
+        let to = min(length, lo + margin)
+        return from < to ? from..<to : from..<from
+    }
+
+    private func drawRow(_ r: Int, context: CGContext, minX: CGFloat = -.greatestFiniteMagnitude, maxX: CGFloat = .greatestFiniteMagnitude) {
+        let current = row(r)
+        let visible = visibleIndices(row: r, minX: minX, maxX: maxX)
         let top = lineTop(r)
         let baseline = top + ascent
         let rowBack = rowBackColor(r)
@@ -620,8 +669,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
         // 语法颜色（第 33 步）和検索文字列（第 32 步）的背景。与文字的背景色相同时透過（原版 SetCurrentColor）
         let marks = charColors(row: r)
-        for (i, info) in marks.enumerated() {
-            guard let info else { continue }
+        for i in visible where i < marks.count {
+            guard let info = marks[i] else { continue }
             let back = backColor(info, rowBack: rowBack)
             if back != rowBack {
                 Self.nsColor(back).setFill()
@@ -646,18 +695,18 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                 NSRect(x: textOriginX + box.left, y: top, width: box.right - box.left, height: lineHeight).fill()
             }
             // 選択範囲が検索文字列・色分けに重なる部分は、その背景色に重ねる（原版 GetBackColorByColorInfo2）
-            for (i, info) in marks.enumerated() {
-                guard let info, isSelected(row: r, index: i, indices: indices) else { continue }
+            for i in visible where i < marks.count {
+                guard let info = marks[i], isSelected(row: r, index: i, indices: indices) else { continue }
                 Self.nsColor(overlayBackColor(select, on: backColor(info, rowBack: rowBack))).setFill()
                 NSRect(x: displayX(row: r, index: i), y: top,
                        width: displayX(row: r, index: i + 1) - displayX(row: r, index: i), height: lineHeight).fill()
             }
         }
 
-        drawGlyphs(current, row: r, baseline: baseline, rowBack: rowBack, indices: indices, marks: marks, context: context)
+        drawGlyphs(current, row: r, visible: visible, baseline: baseline, rowBack: rowBack, indices: indices, marks: marks, context: context)
 
         // 空白、TAB 的记号
-        for i in 0..<current.text.length {
+        for i in visible {
             let c = current.text.character(at: i)
             let x = displayX(row: r, index: i)
             let width = displayX(row: r, index: i + 1) - x
@@ -840,16 +889,19 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 文字：Core Text 选字形（没有的字由系统换成其他字体），位置用核心库的排版结果。
     /// 选中的字用选择范围的颜色
-    private func drawGlyphs(_ current: Row, row r: Int, baseline: CGFloat, rowBack: UInt32,
+    /// 画字形。只排、只画 visible 的部分（第 36 步：很长的排版行）
+    private func drawGlyphs(_ current: Row, row r: Int, visible: Range<Int>, baseline: CGFloat, rowBack: UInt32,
                             indices: (range: Range<Int>, eol: Bool)?, marks: [EditorColorSetting?], context: CGContext) {
-        guard current.text.length > 0 else { return }
+        guard !visible.isEmpty else { return }
         let text = color(.text)
         let select = color(.select)
+        let base = visible.lowerBound
+        let part = current.text.substring(with: NSRange(location: base, length: visible.count))
         // 太字（第 33 步：色分けの「太字」。原版 SetCurrentColor：选择范围的文字色和背景色相同时用下面的颜色的设置）
-        let attributed = NSMutableAttributedString(string: current.text as String, attributes: [.font: text.bold ? boldFont : font])
-        for i in 0..<min(marks.count, current.text.length) {
+        let attributed = NSMutableAttributedString(string: part, attributes: [.font: text.bold ? boldFont : font])
+        for i in visible where i < marks.count {
             if let info = marks[i], info.bold != text.bold {
-                attributed.addAttribute(.font, value: info.bold ? boldFont : font, range: NSRange(location: i, length: 1))
+                attributed.addAttribute(.font, value: info.bold ? boldFont : font, range: NSRange(location: i - base, length: 1))
             }
         }
         let line = CTLineCreateWithAttributedString(attributed)
@@ -872,7 +924,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             // 文字色ごとにまとめて描く（第 32 步：検索文字列の色）
             var groups: [UInt32: ([CGGlyph], [CGPoint])] = [:]
             for k in 0..<count {
-                let index = indicesInRun[k]
+                let index = base + indicesInRun[k]
                 let c = current.text.character(at: index)
                 // TAB、全角空白（显示记号时）不画字形
                 if c == 0x09 || (c == 0x3000 && settings.showFullWidthSpace) { continue }
@@ -890,16 +942,16 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             }
         }
         context.restoreGState()
-        drawUnderlines(current, row: r, baseline: baseline, indices: indices, marks: marks)
+        drawUnderlines(current, row: r, visible: visible, baseline: baseline, indices: indices, marks: marks)
     }
 
     /// 下線（第 33 步：色分けの「下線」，URL 的默认值）。文字色的线，画在基线下面
-    private func drawUnderlines(_ current: Row, row r: Int, baseline: CGFloat,
+    private func drawUnderlines(_ current: Row, row r: Int, visible: Range<Int>, baseline: CGFloat,
                                 indices: (range: Range<Int>, eol: Bool)?, marks: [EditorColorSetting?]) {
         let text = color(.text)
         let select = color(.select)
         let y = baseline + max(1, floor(-font.underlinePosition))
-        for i in 0..<current.text.length {
+        for i in visible {
             let info = i < marks.count ? marks[i] ?? text : text
             guard info.underline else { continue }
             var rgb = info.text
@@ -1040,11 +1092,16 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     // MARK: - 内容的变化
 
     /// 内容、光标、排版变化后：重新取得排版，决定视图的大小，让光标可见
-    func contentDidChange() {
-        rowCache.removeAll()
-        rowLineText = nil
-        searchState.markCache.removeAll()
-        syntaxCache.removeAll()
+    /// 文档的文字、排版、设置变了：清除缓存，重新计算大小。
+    /// keepCaches：只是光标、未确定文字变了时，文档没有变（changeCount 相同）就留着缓存
+    /// （第 36 步：超长行里每次移动光标都重新计算整行的颜色会很慢）
+    func contentDidChange(keepCaches: Bool = false) {
+        if !keepCaches || cachedChangeCount != document.changeCount {
+            rowCache.removeAll()
+            searchState.markCache.removeAll()
+            syntaxCache.removeAll()
+            cachedChangeCount = document.changeCount
+        }
         settings = document.viewSettings
         reloadColors()
         // 滚动到头时露出的部分也是文字的背景色
@@ -1078,14 +1135,14 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if line == end.line && line >= lineCount {
             column = 0
         } else {
-            column = min(column, lineText(line).length)
+            column = min(column, lineLength(line))
         }
         if line < 0 { line = 0 }
         caret = EditorPosition(line: line, column: column)
         caretAtLineEnd = atLineEnd
         if !keepPreferredX { preferredX = nil }
         if !extendingSelection { clearSelection() }
-        contentDidChange()
+        contentDidChange(keepCaches: true)
     }
 
     /// 选择范围扩展中（Shift+方向键等）：移动光标时不取消选择
@@ -1407,7 +1464,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     private func logicPosition(row r: Int, x: Int) -> EditorPosition {
         if r >= document.layoutLineCount { return document.endPosition }
         let p = document.logicPosition(of: EditorLayoutPosition(line: r, x: x))
-        return EditorPosition(line: p.line, column: min(p.column, lineText(p.line).length))
+        return EditorPosition(line: p.line, column: min(p.column, lineLength(p.line)))
     }
 
     /// 光标的排版位置
@@ -1421,7 +1478,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         document.beginEdit()
         let position = body()
         document.endEdit()
-        caret = EditorPosition(line: position.line, column: min(position.column, lineText(position.line).length))
+        caret = EditorPosition(line: position.line, column: min(position.column, lineLength(position.line)))
         textChanged()
     }
 
@@ -1539,7 +1596,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                 let c = document.deleteBox(box)
                 at = document.layoutPosition(of: c)
                 // 矩形的左端在行末之后时，光标留在那个横向位置（原版 DeleteData）
-                if c.column == lineText(c.line).length && box.left > at.x {
+                if c.column == lineLength(c.line) && box.left > at.x {
                     at = EditorLayoutPosition(line: at.line, x: box.left)
                 }
             } else if let selected {
@@ -1698,10 +1755,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
         let start: EditorPosition
         if caret.column > 0 {
-            let text = lineText(caret.line)
-            start = EditorPosition(line: caret.line, column: text.rangeOfComposedCharacterSequence(at: caret.column - 1).location)
+            start = EditorPosition(line: caret.line, column: composedCharacterRange(line: caret.line, at: caret.column - 1).location)
         } else if caret.line > 0 {
-            start = EditorPosition(line: caret.line - 1, column: lineText(caret.line - 1).length)
+            start = EditorPosition(line: caret.line - 1, column: lineLength(caret.line - 1))
         } else {
             return
         }
@@ -1718,10 +1774,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             replace(selection, with: "")
             return
         }
-        let text = lineText(caret.line)
         let end: EditorPosition
-        if caret.column < text.length {
-            end = EditorPosition(line: caret.line, column: NSMaxRange(text.rangeOfComposedCharacterSequence(at: caret.column)))
+        if caret.column < lineLength(caret.line) {
+            end = EditorPosition(line: caret.line, column: NSMaxRange(composedCharacterRange(line: caret.line, at: caret.column)))
         } else if caret.line < document.endPosition.line {
             end = EditorPosition(line: caret.line + 1, column: 0)
         } else {
@@ -1845,7 +1900,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if caret.line > end.line || (caret.line == end.line && caret.column > end.column) {
             caret = end
         } else {
-            caret = EditorPosition(line: caret.line, column: min(caret.column, lineText(caret.line).length))
+            caret = EditorPosition(line: caret.line, column: min(caret.column, lineLength(caret.line)))
         }
         textChanged()
     }
@@ -1943,7 +1998,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let length = markedText.length
         let location = min(max(0, selectedRange.location), length)
         markedSelection = NSRange(location: location, length: min(selectedRange.length, length - location))
-        contentDidChange()
+        contentDidChange(keepCaches: true)
     }
 
     private func clearMarkedText() {

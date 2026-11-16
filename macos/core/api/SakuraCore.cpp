@@ -534,6 +534,7 @@ struct Document::Impl {
 	COpeBlk* pOpeBlk = nullptr;	//!< BeginEdit 中的操作块（原版 CViewCommander 的 m_pcOpeBlk）
 	int editDepth = 0;
 	bool modified = false;
+	std::uint64_t changeCount = 0;	//!< 文字、排版变了的次数（第 36 步：界面层的缓存是否还有效）
 	CEol newLineEol{ EEolType::cr_and_lf };
 	FileInfo info;
 	//! 打开（保存）时的编码和 BOM（原版 SFileInfo 的 eCharCodeLoad、bBomExistLoad，第 34 步）
@@ -651,6 +652,7 @@ struct Document::Impl {
 		arg.pInsData = pInsData;
 		arg.nDelSeq = nDelSeq;
 		layout.ReplaceData_CLayoutMgr(&arg);
+		++changeCount;
 		if (pnInsSeq) *pnInsSeq = arg.nInsSeq;
 		CLogicPoint ptNew;
 		layout.LayoutToLogic(arg.ptLayoutNew, &ptNew);
@@ -684,6 +686,7 @@ struct Document::Impl {
 		}
 		ActivateColors(true);	// 类型别设置可能改了，重新读色分け的设置（第 33 步）
 		layout.SetLayoutInfo(true, false, ref, ref.m_nTabSpace, ref.m_nTsvMode, nMaxLineKetas, CLayoutXInt(-1), &g_layoutFont);
+		++changeCount;
 		// 「折り返さない」时计算文字的最大宽度，其他时候清除
 		if (wrapMethodCur == WRAP_NO_TEXT_WRAP) {
 			layout.CalculateTextWidth(FALSE);
@@ -758,6 +761,7 @@ struct Document::Impl {
 		layout.Init();
 		lines.DeleteAllLine();
 		modified = false;
+		++changeCount;
 	}
 };
 
@@ -1196,6 +1200,18 @@ Text Document::GetLine(std::int32_t line, bool withEol) const
 	const CDocLine* p = m_impl->lines.GetLine(CLogicInt(line));
 	if (!p) return {};
 	return Text(p->GetPtr(), withEol ? p->GetLengthWithEOL() : p->GetLengthWithoutEOL());
+}
+
+std::uint64_t Document::ChangeCount() const
+{
+	return m_impl->changeCount;
+}
+
+std::int32_t Document::LineLength(std::int32_t line) const
+{
+	if (line < 0) return 0;
+	const CDocLine* p = m_impl->lines.GetLine(CLogicInt(line));
+	return p ? static_cast<std::int32_t>(p->GetLengthWithoutEOL()) : 0;
 }
 
 Eol Document::GetLineEol(std::int32_t line) const
