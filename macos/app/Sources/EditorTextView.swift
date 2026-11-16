@@ -241,34 +241,33 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         line < lineCount ? document.line(at: line) as NSString : ""
     }
 
-    private func lineLengthWithEol(_ line: Int) -> Int {
-        (document.line(at: line, withEol: true) as NSString).length
-    }
-
     static func same(_ a: EditorPosition, _ b: EditorPosition) -> Bool {
         a.line == b.line && a.column == b.column
     }
 
-    /// 逻辑位置 → 文档全文的下标
+    /// 逻辑位置 → 文档全文的下标（第 36 步：核心库按行的长度计算，不取出每行的文字）
     func offset(of position: EditorPosition) -> Int {
-        var offset = 0
-        for i in 0..<min(position.line, lineCount) {
-            offset += lineLengthWithEol(i)
-        }
-        return offset + position.column
+        document.offset(of: position)
     }
 
     /// 文档全文的下标 → 逻辑位置（落在换行符中间时取换行符之前）
     func position(ofOffset offset: Int) -> EditorPosition {
-        var rest = max(0, offset)
-        for i in 0..<lineCount {
-            let body = lineText(i).length
-            if rest <= body { return EditorPosition(line: i, column: rest) }
-            let whole = lineLengthWithEol(i)
-            if rest < whole { return EditorPosition(line: i, column: body) }
-            rest -= whole
-        }
-        return document.endPosition
+        document.position(atOffset: offset)
+    }
+
+    /// 文档全文的一部分（range 是全文的下标）。只取出涉及的行（第 36 步：大文件里不做出全文）
+    func documentSubstring(_ range: NSRange) -> String {
+        guard range.length > 0 else { return "" }
+        let first = position(ofOffset: range.location).line
+        let last = position(ofOffset: range.location + range.length).line
+        let from = EditorPosition(line: first, column: 0)
+        let end = document.endPosition
+        let to = last + 1 < lineCount ? EditorPosition(line: last + 1, column: 0) : end
+        let text = document.text(in: EditorRange(from: from, to: to)) as NSString
+        let base = offset(of: from)
+        let lo = min(max(0, range.location - base), text.length)
+        let hi = min(max(lo, range.location + range.length - base), text.length)
+        return text.substring(with: NSRange(location: lo, length: hi - lo))
     }
 
     private var markedStart: Int { offset(of: caret) }
@@ -295,6 +294,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     private var rowCache: [Int: Row] = [:]
+    /// row() 用的逻辑行的文字（与 rowCache 一起清除）。很长的行折り返し成很多排版行时，不必每行都重新取出整行（第 36 步）
+    private var rowLineText: (line: Int, text: NSString)?
 
     /// 画面上的行数
     var displayLineCount: Int {
@@ -308,7 +309,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let row: Row
         if index >= 0 && index < document.layoutLineCount {
             let layout = document.layoutLine(at: index)
-            let text = lineText(layout.start.line)
+            let text: NSString
+            if let cached = rowLineText, cached.line == layout.start.line {
+                text = cached.text
+            } else {
+                text = lineText(layout.start.line)
+                rowLineText = (layout.start.line, text)
+            }
             let length = max(0, min(layout.length, text.length - layout.start.column))
             row = Row(start: layout.start,
                       text: text.substring(with: NSRange(location: layout.start.column, length: length)) as NSString,
@@ -1035,6 +1042,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 内容、光标、排版变化后：重新取得排版，决定视图的大小，让光标可见
     func contentDidChange() {
         rowCache.removeAll()
+        rowLineText = nil
         searchState.markCache.removeAll()
         syntaxCache.removeAll()
         settings = document.viewSettings
@@ -1970,19 +1978,33 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         markedText.length > 0
     }
 
-    /// 虚拟文字（文档全文 + 未确定文字）
-    private func virtualText() -> NSString {
-        let text = document.text as NSString
-        guard hasMarkedText() else { return text }
-        return text.replacingCharacters(in: NSRange(location: min(markedStart, text.length), length: 0), with: markedText.string) as NSString
+    /// 虚拟文字（文档全文 + 未确定文字）的一部分。只取出需要的部分（第 36 步）
+    private func virtualSubstring(_ range: NSRange) -> String {
+        guard hasMarkedText() else { return documentSubstring(range) }
+        let start = markedStart
+        let markedEnd = start + markedLength
+        var result = ""
+        // 未确定文字之前、未确定文字、之后（之后的部分在全文里往前移 markedLength）
+        let before = NSIntersectionRange(range, NSRange(location: 0, length: start))
+        if before.length > 0 { result += documentSubstring(before) }
+        let marked = NSIntersectionRange(range, NSRange(location: start, length: markedLength))
+        if marked.length > 0 {
+            result += (markedText.string as NSString).substring(with: NSRange(location: marked.location - start, length: marked.length))
+        }
+        let afterStart = max(range.location, markedEnd)
+        let afterEnd = range.location + range.length
+        if afterEnd > afterStart {
+            result += documentSubstring(NSRange(location: afterStart - markedLength, length: afterEnd - afterStart))
+        }
+        return result
     }
 
     func attributedSubstring(forProposedRange range: NSRange, actualRange: NSRangePointer?) -> NSAttributedString? {
-        let text = virtualText()
-        guard range.location != NSNotFound, range.location <= text.length else { return nil }
-        let actual = NSRange(location: range.location, length: min(range.length, text.length - range.location))
+        let length = virtualLength
+        guard range.location != NSNotFound, range.location <= length else { return nil }
+        let actual = NSRange(location: range.location, length: min(range.length, length - range.location))
         actualRange?.pointee = actual
-        return NSAttributedString(string: text.substring(with: actual), attributes: [.font: font])
+        return NSAttributedString(string: virtualSubstring(actual), attributes: [.font: font])
     }
 
     func validAttributesForMarkedText() -> [NSAttributedString.Key] {
@@ -2028,7 +2050,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 虚拟文字的长度
     private var virtualLength: Int {
-        (document.text as NSString).length + markedLength
+        document.textLength + markedLength
     }
 
     /// 屏幕上的一点 → 虚拟文字的下标

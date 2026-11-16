@@ -601,6 +601,12 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECEol)eolOfLineAtIndex:(NSInteger)line NS_SWIFT_NAME(eol(ofLine:));
 - (NSString *)textInRange:(ECRange)range NS_SWIFT_NAME(text(in:));
 @property (readonly) ECPosition endPosition;
+//! 全文（包括换行符）的长度（第 36 步。不做出全文）
+@property (readonly) NSInteger textLength;
+//! 位置 → 全文的下标
+- (NSInteger)offsetOfPosition:(ECPosition)position NS_SWIFT_NAME(offset(of:));
+//! 全文的下标 → 位置（落在换行符中间时取换行符之前）
+- (ECPosition)positionAtOffset:(NSInteger)offset NS_SWIFT_NAME(position(atOffset:));
 
 // ----- 编辑 -----
 

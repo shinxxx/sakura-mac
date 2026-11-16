@@ -62,3 +62,9 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 - 每一步加新功能时，在对应的层加测试；界面测试只加用户会走的主要操作。
 - 核心库加了测试文件后要重新运行 `cmake -S macos/core -B build/mac-core`。
 - App 的测试文件放进 `Tests/` 或 `UITests/` 后重新运行 `xcodegen generate`。
+
+## 性能测试（第 36 步）
+
+- 核心库的 `MacPerfTest.*`、App 的 `PerformanceTests` 在普通的测试里一起运行（Debug，上限定得宽，只防止明显变慢）。
+- CI 的 `core-perf-macos` 用 Release 构建量核心库的时间，`perf-windows` 在 Windows 上用官方版的宏量同样的操作，
+  两边的时间写在各自 job 的 Summary 里。详见 [phase2-performance.md](phase2-performance.md)。

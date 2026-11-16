@@ -806,6 +806,16 @@ public:
 	//! 文档末尾的位置（最后一行的末尾；最后一行以换行结束时是下一行的开头）
 	Position EndPosition() const;
 
+	/*!
+		全文（包括换行符）的长度、全文的下标和位置的换算（第 36 步）。
+		输入法（NSTextInputClient）用全文的下标说话。不做出全文，按行的长度加起来，大文件也快。
+	*/
+	std::int64_t TextLength() const;
+	//! 位置 → 全文的下标（行、列超出范围时收到范围内）
+	std::int64_t OffsetOf(const Position& position) const;
+	//! 全文的下标 → 位置（落在换行符中间时取换行符之前，超出时是文档末尾）
+	Position PositionAtOffset(std::int64_t offset) const;
+
 	// ----- 编辑 -----
 
 	/*!

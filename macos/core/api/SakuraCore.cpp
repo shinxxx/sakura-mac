@@ -67,6 +67,7 @@
 #include "util/zoom.h"
 #include "sakura_platform_hooks.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <limits>
@@ -1226,6 +1227,42 @@ Text Document::GetText(const Range& range) const
 		text.append(p->GetPtr() + begin, end - begin);
 	}
 	return text;
+}
+
+std::int64_t Document::TextLength() const
+{
+	std::int64_t length = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine()) {
+		length += p->GetLengthWithEOL();
+	}
+	return length;
+}
+
+std::int64_t Document::OffsetOf(const Position& position) const
+{
+	std::int64_t offset = 0;
+	int line = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine(), ++line) {
+		if (line == position.line) {
+			return offset + std::clamp<std::int64_t>(position.column, 0, p->GetLengthWithoutEOL());
+		}
+		offset += p->GetLengthWithEOL();
+	}
+	return offset;	// 超过最后一行：文档末尾
+}
+
+Position Document::PositionAtOffset(std::int64_t offset) const
+{
+	std::int64_t rest = std::max<std::int64_t>(0, offset);
+	int line = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine(), ++line) {
+		const int body = p->GetLengthWithoutEOL();
+		if (rest <= body) return Position{ line, static_cast<std::int32_t>(rest) };
+		const int whole = p->GetLengthWithEOL();
+		if (rest < whole) return Position{ line, body };
+		rest -= whole;
+	}
+	return EndPosition();
 }
 
 Position Document::EndPosition() const
