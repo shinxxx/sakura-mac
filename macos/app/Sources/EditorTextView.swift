@@ -109,6 +109,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 类型别设置的颜色（第 28 步）。下标是 EditorColorIndex 的数值
     private var colors: [EditorColorSetting] = []
+    /// 逻辑行的语法颜色（第 33 步）。内容、设置变化时清除（编辑会改变后面各行的颜色，比如块注释）
+    private var syntaxCache: [Int: [EditorSyntaxColorRun]] = [:]
 
     /// 选择的起点（逻辑位置）。nil 时没有选择。普通选择是起点到光标之间（原版 CViewSelect）
     private(set) var selectionAnchor: EditorPosition?
@@ -397,8 +399,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 重新取得类型别设置的颜色
     private func reloadColors() {
-        // 第 32 步：検索文字列の色（search〜search5）も
-        colors = (0...EditorColorIndex.search5.rawValue).map {
+        // 第 32 步：検索文字列の色（search〜search5），第 33 步：语法颜色（comment〜pageView）也
+        colors = (0...EditorColorIndex.pageView.rawValue).map {
             document.color(for: EditorColorIndex(rawValue: $0) ?? .text)
         }
     }
@@ -574,8 +576,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
         }
 
-        // 検索文字列の背景（第 32 步。原版 CColor_Found：与文字的背景色相同时透過）
-        let marks = searchMarkColors(row: r)
+        // 语法颜色（第 33 步）和検索文字列（第 32 步）的背景。与文字的背景色相同时透過（原版 SetCurrentColor）
+        let marks = charColors(row: r)
         for (i, info) in marks.enumerated() {
             guard let info else { continue }
             let back = backColor(info, rowBack: rowBack)
@@ -601,7 +603,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                 // 矩形选择：没有文字的部分也涂（原版「テキストのない部分の矩形選択を作画」）
                 NSRect(x: textOriginX + box.left, y: top, width: box.right - box.left, height: lineHeight).fill()
             }
-            // 選択範囲が検索文字列に重なる部分は、検索文字列の背景色に重ねる（原版 GetBackColorByColorInfo2）
+            // 選択範囲が検索文字列・色分けに重なる部分は、その背景色に重ねる（原版 GetBackColorByColorInfo2）
             for (i, info) in marks.enumerated() {
                 guard let info, isSelected(row: r, index: i, indices: indices) else { continue }
                 Self.nsColor(overlayBackColor(select, on: backColor(info, rowBack: rowBack))).setFill()
@@ -679,6 +681,46 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             context.restoreGState()
             drawMarkedUnderlines(x: x, baseline: baseline)
         }
+    }
+
+    /// 这一行的每个字符的颜色（第 33 步）：検索文字列的颜色优先，其次是语法颜色，都不是时 nil（「テキスト」）。
+    /// 原版 SColorStrategyInfo::DoChangeColor 的 eColorIndex2（选择以外的颜色：CColor_Found > 色分け）。
+    /// 没有任何颜色时是空的数组
+    func charColors(row r: Int) -> [EditorColorSetting?] {
+        let current = row(r)
+        guard current.isLayoutLine, current.text.length > 0 else { return [] }
+        let search = searchMarkColors(row: r)
+        let syntax = syntaxColors(row: r)
+        if syntax.isEmpty { return search }
+        if search.isEmpty { return syntax }
+        return zip(search, syntax).map { $0 ?? $1 }
+    }
+
+    /// 这一行的每个字符的语法颜色（第 33 步，原版的色分け：注释、字符串、关键字、数字、URL 等）。
+    /// 普通文字是 nil，整行都是普通文字时是空的数组
+    func syntaxColors(row r: Int) -> [EditorColorSetting?] {
+        let current = row(r)
+        guard current.isLayoutLine, current.text.length > 0 else { return [] }
+        let line = current.start.line
+        let runs: [EditorSyntaxColorRun]
+        if let cached = syntaxCache[line] {
+            runs = cached
+        } else {
+            runs = document.syntaxColors(line: line)
+            syntaxCache[line] = runs
+        }
+        guard !runs.isEmpty else { return [] }
+        var result = [EditorColorSetting?](repeating: nil, count: current.text.length)
+        let rowStart = current.start.column
+        for run in runs {
+            let lo = max(0, run.from - rowStart)
+            let hi = min(current.text.length, run.to - rowStart)
+            let info = color(run.color)
+            if lo < hi && info.display {
+                for i in lo..<hi { result[i] = info }
+            }
+        }
+        return result
     }
 
     /// 这一行的每个字符的検索文字列的颜色（不是查找文字的字符是 nil。第 32 步，原版 CColor_Found）。
@@ -761,7 +803,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         guard current.text.length > 0 else { return }
         let text = color(.text)
         let select = color(.select)
-        let attributed = NSAttributedString(string: current.text as String, attributes: [.font: text.bold ? boldFont : font])
+        // 太字（第 33 步：色分けの「太字」。原版 SetCurrentColor：选择范围的文字色和背景色相同时用下面的颜色的设置）
+        let attributed = NSMutableAttributedString(string: current.text as String, attributes: [.font: text.bold ? boldFont : font])
+        for i in 0..<min(marks.count, current.text.length) {
+            if let info = marks[i], info.bold != text.bold {
+                attributed.addAttribute(.font, value: info.bold ? boldFont : font, range: NSRange(location: i, length: 1))
+            }
+        }
         let line = CTLineCreateWithAttributedString(attributed)
         guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return }
         context.saveGState()
@@ -800,6 +848,26 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             }
         }
         context.restoreGState()
+        drawUnderlines(current, row: r, baseline: baseline, indices: indices, marks: marks)
+    }
+
+    /// 下線（第 33 步：色分けの「下線」，URL 的默认值）。文字色的线，画在基线下面
+    private func drawUnderlines(_ current: Row, row r: Int, baseline: CGFloat,
+                                indices: (range: Range<Int>, eol: Bool)?, marks: [EditorColorSetting?]) {
+        let text = color(.text)
+        let select = color(.select)
+        let y = baseline + max(1, floor(-font.underlinePosition))
+        for i in 0..<current.text.length {
+            let info = i < marks.count ? marks[i] ?? text : text
+            guard info.underline else { continue }
+            var rgb = info.text
+            if select.display && isSelected(row: r, index: i, indices: indices) {
+                rgb = overlayTextColor(select, on: rgb)
+            }
+            Self.nsColor(rgb).setFill()
+            let x0 = displayX(row: r, index: i)
+            NSRect(x: x0, y: y, width: displayX(row: r, index: i + 1) - x0, height: 1).fill()
+        }
     }
 
     /// TAB 記号（原版 CFigure_Tab）
@@ -933,6 +1001,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     func contentDidChange() {
         rowCache.removeAll()
         searchState.markCache.removeAll()
+        syntaxCache.removeAll()
         settings = document.viewSettings
         reloadColors()
         // 滚动到头时露出的部分也是文字的背景色

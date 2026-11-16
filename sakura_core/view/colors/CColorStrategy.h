@@ -30,6 +30,13 @@ class CColor_DoubleQuote;
 class CColor_Heredoc;
 class CEditView;
 class CStringRef;
+#if !defined(_WIN32)
+// Mac 版：ひとつのプロセスで複数の文書を開くので、色分けする文書のタイプ別設定と
+// 正規表現キーワードは CEditDoc / CEditView からではなく、ここから取る（移植計画のステップ 33）
+class CRegexKeyword;
+const STypeConfig* GetColorTypeConfigMac();
+CRegexKeyword* GetColorRegexKeywordMac();
+#endif
 
 bool _IsPosKeywordHead(const CStringRef& cStr, int nPos);
 
@@ -149,8 +156,12 @@ public:
 	//! 設定更新
 	virtual void Update(void)
 	{
+#if defined(_WIN32)
 		const CEditDoc* pCEditDoc = CEditDoc::GetInstance(0);
 		m_pTypeData = &pCEditDoc->m_cDocType.GetDocumentAttribute();
+#else
+		m_pTypeData = GetColorTypeConfigMac();	// Mac 版：色分けする文書のタイプ別設定（移植計画のステップ 33）
+#endif
 	}
 
 	//#######ラップ

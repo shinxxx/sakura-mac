@@ -5,12 +5,19 @@
 	SPDX-License-Identifier: Zlib
 */
 #include "StdAfx.h"
+#if defined(_WIN32)
 #include "view/CEditView.h" // SColorStrategyInfo
+#else
+#include "view/colors/CColorStrategy.h"	// Mac 版：編集画面（CEditView）は使わない（移植計画のステップ 33）
+#include "env/DLLSHAREDATA.h"
+#endif
 #include "CColor_Numeric.h"
 #include "parse/CWordParse.h"
 #include "util/string_ex2.h"
 #include "doc/layout/CLayout.h"
+#if defined(_WIN32)
 #include "types/CTypeSupport.h"
+#endif
 
 static int IsNumber( const CStringRef& cStr, int offset );/* 数値ならその長さを返す */	//@@@ 2001.02.17 by MIK
 

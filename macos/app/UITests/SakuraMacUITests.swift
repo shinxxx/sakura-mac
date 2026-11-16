@@ -383,6 +383,41 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(window.textViews["editor"].value as? String, content)
     }
 
+    // MARK: - 第 33 步：语法高亮
+
+    /// 实际的 App 画出语法颜色：无题文档（「基本」）里的 URL 用蓝色、带下划线显示（原版的默认设置）。
+    /// 辅助功能读不到颜色，所以截取编辑区的画面数蓝色的像素
+    func testSyntaxColorDrawsUrl() {
+        editor.typeText("plain text here\n")
+        let before = bluePixels(editor.screenshot().image)
+        editor.typeText("http://example.com/\n")
+        let after = bluePixels(editor.screenshot().image)
+        // 行号和カーソル行アンダーライン也是蓝色，两次都有。增加的是 URL 的文字和下划线
+        XCTAssertGreaterThan(after, before + 100, "URL 用蓝色显示（之前 \(before)，之后 \(after)）")
+        editor.typeText("plain text again")
+        let plain = bluePixels(editor.screenshot().image)
+        XCTAssertLessThan(plain, after + 60, "普通文字不是蓝色（\(plain)）")
+    }
+
+    /// 画面里接近纯蓝（0x0000FF）的像素数。截图的颜色空间可能与 sRGB 稍有不同，范围放宽
+    private func bluePixels(_ image: NSImage) -> Int {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: cg.width, height: cg.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+        guard let data = context.data else { return 0 }
+        let bytes = data.assumingMemoryBound(to: UInt8.self)
+        var count = 0
+        for y in 0..<cg.height {
+            for x in 0..<cg.width {
+                let o = y * context.bytesPerRow + x * 4
+                if bytes[o] < 90 && bytes[o + 1] < 90 && bytes[o + 2] > 180 { count += 1 }
+            }
+        }
+        return count
+    }
+
     /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
     /// 但辅助功能里算 App 的窗口。找不到时返回 App 本身（键盘输入照样进对话框）
     private func openPanel(of app: XCUIApplication) -> XCUIElement {

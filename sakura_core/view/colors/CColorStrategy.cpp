@@ -7,30 +7,36 @@
 */
 
 #include "StdAfx.h"
-#if defined(_WIN32)	// Mac 版：色名の表（g_ColorAttributeArr）と色名の変換だけ使う。色分けの描画は後のステップで移植する（移植計画のステップ 21）
+#if defined(_WIN32)
 #include "view/CEditView.h" // SColorStrategyInfo
+#endif
+// Mac 版：色分けの処理（プール）を移植する。編集画面（CEditView）と選択・検索の色分けは使わない（移植計画のステップ 33）
 #include "view/colors/CColorStrategy.h"
 #include "CColor_Comment.h"
 #include "CColor_Quote.h"
 #include "CColor_RegexKeyword.h"
+#if defined(_WIN32)
 #include "CColor_Found.h"
+#endif
 #include "CColor_Url.h"
 #include "CColor_Numeric.h"
 #include "CColor_KeywordSet.h"
+#if defined(_WIN32)
 #include "CColor_Found.h"
+#endif
 #include "CColor_Heredoc.h"
 #include "doc/layout/CLayout.h"
+#if defined(_WIN32)
 #include "window/CEditWnd.h"
 #include "types/CTypeSupport.h"
-#else
-#include "view/colors/CColorStrategy.h"
 #endif
 
-#if defined(_WIN32)
 bool _IsPosKeywordHead(const CStringRef& cStr, int nPos)
 {
 	return (nPos==0 || !IS_KEYWORD_CHAR(cStr.At(nPos-1)));
 }
+
+#if defined(_WIN32)	// Mac 版：描画（SColorStrategyInfo）は Mac 版の画面側で行う（移植計画のステップ 33）
 
 /*! 色の切り替え判定
 	@retval true 色の変更あり
@@ -172,6 +178,7 @@ void SColorStrategyInfo::DoChangeColor(CColor3Setting *pcColor)
 
 	*pcColor = m_cIndex;
 }
+#endif // defined(_WIN32)
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                          プール                             //
@@ -179,9 +186,11 @@ void SColorStrategyInfo::DoChangeColor(CColor3Setting *pcColor)
 
 CColorStrategyPool::CColorStrategyPool()
 {
+#if defined(_WIN32)	// Mac 版：編集画面がないので、選択・検索の色分けは画面側で行う（移植計画のステップ 33）
 	m_pcView = &(CEditWnd::getInstance()->GetView(0));
 	m_pcSelectStrategy = new CColor_Select();
 	m_pcFoundStrategy = new CColor_Found();
+#endif
 //	m_vStrategies.push_back(new CColor_Found);				// マッチ文字列
 	m_vStrategies.push_back(new CColor_RegexKeyword);		// 正規表現キーワード
 	m_vStrategies.push_back(new CColor_Heredoc);			// ヒアドキュメント
@@ -200,8 +209,10 @@ CColorStrategyPool::CColorStrategyPool()
 
 CColorStrategyPool::~CColorStrategyPool()
 {
+#if defined(_WIN32)
 	SAFE_DELETE(m_pcSelectStrategy);
 	SAFE_DELETE(m_pcFoundStrategy);
+#endif
 	m_vStrategiesDisp.clear();
 	int size = (int)m_vStrategies.size();
 	for(int i = 0; i < size; i++ ){
@@ -213,7 +224,11 @@ CColorStrategyPool::~CColorStrategyPool()
 CColorStrategy*	CColorStrategyPool::GetStrategyByColor(EColorIndexType eColor) const
 {
 	if( COLORIDX_SEARCH <= eColor && eColor <= COLORIDX_SEARCHTAIL ){
+#if defined(_WIN32)
 		return m_pcFoundStrategy;
+#else
+		return nullptr;	// Mac 版：検索文字列の色は画面側（移植計画のステップ 33）
+#endif
 	}
 	int size = (int)m_vStrategiesDisp.size();
 	for(int i = 0; i < size; i++ ){
@@ -226,8 +241,10 @@ CColorStrategy*	CColorStrategyPool::GetStrategyByColor(EColorIndexType eColor) c
 
 void CColorStrategyPool::NotifyOnStartScanLogic()
 {
+#if defined(_WIN32)
 	m_pcSelectStrategy->OnStartScanLogic();
 	m_pcFoundStrategy->OnStartScanLogic();
+#endif
 	int size = GetStrategyCount();
 	for(int i = 0; i < size; i++ ){
 		GetStrategy(i)->OnStartScanLogic();
@@ -268,8 +285,10 @@ void CColorStrategyPool::OnChangeSetting(void)
 {
 	m_vStrategiesDisp.clear();
 
+#if defined(_WIN32)
 	m_pcSelectStrategy->Update();
 	m_pcFoundStrategy->Update();
+#endif
 	int size = (int)m_vStrategies.size();
 	for(int i = 0; i < size; i++){
 		m_vStrategies[i]->Update();
@@ -289,7 +308,11 @@ void CColorStrategyPool::OnChangeSetting(void)
 	m_pcDoubleQuote = static_cast<CColor_DoubleQuote*>(GetStrategyByColor(COLORIDX_WSTRING));	// ダブルクォーテーション文字列
 
 	// 色分けをしない場合に、処理をスキップできるように確認する
+#if defined(_WIN32)
 	const STypeConfig& type = CEditDoc::GetInstance(0)->m_cDocType.GetDocumentAttribute();
+#else
+	const STypeConfig& type = *GetColorTypeConfigMac();	// Mac 版（移植計画のステップ 33）
+#endif
 	EColorIndexType bSkipColorTypeTable[] = {
 		COLORIDX_DIGIT,
 		COLORIDX_COMMENT,
@@ -347,9 +370,11 @@ bool CColorStrategyPool::IsSkipBeforeLayout()
 	if( !m_bSkipBeforeLayoutGeneral ){
 		return false;
 	}
+#if defined(_WIN32)
 	if( !m_bSkipBeforeLayoutFound && m_pcView->m_bCurSrchKeyMark ){
 		return false;
 	}
+#endif
 	return true;
 }
 
@@ -362,7 +387,6 @@ bool CColorStrategyPool::HasRangeBasedColorStrategies(void) const noexcept
 		|| (m_pcDoubleQuote != nullptr)
 		|| (m_pcHeredoc != nullptr);
 }
-#endif // defined(_WIN32)
 
 /*!
   iniの色設定を番号でなく文字列で書き出す。(added by Stonee, 2001/01/12, 2001/01/15)

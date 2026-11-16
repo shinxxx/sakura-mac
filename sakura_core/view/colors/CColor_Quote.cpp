@@ -5,7 +5,12 @@
 	SPDX-License-Identifier: Zlib
 */
 #include "StdAfx.h"
+#if defined(_WIN32)
 #include "view/CEditView.h" // SColorStrategyInfo
+#else
+#include "view/colors/CColorStrategy.h"	// Mac 版：編集画面（CEditView）は使わない（移植計画のステップ 33）
+#include "env/DLLSHAREDATA.h"
+#endif
 #include "CColor_Quote.h"
 
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
@@ -29,8 +34,12 @@ public:
 
 void CColor_Quote::Update(void)
 {
+#if defined(_WIN32)
 	const CEditDoc* pCEditDoc = CEditDoc::GetInstance(0);
 	m_pTypeData = &pCEditDoc->m_cDocType.GetDocumentAttribute();
+#else
+	m_pTypeData = GetColorTypeConfigMac();	// Mac 版（移植計画のステップ 33）
+#endif
 	m_nStringType = m_pTypeData->m_nStringType;
 	int nEspaceTypeList[] = {
 		STRING_LITERAL_CPP,

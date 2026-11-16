@@ -39,6 +39,9 @@
 #include "doc/layout/CLayoutMgr.h"
 #include "docplus/CModifyManager.h"
 #include "view/colors/EColorIndexType.h"
+#include "view/colors/CColorStrategy.h"
+#include "env/CRegexKeyword.h"
+#include "../src/color_support.h"
 #include "mem/CMemoryIterator.h"
 #include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
@@ -385,6 +388,31 @@ struct Document::Impl {
 	Text lastSearchError;
 	std::optional<RestoredView> restoredView;	//!< 打开时从历史恢复的位置（第 31 步）
 	std::shared_ptr<SearchMarkCache> searchMarkCache;	//!< 查找文字标记用的条件（第 32 步）
+	std::unique_ptr<CRegexKeyword> regexKeyword;	//!< 正規表現キーワード（第 33 步，原版 CEditView::m_cRegexKeyword）
+
+	~Impl()
+	{
+		// 色分け对象是这个文档时清除（不留下指向已经释放的设置的指针）
+		if (GetColorTypeConfigMac() == &typeConfig) SetColorTargetMac(nullptr, nullptr);
+	}
+
+	/*!
+		让色分け（CColorStrategyPool）以这个文档为对象（第 33 步）。排版和取颜色之前调用。
+		原版一个进程一个文档，CDocType::SetDocumentType 时 CColorStrategyPool::OnChangeSetting；
+		Mac 版一个进程多个文档，切换文档时也重新读设置。
+		@param force 类型别设置的内容改了时 true
+	*/
+	void ActivateColors(bool force = false)
+	{
+		// 正規表現キーワードの設定（CEditView::OnPaint2：変更があればタイプ設定を行う）
+		if (typeConfig.m_bUseRegexKeyword || (regexKeyword && regexKeyword->m_bUseRegexKeyword)) {
+			if (!regexKeyword) {
+				regexKeyword = std::make_unique<CRegexKeyword>(GetDllShareData().m_Common.m_sSearch.m_szRegexpLib);
+			}
+			regexKeyword->RegexKeySetTypes(&typeConfig);
+		}
+		SetColorTargetMac(&typeConfig, regexKeyword.get(), force);
+	}
 
 	//! typeId 是历史里上次的类型（原版 EditInfo::m_nTypeId）。-1 或找不到时按文件名决定
 	void ResetForType(const Text& path, int typeId = -1)
@@ -460,6 +488,7 @@ struct Document::Impl {
 	CLogicPoint ReplaceRaw(const CLogicRange& range, COpeLineData* pInsData, COpeLineData* pDeleted, int nDelSeq, int* pnInsSeq)
 	{
 		// 经过排版来替换（CLayoutMgr::ReplaceData_CLayoutMgr 里调用 CSearchAgent::ReplaceData），排版随着更新
+		ActivateColors();	// 排版时记下每行开头的色分け状态（第 33 步）
 		LayoutReplaceArg arg;
 		layout.LogicToLayout(range, &arg.sDelRange);
 		arg.pcmemDeleted = pDeleted;
@@ -497,6 +526,7 @@ struct Document::Impl {
 			layout.m_tsvInfo.m_nTsvMode = ref.m_nTsvMode;
 			layout.m_tsvInfo.CalcTabLength(&lines);
 		}
+		ActivateColors(true);	// 类型别设置可能改了，重新读色分け的设置（第 33 步）
 		layout.SetLayoutInfo(true, false, ref, ref.m_nTabSpace, ref.m_nTsvMode, nMaxLineKetas, CLayoutXInt(-1), &g_layoutFont);
 		// 「折り返さない」时计算文字的最大宽度，其他时候清除
 		if (wrapMethodCur == WRAP_NO_TEXT_WRAP) {
@@ -2758,6 +2788,66 @@ int WordIndexInKey(const Text& key, const WCHAR* pWord, int wordLength, bool bLo
 }
 
 } // namespace
+
+std::vector<SyntaxColorRun> Document::SyntaxColors(std::int32_t line)
+{
+	auto& d = *m_impl;
+	std::vector<SyntaxColorRun> result;
+	const CDocLine* pDocLine = d.lines.GetLine(CLogicInt(line));
+	if (!pDocLine) return result;
+
+	d.ActivateColors();
+	CColorStrategyPool* pool = CColorStrategyPool::getInstance();
+	// 色分けしない设置时全部是テキスト（CEditView::GetColorIndex 的 IsSkipBeforeLayout）
+	if (pool->IsSkipBeforeLayout()) return result;
+
+	// 逻辑行的第一个排版行：排版时记下的行首颜色（CEditView::GetColorIndex 的 pcLayoutLineFirst）
+	CLayoutPoint ptLayout;
+	d.layout.LogicToLayout(CLogicPoint(CLogicInt(0), CLogicInt(line)), &ptLayout);
+	const CLayout* pcLayout = d.layout.SearchLineByLayoutY(ptLayout.GetY2());
+	if (!pcLayout || pcLayout->GetDocLineRef() != pDocLine) return result;
+	while (pcLayout->GetLogicOffset() != 0 && pcLayout->GetPrevLayout()) {
+		pcLayout = pcLayout->GetPrevLayout();
+	}
+
+	const CStringRef cLineStr(pDocLine->GetPtr(), pDocLine->GetLengthWithEOL());
+	const int nLenNoEol = pDocLine->GetLengthWithoutEOL();
+	pool->NotifyOnStartScanLogic();
+	CColorStrategy* pStrategy = pool->GetStrategyByColor(pcLayout->GetColorTypePrev());
+	if (pStrategy) {
+		pStrategy->InitStrategyStatus();
+		pStrategy->SetStrategyColorInfo(pcLayout->GetColorInfo());
+	}
+
+	// SColorStrategyInfo::CheckChangeColor の「色終了」「色開始」と同じ順序で 1 文字ずつ調べる
+	const int nStrategies = pool->GetStrategyCount();
+	int nPos = 0;
+	while (nPos < nLenNoEol) {
+		if (pStrategy && pStrategy->EndColor(cLineStr, nPos)) {
+			pStrategy = nullptr;
+		}
+		if (!pStrategy) {
+			for (int i = 0; i < nStrategies; ++i) {
+				if (pool->GetStrategy(i)->BeginColor(cLineStr, nPos)) {
+					pStrategy = pool->GetStrategy(i);
+					break;
+				}
+			}
+		}
+		const int nNext = nPos + std::max<int>(1, CNativeW::GetSizeOfChar(cLineStr.GetPtr(), cLineStr.GetLength(), nPos));
+		const int nColor = ToColorInfoArrIndex(CColorStrategy::GetStrategyColorSafe(pStrategy));
+		if (nColor != COLORIDX_TEXT) {
+			const auto color = static_cast<std::uint8_t>(nColor);
+			if (!result.empty() && result.back().to == nPos && result.back().color == color) {
+				result.back().to = std::min(nNext, nLenNoEol);
+			} else {
+				result.push_back(SyntaxColorRun{ nPos, std::min(nNext, nLenNoEol), color });
+			}
+		}
+		nPos = nNext;
+	}
+	return result;
+}
 
 std::vector<SearchMark> Document::SearchMarks(std::int32_t line, const Text& key, const SearchOptions& options)
 {

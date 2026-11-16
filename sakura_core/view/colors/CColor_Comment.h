@@ -43,8 +43,12 @@ class CColor_BlockComment final : public CColorStrategy{
 public:
 	CColor_BlockComment(EColorIndexType nType) : m_nType(nType), m_nCOMMENTEND(0){}
 	void Update(void) override {
+#if defined(_WIN32)
 		const CEditDoc* pCEditDoc = CEditDoc::GetInstance(0);
 		m_pTypeData = &pCEditDoc->m_cDocType.GetDocumentAttribute();
+#else
+		m_pTypeData = GetColorTypeConfigMac();	// Mac 版：色分けする文書のタイプ別設定（移植計画のステップ 33）
+#endif
 		m_pcBlockComment = &m_pTypeData->m_cBlockComments[m_nType - COLORIDX_BLOCK1];
 	}
 	EColorIndexType GetStrategyColor() const override{ return m_nType; }
