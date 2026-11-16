@@ -615,6 +615,57 @@ namespace command {
 Text CommandName(FunctionCode code);
 
 // ---------------------------------------------------------------------------
+// 菜单与按键分配（第 34 步）
+// ---------------------------------------------------------------------------
+
+//! 主菜单的项目种类（原版 EMainMenuType）
+enum class MenuItemType : std::uint8_t {
+	Submenu = 0,	//!< 子菜单（T_NODE）
+	Command = 1,	//!< 命令（T_LEAF）
+	Separator = 2,	//!< 分隔线（T_SEPARATOR）
+	Special = 3,	//!< 特殊项目（T_SPECIAL：最近使ったファイル、ウィンドウリスト等的列表）
+};
+
+//! 主菜单的一项（原版共通设置「メインメニュー」：CMainMenu）
+struct MenuItem {
+	std::int32_t level = 0;		//!< 0 是菜单栏，1 是它下面，2 是子菜单里
+	MenuItemType type = MenuItemType::Command;
+	FunctionCode code = 0;		//!< 功能编号（子菜单是菜单名的编号，如 F_FILE_TOPMENU）
+	Text name;					//!< 名字：设置里的名字，没有时是 CommandName(code)（原版 LayoutMainMenu）
+	Text accessKey;				//!< アクセスキー（Mac 版不显示）
+};
+
+/*!
+	主菜单的结构（原版共通设置「メインメニュー」，默认是 MainMenu.ini）。按菜单的顺序排列。
+	sakura.ini 里改过时就是改过的结构。
+*/
+std::vector<MenuItem> MainMenu();
+
+//! 按键的修饰键（原版按键分配表的 Shift / Ctrl / Alt。数值的组合是原版 m_nFuncCodeArr 的下标）
+namespace keymod {
+	constexpr std::uint8_t Shift = 1;
+	constexpr std::uint8_t Ctrl  = 2;
+	constexpr std::uint8_t Alt   = 4;
+}
+
+//! 一个按键分配（原版共通设置「キー割り当て」）
+struct KeyBinding {
+	std::uint16_t keyCode = 0;	//!< 键码（原版的 Windows 虚拟键码 VK_*。字母、数字是大写的 ASCII）
+	std::uint8_t modifiers = 0;	//!< keymod 的组合
+	FunctionCode code = 0;
+	Text keyName;				//!< 键的名字（原版的「Home」「F3」「A」等）
+};
+
+/*!
+	键盘的全部按键分配（原版共通设置「キー割り当て」，默认是 CKeyBind.cpp 的 KeyDataInit）。
+	只有分配了功能的组合。鼠标（双击、滚轮等）不包括。按原版表的顺序。
+*/
+std::vector<KeyBinding> KeyBindings();
+
+//! 这个键（keyCode + modifiers）分配的功能（原版 CKeyBind::GetFuncCode）。没有分配时是 0
+FunctionCode FunctionForKey(std::uint16_t keyCode, std::uint8_t modifiers);
+
+// ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------
 

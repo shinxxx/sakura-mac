@@ -10,6 +10,7 @@ import AppKit
 /// - 设置文件 sakura.ini 放在临时目录，结束时不写出（不碰用户自己的设置）
 /// - 剪贴板用测试专用的（不碰用户自己的剪贴板）
 /// - 编辑区只用英文输入（日文、中文输入法打开时，测试输入的字母会变成未确定文字）
+/// - 键位方案用默认的 Mac 方案（第 34 步）
 /// 普通启动时什么也不改。
 ///
 /// 第 31 步（重启后从「最近使ったファイル」打开）的测试另外用：
@@ -51,6 +52,8 @@ enum UITesting {
         Self.home = home
         EditorTextView.defaultPasteboard = NSPasteboard(name: pasteboardName)
         EditorTextView.romanInputOnly = true
+        // 第 34 步：键位方案每次从默认（Mac 方案）开始（测试里切换过也不留到下一次）
+        UserDefaults.standard.removeObject(forKey: KeyScheme.defaultsKey)
     }
 
     /// 启动时打开测试用的文件

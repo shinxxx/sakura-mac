@@ -334,6 +334,39 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @end
 
+@implementation ECMenuItem
+
+- (instancetype)initWithItem:(const core::MenuItem&)m
+{
+	self = [super init];
+	if (self) {
+		_level = m.level;
+		_type = static_cast<ECMenuItemType>(m.type);
+		_command = m.code;
+		_name = ToNSString(m.name);
+		_accessKey = ToNSString(m.accessKey);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECKeyBinding
+
+- (instancetype)initWithBinding:(const core::KeyBinding&)k
+{
+	self = [super init];
+	if (self) {
+		_keyCode = k.keyCode;
+		_modifiers = k.modifiers;
+		_command = k.code;
+		_keyName = ToNSString(k.keyName);
+	}
+	return self;
+}
+
+@end
+
 @implementation ECRecentFolder
 
 - (instancetype)initWithRecent:(const core::RecentFolder&)r
@@ -446,6 +479,30 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 		[result addObject:[[ECRecentFile alloc] initWithRecent:r]];
 	}
 	return result;
+}
+
++ (NSArray<ECMenuItem *> *)mainMenu
+{
+	NSMutableArray<ECMenuItem *> *result = [NSMutableArray array];
+	for (const auto& m : core::MainMenu()) {
+		[result addObject:[[ECMenuItem alloc] initWithItem:m]];
+	}
+	return result;
+}
+
++ (NSArray<ECKeyBinding *> *)keyBindings
+{
+	NSMutableArray<ECKeyBinding *> *result = [NSMutableArray array];
+	for (const auto& k : core::KeyBindings()) {
+		[result addObject:[[ECKeyBinding alloc] initWithBinding:k]];
+	}
+	return result;
+}
+
++ (ECCommand)commandForKeyCode:(NSInteger)keyCode modifiers:(ECKeyModifiers)modifiers
+{
+	if (keyCode < 0 || keyCode > 0xFFFF) return 0;
+	return core::FunctionForKey(static_cast<std::uint16_t>(keyCode), static_cast<std::uint8_t>(modifiers & 7));
 }
 
 + (NSArray<ECRecentFolder *> *)recentFolders

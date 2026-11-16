@@ -3,37 +3,144 @@
 // SPDX-License-Identifier: Zlib
 
 import AppKit
+import EditorBridge
 
-/// 主菜单。
+/// 主菜单（第 34 步）。
 ///
-/// 顶层菜单的名称和顺序与原版一致（sakura_core/sakura_rc.rc 的 F_*_TOPMENU）。
-/// 各菜单的内容将在后续步骤中按原版的 MainMenu.ini 生成；
-/// 目前只放了窗口空壳运行所需的最少项目。
+/// 按原版的 MainMenu.ini（核心库的 EditorCore.mainMenu，共通設定 > メインメニュー）生成：
+/// 顶层菜单、子菜单、分隔线的顺序和名字与原版相同。各项目的 tag 是功能编号，
+/// 动作和快捷键按 CommandTable、KeyCommands。还没有移植的功能没有动作，自动变灰。
+///
+/// 与原版不同的地方（macOS 的规矩）：
+/// - 最前面加 App 菜单（已确认的偏离项 1）
+/// - 「ウィンドウ」的开头加「しまう」（⌘M）；「ウィンドウ一覧」的子菜单由 macOS 自动列出窗口（原版的 29001 ウィンドウリスト）
+/// - 「設定」的最后加「Windows のキー割り当てを使う」（KeyScheme）
+/// - 菜单的「&」快捷字母（m_sKey）不显示
 enum MainMenuBuilder {
     static func build() -> NSMenu {
         let mainMenu = NSMenu()
         mainMenu.addItem(submenuItem(appMenu()))
-        mainMenu.addItem(submenuItem(fileMenu()))
-        mainMenu.addItem(submenuItem(editMenu()))
-        mainMenu.addItem(submenuItem(NSMenu(title: "変換")))
-        mainMenu.addItem(submenuItem(searchMenu()))
-        mainMenu.addItem(submenuItem(NSMenu(title: "ツール")))
-        mainMenu.addItem(submenuItem(settingsMenu()))
-
-        let windowMenu = NSMenu(title: "ウィンドウ")
-        windowMenu.addItem(withTitle: "しまう", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(.separator())
-        // 原版的 F_NEXTWINDOW / F_PREVWINDOW。窗口一览和标签的菜单项由 macOS 自动加在这个菜单里
-        windowMenu.addItem(withTitle: "次のウィンドウ", action: #selector(AppDelegate.activateNextWindow(_:)), keyEquivalent: "")
-        windowMenu.addItem(withTitle: "前のウィンドウ", action: #selector(AppDelegate.activatePreviousWindow(_:)), keyEquivalent: "")
-        mainMenu.addItem(submenuItem(windowMenu))
-        NSApp.windowsMenu = windowMenu
-
-        let helpMenu = NSMenu(title: "ヘルプ")
-        mainMenu.addItem(submenuItem(helpMenu))
-        NSApp.helpMenu = helpMenu
-
+        var stack: [NSMenu] = [mainMenu]		// stack[level] 是 level 这一层的项目放进去的菜单
+        var skipDeeperThan: Int?				// 换成 Mac 的菜单的子菜单：原版的子项目不要
+        for entry in EditorCore.mainMenu {
+            let level = entry.level
+            if let skip = skipDeeperThan {
+                if level > skip { continue }
+                skipDeeperThan = nil
+            }
+            guard level < stack.count else { continue }	// 层次跳了（MainMenu.ini 写错了）
+            stack.removeSubrange((level + 1)...)
+            let parent = stack[level]
+            switch entry.type {
+            case .submenu:
+                let item = submenu(for: entry, level: level)
+                parent.addItem(item)
+                if let menu = item.submenu, !isReplaced(entry.command) {
+                    stack.append(menu)
+                } else {
+                    skipDeeperThan = level
+                }
+            case .command:
+                parent.addItem(commandItem(entry))
+            case .separator:
+                parent.addItem(.separator())
+            case .special:
+                break	// 29001 ウィンドウリスト 由 macOS 列出；29004～29006（カスタムメニュー、マクロ、プラグイン）在阶段 4 以后
+            @unknown default:
+                break
+            }
+        }
+        applyKeyEquivalents(mainMenu)
+        NotificationCenter.default.addObserver(forName: KeyScheme.didChangeNotification, object: nil, queue: .main) { _ in
+            applyKeyEquivalents(mainMenu)
+        }
         return mainMenu
+    }
+
+    /// 原版的顶层菜单、子菜单的功能编号（Funccode_x.hsrc 的 F_*_TOPMENU 等）
+    enum MenuCode {
+        static let file = 34052, settings = 34057, window = 34058, help = 34059
+        static let recentFiles = 34006, recentFolders = 34007, windowList = 34060
+    }
+
+    /// 子项目由 Mac 的菜单做的子菜单
+    private static func isReplaced(_ code: Int) -> Bool {
+        [MenuCode.recentFiles, MenuCode.recentFolders, MenuCode.windowList].contains(code)
+    }
+
+    private static func submenu(for entry: EditorMenuItem, level: Int) -> NSMenuItem {
+        let title = RecentMenu.labelWithoutMnemonic(entry.name)
+        let item: NSMenuItem
+        switch entry.command {
+        case MenuCode.recentFiles:
+            // 第 31 步：最近使ったファイル（29002）
+            item = RecentMenu(kind: .files).item
+        case MenuCode.recentFolders:
+            item = RecentMenu(kind: .folders).item
+        case MenuCode.windowList:
+            // 窗口（标签也算一个窗口）的一览由 macOS 自动加在 windowsMenu 里
+            let menu = NSMenu(title: title)
+            NSApp.windowsMenu = menu
+            item = submenuItem(menu)
+        default:
+            let menu = NSMenu(title: title)
+            item = submenuItem(menu)
+            if level == 0 { decorateTopMenu(menu, code: entry.command) }
+        }
+        item.tag = entry.command
+        return item
+    }
+
+    /// 顶层菜单的 Mac 的追加
+    private static func decorateTopMenu(_ menu: NSMenu, code: Int) {
+        switch code {
+        case MenuCode.file:
+            menu.delegate = FileMenuUpdater.shared	// 打开时更新历史的子菜单（第 31 步）
+        case MenuCode.window:
+            menu.addItem(withTitle: NSLocalizedString("しまう", comment: "ウィンドウ > しまう（macOS）"),
+                         action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+            menu.addItem(.separator())
+        case MenuCode.help:
+            NSApp.helpMenu = menu
+        default:
+            break
+        }
+    }
+
+    private static func commandItem(_ entry: EditorMenuItem) -> NSMenuItem {
+        let item = NSMenuItem(title: RecentMenu.labelWithoutMnemonic(entry.name),
+                              action: CommandTable.selector(for: entry.command), keyEquivalent: "")
+        item.tag = entry.command
+        return item
+    }
+
+    /// 设定的最后加的 Mac 版的项目（顶层菜单全部做好以后）
+    private static func addSettingsExtras(_ mainMenu: NSMenu) {
+        guard let settings = mainMenu.items.first(where: { $0.tag == MenuCode.settings })?.submenu,
+              !settings.items.contains(where: { $0.action == #selector(KeySchemeToggle.toggleKeyScheme(_:)) }) else { return }
+        settings.addItem(.separator())
+        let toggle = NSMenuItem(title: NSLocalizedString("Windows のキー割り当てを使う", comment: "設定 > キーの方案（Mac 版）"),
+                                action: #selector(KeySchemeToggle.toggleKeyScheme(_:)), keyEquivalent: "")
+        toggle.target = KeySchemeToggle.shared
+        settings.addItem(toggle)
+    }
+
+    /// 全部的菜单项按现在的方案设快捷键（方案改变时重新设）
+    static func applyKeyEquivalents(_ menu: NSMenu) {
+        if menu.supermenu == nil { addSettingsExtras(menu) }
+        for item in menu.items {
+            if let submenu = item.submenu {
+                applyKeyEquivalents(submenu)
+            } else if item.tag > 0 && item.target == nil {
+                if let key = KeyCommands.menuKeyEquivalent(for: item.tag) {
+                    item.keyEquivalent = key.key
+                    item.keyEquivalentModifierMask = key.modifiers
+                } else {
+                    item.keyEquivalent = ""
+                    item.keyEquivalentModifierMask = []
+                }
+            }
+        }
     }
 
     /// App 菜单：macOS 必备，原版没有（已确认的偏离项 1）。
@@ -62,106 +169,23 @@ enum MainMenuBuilder {
         return menu
     }
 
-    private static func fileMenu() -> NSMenu {
-        let menu = NSMenu(title: "ファイル")
-        // 新建、打开、保存由 NSDocumentController / NSDocument 处理（第 26 步）
-        menu.addItem(withTitle: "新規作成", action: #selector(NSDocumentController.newDocument(_:)), keyEquivalent: "n")
-        menu.addItem(withTitle: "開く…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "上書き保存", action: #selector(NSDocument.save(_:)), keyEquivalent: "s")
-        let saveAs = NSMenuItem(title: "名前を付けて保存…", action: #selector(NSDocument.saveAs(_:)), keyEquivalent: "s")
-        saveAs.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(saveAs)
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        // 第 31 步：原版 MainMenu.ini 的 34006「最近使ったファイル」、34007「最近使ったフォルダー」
-        menu.addItem(.separator())
-        menu.addItem(RecentMenu(kind: .files).item)
-        menu.addItem(RecentMenu(kind: .folders).item)
-        menu.delegate = FileMenuUpdater.shared
-        return menu
-    }
-
-    /// 編集：第 25 步先放撤销和重做（F_UNDO、F_REDO），第 28 步加「すべて選択」，
-    /// 第 29 步按原版 MainMenu.ini 的顺序加入剪贴板、删除、矩形貼り付け、TABインデント。其余在后面的步骤加入。
-    /// 第 29 步起新加的菜单文字用 NSLocalizedString 写（第 48 步加中文、英文的翻译）
-    private static func editMenu() -> NSMenu {
-        let menu = NSMenu(title: "編集")
-        menu.addItem(withTitle: "元に戻す", action: #selector(EditorTextView.undo(_:)), keyEquivalent: "z")
-        let redo = NSMenuItem(title: "やり直し", action: #selector(EditorTextView.redo(_:)), keyEquivalent: "z")
-        redo.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(redo)
-        menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("切り取り", comment: "編集 > F_CUT"),
-                     action: #selector(EditorTextView.cut(_:)), keyEquivalent: "x")
-        menu.addItem(withTitle: NSLocalizedString("コピー", comment: "編集 > F_COPY"),
-                     action: #selector(EditorTextView.copy(_:)), keyEquivalent: "c")
-        menu.addItem(withTitle: NSLocalizedString("貼り付け", comment: "編集 > F_PASTE"),
-                     action: #selector(EditorTextView.paste(_:)), keyEquivalent: "v")
-        menu.addItem(withTitle: NSLocalizedString("削除", comment: "編集 > F_DELETE"),
-                     action: #selector(EditorTextView.delete(_:)), keyEquivalent: "")
-        // 第 28 步：すべて選択（F_SELECTALL）
-        menu.addItem(withTitle: "すべて選択", action: #selector(EditorTextView.selectAll(_:)), keyEquivalent: "a")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("矩形貼り付け", comment: "編集 > F_PASTEBOX"),
-                     action: #selector(EditorTextView.pasteAsBox(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: NSLocalizedString("カーソル前を削除", comment: "編集 > F_DELETE_BACK"),
-                     action: #selector(EditorTextView.deleteBack(_:)), keyEquivalent: "")
-        menu.addItem(.separator())
-        // 高度な操作（原版的子菜单。这里先放 TAB 缩进，其余在后面的步骤加入）
-        let advanced = NSMenu(title: NSLocalizedString("高度な操作", comment: "編集 > 高度な操作（子菜单）"))
-        advanced.addItem(withTitle: NSLocalizedString("TABインデント", comment: "編集 > 高度な操作 > F_INDENT_TAB"),
-                         action: #selector(EditorTextView.indentTab(_:)), keyEquivalent: "")
-        advanced.addItem(withTitle: NSLocalizedString("逆TABインデント", comment: "編集 > 高度な操作 > F_UNINDENT_TAB"),
-                         action: #selector(EditorTextView.unindentTab(_:)), keyEquivalent: "")
-        menu.addItem(submenuItem(advanced))
-        return menu
-    }
-
-    /// 検索：第 32 步按原版 MainMenu.ini 的顺序放查找、置换、指定行へジャンプ
-    /// （インクリメンタルサーチ、比較、Grep 等在后面的步骤加入）。
-    /// 快捷键按 Mac 的习惯：⌘F 検索、⌘G 次を検索、⇧⌘G 前を検索、⌥⌘F 置換、⌘L 指定行へジャンプ（原版是 Ctrl+F、F3、Shift+F3、Ctrl+R、Ctrl+J）
-    private static func searchMenu() -> NSMenu {
-        let menu = NSMenu(title: "検索")
-        menu.addItem(withTitle: NSLocalizedString("検索...", comment: "検索 > F_SEARCH_DIALOG"),
-                     action: #selector(EditorTextView.showFindPanel(_:)), keyEquivalent: "f")
-        menu.addItem(withTitle: NSLocalizedString("次を検索", comment: "検索 > F_SEARCH_NEXT"),
-                     action: #selector(EditorTextView.searchNext(_:)), keyEquivalent: "g")
-        let prev = NSMenuItem(title: NSLocalizedString("前を検索", comment: "検索 > F_SEARCH_PREV"),
-                              action: #selector(EditorTextView.searchPrevious(_:)), keyEquivalent: "g")
-        prev.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(prev)
-        let replace = NSMenuItem(title: NSLocalizedString("置換...", comment: "検索 > F_REPLACE_DIALOG"),
-                                 action: #selector(EditorTextView.showReplacePanel(_:)), keyEquivalent: "f")
-        replace.keyEquivalentModifierMask = [.command, .option]
-        menu.addItem(replace)
-        menu.addItem(withTitle: NSLocalizedString("検索マークの切替え", comment: "検索 > F_SEARCH_CLEARMARK"),
-                     action: #selector(EditorTextView.toggleSearchMark(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: NSLocalizedString("検索開始位置へ戻る", comment: "検索 > F_JUMP_SRCHSTARTPOS"),
-                     action: #selector(EditorTextView.jumpToSearchStart(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: NSLocalizedString("指定行へジャンプ...", comment: "検索 > F_JUMP_DIALOG"),
-                     action: #selector(EditorTextView.showJumpDialog(_:)), keyEquivalent: "l")
-        return menu
-    }
-
-    /// 設定：第 27 步先放「折り返し方法」（原版 MainMenu.ini 里 F_TEXTWRAPMETHOD 下面的
-    /// F_TMPWRAPNOWRAP / F_TMPWRAPSETTING / F_TMPWRAPWINDOW）。现在的方法打勾。
-    /// 第 28 步加「フォント設定」
-    private static func settingsMenu() -> NSMenu {
-        let menu = NSMenu(title: "設定")
-        let wrap = NSMenu(title: "折り返し方法")
-        wrap.addItem(withTitle: "折り返さない", action: #selector(EditorTextView.wrapNone(_:)), keyEquivalent: "")
-        wrap.addItem(withTitle: "指定桁で折り返す", action: #selector(EditorTextView.wrapSettingWidth(_:)), keyEquivalent: "")
-        wrap.addItem(withTitle: "右端で折り返す", action: #selector(EditorTextView.wrapWindowWidth(_:)), keyEquivalent: "")
-        menu.addItem(submenuItem(wrap))
-        // 第 28 步：フォント設定（F_FONT）。macOS 的字体面板
-        menu.addItem(withTitle: "フォント設定…", action: #selector(EditorTextView.showFontPanel(_:)), keyEquivalent: "")
-        return menu
-    }
-
     private static func submenuItem(_ menu: NSMenu) -> NSMenuItem {
         let item = NSMenuItem(title: menu.title, action: nil, keyEquivalent: "")
         item.submenu = menu
         return item
+    }
+}
+
+/// 設定 >「Windows のキー割り当てを使う」：打勾时用原版的 Windows 键位（⌃ 是 Ctrl），否则 ⌘ 当作 Ctrl
+final class KeySchemeToggle: NSObject, NSMenuItemValidation {
+    static let shared = KeySchemeToggle()
+
+    @objc func toggleKeyScheme(_ sender: Any?) {
+        KeyScheme.current = KeyScheme.current == .mac ? .windows : .mac
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        menuItem.state = KeyScheme.current == .windows ? .on : .off
+        return true
     }
 }

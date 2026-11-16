@@ -390,6 +390,45 @@ NS_SWIFT_NAME(EditorRecentFolder)
 @end
 
 /*!
+	主菜单的一项（原版 CMainMenu，来自 MainMenu.ini）（第 34 步）
+*/
+typedef NS_ENUM(NSInteger, ECMenuItemType) {
+	ECMenuItemTypeSubmenu = 0,		//!< 子菜单（T_NODE）
+	ECMenuItemTypeCommand = 1,		//!< 命令（T_LEAF）
+	ECMenuItemTypeSeparator = 2,	//!< 分隔线（T_SEPARATOR）
+	ECMenuItemTypeSpecial = 3,		//!< 特殊列表（T_SPECIAL，最近使ったファイル等）
+} NS_SWIFT_NAME(EditorMenuItemType);
+
+NS_SWIFT_NAME(EditorMenuItem)
+@interface ECMenuItem : NSObject
+@property (readonly) NSInteger level;			//!< 层次（0 是菜单栏）
+@property (readonly) ECMenuItemType type;
+@property (readonly) ECCommand command;			//!< 功能编号
+@property (readonly, copy) NSString *name;		//!< 显示名（日文）
+@property (readonly, copy) NSString *accessKey;	//!< 访问键（Mac 不显示）
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 按键分配的修饰键（原版 m_nFuncCodeArr 的序号）
+typedef NS_OPTIONS(NSUInteger, ECKeyModifiers) {
+	ECKeyModifierShift = 1,
+	ECKeyModifierCtrl = 2,
+	ECKeyModifierAlt = 4,
+} NS_SWIFT_NAME(EditorKeyModifiers);
+
+/*!
+	按键分配的一项（原版 KEYDATA）（第 34 步）。keyCode 是 Windows 的虚拟键码
+*/
+NS_SWIFT_NAME(EditorKeyBinding)
+@interface ECKeyBinding : NSObject
+@property (readonly) NSInteger keyCode;
+@property (readonly) ECKeyModifiers modifiers;
+@property (readonly) ECCommand command;
+@property (readonly, copy) NSString *keyName;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
 	打开时从历史恢复的位置（sakura::core::RestoredView，原版 CMruListener::OnAfterLoad）
 */
 NS_SWIFT_NAME(EditorRestoredView)
@@ -419,6 +458,12 @@ NS_SWIFT_NAME(EditorCore)
 + (NSString *)nameOfEncoding:(ECEncoding)encoding NS_SWIFT_NAME(name(ofEncoding:));
 //! 功能的名字（与原版菜单相同，日文）。不存在时是空字符串
 + (NSString *)nameOfCommand:(ECCommand)command NS_SWIFT_NAME(name(ofCommand:));
+//! 主菜单的构成（原版 MainMenu.ini，按顺序，用 level 表示层次）（第 34 步）
+@property (class, readonly, copy) NSArray<ECMenuItem *> *mainMenu;
+//! 按键分配（原版 m_sKeyBind 里分配了功能的组合）
+@property (class, readonly, copy) NSArray<ECKeyBinding *> *keyBindings;
+//! 这个按键（Windows 虚拟键码）和修饰键分配的功能。没有分配时是 0
++ (ECCommand)commandForKeyCode:(NSInteger)keyCode modifiers:(ECKeyModifiers)modifiers NS_SWIFT_NAME(command(forKeyCode:modifiers:));
 //! 换行符的文字（"\r\n" 等）
 + (NSString *)textOfEol:(ECEol)eol NS_SWIFT_NAME(text(ofEol:));
 
