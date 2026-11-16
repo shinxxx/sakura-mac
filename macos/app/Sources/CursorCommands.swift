@@ -166,7 +166,7 @@ extension EditorTextView {
             setCaret(position(row: r, index: row(r).text.length), atLineEnd: isWrapped(r))
         case .logicalLineTop: goLogicalLineTop()
         case .logicalLineEnd:
-            setCaret(EditorPosition(line: caret.line, column: lineText(caret.line).length))
+            setCaret(EditorPosition(line: caret.line, column: lineLength(caret.line)))
         case .halfPageUp: moveVertically(-viewRowCount / 2)
         case .halfPageDown: moveVertically(viewRowCount / 2)
         case .pageUp, .pageDown:
@@ -211,19 +211,17 @@ extension EditorTextView {
     private func moveCaretLeft() {
         if cancelSelectionBeforeMove(toEnd: false) { return }
         if caret.column > 0 {
-            let text = lineText(caret.line)
-            setCaret(EditorPosition(line: caret.line, column: text.rangeOfComposedCharacterSequence(at: caret.column - 1).location))
+            setCaret(EditorPosition(line: caret.line, column: composedCharacterRange(line: caret.line, at: caret.column - 1).location))
         } else if caret.line > 0 {
-            setCaret(EditorPosition(line: caret.line - 1, column: lineText(caret.line - 1).length))
+            setCaret(EditorPosition(line: caret.line - 1, column: lineLength(caret.line - 1)))
         }
     }
 
     /// 原版 Command_RIGHT：有选择时只取消选择；行末时到下一行的开头
     private func moveCaretRight() {
         if cancelSelectionBeforeMove(toEnd: true) { return }
-        let text = lineText(caret.line)
-        if caret.column < text.length {
-            setCaret(EditorPosition(line: caret.line, column: NSMaxRange(text.rangeOfComposedCharacterSequence(at: caret.column))))
+        if caret.column < lineLength(caret.line) {
+            setCaret(EditorPosition(line: caret.line, column: NSMaxRange(composedCharacterRange(line: caret.line, at: caret.column))))
         } else if caret.line < document.endPosition.line {
             setCaret(EditorPosition(line: caret.line + 1, column: 0))
         }
@@ -243,7 +241,8 @@ extension EditorTextView {
         }
         moveCaretRight()
         // 原版：移到下一行后，那一行以空白开始时再找一次单词
-        let first = lineText(caret.line)
+        let first = document.text(in: EditorRange(from: EditorPosition(line: caret.line, column: 0),
+                                                   to: EditorPosition(line: caret.line, column: min(1, lineLength(caret.line))))) as NSString
         if caret.column == 0, first.length > 0, first.character(at: 0) == 0x20 || first.character(at: 0) == 0x09,
            document.wordMoveTarget(from: caret, left: false, position: &target) {
             setCaret(target)
@@ -266,7 +265,7 @@ extension EditorTextView {
     private func goLogicalLineTop() {
         let line = caret.line
         guard line < document.lineCount else { return }
-        let indent = document.indentEnd(line: line, from: 0, to: lineText(line).length + 1)
+        let indent = document.indentEnd(line: line, from: 0, to: lineLength(line) + 1)
         let target = EditorPosition(line: line, column: indent)
         setCaret(Self.same(target, caret) ? EditorPosition(line: line, column: 0) : target)
     }

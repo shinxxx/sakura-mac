@@ -598,9 +598,19 @@ NS_SWIFT_NAME(EditorDocument)
 @property (readonly, copy) NSString *text;				//!< 全文（包括换行符）
 - (NSString *)lineAtIndex:(NSInteger)line NS_SWIFT_NAME(line(at:));
 - (NSString *)lineAtIndex:(NSInteger)line withEol:(BOOL)withEol NS_SWIFT_NAME(line(at:withEol:));
+//! 一行的长度（不含换行符）。不取出文字（第 36 步：超长行）
+- (NSInteger)lengthOfLineAtIndex:(NSInteger)line NS_SWIFT_NAME(lineLength(at:));
+//! 文字或排版变了的次数（编辑、撤销、重新排版、打开时增加）。视图的缓存是否还有效（第 36 步）
+@property (readonly) NSUInteger changeCount;
 - (ECEol)eolOfLineAtIndex:(NSInteger)line NS_SWIFT_NAME(eol(ofLine:));
 - (NSString *)textInRange:(ECRange)range NS_SWIFT_NAME(text(in:));
 @property (readonly) ECPosition endPosition;
+//! 全文（包括换行符）的长度（第 36 步。不做出全文）
+@property (readonly) NSInteger textLength;
+//! 位置 → 全文的下标
+- (NSInteger)offsetOfPosition:(ECPosition)position NS_SWIFT_NAME(offset(of:));
+//! 全文的下标 → 位置（落在换行符中间时取换行符之前）
+- (ECPosition)positionAtOffset:(NSInteger)offset NS_SWIFT_NAME(position(atOffset:));
 
 // ----- 编辑 -----
 

@@ -800,6 +800,17 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 	return ToNSString(_doc->GetLine(static_cast<std::int32_t>(line), withEol == YES));
 }
 
+- (NSUInteger)changeCount
+{
+	return static_cast<NSUInteger>(_doc->ChangeCount());
+}
+
+- (NSInteger)lengthOfLineAtIndex:(NSInteger)line
+{
+	if (!FitsInt32(line)) return 0;
+	return _doc->LineLength(static_cast<std::int32_t>(line));
+}
+
 - (ECEol)eolOfLineAtIndex:(NSInteger)line
 {
 	if (!FitsInt32(line)) return ECEolNone;
@@ -813,6 +824,16 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 }
 
 - (ECPosition)endPosition { return FromCore(_doc->EndPosition()); }
+- (NSInteger)textLength { return static_cast<NSInteger>(_doc->TextLength()); }
+- (NSInteger)offsetOfPosition:(ECPosition)position
+{
+	// 超出 int32 的行：文档末尾；超出的列：行末（核心库收到范围内）
+	if (!FitsInt32(position.line)) return position.line < 0 ? 0 : static_cast<NSInteger>(_doc->TextLength());
+	const core::Position p{ static_cast<std::int32_t>(position.line),
+		static_cast<std::int32_t>(std::clamp<NSInteger>(position.column, 0, INT32_MAX)) };
+	return static_cast<NSInteger>(_doc->OffsetOf(p));
+}
+- (ECPosition)positionAtOffset:(NSInteger)offset { return FromCore(_doc->PositionAtOffset(offset)); }
 
 // ----- 编辑 -----
 

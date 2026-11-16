@@ -794,6 +794,12 @@ public:
 	//! 一行的文字。withEol 为 true 时包括换行符。行号超出范围时是空
 	Text GetLine(std::int32_t line, bool withEol = false) const;
 
+	//! 一行的长度（不含换行符，UTF-16 单位）。不取出文字（第 36 步：超长行）。行号超出范围时是 0
+	std::int32_t LineLength(std::int32_t line) const;
+
+	//! 文字或排版变了的次数（编辑、撤销、重新排版、打开时增加）。界面层用来判断缓存是否还有效（第 36 步）
+	std::uint64_t ChangeCount() const;
+
 	//! 行的换行符（最后一行没有换行时是 Eol::None）
 	Eol GetLineEol(std::int32_t line) const;
 
@@ -805,6 +811,16 @@ public:
 
 	//! 文档末尾的位置（最后一行的末尾；最后一行以换行结束时是下一行的开头）
 	Position EndPosition() const;
+
+	/*!
+		全文（包括换行符）的长度、全文的下标和位置的换算（第 36 步）。
+		输入法（NSTextInputClient）用全文的下标说话。不做出全文，按行的长度加起来，大文件也快。
+	*/
+	std::int64_t TextLength() const;
+	//! 位置 → 全文的下标（行、列超出范围时收到范围内）
+	std::int64_t OffsetOf(const Position& position) const;
+	//! 全文的下标 → 位置（落在换行符中间时取换行符之前，超出时是文档末尾）
+	Position PositionAtOffset(std::int64_t offset) const;
 
 	// ----- 编辑 -----
 

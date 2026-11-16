@@ -400,7 +400,9 @@ CLayout* CLayoutMgr::CreateLayout(
 	CLayoutColorInfo*	colorInfo
 )
 {
-	CLayout* pLayout = new (m_layoutMemRes->allocate(sizeof(CLayout))) CLayout(
+	// 確保するメモリのアラインメントを明示する（既定値 alignof(max_align_t) のままだと、最適化で 16 バイト境界を仮定され、
+	// 8 バイト境界の CPoolResource のノードで異常終了する）（移植計画のステップ 36）
+	CLayout* pLayout = new (m_layoutMemRes->allocate(sizeof(CLayout), alignof(CLayout))) CLayout(
 		pCDocLine,
 		ptLogicPos,
 		nLength,

@@ -67,6 +67,7 @@
 #include "util/zoom.h"
 #include "sakura_platform_hooks.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <limits>
@@ -533,6 +534,7 @@ struct Document::Impl {
 	COpeBlk* pOpeBlk = nullptr;	//!< BeginEdit 中的操作块（原版 CViewCommander 的 m_pcOpeBlk）
 	int editDepth = 0;
 	bool modified = false;
+	std::uint64_t changeCount = 0;	//!< 文字、排版变了的次数（第 36 步：界面层的缓存是否还有效）
 	CEol newLineEol{ EEolType::cr_and_lf };
 	FileInfo info;
 	//! 打开（保存）时的编码和 BOM（原版 SFileInfo 的 eCharCodeLoad、bBomExistLoad，第 34 步）
@@ -650,6 +652,7 @@ struct Document::Impl {
 		arg.pInsData = pInsData;
 		arg.nDelSeq = nDelSeq;
 		layout.ReplaceData_CLayoutMgr(&arg);
+		++changeCount;
 		if (pnInsSeq) *pnInsSeq = arg.nInsSeq;
 		CLogicPoint ptNew;
 		layout.LayoutToLogic(arg.ptLayoutNew, &ptNew);
@@ -683,6 +686,7 @@ struct Document::Impl {
 		}
 		ActivateColors(true);	// 类型别设置可能改了，重新读色分け的设置（第 33 步）
 		layout.SetLayoutInfo(true, false, ref, ref.m_nTabSpace, ref.m_nTsvMode, nMaxLineKetas, CLayoutXInt(-1), &g_layoutFont);
+		++changeCount;
 		// 「折り返さない」时计算文字的最大宽度，其他时候清除
 		if (wrapMethodCur == WRAP_NO_TEXT_WRAP) {
 			layout.CalculateTextWidth(FALSE);
@@ -757,6 +761,7 @@ struct Document::Impl {
 		layout.Init();
 		lines.DeleteAllLine();
 		modified = false;
+		++changeCount;
 	}
 };
 
@@ -1197,6 +1202,18 @@ Text Document::GetLine(std::int32_t line, bool withEol) const
 	return Text(p->GetPtr(), withEol ? p->GetLengthWithEOL() : p->GetLengthWithoutEOL());
 }
 
+std::uint64_t Document::ChangeCount() const
+{
+	return m_impl->changeCount;
+}
+
+std::int32_t Document::LineLength(std::int32_t line) const
+{
+	if (line < 0) return 0;
+	const CDocLine* p = m_impl->lines.GetLine(CLogicInt(line));
+	return p ? static_cast<std::int32_t>(p->GetLengthWithoutEOL()) : 0;
+}
+
 Eol Document::GetLineEol(std::int32_t line) const
 {
 	if (line < 0) return Eol::None;
@@ -1226,6 +1243,42 @@ Text Document::GetText(const Range& range) const
 		text.append(p->GetPtr() + begin, end - begin);
 	}
 	return text;
+}
+
+std::int64_t Document::TextLength() const
+{
+	std::int64_t length = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine()) {
+		length += p->GetLengthWithEOL();
+	}
+	return length;
+}
+
+std::int64_t Document::OffsetOf(const Position& position) const
+{
+	std::int64_t offset = 0;
+	int line = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine(), ++line) {
+		if (line == position.line) {
+			return offset + std::clamp<std::int64_t>(position.column, 0, p->GetLengthWithoutEOL());
+		}
+		offset += p->GetLengthWithEOL();
+	}
+	return offset;	// 超过最后一行：文档末尾
+}
+
+Position Document::PositionAtOffset(std::int64_t offset) const
+{
+	std::int64_t rest = std::max<std::int64_t>(0, offset);
+	int line = 0;
+	for (const CDocLine* p = m_impl->lines.GetDocLineTop(); p; p = p->GetNextLine(), ++line) {
+		const int body = p->GetLengthWithoutEOL();
+		if (rest <= body) return Position{ line, static_cast<std::int32_t>(rest) };
+		const int whole = p->GetLengthWithEOL();
+		if (rest < whole) return Position{ line, body };
+		rest -= whole;
+	}
+	return EndPosition();
 }
 
 Position Document::EndPosition() const

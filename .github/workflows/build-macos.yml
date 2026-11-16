@@ -71,6 +71,98 @@ jobs:
       - name: Test
         run: ctest --test-dir build/mac-core --output-on-failure -j 4
 
+  # 第 36 步：性能测试。核心库用 Release 构建（App Store 版相同的优化），全部测试 + 大文件、超长行的计时（[PERF] 的行）
+  core-perf-macos:
+    needs: check-encoding
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1 externals/Onigmo externals/bregonig externals/cmigemo
+
+      - name: Configure (Release)
+        run: cmake -S macos/core -B build/mac-core-release -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/mac-core-release -j 4
+
+      # Release 构建也全部通过（优化后才出现的问题，例如对齐）
+      - name: Test (Release)
+        run: ctest --test-dir build/mac-core-release --output-on-failure -j 4 -E 'MacPerfTest'
+
+      - name: Performance (Release)
+        run: |
+          sysctl -n machdep.cpu.brand_string
+          ./build/mac-core-release/sakura_core_tests --gtest_filter='MacPerfTest.*' | tee perf-macos.txt
+          echo '## macOS（核心库 Release）' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep '^\[PERF\]' perf-macos.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # 第 36 步：Windows 版（官方发布的 sakura.exe）用同样的文件、同样的操作计时（宏 macos/tools/perf/windows-bench.js）
+  perf-windows:
+    needs: check-encoding
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download Sakura Editor (official release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $rel.assets | ForEach-Object { $_.name }
+          # 官方版只有 Win32 的时候用 Win32（有 x64 时优先 x64）
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+          "Sakura Editor $($rel.tagName) ($($asset.name))" | Tee-Object perf-version.txt
+
+      - name: Make test files
+        run: python macos/tools/perf/make_perf_files.py perf
+
+      - name: Run benchmark macro
+        run: |
+          (Get-CimInstance Win32_Processor).Name
+          $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
+          $dir = (Resolve-Path perf).Path
+          $template = Get-Content macos/tools/perf/windows-bench.js -Raw -Encoding utf8
+          foreach ($kind in 'large', 'long') {
+            $out = Join-Path $dir "result-$kind.txt"
+            $js = $template.Replace('@FILE@', (Join-Path $dir "$kind.txt").Replace('\', '\\')).Replace('@OUT@', $out.Replace('\', '\\')).Replace('@KIND@', $kind)
+            $macro = Join-Path $dir "bench-$kind.js"
+            Set-Content $macro $js -Encoding utf8BOM
+            $p = Start-Process $exe -ArgumentList "-M=`"$macro`"" -PassThru
+            $deadline = (Get-Date).AddMinutes(10)
+            while ((Get-Date) -lt $deadline) {
+              Start-Sleep -Seconds 2
+              if ((Test-Path $out) -and (Select-String -Path $out -Pattern ': done' -Quiet)) { break }
+            }
+            Get-Process sakura -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep -Seconds 2
+            if (Test-Path $out) { Get-Content $out } else { Write-Host "::error::no result for $kind" }
+          }
+          $all = Get-ChildItem $dir -Filter 'result-*.txt' | Get-Content
+          '## Windows（官方发布版 sakura.exe）' >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          Get-Content perf-version.txt >> $env:GITHUB_STEP_SUMMARY
+          $all >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          if (-not ($all -match 'large: done') -or -not ($all -match 'long: done')) { throw 'benchmark did not finish' }
+          if ($all -match 'error:') { throw 'benchmark macro reported an error' }
+
   wchar16-test-windows:
     needs: check-encoding
     runs-on: windows-latest
