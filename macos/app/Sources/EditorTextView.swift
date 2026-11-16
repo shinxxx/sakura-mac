@@ -368,8 +368,16 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 光标所在的行和行内下标
     var caretRowAndIndex: (row: Int, index: Int) {
-        rowAndIndex(of: caret, preferLineEnd: caretAtLineEnd)
+        // 画面的每个字都要用（未确定文字让开的位置）：光标、文档都没变时用上次的结果（第 36 步）
+        if let cached = caretRowCache, Self.same(cached.caret, caret), cached.atLineEnd == caretAtLineEnd,
+           cached.changeCount == cachedChangeCount, cachedChangeCount == document.changeCount {
+            return cached.value
+        }
+        let value = rowAndIndex(of: caret, preferLineEnd: caretAtLineEnd)
+        caretRowCache = (caret, caretAtLineEnd, cachedChangeCount, value)
+        return value
     }
+    private var caretRowCache: (caret: EditorPosition, atLineEnd: Bool, changeCount: UInt, value: (row: Int, index: Int))?
 
     /// 画面上的行和行内下标 → 逻辑位置
     func position(row r: Int, index: Int) -> EditorPosition {
@@ -420,14 +428,26 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     func index(row r: Int, x: CGFloat) -> Int {
         let current = row(r)
         let length = current.text.length
+        let xs = current.xs
+        // 与 displayX 相同（光标之后让开未确定文字的宽度）。很长的排版行也快：二分查找（第 36 步）
+        var shiftFrom = Int.max
+        if hasMarkedText() {
+            let c = caretRowAndIndex
+            if c.row == r { shiftFrom = c.index }
+        }
+        func dx(_ i: Int) -> CGFloat {
+            textOriginX + xs[min(max(0, i), xs.count - 1)] + (i >= shiftFrom ? markedWidth : 0)
+        }
+        // 第一个右端超过 x 的字
+        var lo = 0, hi = length
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if x < dx(mid + 1) { hi = mid } else { lo = mid + 1 }
+        }
         var result = length
-        for i in 0..<length {
-            let left = displayX(row: r, index: i)
-            let right = displayX(row: r, index: i + 1)
-            if x < right {
-                result = (x - left) > (right - left) / 2 ? i + 1 : i
-                break
-            }
+        if lo < length {
+            let left = dx(lo), right = dx(lo + 1)
+            result = (x - left) > (right - left) / 2 ? lo + 1 : lo
         }
         if result < length {
             result = current.text.rangeOfComposedCharacterSequence(at: result).location
@@ -1100,6 +1120,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             rowCache.removeAll()
             searchState.markCache.removeAll()
             syntaxCache.removeAll()
+            caretRowCache = nil
             cachedChangeCount = document.changeCount
         }
         settings = document.viewSettings

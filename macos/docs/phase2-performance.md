@@ -54,6 +54,7 @@ Windows 版的时间包括宏的解释和画面的更新，Mac 的核心库测�
      核心库加了 `ChangeCount`（编辑、撤销、重新排版时增加），文档没变时留着缓存。
    - 光标移动、BackSpace/Delete 为了行的长度、一个字的范围取出整行。核心库加了 `LineLength`，一个字的范围只取前后的文字（`composedCharacterRange`）。
    - 输入法要求的一段文字（`attributedSubstring`）只取那一段。
+   - 点→文字位置（`characterIndex`）逐字找、每个字都重新算光标的画面位置。改成二分查找，光标的画面位置在光标和文档没变时留着。
 3. **优化构建时排版异常终了（原版代码）**。`CLayoutMgr::CreateLayout` 用 `allocate(sizeof(CLayout))` 向内存池要内存，
    对齐用默认值（`alignof(max_align_t)` = 16），但内存池的节点只对齐到 8。-O2 时编译器按 16 字节对齐优化，
    在 CLayout 的构造里异常终了。改成 `allocate(sizeof(CLayout), alignof(CLayout))`。
