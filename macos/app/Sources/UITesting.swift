@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Zlib
 
 import AppKit
+import EditorBridge
 
 /// 自动界面测试（XCUITest，macos/app/UITests）用的启动方式。
 ///
@@ -18,6 +19,11 @@ import AppKit
 /// - `-SakuraUITestingOpenFile 名字`：在这个文件夹里做一个测试用的文件并打开（沙盒里测试那边放不了文件）
 /// - `-SakuraUITestingOpenPath 路径`：不经过对话框直接打开这个文件，打不开时显示错误。
 ///   用来确认 App 真的在沙盒里（沙盒外的文件应该打不开）
+///
+/// 第 35 步（导入 Windows 版的设置，重启后生效）的测试另外用：
+/// - `-SakuraUITestingImportFile 名字`：「Windows 版の設定をインポート…」不出文件对话框，用设置文件夹里这个名字的 ini
+///   （没有时做一个：现在的设置的 F8 换成「すべて選択」，相当于在 Windows 版改过的设置）。
+///   重新启动换成只结束（测试那边再启动）
 enum UITesting {
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: "SakuraUITesting")
@@ -54,6 +60,21 @@ enum UITesting {
         EditorTextView.romanInputOnly = true
         // 第 34 步：键位方案每次从默认（Mac 方案）开始（测试里切换过也不留到下一次）
         UserDefaults.standard.removeObject(forKey: KeyScheme.defaultsKey)
+    }
+
+    /// 第 35 步：`-SakuraUITestingImportFile` 指定时，设置的导入用测试用的 ini。核心库启动以后调用
+    static func prepareSettingsImport() {
+        guard isEnabled, let home, let name = UserDefaults.standard.string(forKey: "SakuraUITestingImportFile") else { return }
+        let url = home.appendingPathComponent(name)
+        if !FileManager.default.fileExists(atPath: url.path),
+           var ini = try? Data(contentsOf: URL(fileURLWithPath: EditorCore.settingsFilePath)),
+           let range = ini.range(of: Data("KeyBind[018]=0077,30602,".utf8)) {
+            // 字节单位替换（UTF-8 的 BOM 留着：没有 BOM 的 ini 按 Shift_JIS 读，与 Windows 版相同）
+            ini.replaceSubrange(range, with: Data("KeyBind[018]=0077,30401,".utf8))
+            try? ini.write(to: url)
+        }
+        SettingsImporter.chooseFile = { url }
+        SettingsImporter.relaunch = { NSApp.terminate(nil) }
     }
 
     /// 启动时打开测试用的文件

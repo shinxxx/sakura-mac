@@ -14,7 +14,7 @@ import EditorBridge
 /// 与原版不同的地方（macOS 的规矩）：
 /// - 最前面加 App 菜单（已确认的偏离项 1）
 /// - 「ウィンドウ」的开头加「しまう」（⌘M）；「ウィンドウ一覧」的子菜单由 macOS 自动列出窗口（原版的 29001 ウィンドウリスト）
-/// - 「設定」的最后加「Windows のキー割り当てを使う」（KeyScheme）
+/// - 「設定」的最后加「Windows のキー割り当てを使う」（KeyScheme）和「Windows 版の設定をインポート…」（第 35 步）
 /// - 菜单的「&」快捷字母（m_sKey）不显示
 enum MainMenuBuilder {
     static func build() -> NSMenu {
@@ -123,6 +123,11 @@ enum MainMenuBuilder {
                                 action: #selector(KeySchemeToggle.toggleKeyScheme(_:)), keyEquivalent: "")
         toggle.target = KeySchemeToggle.shared
         settings.addItem(toggle)
+        // 第 35 步：Windows 版的 sakura.ini 的导入
+        let importItem = NSMenuItem(title: NSLocalizedString("Windows 版の設定をインポート…", comment: "設定 > 設定のインポート（Mac 版）"),
+                                    action: #selector(SettingsImporter.importWindowsSettings(_:)), keyEquivalent: "")
+        importItem.target = SettingsImporter.shared
+        settings.addItem(importItem)
     }
 
     /// 全部的菜单项按现在的方案设快捷键（方案改变时重新设）

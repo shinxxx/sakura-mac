@@ -110,7 +110,11 @@ final class MenuKeyTests: XCTestCase {
         XCTAssertTrue(NSApp.windowsMenu === list)
 
         let settings = try XCTUnwrap(topMenu(menu, "設定"))
-        XCTAssertEqual(settings.items.last?.action, #selector(KeySchemeToggle.toggleKeyScheme(_:)))
+        // 最后是 Mac 版的「Windows のキー割り当てを使う」和「Windows 版の設定をインポート…」（第 35 步）
+        let count = settings.items.count
+        XCTAssertGreaterThan(count, 2)
+        XCTAssertEqual(settings.items[count - 2].action, #selector(KeySchemeToggle.toggleKeyScheme(_:)))
+        XCTAssertEqual(settings.items[count - 1].action, #selector(SettingsImporter.importWindowsSettings(_:)))
     }
 
     /// 菜单上的快捷键：Mac 方案（⌘ = Ctrl）

@@ -48,6 +48,7 @@
 #include "CSelectLang.h"
 #include "env/CShareData.h"
 #include "env/CShareData_IO.h"
+#include "env/CDataProfile.h"
 #include "env/CSearchKeywordManager.h"
 #include "parse/CWordParse.h"
 #include "recent/CRecentSearch.h"
@@ -99,6 +100,9 @@ static_assert(static_cast<int>(TabMark::LongArrow) == TABARROW_LONG);
 namespace {
 
 std::unique_ptr<CShareData> g_shareData;
+
+//! 导入了设置、还没有重新启动（第 35 步）。这时 Shutdown 不写出设置，以免盖掉导入的 sakura.ini
+bool g_settingsImportPending = false;
 
 //! 排版用的字体（原版 CEditWnd::GetLogfont）。SetLayoutFont 改变
 LOGFONT g_layoutFont{};
@@ -171,6 +175,7 @@ Result FromConvertResult(EConvertResult r)
 bool Startup()
 {
 	if (g_shareData) return true;
+	g_settingsImportPending = false;
 	// 与原版 CControlProcess::InitializeProcess 相同的顺序
 	CSelectLang::InitializeLanguageEnvironment();
 	g_shareData = std::make_unique<CShareData>();
@@ -208,7 +213,7 @@ void SetLayoutFont(const Text& faceName, std::int32_t size)
 void Shutdown(bool saveSettings)
 {
 	if (!g_shareData) return;
-	if (saveSettings) {
+	if (saveSettings && !g_settingsImportPending) {
 		CShareData_IO::SaveShareData();
 	}
 	// 在静态对象析构之前销毁共通设置（第 21 步：析构顺序不对时 macOS 上会异常结束）
@@ -221,6 +226,88 @@ Text SettingsFilePath()
 {
 	return Text(sakura::path_to_wstring(GetIniFileName()));
 }
+
+// ---------------------------------------------------------------------------
+// 导入设置（第 35 步）
+// ---------------------------------------------------------------------------
+
+namespace {
+
+//! 用来调用 CShareData_IO 的各节的读写（protected）
+class SettingsImportIO : private CShareData_IO {
+public:
+	//! 现在的历史（MRU、Keys、Grep、Folders、Cmd 这几节）写进 profile
+	static void WriteHistory(CDataProfile& profile)
+	{
+		profile.SetWritingMode();
+		ShareData_IO_Mru(profile);
+		ShareData_IO_Keys(profile);
+		ShareData_IO_Grep(profile);
+		ShareData_IO_Folders(profile);
+		ShareData_IO_Cmd(profile);
+	}
+};
+
+//! 读入 path 的 ini。サクラエディタ的设置文件以外（没有 [Common] 的 nCaretType）返回 NotSettingsFile
+ImportResult ReadSettingsFile(const Text& path, CDataProfile& profile)
+{
+	if (path.empty()) return ImportResult::ReadFailed;
+	const std::filesystem::path file(path);
+	std::error_code ec;
+	if (!std::filesystem::is_regular_file(file, ec)) return ImportResult::ReadFailed;
+	profile.SetReadingMode();
+	if (!profile.ReadProfile(file)) return ImportResult::ReadFailed;
+	// 共通設定的第一项（原版 ShareData_IO_Common。旧版本的 ini 也有）
+	sakura::wstring value;
+	if (!profile.GetProfileData(LTEXT("Common"), LTEXT("nCaretType"), value)) return ImportResult::NotSettingsFile;
+	return ImportResult::Imported;
+}
+
+} // namespace
+
+ImportResult CheckSettingsFile(const Text& path)
+{
+	CDataProfile profile;
+	return ReadSettingsFile(path, profile);
+}
+
+Text SettingsBackupPath()
+{
+	auto path = GetIniFileName();
+	path += ".before-import";
+	return Text(sakura::path_to_wstring(path));
+}
+
+ImportResult ImportSettings(const Text& path)
+{
+	if (!IsStarted()) return ImportResult::WriteFailed;
+	CDataProfile profile;
+	if (const auto r = ReadSettingsFile(path, profile); r != ImportResult::Imported) return r;
+
+	// 导入前的设置：现在的设置写出，留一份备份（sakura.ini.before-import）
+	const auto iniPath = GetIniFileName();
+	std::error_code ec;
+	if (!g_settingsImportPending) {
+		CShareData_IO::SaveShareData();
+		if (std::filesystem::exists(iniPath, ec)) {
+			std::filesystem::copy_file(iniPath, std::filesystem::path(SettingsBackupPath()),
+				std::filesystem::copy_options::overwrite_existing, ec);
+		}
+	}
+
+	// 历史（最近使ったファイル、検索・置換・Grep 的历史等）是这台 Mac 的文件，保留 Mac 的。
+	// 除此以外（共通設定、キー割り当て、ツールバー、メインメニュー、タイプ別設定、強調キーワード等）全部用导入的
+	SettingsImportIO::WriteHistory(profile);
+	std::filesystem::create_directories(iniPath.parent_path(), ec);
+	if (!profile.WriteProfile(iniPath, sakura::wstring(LTEXT(" sakura.ini テキストエディタ設定ファイル")))) {
+		return ImportResult::WriteFailed;
+	}
+	// 与在 Windows 版换掉 sakura.ini 相同，重新启动以后生效。在那之前不写出设置
+	g_settingsImportPending = true;
+	return ImportResult::Imported;
+}
+
+bool IsSettingsImportPending() { return g_settingsImportPending; }
 
 // ---------------------------------------------------------------------------
 // 编码、换行符、命令名

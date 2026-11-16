@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EditorCore.useCoreTextMeasurement()
         EditorCore.setLayoutFont(name: EditorTextView.fontName, size: EditorTextView.fontSize)
         NSApp.mainMenu = MainMenuBuilder.build()
+        UITesting.prepareSettingsImport()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -31,11 +32,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // 原版在最后一个编辑窗口关闭时退出（不常驻任务托盘），这里保持一致。
+    // 设置的导入途中（关闭所有窗口以后导入、重新启动）不结束（第 35 步）
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        !SettingsImporter.shared.isImporting
     }
 
-    // 原版在控制进程结束时写出 sakura.ini
+    // 原版在控制进程结束时写出 sakura.ini（导入了设置、重新启动之前不写出：核心库判断）
     func applicationWillTerminate(_ notification: Notification) {
         if EditorCore.isStarted {
             // 结束时还开着的文件也登记到「最近使ったファイル」（原版是每个窗口关闭时，第 31 步）
