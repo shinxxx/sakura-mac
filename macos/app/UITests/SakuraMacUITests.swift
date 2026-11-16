@@ -136,7 +136,8 @@ final class SakuraMacUITests: XCTestCase {
         for title in ["元に戻す", "やり直し", "切り取り", "コピー", "貼り付け", "削除", "すべて選択", "矩形貼り付け", "カーソル前を削除"] {
             XCTAssertTrue(menu.menuItems[title].exists, "「編集」>「\(title)」")
         }
-        menu.menuItems["すべて選択"].click()
+        // 第 34 步起「選択」子菜单里也有「すべて選択」（与原版相同）：点「編集」直接下面的那个
+        menu.menus.firstMatch.children(matching: .menuItem)["すべて選択"].click()
         menu.click()
         menu.menuItems["削除"].click()
         XCTAssertEqual(text, "", "菜单的「削除」删除选择范围")
