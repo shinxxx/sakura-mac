@@ -143,12 +143,6 @@ extension EditorTextView {
         return max(1, Int(floor(visibleRect.height / lineHeight)))
     }
 
-    /// 画面最上面的行
-    var topVisibleRow: Int {
-        guard lineHeight > 0 else { return 0 }
-        return max(0, Int(((visibleRect.minY - topMargin) / lineHeight).rounded()))
-    }
-
     /// 这一行放到画面的最上面（原版 SetViewTopLine / ScrollAtV）
     func scrollRow(toTop r: Int) {
         let maxY = max(0, bounds.height - visibleRect.height)
