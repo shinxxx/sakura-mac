@@ -62,8 +62,11 @@
 #include "env/CFileNameManager.h"
 #include "charset/charset.h"
 #include "util/file.h"
+#include "util/zoom.h"
+#include "util/zoom.h"
 #include "sakura_platform_hooks.h"
 
+#include <array>
 #include <atomic>
 #include <limits>
 #include <type_traits>
@@ -445,6 +448,11 @@ struct Document::Impl {
 	bool modified = false;
 	CEol newLineEol{ EEolType::cr_and_lf };
 	FileInfo info;
+	//! 打开（保存）时的编码和 BOM（原版 SFileInfo 的 eCharCodeLoad、bBomExistLoad，第 34 步）
+	Encoding loadedEncoding = encoding::UTF8;
+	bool loadedBom = false;
+	//! 挿入モード（原版 CDocEditor::m_bInsMode：按共通設定「挿入モード」开始，第 34 步）
+	bool insertMode = GetDllShareData().m_Common.m_sGeneral.m_bIsINSMode;
 	Text lastSearchError;
 	std::optional<RestoredView> restoredView;	//!< 打开时从历史恢复的位置（第 31 步）
 	std::shared_ptr<SearchMarkCache> searchMarkCache;	//!< 查找文字标记用的条件（第 32 步）
@@ -634,6 +642,21 @@ struct Document::Impl {
 		pOpeBlk = nullptr;
 	}
 
+	//! 新文档的状态（类型「基本」，编码是它的默认值）。Create 和 CloseToUntitled 用
+	void InitNew()
+	{
+		ResetForType(Text());
+		if (const STypeConfigMini* mini = TypeMini()) {
+			info.encoding = mini->m_encoding.m_eDefaultCodetype;
+			info.bom = mini->m_encoding.m_bDefaultBom;
+		}
+		loadedEncoding = info.encoding;
+		loadedBom = info.bom;
+		ResetNewLineEol();
+		ResetWrap();
+		DoLayout();
+	}
+
 	void ClearDocument()
 	{
 		if (pOpeBlk) {
@@ -664,17 +687,18 @@ std::unique_ptr<Document> Document::Create()
 {
 	if (!IsStarted()) return nullptr;
 	std::unique_ptr<Document> doc(new Document());
-	auto& d = *doc->m_impl;
-	d.ResetForType(Text());
-	// 新文档的编码是类型别设置（基本）的默认值
-	if (const STypeConfigMini* mini = d.TypeMini()) {
-		d.info.encoding = mini->m_encoding.m_eDefaultCodetype;
-		d.info.bom = mini->m_encoding.m_bDefaultBom;
-	}
-	d.ResetNewLineEol();
-	d.ResetWrap();
-	d.DoLayout();
+	doc->m_impl->InitNew();
 	return doc;
+}
+
+void Document::CloseToUntitled()
+{
+	// CDocFileOperation::FileClose：既存データのクリア（CEditDoc::InitDoc）→ 新規文書
+	auto& d = *m_impl;
+	d.ClearDocument();
+	d.info = FileInfo{};
+	d.restoredView.reset();
+	d.InitNew();
 }
 
 // ----- 打开、保存 -----
@@ -758,6 +782,8 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 	d.info.path = path;
 	d.info.encoding = eCharCode;
 	d.info.bom = bBom;
+	d.loadedEncoding = eCharCode;
+	d.loadedBom = bBom;
 	d.ResetNewLineEol();
 	d.DoLayout();	// CLoadAgent::OnLoad
 
@@ -872,6 +898,8 @@ Result Document::SaveAs(const Text& path, const SaveOptions& options)
 	d.info.path = path;
 	d.info.encoding = eCharCode;
 	d.info.bom = bBom;
+	d.loadedEncoding = eCharCode;
+	d.loadedBom = bBom;
 	if (bTypeChanged) {
 		// 另存为：扩展名变了，类型别设置也跟着变（CEditDoc::OnChangeType → OnChangeSetting 重新排版）
 		const std::int32_t oldType = d.info.typeIndex;
@@ -1053,6 +1081,22 @@ void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
 
 const FileInfo& Document::GetFileInfo() const { return m_impl->info; }
 bool Document::IsModified() const { return m_impl->modified; }
+
+void Document::SetEncoding(Encoding encoding, bool bom)
+{
+	// Command_CHG_CHARSET：SetCodeSetChg( eCharSet, CCodeTypeName( eCharSet ).UseBom() & bBom )
+	const auto eCharSet = static_cast<ECodeType>(encoding);
+	if (!IsValidCodeOrCPType(eCharSet)) return;
+	m_impl->info.encoding = encoding;
+	m_impl->info.bom = CCodeTypeName(eCharSet).UseBom() && bom;
+}
+
+bool Document::IsEncodingChanged() const
+{
+	// CDocFile::IsChgCodeSet：新規ファイルでなく、文字コードセットか BOM が読み込み時と違う
+	const auto& d = *m_impl;
+	return !d.info.path.empty() && (d.info.encoding != d.loadedEncoding || d.info.bom != d.loadedBom);
+}
 
 // ----- 内容 -----
 
@@ -1341,6 +1385,7 @@ bool Document::IsCommandSupported(FunctionCode code)
 	case F_CHGMOD_EOL_NEL:
 	case F_CHGMOD_EOL_PS:
 	case F_CHGMOD_EOL_LS:
+	case F_CHGMOD_INS:
 		return true;
 	default:
 		return false;
@@ -1365,8 +1410,34 @@ bool Document::IsCommandEnabled(FunctionCode code) const
 	case F_CHGMOD_EOL_PS:
 	case F_CHGMOD_EOL_LS:
 		return ExtEolEnabled();
+	case F_CHGMOD_INS:
+		return true;
 	default:
 		return false;
+	}
+}
+
+bool Document::IsCommandChecked(FunctionCode code) const
+{
+	// 原版 IsFuncChecked（func/Funccode.cpp）
+	const EEolType eol = m_impl->newLineEol.GetType();
+	const ECodeType eDocCode = static_cast<ECodeType>(m_impl->info.encoding);
+	switch (code) {
+	case F_FILE_REOPEN_SJIS:		return CODE_SJIS == eDocCode;
+	case F_FILE_REOPEN_JIS:			return CODE_JIS == eDocCode;
+	case F_FILE_REOPEN_EUC:			return CODE_EUC == eDocCode;
+	case F_FILE_REOPEN_LATIN1:		return CODE_LATIN1 == eDocCode;
+	case F_FILE_REOPEN_UNICODE:		return CODE_UNICODE == eDocCode;
+	case F_FILE_REOPEN_UNICODEBE:	return CODE_UNICODEBE == eDocCode;
+	case F_FILE_REOPEN_UTF8:		return CODE_UTF8 == eDocCode;
+	case F_FILE_REOPEN_CESU8:		return CODE_CESU8 == eDocCode;
+	case F_FILE_REOPEN_UTF7:		return CODE_UTF7 == eDocCode;
+	case F_CHGMOD_EOL_CRLF: return eol == EEolType::cr_and_lf;
+	case F_CHGMOD_EOL_LF:   return eol == EEolType::line_feed;
+	case F_CHGMOD_EOL_CR:   return eol == EEolType::carriage_return;
+	// NEL、PS、LS 在原版也不打勾
+	case F_CHGMOD_INS:      return m_impl->insertMode;
+	default:                return false;
 	}
 }
 
@@ -1383,6 +1454,7 @@ Result Document::ExecuteCommand(FunctionCode code)
 	case F_CHGMOD_EOL_NEL:  SetNewLineEol(Eol::NEL); return Result::Ok;
 	case F_CHGMOD_EOL_PS:   SetNewLineEol(Eol::ParagraphSeparator); return Result::Ok;
 	case F_CHGMOD_EOL_LS:   SetNewLineEol(Eol::LineSeparator); return Result::Ok;
+	case F_CHGMOD_INS:      SetInsertMode(!IsInsertMode()); return Result::Ok;	// Command_CHGMOD_INS
 	default:                return Result::NotSupported;
 	}
 }
@@ -3179,6 +3251,150 @@ std::int32_t Document::IndentEnd(std::int32_t line, std::int32_t from, std::int3
 		return i;
 	}
 	return from;
+}
+
+// ----- 模式（第 34 步） -----
+
+bool Document::IsInsertMode() const { return m_impl->insertMode; }
+void Document::SetInsertMode(bool insert) { m_impl->insertMode = insert; }
+
+Result Document::OverwriteText(const Position& at, const Text& text, Position* pNewCaret)
+{
+	auto& d = *m_impl;
+	if (!d.IsValidPosition(at)) return Result::InvalidArgument;
+	const auto& sEdit = GetDllShareData().m_Common.m_sEdit;
+	const bool bExtEol = sEdit.m_bEnableExtEol;
+	Position caret = at;
+	Result result = Result::Ok;
+	BeginEdit();
+	for (size_t i = 0; i < text.size() && result == Result::Ok; ) {
+		size_t n = CNativeW::GetSizeOfChar(text.data(), text.size(), i);
+		if (n == 0) n = 1;
+		const Text input = text.substr(i, n);
+		i += n;
+		// 改行は上書き削除しない（原版 Command_WCHAR：改行のときは DelCharForOverwrite を通らない）
+		if (!WCODE::IsLineDelimiter(input[0], bExtEol)) {
+			// 原版 DelCharForOverwrite
+			bool bEol = false;
+			bool bDelete = true;
+			int nDelLen = 0;
+			int nKetaDiff = 0;
+			int nKetaAfterIns = 0;
+			CLayoutPoint ptLayout;
+			d.layout.LogicToLayout(ToLogic(caret), &ptLayout);
+			const CLayout* pcLayout = d.layout.SearchLineByLayoutY(ptLayout.GetY2());
+			const CDocLine* pcDocLine = d.lines.GetLine(CLogicInt(caret.line));
+			if (pcLayout != nullptr && pcDocLine != nullptr) {
+				// 指定された桁に対応する行のデータ内の位置
+				const int nIdxTo = caret.column - static_cast<int>(pcLayout->GetLogicOffset());
+				if (nIdxTo >= static_cast<int>(pcLayout->GetLengthWithoutEOL())) {
+					bEol = true;	// 現在位置は改行または折り返し以後
+					if (pcLayout->GetLayoutEol().IsValid() && sEdit.m_bNotOverWriteCRLF) {
+						bDelete = false;	// 改行は上書きしない
+					}
+				} else if (sEdit.m_bOverWriteFixMode) {
+					// 文字幅に合わせてスペースを詰める
+					const CStringRef line = pcDocLine->GetStringRefWithEOL();
+					size_t nPos = caret.column;
+					if (line.At(nPos) != WCODE::TAB) {
+						const int nKetaBefore = static_cast<int>((Int)CNativeW::GetKetaOfChar(line, nPos));
+						const int nKetaAfter = static_cast<int>((Int)CNativeW::GetKetaOfChar(input.data(), input.size(), 0));
+						nKetaDiff = nKetaBefore - nKetaAfter;
+						nPos += CNativeW::GetSizeOfChar(line.GetPtr(), line.GetLength(), nPos);
+						nDelLen = 1;
+						if (nKetaDiff < 0 && nPos < static_cast<size_t>(line.GetLength())) {
+							const WCHAR c = line.At(nPos);
+							if (c != WCODE::TAB && !WCODE::IsLineDelimiter(c, bExtEol)) {
+								nDelLen = 2;
+								const int nKetaBefore2 = static_cast<int>((Int)CNativeW::GetKetaOfChar(line, nPos));
+								nKetaAfterIns = nKetaBefore + nKetaBefore2 - nKetaAfter;
+							}
+						}
+					}
+				}
+			}
+			if (bDelete && pcDocLine != nullptr) {
+				// 上書きモードなので、現在位置の文字を１文字消去（行末では改行を消す。Command_DELETE と同じ）
+				const CStringRef line = pcDocLine->GetStringRefWithEOL();
+				const size_t nLength = static_cast<size_t>(line.GetLength());
+				size_t nEnd = caret.column;
+				const int nCount = bEol ? 1 : std::max(1, nDelLen);
+				for (int k = 0; k < nCount && nEnd < nLength; ++k) {
+					nEnd += std::max<size_t>(1, CNativeW::GetSizeOfChar(line.GetPtr(), line.GetLength(), nEnd));
+				}
+				Range range{ caret, caret };
+				if (static_cast<size_t>(pcDocLine->GetLengthWithoutEOL()) < nEnd) {
+					range.to = Position{ caret.line + 1, 0 };	// 改行を削除
+				} else {
+					range.to = Position{ caret.line, static_cast<std::int32_t>(nEnd) };
+				}
+				if (range.from.line != range.to.line || range.from.column != range.to.column) {
+					result = Delete(range);
+				}
+				// 削った幅の分の空白（入力した文字の後ろに残る）
+				const int nSpaces = std::max(0, nKetaDiff) + std::max(0, nKetaAfterIns);
+				if (result == Result::Ok && 0 < nSpaces) {
+					result = Insert(caret, Text(static_cast<size_t>(nSpaces), u' '));
+				}
+			}
+		}
+		if (result == Result::Ok) result = Insert(caret, input, &caret);
+	}
+	EndEdit();
+	if (pNewCaret) *pNewCaret = caret;
+	return result;
+}
+
+std::optional<std::int32_t> Document::WrapWindowWidthColumns(std::int32_t width) const
+{
+	// 原版 CEditView::GetWrapMode。現在の幅に合わせるのを最優先に．
+	//	基本動作： 設定値→ウィンドウ幅
+	//		→(ウィンドウ幅と合っていなければ)→ウィンドウ幅→上へ戻る
+	//		→(ウィンドウ幅と合っていたら)→最大値→設定値
+	//		ただし，最大値==設定値の場合には最大値→設定値の遷移が省略されて上に戻る
+	const auto& d = *m_impl;
+	const std::int32_t nCurrent = static_cast<std::int32_t>((Int)d.layout.GetMaxLineKetas());
+	const std::int32_t nType = static_cast<std::int32_t>((Int)d.typeConfig.m_nMaxLineKetas);
+	const std::int32_t nWindow = WrapColumnsForWidth(width);
+	if (nCurrent == nWindow) {
+		return MAXLINEKETAS;	// 1) 現在の折り返し幅==ウィンドウ幅 : 最大値
+	}
+	// 2) 現在の折り返し幅!=ウィンドウ幅
+	// 原版は MINLINEKETAS > m_nViewColNum - GetWrapOverhang()（ぶら下げ余白を引いた幅が MINLINEKETAS 桁に足りない）。
+	// WrapColumnsForWidth は MINLINEKETAS で切り上げるので、1 桁広い幅でも MINLINEKETAS なら足りない
+	if (nWindow == MINLINEKETAS && WrapColumnsForWidth(width + CharWidth()) == MINLINEKETAS) {
+		// 3) ウィンドウ幅が極端に狭い場合
+		if (nCurrent != MAXLINEKETAS) return MAXLINEKETAS;	// 4) 折り返し幅!=最大値 : 最大値
+		if (nType == MAXLINEKETAS) return std::nullopt;		// 6) 最大値==設定値 : 変更不能
+		return nType;										// 7) 最大値!=設定値 : 設定値
+	}
+	// 8) ウィンドウ幅が十分にある
+	if (nCurrent == MAXLINEKETAS && nType != MAXLINEKETAS) {
+		return nType;		// 9) a) 最大値!=設定値 : 設定値
+	}
+	return nWindow;			// b) c) ウィンドウ幅
+}
+
+// ----- フォントサイズ（第 34 步） -----
+
+std::optional<FontZoom> ZoomFontSize(double basePointSize, double zoom, std::int32_t steps, double unit)
+{
+	// 原版 Command_SETFONTSIZE 的倍率表和上下限（1/10 点单位）
+	constexpr std::array<double, 72> aZoomFactors = {
+		0.01, 0.011, 0.0125, 0.015, 0.0175, 0.02, 0.0225, 0.025, 0.0275, 0.03, 0.035, 0.04, 0.045, 0.05, 0.06, 0.07, 0.08, 0.09,
+		0.1, 0.11, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9,
+		1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0,
+		10.0, 11.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 70.0, 80.0, 90.0
+	};
+	constexpr double nPointSizeMin = 10;
+	constexpr double nPointSizeMax = 720;
+	const ZoomSetting zoomSetting(aZoomFactors.begin(), aZoomFactors.end(), nPointSizeMin, nPointSizeMax, std::max(0.0, unit) * 10.0);
+	double nPointSize = 0;
+	double nNewZoom = zoom;
+	if (!GetZoomedValue(zoomSetting, basePointSize * 10.0, zoom, steps, &nPointSize, &nNewZoom)) {
+		return std::nullopt;
+	}
+	return FontZoom{ nPointSize / 10.0, nNewZoom };
 }
 
 } // namespace sakura::core

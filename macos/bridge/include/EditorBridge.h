@@ -496,6 +496,12 @@ NS_SWIFT_NAME(EditorCore)
 	字体名是 Core Text 能找到的名字（例如 "Menlo"）。
 */
 + (void)setLayoutFontName:(NSString *)name size:(NSInteger)size NS_SWIFT_NAME(setLayoutFont(name:size:));
+/*!
+	フォントサイズ拡大／縮小（原版 Command_SETFONTSIZE 的倍率表，第 34 步）：从基准的大小 base（点）和现在的倍率 zoom
+	移动 steps 级，按 unit 点取整。不能再变时返回 NO
+*/
++ (BOOL)zoomFontSize:(double)base zoom:(double)zoom steps:(NSInteger)steps unit:(double)unit
+	size:(double *)outSize newZoom:(double *)outZoom NS_SWIFT_NAME(zoomFontSize(_:zoom:steps:unit:size:newZoom:));
 
 // ----- 查找、替换（第 32 步） -----
 
@@ -550,6 +556,8 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECResult)saveToPath:(NSString *)path NS_SWIFT_NAME(save(to:));
 //! 覆盖保存（无题文档返回 ECResultInvalidArgument）
 - (ECResult)save;
+//! 閉じて(無題)（第 34 步）：内容、撤销、文件名都清除，变成新文档
+- (void)closeToUntitled;
 //! 打开时从历史恢复的位置（共通设置「カーソル位置を復元する」关掉时、历史里没有时是 nil）（第 31 步）
 @property (readonly, nullable) ECRestoredView *restoredView;
 //! 把现在的状态登记到「最近使ったファイル」（原版 CMruListener：保存后、关闭前）。新文件时什么也不做
@@ -563,6 +571,10 @@ NS_SWIFT_NAME(EditorDocument)
 @property (readonly) NSInteger typeIndex;				//!< 类型别设置的编号
 @property (readonly, copy) NSString *typeName;			//!< 类型别设置的名字（“テキスト”“C/C++” 等）
 @property (readonly, getter=isModified) BOOL modified;
+//! 文字コードセット指定（第 34 步）：下次保存用的编码和 BOM（不能加 BOM 的编码时 BOM 是 NO）
+- (void)setEncoding:(ECEncoding)encoding bom:(BOOL)bom NS_SWIFT_NAME(setEncoding(_:bom:));
+//! 文字コードセット指定改过打开（保存）时的编码或 BOM（新文件时 NO）
+@property (readonly, getter=isEncodingChanged) BOOL encodingChanged;
 
 // ----- 内容 -----
 
@@ -626,6 +638,15 @@ NS_SWIFT_NAME(EditorDocument)
 - (BOOL)modifiedLineTargetFrom:(ECPosition)position next:(BOOL)next position:(ECPosition *)outPosition wrapped:(BOOL *)outWrapped NS_SWIFT_NAME(modifiedLineTarget(from:next:position:wrapped:));
 //! 逻辑行 line 的 [from, to) 里缩进之后第一个字的下标（行頭に移動 用）。只有缩进时是 from
 - (NSInteger)indentEndInLine:(NSInteger)line from:(NSInteger)from to:(NSInteger)to NS_SWIFT_NAME(indentEnd(line:from:to:));
+
+// ----- 模式（第 34 步） -----
+
+//! 挿入モード（NO 是上書きモード）。新文档按共通設定
+@property (nonatomic) BOOL insertMode;
+//! 上書きモードでの入力：每个字先删掉光标处的一个字再插入（原版 DelCharForOverwrite）。作为撤销的一步
+- (ECResult)overwriteText:(NSString *)text at:(ECPosition)position newCaret:(nullable ECPosition *)newCaret NS_SWIFT_NAME(overwrite(_:at:newCaret:));
+//! 現在のウィンドウ幅で折り返し 的新的折り返し桁数（width 是文字区域的宽度）。不能改变时 -1
+- (NSInteger)wrapWindowWidthColumnsForWidth:(NSInteger)width NS_SWIFT_NAME(wrapWindowWidthColumns(forWidth:));
 //! 这一逻辑行里用「検索文字列」的颜色显示的部分
 - (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(searchMarks(line:key:options:));
 /*!
@@ -638,6 +659,8 @@ NS_SWIFT_NAME(EditorDocument)
 
 - (ECResult)executeCommand:(ECCommand)command NS_SWIFT_NAME(execute(_:));
 - (BOOL)isCommandEnabled:(ECCommand)command NS_SWIFT_NAME(isEnabled(_:));
+//! 菜单是否打勾（原版 IsFuncChecked：○○で開き直す、入力改行コード、挿入モード）
+- (BOOL)isCommandChecked:(ECCommand)command NS_SWIFT_NAME(isChecked(_:));
 + (BOOL)isCommandSupported:(ECCommand)command NS_SWIFT_NAME(isSupported(_:));
 
 // ----- 排版（第 27 步） -----

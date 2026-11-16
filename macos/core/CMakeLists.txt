@@ -146,6 +146,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/_main/global.cpp            # 查找选项等共用定义（进程相关的部分在第 26 步）
   # 第 21 步：设置模块 env（整个目录在上面的 SAKURA_CORE_DIRS）和它用到的文件
   sakura_core/util/file.cpp               # 路径操作。Mac 版的路径分隔符是 '/'
+  sakura_core/util/zoom.cpp               # 第 34 步：フォントサイズ拡大／縮小的倍率计算
   sakura_core/_main/CMutex.cpp            # Mac 版是进程内的命名互斥锁
   sakura_core/uiparts/CMenuDrawer.cpp     # 只编译工具栏按钮表（共通设置的工具栏项目），绘制菜单是界面的步骤
   sakura_core/macro/CSMacroMgr.cpp        # 只编译宏函数名表（按键分配的 ini 读写），宏的执行是第 45 步

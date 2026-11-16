@@ -4,7 +4,7 @@
 
 第 34 步分 3 个 PR：
 
-1. 菜单栏和快捷键的机制（本 PR）
+1. 菜单栏和快捷键的机制
 2. 光标、选择、矩形选择的 MVP 命令（単語の左端に移動、半ページ、移動履歴、(選択)／(矩形選択) 的各命令等）
 3. 文件、模式、设定的 MVP 命令（各编码で開き直す、閉じて開く、挿入／上書きモード、文字コードセット指定、フォントサイズ、バージョン情報 等）
 
@@ -67,7 +67,7 @@ Mac 方案里为了和 Mac 的其它 App 一致，下面的键与原版不同（
 
 需要在 Mac 上用手确认的：没有（菜单的外观由界面测试的截图可以看到；快捷键在不同键盘布局下的行为由单元测试按布局分别确认）。
 
-## 这一步改的文件
+## 这一步改的文件（第 1 个 PR）
 
 - 新文件：`macos/app/Sources/CommandTable.swift`（功能编号 → 动作）、`macos/app/Sources/KeyCommands.swift`（按键 → 功能、键位方案）、`macos/core/tests/test-mac-menu.cpp`、`macos/app/Tests/MenuKeyTests.swift`、`macos/docs/phase2-menu-keys.md`（本文档）
 - `macos/core/include/sakura_core/SakuraCore.h`、`macos/core/api/SakuraCore.cpp`：`MainMenu`、`KeyBindings`、`FunctionForKey`
@@ -77,3 +77,64 @@ Mac 方案里为了和 Mac 的其它 App 一致，下面的键与原版不同（
 - `macos/app/Sources/UITesting.swift`：界面测试从 Mac 方案开始
 - `macos/app/UITests/SakuraMacUITests.swift`、`macos/app/project.yml`、`macos/core/tests/tests.cmake`
 - `macos/docs/phase2-search.md`：快捷键改成 ⌘R、⌘J
+
+## 第 2 个 PR：光标、选择、矩形选择
+
+原版 `CViewCommander_Cursor.cpp`、`CViewCommander_Select.cpp` 的 MVP 命令都能从菜单和快捷键执行：
+
+- 移动：単語の左端／右端、２行ごと、半ページ、１ページ（画面也翻一页）、段落、変更行、行頭（先跳过缩进）、論理行頭／行末、ファイルの先頭／最後，每个都有 (範囲選択) 和 (矩形選択) 版
+- 选择：範囲選択開始（F6，之后普通的移动扩展选择）、矩形範囲選択開始、現在位置の単語選択、1行選択
+- 移動履歴：前へ／次へ／移動履歴をセット（与原版一样最多 30 个；ファイルの先頭／最後、検索、ジャンプ时登记）
+- 画面：カーソル行をウィンドウ中央／上部／下部へ、テキストを１行上／下へスクロール、ホイール系
+- macOS 的按键（⌥←、⌘↑、⌃A 等）也执行同样的原版命令
+- 移到哪里的算法（単語、段落、変更行、缩进）在核心库：`Document::WordMoveTarget`、`ParagraphTarget`、`ModifiedLineTarget`、`IndentEnd`
+- 还没有：オートスクロール（与鼠标的设置一起在阶段 3）
+
+## 第 3 个 PR：文件、模式、设定、バージョン情報
+
+| 原版的命令 | Mac 版 |
+| --- | --- |
+| 閉じて(無題) | 确认保存后，同一个窗口变成新文档（核心库 `Document::CloseToUntitled`） |
+| 閉じて開く | 确认保存后出「開く」对话框，选的文件在同一个窗口打开；取消时原来的文件留着；多选时其余的开新窗口 |
+| 保存して閉じる | 没有修改就直接关闭；无题时先「名前を付けて保存」 |
+| 上書き保存(限定動作)、すべて上書き保存 | 无题的窗口什么也不做；有修改（或者改了文字コードセット）的保存 |
+| 新規作成（新しいウインドウで開く） | 与「新規作成」相同（Mac 版是一个进程多个窗口） |
+| ○○で開き直す、開き直す | 用指定的编码重新读入，修改过时先问（原版的消息），光标和表示域留着；现在的编码打勾；无题时只设定编码 |
+| 挿入／上書きモード切り替え（Insert，Mac 键盘是 Help 键） | 上書き时输入的字换掉光标处的字（「改行は上書きしない」「文字幅に合わせてスペースを詰める」与原版相同），光标变成一个字宽（半透明）；打勾 |
+| 文字コードセット指定 | 原版的「文字コードの指定」对话框（编码、CP、BOM）；改了以后关闭前要确认保存 |
+| 入力改行コード指定（CRLF/LF/CR/NEL/PS/LS） | 现在的换行符打勾（CRLF/LF/CR，与原版相同） |
+| 現在のウィンドウ幅で折り返し | ウィンドウ幅 → 最大値 → 設定値 的切换（原版 `GetWrapMode` 的判断，在核心库） |
+| フォントサイズ拡大／縮小 | 原版的倍率表。不保存（原版的一時的な変更）；字体设置改变时回到原来的大小 |
+| バージョン情報 | 原版的内容（名字、原作者、版权、Project URL、说明、情報をコピー），另外显示 zlib 许可证全文和「这是改变过的版本，不是官方版」的声明。App 菜单的「について」也打开这里 |
+
+和原版不同的地方：
+
+- **フォントサイズ拡大／縮小**：原版只改这一个窗口；Mac 版的排版字体是所有窗口共用的（第 27 步），所以所有窗口一起变。大小按 1 点取整（原版 0.5 点），因为排版只能用整数点。
+- **保存的确认**：用 macOS 的对话框（保存、不保存、取消），内容与原版相同。
+
+## 测试（第 2、3 个 PR）
+
+- `macos/core/tests/test-mac-cursor.cpp`（核心库，8 个）：単語、段落、変更行（绕回）、缩进的目标
+- `macos/core/tests/test-mac-mode.cpp`（核心库，13 个）：閉じて(無題)、文字コードセット指定和「変更されている」的判断（新文件、保存后）、挿入モード的切换和共通設定、上書き（普通、行末、改行は上書きしない 关掉时、补充平面字符、TAB、换行、文字幅に合わせてスペースを詰める）、各菜单的打勾、ウィンドウ幅で折り返し 的顺序（普通、极窄、不能改变）、倍率表
+- `macos/app/Tests/CursorCommandTests.swift`（App）：各移动、选择、矩形选择、移動履歴、画面滚动
+- `macos/app/Tests/FileModeCommandTests.swift`（App）：Insert 切换和上書き输入（撤销一步、光标宽度）、入力改行コード、文字コードセット指定（对话框换成测试用的）、○○で開き直す（确认、取消、光标留着、无题）、閉じて(無題)（同一个窗口、历史登记）、上書き保存(限定動作)、ウィンドウ幅で折り返し、フォントサイズ拡大／縮小、バージョン情報的内容和「情報をコピー」、命令都有动作
+- `macos/app/UITests/SakuraMacUITests.swift`（界面）：⌥→ 単語移動 和 F6 範囲選択開始；ヘルプ > バージョン情報 打开和关闭
+
+需要在 Mac 上用手确认的：
+
+- 「閉じて開く」：系统的「開く」对话框是另一个进程，自动测试不能选文件。确认：改一个文件 → ファイル > 閉じて開く → 问保存 → 选别的文件，在同一个窗口打开；取消时原来的文件还在。
+- 「保存して閉じる」「閉じて(無題)」修改过时的保存确认对话框：macOS 的标准对话框，自动测试不按它的按钮。
+
+## 这一步改的文件（第 2、3 个 PR）
+
+- 新文件：
+  - `macos/app/Sources/CursorCommands.swift`（光标、选择、矩形选择的命令）
+  - `macos/app/Sources/FileCommands.swift`（ファイル菜单的命令）
+  - `macos/app/Sources/ModeCommands.swift`（模式切换、设定的命令）
+  - `macos/app/Sources/AboutPanel.swift`（バージョン情報）
+  - `macos/core/tests/test-mac-cursor.cpp`、`macos/core/tests/test-mac-mode.cpp`
+  - `macos/app/Tests/CursorCommandTests.swift`、`macos/app/Tests/FileModeCommandTests.swift`
+- `macos/core/include/sakura_core/SakuraCore.h`、`macos/core/api/SakuraCore.cpp`、`macos/core/CMakeLists.txt`（加 `sakura_core/util/zoom.cpp`）
+- `macos/bridge/include/EditorBridge.h`、`macos/bridge/src/EditorBridge.mm`
+- `macos/app/Sources/EditorTextView.swift`、`CommandTable.swift`、`SakuraDocument.swift`、`FileDialogAccessory.swift`、`MainMenuBuilder.swift`、`SearchCommands.swift`
+- `macos/app/UITests/SakuraMacUITests.swift`、`macos/app/project.yml`、`macos/core/tests/tests.cmake`

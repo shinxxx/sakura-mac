@@ -536,6 +536,17 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 	core::SetLayoutFont(ToText(name), static_cast<std::int32_t>(size));
 }
 
++ (BOOL)zoomFontSize:(double)base zoom:(double)zoom steps:(NSInteger)steps unit:(double)unit
+	size:(double *)outSize newZoom:(double *)outZoom
+{
+	if (!FitsInt32(steps)) return NO;
+	const auto r = core::ZoomFontSize(base, zoom, static_cast<std::int32_t>(steps), unit);
+	if (!r) return NO;
+	if (outSize) *outSize = r->pointSize;
+	if (outZoom) *outZoom = r->zoom;
+	return YES;
+}
+
 // ----- 查找、替换（第 32 步） -----
 
 + (ECSearchSettings *)searchSettings
@@ -743,6 +754,9 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 - (NSInteger)typeIndex { return _doc->GetFileInfo().typeIndex; }
 - (NSString *)typeName { return ToNSString(_doc->GetFileInfo().typeName); }
 - (BOOL)isModified { return _doc->IsModified() ? YES : NO; }
+- (void)closeToUntitled { _doc->CloseToUntitled(); }
+- (void)setEncoding:(ECEncoding)encoding bom:(BOOL)bom { _doc->SetEncoding(encoding, bom == YES); }
+- (BOOL)isEncodingChanged { return _doc->IsEncodingChanged() ? YES : NO; }
 
 // ----- 内容 -----
 
@@ -934,6 +948,26 @@ static ECSearchResult *InvalidViewResult()
 	return _doc->IndentEnd(static_cast<std::int32_t>(line), static_cast<std::int32_t>(from), static_cast<std::int32_t>(to));
 }
 
+// ----- 模式（第 34 步） -----
+
+- (BOOL)insertMode { return _doc->IsInsertMode() ? YES : NO; }
+- (void)setInsertMode:(BOOL)insertMode { _doc->SetInsertMode(insertMode == YES); }
+
+- (ECResult)overwriteText:(NSString *)text at:(ECPosition)position newCaret:(ECPosition *)newCaret
+{
+	if (!FitsInt32(position.line) || !FitsInt32(position.column)) return ECResultInvalidArgument;
+	core::Position caret{};
+	const core::Result r = _doc->OverwriteText(ToCore(position), ToText(text), &caret);
+	if (newCaret) *newCaret = FromCore(caret);
+	return FromCore(r);
+}
+
+- (NSInteger)wrapWindowWidthColumnsForWidth:(NSInteger)width
+{
+	const auto columns = _doc->WrapWindowWidthColumns(static_cast<std::int32_t>(std::clamp<NSInteger>(width, 0, INT32_MAX)));
+	return columns ? *columns : -1;
+}
+
 - (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options
 {
 	if (!FitsInt32(line)) return @[];
@@ -964,6 +998,12 @@ static ECSearchResult *InvalidViewResult()
 {
 	if (!FitsInt32(command)) return NO;
 	return _doc->IsCommandEnabled(static_cast<core::FunctionCode>(command)) ? YES : NO;
+}
+
+- (BOOL)isCommandChecked:(ECCommand)command
+{
+	if (!FitsInt32(command)) return NO;
+	return _doc->IsCommandChecked(static_cast<core::FunctionCode>(command)) ? YES : NO;
 }
 
 + (BOOL)isCommandSupported:(ECCommand)command

@@ -308,6 +308,19 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "_Xyz", "回到 Mac 方案后 ⌃A 移到行头（第 34 步起 macOS 的移动也走原版的論理行頭に移動），不是すべて選択")
     }
 
+    /// ヘルプ > バージョン情報（第 34 步）：原版的内容的窗口，「OK」关闭
+    func testAboutPanel() {
+        let help = app.menuBars.menuBarItems["ヘルプ"]
+        help.click()
+        help.menuItems["バージョン情報"].click()
+        let panel = app.windows["バージョン情報"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 5))
+        XCTAssertTrue(panel.staticTexts["原作者: たけ(竹パンダ) さん"].exists)
+        XCTAssertTrue(panel.buttons["情報をコピー"].exists)
+        panel.buttons["OK"].click()
+        XCTAssertFalse(panel.waitForExistence(timeout: 1))
+    }
+
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
 
     /// 完成标志：重启 App 后最近文件仍能直接打开，光标回到上次的位置。
