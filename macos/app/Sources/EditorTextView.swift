@@ -40,9 +40,32 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     private static let fontNameKey = "EditorFontName"
     private static let fontSizeKey = "EditorFontSize"
 
+    /// フォントサイズ拡大／縮小（第 34 步）的倍率（原版 CEditDoc::m_nCurrentZoom）。不保存，字体设置改变时回到 1
+    private(set) static var fontZoom: Double = 1.0
+    /// 拡大／縮小后的大小（点）。没有拡大／縮小时 nil
+    private(set) static var zoomedFontSize: Int?
+    /// 显示用的大小：拡大／縮小中是那个大小，否则是设置的大小
+    static var displayFontSize: Int { zoomedFontSize ?? fontSize }
+
+    /// フォントサイズ拡大／縮小：按原版的倍率表移动 steps 级（Mac 版的排版字体只能用整数点，按 1 点取整）。
+    /// 不能再变时返回 false
+    @discardableResult
+    static func zoomFont(steps: Int) -> Bool {
+        var size = 0.0
+        var zoom = 1.0
+        guard EditorCore.zoomFontSize(Double(fontSize), zoom: fontZoom, steps: steps, unit: 1,
+                                      size: &size, newZoom: &zoom) else { return false }
+        fontZoom = zoom
+        let points = max(1, Int(size))
+        zoomedFontSize = (zoom == 1.0 && points == fontSize) ? nil : points
+        EditorCore.setLayoutFont(name: fontName, size: displayFontSize)
+        NotificationCenter.default.post(name: fontDidChangeNotification, object: nil)
+        return true
+    }
+
     /// 现在的字体
     static var currentFont: NSFont {
-        NSFont(name: fontName, size: CGFloat(fontSize))
+        NSFont(name: fontName, size: CGFloat(displayFontSize))
             ?? NSFont(name: defaultFontName, size: CGFloat(defaultFontSize))
             ?? NSFont.monospacedSystemFont(ofSize: CGFloat(defaultFontSize), weight: .regular)
     }
@@ -55,6 +78,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let size = max(6, min(72, Int(font.pointSize.rounded())))
         UserDefaults.standard.set(font.fontName, forKey: fontNameKey)
         UserDefaults.standard.set(size, forKey: fontSizeKey)
+        fontZoom = 1.0
+        zoomedFontSize = nil
         EditorCore.setLayoutFont(name: font.fontName, size: size)
         NotificationCenter.default.post(name: fontDidChangeNotification, object: nil)
     }
@@ -69,6 +94,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     static func resetFont() {
         UserDefaults.standard.removeObject(forKey: fontNameKey)
         UserDefaults.standard.removeObject(forKey: fontSizeKey)
+        fontZoom = 1.0
+        zoomedFontSize = nil
         EditorCore.setLayoutFont(name: defaultFontName, size: defaultFontSize)
     }
 
@@ -396,7 +423,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if hasMarkedText() {
             x = textOriginX + row(c.row).xs[c.index] + CTLineGetOffsetForStringIndex(markedLine, markedSelection.location, nil)
         }
-        return NSRect(x: x, y: lineTop(c.row), width: 2, height: lineHeight)
+        // 上書きモード时是一个字的宽度（第 34 步）
+        return NSRect(x: x, y: lineTop(c.row), width: overwriteCaretWidth ?? 2, height: lineHeight)
     }
 
     // MARK: - 颜色（第 28 步）
@@ -546,7 +574,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
 
         if window?.firstResponder === self && caretBlinkOn {
-            Self.nsColor(caretColor).setFill()
+            // 上書きモードの光标盖住一个字：半透明，下面的字也看得见（原版的光标是反转显示）
+            let color = Self.nsColor(caretColor)
+            (overwriteCaretWidth == nil ? color : color.withAlphaComponent(0.5)).setFill()
             caretRect.fill()
         }
     }
@@ -1307,6 +1337,17 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         textChanged()
     }
 
+    /// 上書きモードでの入力（第 34 步。原版 DelCharForOverwrite → InsertData）
+    private func overwrite(_ text: String) {
+        var end = EditorPosition()
+        guard document.overwrite(text, at: caret, newCaret: &end) == .success else {
+            NSSound.beep()
+            return
+        }
+        caret = end
+        textChanged()
+    }
+
     /// 输入的文字放到哪里：有选择时替换选择范围，否则插在光标处（矩形选择由 insertText 另外处理）
     private var insertionRange: EditorRange {
         if let selection { return selection }
@@ -1823,8 +1864,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         case #selector(wrapWindowWidth(_:)):
             menuItem.state = settings.wrapMethod == .windowWidth ? .on : .off
             return !hasMarkedText()
-        // 第 32 步：検索メニュー（SearchCommands.swift）、第 34 步：移動・選択（CursorCommands.swift）
-        default: return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? true
+        // 第 32 步：検索メニュー（SearchCommands.swift）、第 34 步：移動・選択（CursorCommands.swift）、モード・設定（ModeCommands.swift）
+        default:
+            return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem) ?? true
         }
     }
 
@@ -1841,6 +1883,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if let box = boxRange, replacementRange.location == NSNotFound {
             clearMarkedText()
             indentBox(box, text: Self.firstLine(text), kind: .none)
+            return
+        }
+        // 上書きモード（第 34 步）：输入法确定的文字也一个字一个字地上書き（原版 WM_IME_CHAR → F_IME_CHAR）
+        if shouldOverwrite(replacementRange: replacementRange) {
+            clearMarkedText()
+            overwrite(text)
             return
         }
         var range = hasMarkedText() ? EditorRange(from: caret, to: caret) : insertionRange

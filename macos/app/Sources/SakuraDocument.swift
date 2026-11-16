@@ -335,13 +335,20 @@ final class SakuraDocument: NSDocument {
 
     // MARK: - 状态
 
-    /// 是否修改过以核心库为准：撤销回到保存时的状态就不算修改（与原版的「(更新)」相同）
-    override var isDocumentEdited: Bool { editor.isModified }
+    /// 是否修改过以核心库为准：撤销回到保存时的状态就不算修改（与原版的「(更新)」相同）。
+    /// 文字コードセット指定改了编码时，关闭时也要确认保存（原版 CEditDoc::OnFileClose 的 IsChgCodeSet，第 34 步）
+    override var isDocumentEdited: Bool { editor.isModified || editor.isEncodingChanged }
 
     /// 无题的文档与原版一样显示「(無題)」
     override var displayName: String! {
         get { fileURL == nil ? "(無題)" : super.displayName }
         set { super.displayName = newValue }
+    }
+
+    // MARK: - 菜单
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        validateFileCommand(item) ?? super.validateUserInterfaceItem(item)	// 第 34 步：FileCommands.swift
     }
 
     // MARK: - 窗口
@@ -359,8 +366,13 @@ final class SakuraDocument: NSDocument {
         super.showWindows()
         if lostSomeOnLoad {
             lostSomeOnLoad = false
-            showMessage(NSLocalizedString("一部の文字情報が、ロード時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_ROAD"))
+            showLostSomeMessage()
         }
+    }
+
+    /// 读入时有的字符不能用这个编码表示（原版 CCodeChecker::OnFinalLoad）
+    func showLostSomeMessage() {
+        showMessage(NSLocalizedString("一部の文字情報が、ロード時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_ROAD"))
     }
 
     /// 内容变化后，让窗口的标题（「(更新)」）和关闭按钮的标记跟上

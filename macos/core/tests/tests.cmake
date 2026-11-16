@@ -53,4 +53,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-syntax-color.cpp" # 第 33 步：语法颜色（各内置类型的色分け）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-menu.cpp"         # 第 34 步：主菜单、按键分配
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-cursor.cpp"       # 第 34 步：光标移动的目标
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-mode.cpp"         # 第 34 步：文件、模式、设定的命令
 )

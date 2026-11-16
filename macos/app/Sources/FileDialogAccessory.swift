@@ -9,6 +9,7 @@ import EditorBridge
 ///
 /// - 打开：「文字コードセット」（最初是「自動選択」）、「CP」
 /// - 保存：「文字コードセット」（没有「自動選択」）、「CP」、「BOM」，「改行コード」
+/// - 文字コードセット指定（第 34 步）：「文字コードセット」（没有「自動選択」）、「CP」、「BOM」
 ///
 /// 「CP」勾选后列表里追加代码页，之后不能取消（与原版相同）。
 /// 现在的编码是代码页时，一开始就追加并勾选。
@@ -17,6 +18,8 @@ final class FileDialogAccessory: NSObject {
     enum Mode {
         case open
         case save
+        /// 文字コードセット指定的对话框（第 34 步，原版 IDD_SETCHARSET）：编码、CP、BOM，没有改行コード
+        case charset
     }
 
     let mode: Mode
@@ -54,7 +57,7 @@ final class FileDialogAccessory: NSObject {
         switch mode {
         case .open:
             codeRow = [codeLabel, encodingPopUp, codePageCheck]
-        case .save:
+        case .save, .charset:
             codeRow = [codeLabel, encodingPopUp, codePageCheck, bomCheck]
         }
         let grid = NSGridView(views: [codeRow])
@@ -179,7 +182,7 @@ final class FileDialogAccessory: NSObject {
     /// 能加 BOM 的编码才能勾选 BOM。勾选状态：换回文档现在的编码时是现在的状态，否则是这个编码的默认值（原版 OnItemSelected）
     private func updateBOM() {
         let code = encoding
-        if mode == .save && EditorCore.canHaveBOM(code) {
+        if mode != .open && EditorCore.canHaveBOM(code) {
             bomCheck.isEnabled = true
             bomCheck.state = (code == currentEncoding ? currentBOM : EditorCore.bomDefault(code)) ? .on : .off
         } else {

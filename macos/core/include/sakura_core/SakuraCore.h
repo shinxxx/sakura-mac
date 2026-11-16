@@ -409,6 +409,19 @@ void SetTextMeasureFunction(TextMeasureFunction func);
 */
 void SetLayoutFont(const Text& faceName, std::int32_t size);
 
+//! フォントサイズ拡大／縮小的结果（第 34 步）
+struct FontZoom {
+	double pointSize = 0;	//!< 新的大小（点）
+	double zoom = 1.0;		//!< 新的倍率
+};
+/*!
+	フォントサイズ拡大／縮小（原版 Command_SETFONTSIZE 的 shift）：按原版的倍率表（1%～9000%），
+	从基准的大小 basePointSize（点）和现在的倍率 zoom 移动 steps 级。
+	大小在 1～72 点之间，按 unit 点取整（原版 0.5 点；Mac 版的排版字体只能用整数点，界面层传 1）。
+	不能再大（小）时 nullopt。
+*/
+std::optional<FontZoom> ZoomFontSize(double basePointSize, double zoom, std::int32_t steps, double unit = 0.5);
+
 //! 折り返し方法。数值与原版的 WRAP_NO_TEXT_WRAP 等相同
 enum class WrapMethod : std::uint8_t {
 	None         = 0,	//!< 折り返さない
@@ -607,6 +620,7 @@ namespace command {
 	constexpr FunctionCode NewLineNEL     = 31084;	//!< F_CHGMOD_EOL_NEL
 	constexpr FunctionCode NewLinePS      = 31085;	//!< F_CHGMOD_EOL_PS
 	constexpr FunctionCode NewLineLS      = 31086;	//!< F_CHGMOD_EOL_LS
+	constexpr FunctionCode ChangeInsMode  = 31001;	//!< F_CHGMOD_INS（挿入／上書きモード切り替え，第 34 步）
 }
 
 /*!
@@ -704,6 +718,12 @@ public:
 	//! 保存到打开时的文件（上書き保存）。新文件（没有路径）时返回 InvalidArgument
 	Result Save();
 
+	/*!
+		閉じて(無題)（原版 CDocFileOperation::FileClose → CEditDoc::InitDoc，第 34 步）：
+		内容、撤销记录、文件名都清除，变成新文档（与 Create 相同的状态）。保存的确认、历史的登记由界面层先做。
+	*/
+	void CloseToUntitled();
+
 	//! 用 options 保存之前的检查（原版 CCodeChecker::OnCheckSave）。不改文档
 	SaveCheck CheckSave(const SaveOptions& options = {}) const;
 
@@ -721,6 +741,15 @@ public:
 
 	const FileInfo& GetFileInfo() const;
 	bool IsModified() const;
+
+	/*!
+		文字コードセット指定（原版 Command_CHG_CHARSET → CDocFile::SetCodeSetChg，第 34 步）：
+		下次保存时用的编码和 BOM。不能加 BOM 的编码时 BOM 是 false。内容不变。
+	*/
+	void SetEncoding(Encoding encoding, bool bom);
+
+	//! 文字コードセット指定改过打开时的编码或 BOM（原版 CDocFile::IsChgCodeSet。新文件时 false）
+	bool IsEncodingChanged() const;
 
 	// ----- 内容 -----
 
@@ -878,6 +907,27 @@ public:
 	*/
 	std::int32_t IndentEnd(std::int32_t line, std::int32_t from, std::int32_t to) const;
 
+	// ----- 模式（第 34 步） -----
+
+	//! 挿入モード（false 是上書きモード）。新文档按共通設定「挿入モード」（原版 CDocEditor 的 m_bInsMode）
+	bool IsInsertMode() const;
+	void SetInsertMode(bool insert);
+
+	/*!
+		上書きモードでの入力（原版的文字输入命令的上書き部分 → DelCharForOverwrite）：
+		text 的每个字先删掉 at 处的一个字再插入。行末按共通設定「改行は上書きしない」，
+		「文字幅に合わせてスペースを詰める」时用空白补齐宽度。作为撤销的一步。
+		@param[out] pNewCaret 输入后的光标
+	*/
+	Result OverwriteText(const Position& at, const Text& text, Position* pNewCaret = nullptr);
+
+	/*!
+		現在のウィンドウ幅で折り返し（原版 Command_WRAPWINDOWWIDTH → CEditView::GetWrapMode）的新的折り返し桁数。
+		width 是文字区域的宽度（点）。顺序是「ウィンドウ幅→最大値→設定値→ウィンドウ幅」。
+		不能改变时 nullopt。界面层用 SetWrap(WrapMethod::SettingWidth, 桁数) 改变。
+	*/
+	std::optional<std::int32_t> WrapWindowWidthColumns(std::int32_t width) const;
+
 	// ----- 命令 -----
 
 	/*!
@@ -889,6 +939,9 @@ public:
 
 	//! 现在能否执行（原版的 IsFuncEnable。例如没有可以撤销的操作时 Undo 是 false）
 	bool IsCommandEnabled(FunctionCode code) const;
+
+	//! 菜单是否打勾（原版的 IsFuncChecked：○○で開き直す（现在的编码）、入力改行コード、挿入モード）
+	bool IsCommandChecked(FunctionCode code) const;
 
 	//! 这个命令在 Mac 版是否已经移植
 	static bool IsCommandSupported(FunctionCode code);

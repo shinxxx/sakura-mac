@@ -147,7 +147,7 @@ enum MainMenuBuilder {
     private static func appMenu() -> NSMenu {
         let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Sakura Editor for Mac"
         let menu = NSMenu(title: name)
-        menu.addItem(withTitle: "\(name) について", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "\(name) について", action: #selector(NSApplication.showSakuraAbout(_:)), keyEquivalent: "")	// 原版のバージョン情報
         menu.addItem(.separator())
         // 共通設定。窗口在阶段 3 实现，目前不可用。
         let settings = NSMenuItem(title: "設定…", action: nil, keyEquivalent: ",")

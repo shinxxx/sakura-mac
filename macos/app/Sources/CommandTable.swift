@@ -18,6 +18,23 @@ enum CommandTable {
         30102: #selector(NSDocumentController.openDocument(_:)),	// F_FILEOPEN 開く
         30103: #selector(NSDocument.save(_:)),						// F_FILESAVE 上書き保存
         30104: #selector(NSDocument.saveAs(_:)),					// F_FILESAVEAS_DIALOG 名前を付けて保存
+        // 第 34 步：FileCommands.swift
+        30105: #selector(SakuraDocument.closeToUntitled(_:)),		// F_FILECLOSE 閉じて(無題)
+        30107: #selector(SakuraDocument.closeAndOpen(_:)),			// F_FILECLOSE_OPEN 閉じて開く
+        30109: #selector(SakuraDocument.saveAndClose(_:)),			// F_FILESAVECLOSE 保存して閉じる
+        30110: #selector(NSDocumentController.newDocument(_:)),	// F_FILENEW_NEWWINDOW（Mac 版は一つのプロセスで新しいウィンドウ）
+        30111: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_SJIS
+        30112: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_JIS
+        30113: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_EUC
+        30114: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_UNICODE
+        30115: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_UTF8
+        30116: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_UTF7
+        30117: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_UNICODEBE
+        30118: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_CESU8
+        30119: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN 開き直す
+        30120: #selector(SakuraDocumentController.saveAllQuietly(_:)),	// F_FILESAVEALL すべて上書き保存
+        30121: #selector(SakuraDocument.saveQuietly(_:)),			// F_FILESAVE_QUIET 上書き保存(限定動作)
+        30122: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_LATIN1
         30195: #selector(NSApplication.terminate(_:)),				// F_EXITALL サクラエディタの全終了
 
         // 編集（第 25、28、29 步）
@@ -48,6 +65,16 @@ enum CommandTable {
         30510: #selector(EditorTextView.beginBoxSelectionAction(_:)),	// F_BEGIN_BOX
         31099: #selector(NSResponder.cancelOperation(_:)),			// F_CANCEL_MODE 各種モードの取り消し
 
+        // モード切り替え（第 34 步：ModeCommands.swift）
+        31001: #selector(EditorTextView.toggleInsertMode(_:)),		// F_CHGMOD_INS 挿入／上書きモード切り替え
+        31010: #selector(EditorTextView.changeCharset(_:)),			// F_CHG_CHARSET 文字コードセット指定
+        31081: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_CRLF 入力改行コード指定
+        31082: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_LF
+        31083: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_CR
+        31084: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_NEL
+        31085: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_PS
+        31086: #selector(EditorTextView.changeNewLineEol(_:)),		// F_CHGMOD_EOL_LS
+
         // 検索（第 32 步）
         30901: #selector(EditorTextView.showFindPanel(_:)),			// F_SEARCH_DIALOG
         30902: #selector(EditorTextView.searchNext(_:)),			// F_SEARCH_NEXT
@@ -59,6 +86,9 @@ enum CommandTable {
 
         // 設定（第 27、28 步）
         31120: #selector(EditorTextView.showFontPanel(_:)),			// F_FONT フォント設定
+        31122: #selector(EditorTextView.fontSizeUp(_:)),			// F_SETFONTSIZEUP フォントサイズ拡大（第 34 步）
+        31123: #selector(EditorTextView.fontSizeDown(_:)),			// F_SETFONTSIZEDOWN フォントサイズ縮小
+        31140: #selector(EditorTextView.wrapWindowWidthToggle(_:)),	// F_WRAPWINDOWWIDTH 現在のウィンドウ幅で折り返し
         31141: #selector(EditorTextView.wrapNone(_:)),				// F_TMPWRAPNOWRAP
         31142: #selector(EditorTextView.wrapSettingWidth(_:)),		// F_TMPWRAPSETTING
         31143: #selector(EditorTextView.wrapWindowWidth(_:)),		// F_TMPWRAPWINDOW
@@ -68,8 +98,8 @@ enum CommandTable {
         31340: Selector(("activateNextWindow:")),					// F_NEXTWINDOW（AppDelegate）
         31341: Selector(("activatePreviousWindow:")),				// F_PREVWINDOW（AppDelegate）
 
-        // ヘルプ（バージョン情報は第 34 步的第 3 个 PR 换成原版的内容）
-        31455: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),	// F_ABOUT
+        // ヘルプ（第 34 步：AboutPanel.swift，原版的内容）
+        31455: #selector(NSApplication.showSakuraAbout(_:)),		// F_ABOUT バージョン情報
     ]
 
     /// 这个功能的动作。还没有移植时是 nil
