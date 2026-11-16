@@ -349,7 +349,7 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(item.waitForExistence(timeout: 3), "「設定」>「Windows 版の設定をインポート…」")
         XCTAssertTrue(item.isEnabled)
         item.click()
-        let ok = first.buttons["インポートして再起動"]
+        let ok = first.buttons["インポートして再起動"].firstMatch	// NSAlert 的按钮在可访问性树里有两个（对话框和窗口）
         XCTAssertTrue(ok.waitForExistence(timeout: 5), "导入前的确认")
         ok.click()
         XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "窗口关闭、导入以后结束（重新启动）")
