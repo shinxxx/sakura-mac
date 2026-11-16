@@ -35,6 +35,11 @@ static_assert(ECEolCRLF == static_cast<NSInteger>(core::Eol::CRLF) && ECEolLF ==
 static_assert(ECEolCR == static_cast<NSInteger>(core::Eol::CR) && ECEolNEL == static_cast<NSInteger>(core::Eol::NEL));
 static_assert(ECEolLineSeparator == static_cast<NSInteger>(core::Eol::LineSeparator));
 static_assert(ECEolParagraphSeparator == static_cast<NSInteger>(core::Eol::ParagraphSeparator));
+static_assert(ECColorIndexSearch5 == static_cast<NSInteger>(core::ColorIndex::Search5));
+static_assert(ECColorIndexComment == static_cast<NSInteger>(core::ColorIndex::Comment));		// 第 33 步
+static_assert(ECColorIndexKeyword1 == static_cast<NSInteger>(core::ColorIndex::Keyword1));
+static_assert(ECColorIndexRegex1 == static_cast<NSInteger>(core::ColorIndex::Regex1));
+static_assert(ECColorIndexPageView == static_cast<NSInteger>(core::ColorIndex::PageView));
 static_assert(ECEncodingSJIS == core::encoding::SJIS && ECEncodingUTF8 == core::encoding::UTF8);
 static_assert(ECEncodingUTF16LE == core::encoding::UTF16LE && ECEncodingUTF16BE == core::encoding::UTF16BE);
 static_assert(ECEncodingUTF32LE == core::encoding::UTF32LE && ECEncodingAutoDetect == core::encoding::AutoDetect);
@@ -251,6 +256,25 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 		_from = m.from;
 		_to = m.to;
 		_color = static_cast<ECColorIndex>(m.color);
+	}
+	return self;
+}
+
+@end
+
+@interface ECSyntaxColorRun ()
+- (instancetype)initWithRun:(const core::SyntaxColorRun&)run;
+@end
+
+@implementation ECSyntaxColorRun
+
+- (instancetype)initWithRun:(const core::SyntaxColorRun&)run
+{
+	self = [super init];
+	if (self) {
+		_from = run.from;
+		_to = run.to;
+		_color = static_cast<ECColorIndex>(run.color);
 	}
 	return self;
 }
@@ -827,6 +851,15 @@ static ECSearchResult *InvalidViewResult()
 	const auto marks = _doc->SearchMarks(static_cast<std::int32_t>(line), ToText(key), ToCore(options));
 	NSMutableArray<ECSearchMark *> *r = [NSMutableArray arrayWithCapacity:marks.size()];
 	for (const auto& m : marks) [r addObject:[[ECSearchMark alloc] initWithMark:m]];
+	return r;
+}
+
+- (NSArray<ECSyntaxColorRun *> *)syntaxColorsInLine:(NSInteger)line
+{
+	if (!FitsInt32(line)) return @[];
+	const auto runs = _doc->SyntaxColors(static_cast<std::int32_t>(line));
+	NSMutableArray<ECSyntaxColorRun *> *r = [NSMutableArray arrayWithCapacity:runs.size()];
+	for (const auto& run : runs) [r addObject:[[ECSyntaxColorRun alloc] initWithRun:run]];
 	return r;
 }
 

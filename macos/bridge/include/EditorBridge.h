@@ -144,6 +144,36 @@ typedef NS_ENUM(NSInteger, ECColorIndex) {
 	ECColorIndexSearch3 NS_SWIFT_NAME(search3) = 24,							//!< 検索文字列3
 	ECColorIndexSearch4 NS_SWIFT_NAME(search4) = 25,							//!< 検索文字列4
 	ECColorIndexSearch5 NS_SWIFT_NAME(search5) = 26,							//!< 検索文字列5
+	ECColorIndexComment NS_SWIFT_NAME(comment) = 27,							//!< コメント（第 33 步）
+	ECColorIndexSingleQuote NS_SWIFT_NAME(singleQuote) = 28,					//!< シングルクォーテーション文字列
+	ECColorIndexDoubleQuote NS_SWIFT_NAME(doubleQuote) = 29,					//!< ダブルクォーテーション文字列
+	ECColorIndexHeredoc NS_SWIFT_NAME(heredoc) = 30,							//!< ヒアドキュメント
+	ECColorIndexUrl NS_SWIFT_NAME(url) = 31,									//!< URL
+	ECColorIndexKeyword1 NS_SWIFT_NAME(keyword1) = 32,						//!< 強調キーワード1
+	ECColorIndexKeyword2 NS_SWIFT_NAME(keyword2) = 33,						//!< 強調キーワード2
+	ECColorIndexKeyword3 NS_SWIFT_NAME(keyword3) = 34,						//!< 強調キーワード3
+	ECColorIndexKeyword4 NS_SWIFT_NAME(keyword4) = 35,						//!< 強調キーワード4
+	ECColorIndexKeyword5 NS_SWIFT_NAME(keyword5) = 36,						//!< 強調キーワード5
+	ECColorIndexKeyword6 NS_SWIFT_NAME(keyword6) = 37,						//!< 強調キーワード6
+	ECColorIndexKeyword7 NS_SWIFT_NAME(keyword7) = 38,						//!< 強調キーワード7
+	ECColorIndexKeyword8 NS_SWIFT_NAME(keyword8) = 39,						//!< 強調キーワード8
+	ECColorIndexKeyword9 NS_SWIFT_NAME(keyword9) = 40,						//!< 強調キーワード9
+	ECColorIndexKeyword10 NS_SWIFT_NAME(keyword10) = 41,						//!< 強調キーワード10
+	ECColorIndexRegex1 NS_SWIFT_NAME(regex1) = 42,							//!< 正規表現キーワード1
+	ECColorIndexRegex2 NS_SWIFT_NAME(regex2) = 43,							//!< 正規表現キーワード2
+	ECColorIndexRegex3 NS_SWIFT_NAME(regex3) = 44,							//!< 正規表現キーワード3
+	ECColorIndexRegex4 NS_SWIFT_NAME(regex4) = 45,							//!< 正規表現キーワード4
+	ECColorIndexRegex5 NS_SWIFT_NAME(regex5) = 46,							//!< 正規表現キーワード5
+	ECColorIndexRegex6 NS_SWIFT_NAME(regex6) = 47,							//!< 正規表現キーワード6
+	ECColorIndexRegex7 NS_SWIFT_NAME(regex7) = 48,							//!< 正規表現キーワード7
+	ECColorIndexRegex8 NS_SWIFT_NAME(regex8) = 49,							//!< 正規表現キーワード8
+	ECColorIndexRegex9 NS_SWIFT_NAME(regex9) = 50,							//!< 正規表現キーワード9
+	ECColorIndexRegex10 NS_SWIFT_NAME(regex10) = 51,							//!< 正規表現キーワード10
+	ECColorIndexDiffAppend NS_SWIFT_NAME(diffAppend) = 52,					//!< DIFF差分表示(追加)
+	ECColorIndexDiffChange NS_SWIFT_NAME(diffChange) = 53,					//!< DIFF差分表示(変更)
+	ECColorIndexDiffDelete NS_SWIFT_NAME(diffDelete) = 54,					//!< DIFF差分表示(削除)
+	ECColorIndexMark NS_SWIFT_NAME(mark) = 55,								//!< ブックマーク
+	ECColorIndexPageView NS_SWIFT_NAME(pageView) = 56,						//!< ミニマップの表示範囲
 } NS_SWIFT_NAME(EditorColorIndex);
 
 //! 一种颜色的设置（原版的 ColorInfo）。颜色是 0xRRGGBB
@@ -246,6 +276,15 @@ NS_SWIFT_NAME(EditorSearchResult)
 //! 查找文字的标记（逻辑行内 from..<to 用 color 的颜色显示）
 NS_SWIFT_NAME(EditorSearchMark)
 @interface ECSearchMark : NSObject
+@property (readonly) NSInteger from;
+@property (readonly) NSInteger to;
+@property (readonly) ECColorIndex color;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 语法颜色的一段（第 33 步：逻辑行内 from..<to 用 color 的颜色显示）
+NS_SWIFT_NAME(EditorSyntaxColorRun)
+@interface ECSyntaxColorRun : NSObject
 @property (readonly) NSInteger from;
 @property (readonly) NSInteger to;
 @property (readonly) ECColorIndex color;
@@ -528,10 +567,15 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECSearchResult *)replaceAll:(NSString *)key with:(NSString *)replacement options:(ECReplaceOptions)options view:(ECSearchView)view NS_SWIFT_NAME(replaceAll(_:with:options:view:));
 //! 指定行へジャンプ（原版 Command_JUMP）：跳转后的光标。文档是空的时返回 NO
 - (BOOL)jumpPosition:(ECJumpOptions)options position:(ECPosition *)outPosition NS_SWIFT_NAME(jumpPosition(_:position:));
-//! 这一逻辑行里用「検索文字列」的颜色显示的部分
 //! 这个位置的单词的范围（原版 WhereCurrentWord）。没有单词时返回 NO
 - (BOOL)wordRangeAt:(ECPosition)position range:(ECRange *)outRange NS_SWIFT_NAME(wordRange(at:range:));
+//! 这一逻辑行里用「検索文字列」的颜色显示的部分
 - (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(searchMarks(line:key:options:));
+/*!
+	这一逻辑行的语法颜色（第 33 步：原版的色分け。注释、字符串、关键字、数字、URL 等）。
+	只有不是「テキスト」的部分，按位置排列，不包括换行符。颜色的设置用 color(for:)
+*/
+- (NSArray<ECSyntaxColorRun *> *)syntaxColorsInLine:(NSInteger)line NS_SWIFT_NAME(syntaxColors(line:));
 
 // ----- 命令 -----
 

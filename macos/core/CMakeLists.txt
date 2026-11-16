@@ -149,7 +149,16 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/_main/CMutex.cpp            # Mac 版是进程内的命名互斥锁
   sakura_core/uiparts/CMenuDrawer.cpp     # 只编译工具栏按钮表（共通设置的工具栏项目），绘制菜单是界面的步骤
   sakura_core/macro/CSMacroMgr.cpp        # 只编译宏函数名表（按键分配的 ini 读写），宏的执行是第 45 步
-  sakura_core/view/colors/CColorStrategy.cpp  # 只编译颜色名表（ini 的颜色设置），文字着色是第 28 步
+  # 第 33 步：语法颜色（色分け）。颜色名表（ini 的颜色设置）从第 21 步就编进来了。
+  # 选择、查找文字的颜色（CColor_Found.cpp）属于编辑画面，由 Mac 版的画面负责
+  sakura_core/view/colors/CColorStrategy.cpp
+  sakura_core/view/colors/CColor_Comment.cpp
+  sakura_core/view/colors/CColor_Quote.cpp
+  sakura_core/view/colors/CColor_Heredoc.cpp
+  sakura_core/view/colors/CColor_Url.cpp
+  sakura_core/view/colors/CColor_Numeric.cpp
+  sakura_core/view/colors/CColor_KeywordSet.cpp
+  sakura_core/view/colors/CColor_RegexKeyword.cpp
   sakura_core/func/CKeyBind.cpp           # 按键分配的默认值和查找（Windows 的加速键表不用）
   sakura_core/print/CPrint.cpp            # 只编译打印设置的默认值和用纸表，打印本身在之后的打印步骤
 )
@@ -230,7 +239,8 @@ add_library(sakura_core STATIC
   "${SAKURA_ROOT}/macos/platform/src/ole_types.cpp"      # 第 20 步：BSTR、VARIANT
   "${SAKURA_ROOT}/macos/platform/src/file_api.cpp"       # 第 20 步：CreateFileW、文件映射
   "${SAKURA_ROOT}/macos/platform/src/resources.cpp"      # 第 21 步：FindResource、LoadResource
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/layout_support.cpp"   # 第 27 步：排版用到的色分け、BlockingHook 的替代
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/layout_support.cpp"   # 第 27 步：排版用到的 DpiScale、BlockingHook 的替代
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/color_support.cpp"    # 第 33 步：色分け对象的文档（类型别设置、正则关键字）
   "${GEN_DIR}/sakura_rc_strings.cpp")
 # 代码页转换表（在 Windows 上导出，见 macos/tools/codepage_dump）。用 .incbin 嵌入
 set(SAKURA_CODEPAGES_BIN "${SAKURA_ROOT}/macos/platform/data/codepages.bin")

@@ -382,6 +382,13 @@ struct SearchMark {
 	std::uint8_t color = 0;		//!< ColorIndex（Search～Search5）
 };
 
+//! 语法颜色的一段（第 33 步：原版 CEditView::DrawLogicLine 的色分け，CColor_Comment 等）
+struct SyntaxColorRun {
+	std::int32_t from = 0;		//!< 逻辑行内的 UTF-16 下标
+	std::int32_t to = 0;
+	std::uint8_t color = 0;		//!< ColorIndex（Digit、Comment～Regex10）
+};
+
 // ---------------------------------------------------------------------------
 // 排版（第 27 步）
 // ---------------------------------------------------------------------------
@@ -465,7 +472,7 @@ struct LayoutLine {
 
 /*!
 	颜色的种类。数值与原版的 EColorIndexType（COLORIDX_TEXT 等）相同。
-	这里只列出编辑画面本身用到的部分，语法颜色（注释、字符串、关键字等）在第 33 步。
+	Comment 以后是语法颜色（第 33 步，类型别设置「カラー」页的后半）。
 */
 enum class ColorIndex : std::uint8_t {
 	Text = 0,				//!< テキスト
@@ -495,6 +502,37 @@ enum class ColorIndex : std::uint8_t {
 	Search3,				//!< 検索文字列3
 	Search4,				//!< 検索文字列4
 	Search5,				//!< 検索文字列5
+	// 语法颜色（第 33 步）
+	Comment,				//!< コメント（行コメント、ブロックコメント）
+	SingleQuote,			//!< シングルクォーテーション文字列
+	DoubleQuote,			//!< ダブルクォーテーション文字列
+	Heredoc,				//!< ヒアドキュメント
+	Url,					//!< URL
+	Keyword1,				//!< 強調キーワード1
+	Keyword2,				//!< 強調キーワード2
+	Keyword3,				//!< 強調キーワード3
+	Keyword4,				//!< 強調キーワード4
+	Keyword5,				//!< 強調キーワード5
+	Keyword6,				//!< 強調キーワード6
+	Keyword7,				//!< 強調キーワード7
+	Keyword8,				//!< 強調キーワード8
+	Keyword9,				//!< 強調キーワード9
+	Keyword10,				//!< 強調キーワード10
+	Regex1,					//!< 正規表現キーワード1
+	Regex2,					//!< 正規表現キーワード2
+	Regex3,					//!< 正規表現キーワード3
+	Regex4,					//!< 正規表現キーワード4
+	Regex5,					//!< 正規表現キーワード5
+	Regex6,					//!< 正規表現キーワード6
+	Regex7,					//!< 正規表現キーワード7
+	Regex8,					//!< 正規表現キーワード8
+	Regex9,					//!< 正規表現キーワード9
+	Regex10,				//!< 正規表現キーワード10
+	DiffAppend,				//!< DIFF差分表示(追加)
+	DiffChange,				//!< DIFF差分表示(変更)
+	DiffDelete,				//!< DIFF差分表示(削除)
+	Mark,					//!< ブックマーク
+	PageView,				//!< ミニマップの表示範囲
 };
 
 /*!
@@ -737,6 +775,16 @@ public:
 		类型别设置里「検索文字列」的颜色都不显示时、条件有错误时是空。长度 0 的匹配不返回。
 	*/
 	std::vector<SearchMark> SearchMarks(std::int32_t line, const Text& key, const SearchOptions& options);
+
+	/*!
+		这一逻辑行的语法颜色（第 33 步：原版 CEditView::DrawLogicLine / GetColorIndex 的色分け）。
+		从排版时记下的行首状态（跨行的块注释、字符串、ヒアドキュメント）开始，按原版的顺序
+		（正規表現キーワード、ヒアドキュメント、ブロックコメント1・2、行コメント、引用符、URL、半角数値、
+		強調キーワード）判断每个文字的颜色。只返回不是「テキスト」的部分，按位置排列，不包括换行符。
+		类型别设置里所有的语法颜色都不显示时是空（原版 IsSkipBeforeLayout）。
+		颜色的显示与否在这里已经考虑，返回的颜色画面直接用 GetColor 的设置。
+	*/
+	std::vector<SyntaxColorRun> SyntaxColors(std::int32_t line);
 
 	/*!
 		光标所在的单词的范围（原版 CSearchAgent::WhereCurrentWord：查找对话框的初始文字、检索マークの切替え用）。
