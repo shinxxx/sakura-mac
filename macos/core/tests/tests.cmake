@@ -51,4 +51,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-recent.cpp"      # 第 31 步：最近使ったファイル・フォルダー、前回の文字コード、カーソル位置復元
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-search.cpp"      # 第 32 步：検索・置換・すべて置換・指定行へジャンプ、検索文字列の色、検索の設定と履歴
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-syntax-color.cpp" # 第 33 步：语法颜色（各内置类型的色分け）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-menu.cpp"         # 第 34 步：主菜单、按键分配
 )

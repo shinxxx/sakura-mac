@@ -1203,7 +1203,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     override func keyDown(with event: NSEvent) {
-        // 先交给输入法；输入法不要的键变成 insertText(_:replacementRange:) 或 doCommand(by:)
+        // 第 34 步：原版的按键分配表里有、并且已经移植了的功能直接执行（KeyCommands、CommandTable）。
+        // 输入法输入中（有未确定文字）的键全部交给输入法
+        if !hasMarkedText() {
+            let code = KeyCommands.command(for: event)
+            if code != 0, CommandTable.perform(code, from: self) { return }
+        }
+        // 其它交给输入法；输入法不要的键变成 insertText(_:replacementRange:) 或 doCommand(by:)
         interpretKeyEvents([event])
     }
 

@@ -188,7 +188,7 @@ final class SakuraMacUITests: XCTestCase {
         app.buttons["OK"].firstMatch.click()
     }
 
-    /// 完成标志：検索ダイアログで下検索、次を検索（⌘G）、指定行へジャンプ（⌘L）
+    /// 完成标志：検索ダイアログで下検索、次を検索（⌘G）、指定行へジャンプ（⌘J，第 34 步起与原版的 Ctrl+J 相同）
     func testFindNextAndJump() {
         editor.typeText("apple banana apple\nline2\nline3")
         key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文档的开头
@@ -205,7 +205,7 @@ final class SakuraMacUITests: XCTestCase {
         app.typeText("Y")
         XCTAssertEqual(normalizedText, "X banana Y\nline2\nline3", "次を検索")
 
-        key("l", .command)	// 指定行へジャンプ
+        key("j", .command)	// 指定行へジャンプ
         let line = app.textFields["jumpLine"]
         XCTAssertTrue(line.waitForExistence(timeout: 5), "指定行へジャンプが開いた")
         line.typeText("3\r")
@@ -232,7 +232,7 @@ final class SakuraMacUITests: XCTestCase {
     func testReplaceAll() {
         editor.typeText("cat dog cat")
         key(XCUIKeyboardKey.upArrow.rawValue, .command)
-        key("f", [.command, .option])	// 置換
+        key("r", .command)	// 置換（第 34 步起与原版的 Ctrl+R 相同）
         let combo = app.comboBoxes["replaceText"]
         XCTAssertTrue(combo.waitForExistence(timeout: 5), "置換ダイアログが開いた")
         XCTAssertEqual(combo.value as? String, "cat")
@@ -243,6 +243,54 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "cow dog cow")
         key("z", .command)
         XCTAssertEqual(text, "cat dog cat", "すべて置換は 1 回で元に戻る")
+    }
+
+    // MARK: - 第 34 步：菜单与快捷键
+
+    /// 菜单栏按原版的 MainMenu.ini：顶层菜单的顺序、子菜单、还没有移植的功能变灰
+    func testMenuBarFollowsOriginal() {
+        let bar = app.menuBars.firstMatch
+        for title in ["ファイル", "編集", "変換", "検索", "ツール", "設定", "ウィンドウ", "ヘルプ"] {
+            XCTAssertTrue(bar.menuBarItems[title].exists, "菜单栏「\(title)」")
+        }
+        let search = bar.menuBarItems["検索"]
+        search.click()
+        XCTAssertTrue(search.menuItems["次を検索"].isEnabled, "已移植的功能可以用")
+        XCTAssertTrue(search.menuItems["Grep..."].exists, "原版的「Grep...」")
+        XCTAssertFalse(search.menuItems["Grep..."].isEnabled, "还没有移植的功能变灰")
+        let incremental = search.menuItems["インクリメンタルサーチ"]
+        incremental.hover()
+        XCTAssertTrue(incremental.menuItems["前方インクリメンタルサーチ"].waitForExistence(timeout: 3), "子菜单也与原版相同")
+        key(XCUIKeyboardKey.escape.rawValue)
+        key(XCUIKeyboardKey.escape.rawValue)
+    }
+
+    /// 原版的快捷键：F8 コピー、F9 貼り付け、Esc 取消选择（⌘J、⌘R 在 testFindNextAndJump、testReplaceAll）
+    func testOriginalShortcuts() {
+        editor.typeText("abc")
+        key("a", .command)
+        key(XCUIKeyboardKey.F8.rawValue)			// コピー
+        key(XCUIKeyboardKey.escape.rawValue)		// 取消选择（光标留在末尾）
+        key(XCUIKeyboardKey.F9.rawValue)			// 貼り付け
+        XCTAssertEqual(text, "abcabc", "F8 コピー → Esc → F9 貼り付け")
+    }
+
+    /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
+    func testWindowsKeyScheme() {
+        editor.typeText("abc")
+        let settings = app.menuBars.menuBarItems["設定"]
+        settings.click()
+        settings.menuItems["Windows のキー割り当てを使う"].click()
+        key("a", .control)						// Windows 方案：Ctrl+A すべて選択
+        editor.typeText("X")
+        XCTAssertEqual(text, "X", "⌃A すべて選択")
+
+        settings.click()
+        settings.menuItems["Windows のキー割り当てを使う"].click()
+        editor.typeText("yz")
+        key("a", .control)						// Mac 方案：⌃ 组合交给 macOS，不是すべて選択
+        editor.typeText("_")
+        XCTAssertEqual(text, "Xyz_", "回到 Mac 方案后 ⌃A 不是すべて選択")
     }
 
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开

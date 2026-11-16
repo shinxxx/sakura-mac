@@ -368,6 +368,66 @@ Text CommandName(FunctionCode code)
 }
 
 // ---------------------------------------------------------------------------
+// 菜单与按键分配（第 34 步）
+// ---------------------------------------------------------------------------
+
+std::vector<MenuItem> MainMenu()
+{
+	std::vector<MenuItem> result;
+	if (!IsStarted()) return result;
+	const auto& menu = GetDllShareData().m_Common.m_sMainMenu;
+	const int n = std::clamp<int>(menu.m_nMainMenuNum, 0, MAX_MAINMENU);
+	result.reserve(n);
+	for (int i = 0; i < n; ++i) {
+		const CMainMenu& m = menu.m_cMainMenuTbl[i];
+		MenuItem item;
+		item.level = m.m_nLevel;
+		item.type = static_cast<MenuItemType>(m.m_nType);
+		item.code = m.m_nFunc;
+		// 原版 CEditWnd::LayoutMainMenu：名字没有设置并且有功能编号时用字符串表
+		if (m.m_sName[0] != L'\0') {
+			item.name = Text(m.m_sName.c_str());
+		} else if (m.m_nFunc != F_NODE && m.m_nFunc != F_0) {
+			item.name = CommandName(m.m_nFunc);
+		}
+		item.accessKey = Text(m.m_sKey.c_str());
+		result.push_back(std::move(item));
+	}
+	return result;
+}
+
+std::vector<KeyBinding> KeyBindings()
+{
+	std::vector<KeyBinding> result;
+	if (!IsStarted()) return result;
+	const auto& bind = GetDllShareData().m_Common.m_sKeyBind;
+	const int n = std::clamp<int>(bind.m_nKeyNameArrNum, 0, int(std::size(bind.m_pKeyNameArr)) - 1);
+	for (int i = 0; i < n; ++i) {
+		const KEYDATA& key = bind.m_pKeyNameArr[i];
+		// 鼠标（VKEX_DBL_CLICK 以后，0x100～）不是键盘
+		if (key.m_nKeyCode <= 0 || 0x100 <= key.m_nKeyCode) continue;
+		for (int mod = 0; mod < 8; ++mod) {
+			if (key.m_nFuncCodeArr[mod] == F_0) continue;
+			result.push_back(KeyBinding{ static_cast<std::uint16_t>(key.m_nKeyCode), static_cast<std::uint8_t>(mod),
+				key.m_nFuncCodeArr[mod], Text(key.m_szKeyName) });
+		}
+	}
+	return result;
+}
+
+FunctionCode FunctionForKey(std::uint16_t keyCode, std::uint8_t modifiers)
+{
+	if (!IsStarted() || 0x100 <= keyCode || 8 <= modifiers) return 0;
+	const auto& bind = GetDllShareData().m_Common.m_sKeyBind;
+	// 原版 CKeyBind::GetFuncCode：键码→表的下标（m_VKeyToKeyNameArr）
+	const int idx = bind.m_VKeyToKeyNameArr[keyCode];
+	if (idx < 0 || bind.m_nKeyNameArrNum < idx || int(std::size(bind.m_pKeyNameArr)) <= idx) return 0;
+	const KEYDATA& key = bind.m_pKeyNameArr[idx];
+	if (key.m_nKeyCode != keyCode) return 0;
+	return key.m_nFuncCodeArr[modifiers];
+}
+
+// ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------
 
