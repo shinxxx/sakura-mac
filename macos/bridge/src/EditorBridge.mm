@@ -410,6 +410,12 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 
 } // namespace
 
+// 导入设置的结果（第 35 步）
+static_assert(static_cast<NSInteger>(core::ImportResult::Imported) == ECImportResultImported);
+static_assert(static_cast<NSInteger>(core::ImportResult::NotSettingsFile) == ECImportResultNotSettingsFile);
+static_assert(static_cast<NSInteger>(core::ImportResult::ReadFailed) == ECImportResultReadFailed);
+static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImportResultWriteFailed);
+
 @implementation ECCore
 
 + (BOOL)startup
@@ -430,6 +436,26 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 + (NSString *)settingsFilePath
 {
 	return ToNSString(core::SettingsFilePath());
+}
+
++ (ECImportResult)checkSettingsFile:(NSString *)path
+{
+	return static_cast<ECImportResult>(core::CheckSettingsFile(ToText(path)));
+}
+
++ (ECImportResult)importSettings:(NSString *)path
+{
+	return static_cast<ECImportResult>(core::ImportSettings(ToText(path)));
+}
+
++ (BOOL)isSettingsImportPending
+{
+	return core::IsSettingsImportPending() ? YES : NO;
+}
+
++ (NSString *)settingsBackupPath
+{
+	return ToNSString(core::SettingsBackupPath());
 }
 
 + (NSString *)nameOfEncoding:(ECEncoding)encoding

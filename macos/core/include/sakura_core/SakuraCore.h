@@ -55,6 +55,41 @@ bool IsStarted();
 Text SettingsFilePath();
 
 // ---------------------------------------------------------------------------
+// 导入设置（第 35 步）
+// ---------------------------------------------------------------------------
+
+//! 导入设置的结果
+enum class ImportResult {
+	Imported,			//!< 成功（CheckSettingsFile：是设置文件）
+	NotSettingsFile,	//!< 不是サクラエディタ的设置文件
+	ReadFailed,			//!< 读不了（没有这个文件等）
+	WriteFailed,		//!< 写不了 sakura.ini
+};
+
+/*!
+	path 是不是サクラエディタ的设置文件（sakura.ini）。
+	UTF-8（带 BOM）和旧版本的 Shift_JIS 都可以；有 [Common] 节的 nCaretType 就当作设置文件。
+*/
+ImportResult CheckSettingsFile(const Text& path);
+
+/*!
+	导入 Windows 版的设置文件 sakura.ini。
+	- 共通設定、キー割り当て、ツールバー、メインメニュー、タイプ別設定、強調キーワード、印刷設定等全部用导入的。
+	  ini 的格式与 Windows 版相同，读入后的值也相同（Windows 的路径、字体名原样保留）。
+	- 历史（最近使ったファイル・フォルダー、検索・置換・Grep・コマンドの履歴）保留这台 Mac 的。
+	- 导入前的设置备份在 SettingsBackupPath()。
+	与在 Windows 版换掉 sakura.ini 后重新启动相同：导入的设置在下一次 Startup 时读入。
+	在那之前 Shutdown 不写出设置（IsSettingsImportPending）。
+*/
+ImportResult ImportSettings(const Text& path);
+
+//! 导入以后、重新启动之前是 true
+bool IsSettingsImportPending();
+
+//! 导入前的设置的备份（sakura.ini.before-import）
+Text SettingsBackupPath();
+
+// ---------------------------------------------------------------------------
 // 编码、换行符
 // ---------------------------------------------------------------------------
 

@@ -440,6 +440,14 @@ NS_SWIFT_NAME(EditorRestoredView)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+//! 导入设置的结果（第 35 步，core::ImportResult）
+typedef NS_ENUM(NSInteger, ECImportResult) {
+	ECImportResultImported = 0,			//!< 成功（检查时：是设置文件）
+	ECImportResultNotSettingsFile,		//!< 不是サクラエディタ的设置文件
+	ECImportResultReadFailed,			//!< 读不了
+	ECImportResultWriteFailed,			//!< 写不了 sakura.ini
+} NS_SWIFT_NAME(EditorImportResult);
+
 /*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
@@ -454,6 +462,14 @@ NS_SWIFT_NAME(EditorCore)
 @property (class, readonly) BOOL isStarted;
 //! sakura.ini 的路径（沙盒里在 App 的容器中）
 @property (class, readonly, copy) NSString *settingsFilePath;
+//! path 是不是サクラエディタ的设置文件（sakura.ini）（第 35 步）
++ (ECImportResult)checkSettingsFile:(NSString *)path NS_SWIFT_NAME(checkSettingsFile(_:));
+//! 导入 Windows 版的 sakura.ini（历史保留 Mac 的）。重新启动以后生效，在那之前结束时不写出设置
++ (ECImportResult)importSettings:(NSString *)path NS_SWIFT_NAME(importSettings(_:));
+//! 导入以后、重新启动之前是 YES
+@property (class, readonly) BOOL isSettingsImportPending;
+//! 导入前的设置的备份（sakura.ini.before-import）
+@property (class, readonly, copy) NSString *settingsBackupPath;
 
 //! 编码的显示名（"SJIS"、"UTF-8" 等）。不能用的编码是空字符串
 + (NSString *)nameOfEncoding:(ECEncoding)encoding NS_SWIFT_NAME(name(ofEncoding:));

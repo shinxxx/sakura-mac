@@ -321,6 +321,51 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertFalse(author.waitForExistence(timeout: 1))
     }
 
+    // MARK: - 第 35 步：导入 Windows 版的设置
+
+    /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。
+    /// 导入的 ini 是 F8 换成「すべて選択」的设置（默认的 F8 是コピー）。
+    /// 文件对话框换成测试用的文件（-SakuraUITestingImportFile），重新启动由测试这边做
+    func testImportWindowsSettings() {
+        app.terminate()
+        let home = "import-\(UUID().uuidString)"
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+
+        // 1 回目：导入前 F8 是コピー（不改变文字）
+        let first = XCUIApplication()
+        first.launchArguments = base + ["-SakuraUITestingImportFile", "windows-sakura.ini"]
+        first.launch()
+        let firstEditor = first.textViews["editor"]
+        XCTAssertTrue(firstEditor.waitForExistence(timeout: 10))
+        firstEditor.click()
+        firstEditor.typeKey(XCUIKeyboardKey.F8.rawValue, modifierFlags: [])
+        firstEditor.typeText("X")
+        XCTAssertEqual(firstEditor.value as? String, "X", "导入前 F8 不是すべて選択")
+        firstEditor.typeKey("z", modifierFlags: .command)		// 撤销，窗口关闭时不问保存
+
+        let settings = first.menuBars.menuBarItems["設定"]
+        settings.click()
+        let item = settings.menuItems["Windows 版の設定をインポート…"]
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "「設定」>「Windows 版の設定をインポート…」")
+        XCTAssertTrue(item.isEnabled)
+        item.click()
+        let ok = first.buttons["インポートして再起動"].firstMatch	// NSAlert 的按钮在可访问性树里有两个（对话框和窗口）
+        XCTAssertTrue(ok.waitForExistence(timeout: 5), "导入前的确认")
+        ok.click()
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10), "窗口关闭、导入以后结束（重新启动）")
+
+        // 2 回目：导入的设置生效：F8 是すべて選択
+        app = XCUIApplication()
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        editor.click()
+        editor.typeText("abc")
+        key(XCUIKeyboardKey.F8.rawValue)
+        editor.typeText("X")
+        XCTAssertEqual(text, "X", "导入后 F8 是すべて選択（Windows 版的设置）")
+    }
+
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
 
     /// 完成标志：重启 App 后最近文件仍能直接打开，光标回到上次的位置。
