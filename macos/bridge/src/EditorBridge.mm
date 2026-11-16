@@ -902,6 +902,38 @@ static ECSearchResult *InvalidViewResult()
 	return YES;
 }
 
+- (BOOL)wordMoveTargetFrom:(ECPosition)position left:(BOOL)left position:(ECPosition *)outPosition
+{
+	if (!FitsInt32(position.line) || !FitsInt32(position.column)) return NO;
+	const auto p = _doc->WordMoveTarget(ToCore(position), left == YES);
+	if (!p) return NO;
+	if (outPosition) *outPosition = FromCore(*p);
+	return YES;
+}
+
+- (NSInteger)paragraphTargetFromLine:(NSInteger)line next:(BOOL)next
+{
+	if (!FitsInt32(line)) return -1;
+	const auto y = _doc->ParagraphTarget(static_cast<std::int32_t>(line), next == YES);
+	return y ? *y : -1;
+}
+
+- (BOOL)modifiedLineTargetFrom:(ECPosition)position next:(BOOL)next position:(ECPosition *)outPosition wrapped:(BOOL *)outWrapped
+{
+	if (!FitsInt32(position.line) || !FitsInt32(position.column)) return NO;
+	const auto j = _doc->ModifiedLineTarget(ToCore(position), next == YES);
+	if (!j) return NO;
+	if (outPosition) *outPosition = FromCore(j->position);
+	if (outWrapped) *outWrapped = j->wrapped ? YES : NO;
+	return YES;
+}
+
+- (NSInteger)indentEndInLine:(NSInteger)line from:(NSInteger)from to:(NSInteger)to
+{
+	if (!FitsInt32(line) || !FitsInt32(from) || !FitsInt32(to)) return from;
+	return _doc->IndentEnd(static_cast<std::int32_t>(line), static_cast<std::int32_t>(from), static_cast<std::int32_t>(to));
+}
+
 - (NSArray<ECSearchMark *> *)searchMarksInLine:(NSInteger)line key:(NSString *)key options:(ECSearchOptions)options
 {
 	if (!FitsInt32(line)) return @[];
@@ -1016,7 +1048,7 @@ static ECSearchResult *InvalidViewResult()
 {
 	const core::EditSettings e = _doc->GetEditSettings();
 	return ECEditSettings{ e.copyWithoutSelection, e.lineModePaste, e.clearSelectionAfterCopy, e.autoColumnPaste,
-						   e.convertEolOnPaste, e.addEolAtWrapOnCopy, e.insertSpacesForTab, e.autoIndent };
+						   e.convertEolOnPaste, e.addEolAtWrapOnCopy, e.insertSpacesForTab, e.autoIndent, e.boxSelectLock };
 }
 
 - (NSString *)copyTextInRange:(ECRange)range { return ToNSString(_doc->GetCopyText(ToCore(range))); }

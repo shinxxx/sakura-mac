@@ -236,6 +236,7 @@ extension EditorTextView {
         let settings = EditorCore.searchSettings
         let oldView = searchView
         let result = document.searchNext(searchState.key, options: searchState.options, view: oldView, searchAll: settings.searchAll)
+        if result.status == .found || result.status == .wrapped { addCurrentLineToHistory() }	// 移動履歴（第 34 步）
         clearBoxSelectionForSearch()
         applySearchView(result.view)
         switch result.status {
@@ -255,6 +256,7 @@ extension EditorTextView {
         guard changeCurrentRegexp(), !searchState.key.isEmpty else { return }
         let settings = EditorCore.searchSettings
         let result = document.searchPrev(searchState.key, options: searchState.options, view: searchView, searchAll: settings.searchAll)
+        if result.status == .found || result.status == .wrapped { addCurrentLineToHistory() }	// 移動履歴（第 34 步）
         clearBoxSelectionForSearch()
         applySearchView(result.view)
         switch result.status {
@@ -388,6 +390,7 @@ extension EditorTextView {
             Self.beep()
             return
         }
+        addCurrentLineToHistory()	// 移動履歴（第 34 步，原版 Command_JUMP）
         setCaret(position)
     }
 

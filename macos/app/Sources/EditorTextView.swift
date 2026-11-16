@@ -80,9 +80,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     private(set) var caret = EditorPosition(line: 0, column: 0)
     /// 光标正好在折り返し的位置时，显示在上一排版行的末尾（End 键、点在行末的右边）。
     /// 原版的光标用排版位置记录，所以能区分这两个位置
-    private var caretAtLineEnd = false
+    var caretAtLineEnd = false
     /// 上下移动时想保持的横向位置（视图坐标）
-    private var preferredX: CGFloat?
+    var preferredX: CGFloat?
 
     private var markedText = NSAttributedString() {
         didSet {
@@ -113,16 +113,20 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     private var syntaxCache: [Int: [EditorSyntaxColorRun]] = [:]
 
     /// 选择的起点（逻辑位置）。nil 时没有选择。普通选择是起点到光标之间（原版 CViewSelect）
-    private(set) var selectionAnchor: EditorPosition?
+    var selectionAnchor: EditorPosition?
     /// 矩形选择（原版 Alt+拖动，Mac 版 Option+拖动）
-    private(set) var isBoxSelection = false
+    var isBoxSelection = false
     /// 矩形选择的起点和终点：画面上的行和横向位置（文字区域里的点，按桁对齐）
-    private var boxAnchor = BoxPoint(row: 0, x: 0)
-    private var boxEnd = BoxPoint(row: 0, x: 0)
+    var boxAnchor = BoxPoint(row: 0, x: 0)
+    var boxEnd = BoxPoint(row: 0, x: 0)
     struct BoxPoint: Equatable {
         var row: Int
         var x: CGFloat
     }
+    /// 選択状態のロック（第 34 步：原版 m_bSelectingLock。範囲選択開始（F6）后光标移动扩展选择）
+    var selectingLock = false
+    /// 移動履歴（第 34 步：原版 CEditView::m_cHistory，CursorCommands.swift）
+    var jumpHistory = JumpHistory()
 
     /// 查找的状态（第 32 步。原版 CEditView 的 m_strCurSearchKey 等。SearchCommands.swift）
     var searchState = SearchState()
@@ -255,7 +259,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     // MARK: - 排版行（核心库的排版，第 27 步）
 
     /// 画面上的一行：一个排版行，或者文档末尾的空行（最后一行以换行结束时放光标和 [EOF] 的行）
-    private struct Row {
+    struct Row {
         let start: EditorPosition       //!< 在逻辑行里的开始位置
         let text: NSString              //!< 这一段的文字（不含换行符）
         let eol: EditorEol              //!< 带的换行符（逻辑行的最后一段）
@@ -272,7 +276,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         return document.layoutLine(at: count - 1).eol != .none ? count + 1 : count
     }
 
-    private func row(_ index: Int) -> Row {
+    func row(_ index: Int) -> Row {
         if let cached = rowCache[index] { return cached }
         let row: Row
         if index >= 0 && index < document.layoutLineCount {
@@ -292,13 +296,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 这一行之后接着同一逻辑行的下一段（折り返した行）
-    private func isWrapped(_ index: Int) -> Bool {
+    func isWrapped(_ index: Int) -> Bool {
         let r = row(index)
         return r.isLayoutLine && r.eol == .none && index + 1 < document.layoutLineCount
     }
 
     /// 逻辑位置 → 画面上的行和行内下标。preferLineEnd 时，折り返し的位置算上一行的末尾
-    private func rowAndIndex(of position: EditorPosition, preferLineEnd: Bool = false) -> (row: Int, index: Int) {
+    func rowAndIndex(of position: EditorPosition, preferLineEnd: Bool = false) -> (row: Int, index: Int) {
         let layout = document.layoutPosition(of: position)
         var r = min(max(0, layout.line), displayLineCount - 1)
         if preferLineEnd && r > 0 && isWrapped(r - 1) && Self.same(row(r).start, position) {
@@ -311,12 +315,12 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 光标所在的行和行内下标
-    private var caretRowAndIndex: (row: Int, index: Int) {
+    var caretRowAndIndex: (row: Int, index: Int) {
         rowAndIndex(of: caret, preferLineEnd: caretAtLineEnd)
     }
 
     /// 画面上的行和行内下标 → 逻辑位置
-    private func position(row r: Int, index: Int) -> EditorPosition {
+    func position(row r: Int, index: Int) -> EditorPosition {
         let current = row(r)
         if !current.isLayoutLine { return current.start }
         return EditorPosition(line: current.start.line, column: current.start.column + min(max(0, index), current.text.length))
@@ -325,7 +329,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     // MARK: - 坐标
 
     /// 一个半角字的宽度（核心库的排版单位）
-    private var charWidth: CGFloat { CGFloat(max(1, document.charWidth)) }
+    var charWidth: CGFloat { CGFloat(max(1, document.charWidth)) }
 
     /// 行号的位数（原版 CTextArea::DetectWidthOfLineNumberArea_calculate）
     private var lineNumberDigits: Int {
@@ -339,18 +343,18 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         settings.showLineNumbers ? charWidth * CGFloat(lineNumberDigits + 2) : 8
     }
 
-    private var textOriginX: CGFloat { gutterWidth }
+    var textOriginX: CGFloat { gutterWidth }
 
-    private func lineTop(_ row: Int) -> CGFloat {
+    func lineTop(_ row: Int) -> CGFloat {
         topMargin + CGFloat(row) * lineHeight
     }
 
-    private func rowIndex(atY y: CGFloat) -> Int {
+    func rowIndex(atY y: CGFloat) -> Int {
         min(max(0, Int(floor((y - topMargin) / lineHeight))), displayLineCount - 1)
     }
 
     /// 行内下标的横向位置（视图坐标）。光标所在的行里，光标之后的文字让开未确定文字的宽度
-    private func displayX(row r: Int, index: Int) -> CGFloat {
+    func displayX(row r: Int, index: Int) -> CGFloat {
         let xs = row(r).xs
         var x = textOriginX + xs[min(max(0, index), xs.count - 1)]
         if hasMarkedText() {
@@ -361,7 +365,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 横向位置 → 行内下标（最近的字符边界，不落在补充平面字符的中间）
-    private func index(row r: Int, x: CGFloat) -> Int {
+    func index(row r: Int, x: CGFloat) -> Int {
         let current = row(r)
         let length = current.text.length
         var result = length
@@ -481,6 +485,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         if selectionAnchor != nil || isBoxSelection { needsDisplay = true }
         selectionAnchor = nil
         isBoxSelection = false
+        selectingLock = false	// 原版 DisableSelectArea 也解除选择的锁定
     }
 
     /// 普通选择时，这一行里被选中的字符（行内下标）和是否选中了换行符
@@ -1046,10 +1051,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 选择范围扩展中（Shift+方向键等）：移动光标时不取消选择
-    private var extendingSelection = false
+    var extendingSelection = false
 
     /// 移动光标并扩展选择范围（原版 Shift+移动：起点不动，光标移动）
-    private func modifySelection(_ move: () -> Void) {
+    func modifySelection(_ move: () -> Void) {
         let anchor = (isBoxSelection ? nil : selectionAnchor) ?? caret
         isBoxSelection = false
         extendingSelection = true
@@ -1266,7 +1271,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 矩形选择的位置：行和按桁对齐的横向位置（原版的矩形选择也按桁）
-    private func boxPoint(at point: NSPoint) -> BoxPoint {
+    func boxPoint(at point: NSPoint) -> BoxPoint {
         let column = max(0, ((point.x - textOriginX) / charWidth).rounded())
         return BoxPoint(row: rowIndex(atY: point.y), x: column * charWidth)
     }
@@ -1274,12 +1279,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// 编辑 > すべて選択（F_SELECTALL）
     override func selectAll(_ sender: Any?) {
         guard !hasMarkedText() else { return }
+        addCurrentLineToHistory()	// 原版 Command_SELECTALL（第 34 步）
         setCaret(document.endPosition)
         selectionAnchor = EditorPosition(line: 0, column: 0)
         needsDisplay = true
     }
 
-    /// Esc：取消选择（原版 F_CANCEL_MODE）
+    /// Esc：取消选择和选择的锁定（原版 F_CANCEL_MODE）
     override func cancelOperation(_ sender: Any?) {
         clearSelection()
     }
@@ -1695,7 +1701,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 原版 Command_LEFT / Command_RIGHT：有选择时这一次只取消选择（Command_CANCEL_MODE），
     /// 光标移到选择范围的开头（←）或末尾（→）。Shift+方向键扩展选择时不取消
-    private func cancelSelectionBeforeMove(toEnd: Bool) -> Bool {
+    func cancelSelectionBeforeMove(toEnd: Bool) -> Bool {
         guard !extendingSelection else { return false }
         if let selection {
             setCaret(toEnd ? selection.to : selection.from)
@@ -1709,72 +1715,54 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         return false
     }
 
-    override func moveLeft(_ sender: Any?) {
-        if cancelSelectionBeforeMove(toEnd: false) { return }
-        if caret.column > 0 {
-            let text = lineText(caret.line)
-            setCaret(EditorPosition(line: caret.line, column: text.rangeOfComposedCharacterSequence(at: caret.column - 1).location))
-        } else if caret.line > 0 {
-            setCaret(EditorPosition(line: caret.line - 1, column: lineText(caret.line - 1).length))
-        }
-    }
-
-    override func moveRight(_ sender: Any?) {
-        if cancelSelectionBeforeMove(toEnd: true) { return }
-        let text = lineText(caret.line)
-        if caret.column < text.length {
-            setCaret(EditorPosition(line: caret.line, column: NSMaxRange(text.rangeOfComposedCharacterSequence(at: caret.column))))
-        } else if caret.line < document.endPosition.line {
-            setCaret(EditorPosition(line: caret.line + 1, column: 0))
-        }
-    }
-
-    /// 上下移动：按排版行移动（折り返した行里也一行一行地移动）。横向位置尽量保持
-    private func moveVertically(_ delta: Int) {
-        let current = caretRowAndIndex
-        let target = current.row + delta
-        guard target >= 0 && target < displayLineCount else { return }
-        let x = preferredX ?? displayX(row: current.row, index: current.index)
-        preferredX = x
-        let i = index(row: target, x: x)
-        setCaret(position(row: target, index: i), keepPreferredX: true, atLineEnd: isWrapped(target) && i == row(target).text.length)
-    }
-
-    override func moveUp(_ sender: Any?) { moveVertically(-1) }
-    override func moveDown(_ sender: Any?) { moveVertically(1) }
-
+    // 第 34 步：光标移动的命令按原版的形式整理在 CursorCommands.swift。
+    // macOS 的按键（方向键、⌥←、⌘↑ 等）经过 interpretKeyEvents 来到这里的 NSResponder 的方法，执行同样的命令
+    override func moveLeft(_ sender: Any?) { cursorCommand(.left, .normal) }
+    override func moveRight(_ sender: Any?) { cursorCommand(.right, .normal) }
+    override func moveUp(_ sender: Any?) { cursorCommand(.up, .normal) }
+    override func moveDown(_ sender: Any?) { cursorCommand(.down, .normal) }
     /// 行首、行末是排版行的开头、末尾（与原版相同，折り返した行里就在这一段里）
-    override func moveToBeginningOfLine(_ sender: Any?) {
-        setCaret(position(row: caretRowAndIndex.row, index: 0))
-    }
-
-    override func moveToEndOfLine(_ sender: Any?) {
-        let r = caretRowAndIndex.row
-        setCaret(position(row: r, index: row(r).text.length), atLineEnd: isWrapped(r))
-    }
-
-    override func moveToBeginningOfDocument(_ sender: Any?) {
-        setCaret(EditorPosition(line: 0, column: 0))
-    }
-
-    override func moveToEndOfDocument(_ sender: Any?) {
-        setCaret(document.endPosition)
-    }
-
-    override func moveToLeftEndOfLine(_ sender: Any?) { moveToBeginningOfLine(sender) }
-    override func moveToRightEndOfLine(_ sender: Any?) { moveToEndOfLine(sender) }
+    override func moveToBeginningOfLine(_ sender: Any?) { cursorCommand(.lineTop, .normal) }
+    override func moveToEndOfLine(_ sender: Any?) { cursorCommand(.lineEnd, .normal) }
+    override func moveToBeginningOfDocument(_ sender: Any?) { cursorCommand(.fileTop, .normal) }
+    override func moveToEndOfDocument(_ sender: Any?) { cursorCommand(.fileEnd, .normal) }
+    override func moveToLeftEndOfLine(_ sender: Any?) { cursorCommand(.lineTop, .normal) }
+    override func moveToRightEndOfLine(_ sender: Any?) { cursorCommand(.lineEnd, .normal) }
+    override func moveWordLeft(_ sender: Any?) { cursorCommand(.wordLeft, .normal) }
+    override func moveWordRight(_ sender: Any?) { cursorCommand(.wordRight, .normal) }
+    override func moveWordBackward(_ sender: Any?) { cursorCommand(.wordLeft, .normal) }
+    override func moveWordForward(_ sender: Any?) { cursorCommand(.wordRight, .normal) }
+    override func moveParagraphBackwardAndModifySelection(_ sender: Any?) { cursorCommand(.prevParagraph, .select) }
+    override func moveParagraphForwardAndModifySelection(_ sender: Any?) { cursorCommand(.nextParagraph, .select) }
+    override func moveToBeginningOfParagraph(_ sender: Any?) { cursorCommand(.logicalLineTop, .normal) }
+    override func moveToEndOfParagraph(_ sender: Any?) { cursorCommand(.logicalLineEnd, .normal) }
+    override func pageUp(_ sender: Any?) { cursorCommand(.pageUp, .normal) }
+    override func pageDown(_ sender: Any?) { cursorCommand(.pageDown, .normal) }
 
     // Shift+移动：扩展选择范围（原版 F_LEFT_SEL 等）
-    override func moveLeftAndModifySelection(_ sender: Any?) { modifySelection { moveLeft(sender) } }
-    override func moveRightAndModifySelection(_ sender: Any?) { modifySelection { moveRight(sender) } }
-    override func moveUpAndModifySelection(_ sender: Any?) { modifySelection { moveUp(sender) } }
-    override func moveDownAndModifySelection(_ sender: Any?) { modifySelection { moveDown(sender) } }
-    override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfLine(sender) } }
-    override func moveToEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfLine(sender) } }
-    override func moveToLeftEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfLine(sender) } }
-    override func moveToRightEndOfLineAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfLine(sender) } }
-    override func moveToBeginningOfDocumentAndModifySelection(_ sender: Any?) { modifySelection { moveToBeginningOfDocument(sender) } }
-    override func moveToEndOfDocumentAndModifySelection(_ sender: Any?) { modifySelection { moveToEndOfDocument(sender) } }
+    override func moveLeftAndModifySelection(_ sender: Any?) { cursorCommand(.left, .select) }
+    override func moveRightAndModifySelection(_ sender: Any?) { cursorCommand(.right, .select) }
+    override func moveUpAndModifySelection(_ sender: Any?) { cursorCommand(.up, .select) }
+    override func moveDownAndModifySelection(_ sender: Any?) { cursorCommand(.down, .select) }
+    override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) { cursorCommand(.lineTop, .select) }
+    override func moveToEndOfLineAndModifySelection(_ sender: Any?) { cursorCommand(.lineEnd, .select) }
+    override func moveToLeftEndOfLineAndModifySelection(_ sender: Any?) { cursorCommand(.lineTop, .select) }
+    override func moveToRightEndOfLineAndModifySelection(_ sender: Any?) { cursorCommand(.lineEnd, .select) }
+    override func moveToBeginningOfDocumentAndModifySelection(_ sender: Any?) { cursorCommand(.fileTop, .select) }
+    override func moveToEndOfDocumentAndModifySelection(_ sender: Any?) { cursorCommand(.fileEnd, .select) }
+    override func moveWordLeftAndModifySelection(_ sender: Any?) { cursorCommand(.wordLeft, .select) }
+    override func moveWordRightAndModifySelection(_ sender: Any?) { cursorCommand(.wordRight, .select) }
+    override func moveWordBackwardAndModifySelection(_ sender: Any?) { cursorCommand(.wordLeft, .select) }
+    override func moveWordForwardAndModifySelection(_ sender: Any?) { cursorCommand(.wordRight, .select) }
+    override func moveToBeginningOfParagraphAndModifySelection(_ sender: Any?) { cursorCommand(.logicalLineTop, .select) }
+    override func moveToEndOfParagraphAndModifySelection(_ sender: Any?) { cursorCommand(.logicalLineEnd, .select) }
+    override func pageUpAndModifySelection(_ sender: Any?) { cursorCommand(.pageUp, .select) }
+    override func pageDownAndModifySelection(_ sender: Any?) { cursorCommand(.pageDown, .select) }
+    override func centerSelectionInVisibleArea(_ sender: Any?) { curLineCenter(sender) }
+    override func scrollLineUp(_ sender: Any?) { wndScrollDown(sender) }
+    override func scrollLineDown(_ sender: Any?) { wndScrollUp(sender) }
+    override func selectWord(_ sender: Any?) { selectCurrentWord(sender) }
+    override func selectLine(_ sender: Any?) { selectCurrentLine(sender) }
 
     // MARK: - 字体（第 28 步：設定 > フォント設定。原版 F_FONT）
 
@@ -1835,7 +1823,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         case #selector(wrapWindowWidth(_:)):
             menuItem.state = settings.wrapMethod == .windowWidth ? .on : .off
             return !hasMarkedText()
-        default: return validateSearchMenuItem(menuItem) ?? true	// 第 32 步：検索メニュー（SearchCommands.swift）
+        // 第 32 步：検索メニュー（SearchCommands.swift）、第 34 步：移動・選択（CursorCommands.swift）
+        default: return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? true
         }
     }
 

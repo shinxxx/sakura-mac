@@ -276,6 +276,20 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abcabc", "F8 コピー → Esc → F9 貼り付け")
     }
 
+    /// 第 34 步（第 2 个 PR）：⌥→ 単語の右端に移動、F6 範囲選択開始（锁定后方向键扩展选择）
+    func testWordMoveAndSelectionLock() {
+        editor.typeText("abc def")
+        key(XCUIKeyboardKey.leftArrow.rawValue, .command)	// 行頭
+        key(XCUIKeyboardKey.rightArrow.rawValue, .option)	// 単語の右端に移動
+        editor.typeText("X")
+        XCTAssertEqual(text, "abc Xdef")
+        key(XCUIKeyboardKey.F6.rawValue)					// 範囲選択開始
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        editor.typeText("Y")
+        XCTAssertEqual(text, "abc XYf", "F6 之后方向键选择，输入替换选择范围")
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")

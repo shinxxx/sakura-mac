@@ -33,23 +33,19 @@ enum CommandTable {
         30260: #selector(EditorTextView.indentTab(_:)),				// F_INDENT_TAB
         30261: #selector(EditorTextView.unindentTab(_:)),			// F_UNINDENT_TAB
 
-        // 移動・選択（第 28 步。其余的在第 34 步的第 2 个 PR）
-        30311: #selector(NSResponder.moveUp(_:)),					// F_UP
-        30312: #selector(NSResponder.moveDown(_:)),					// F_DOWN
-        30313: #selector(NSResponder.moveLeft(_:)),					// F_LEFT
-        30314: #selector(NSResponder.moveRight(_:)),				// F_RIGHT
-        30332: #selector(NSResponder.moveToBeginningOfLine(_:)),	// F_GOLINETOP
-        30333: #selector(NSResponder.moveToEndOfLine(_:)),			// F_GOLINEEND
-        30350: #selector(NSResponder.moveToBeginningOfDocument(_:)),	// F_GOFILETOP
-        30351: #selector(NSResponder.moveToEndOfDocument(_:)),		// F_GOFILEEND
-        30411: #selector(NSResponder.moveUpAndModifySelection(_:)),		// F_UP_SEL
-        30412: #selector(NSResponder.moveDownAndModifySelection(_:)),	// F_DOWN_SEL
-        30413: #selector(NSResponder.moveLeftAndModifySelection(_:)),	// F_LEFT_SEL
-        30414: #selector(NSResponder.moveRightAndModifySelection(_:)),	// F_RIGHT_SEL
-        30432: #selector(NSResponder.moveToBeginningOfLineAndModifySelection(_:)),		// F_GOLINETOP_SEL
-        30433: #selector(NSResponder.moveToEndOfLineAndModifySelection(_:)),			// F_GOLINEEND_SEL
-        30450: #selector(NSResponder.moveToBeginningOfDocumentAndModifySelection(_:)),	// F_GOFILETOP_SEL
-        30451: #selector(NSResponder.moveToEndOfDocumentAndModifySelection(_:)),		// F_GOFILEEND_SEL
+        // 移動・選択・矩形選択（第 34 步：CursorCommands.swift。普通、(範囲選択)、(矩形選択) 都经过 cursorCommandAction）
+        30360: #selector(EditorTextView.curLineCenter(_:)),			// F_CURLINECENTER
+        30361: #selector(EditorTextView.curLineTop(_:)),			// F_CURLINETOP
+        30362: #selector(EditorTextView.curLineBottom(_:)),			// F_CURLINEBOTTOM
+        30370: #selector(EditorTextView.jumpHistoryPrev(_:)),		// F_JUMPHIST_PREV
+        30371: #selector(EditorTextView.jumpHistoryNext(_:)),		// F_JUMPHIST_NEXT
+        30372: #selector(EditorTextView.jumpHistorySet(_:)),		// F_JUMPHIST_SET
+        30380: #selector(EditorTextView.wndScrollDown(_:)),			// F_WndScrollDown
+        30381: #selector(EditorTextView.wndScrollUp(_:)),			// F_WndScrollUp
+        30400: #selector(EditorTextView.selectCurrentWord(_:)),		// F_SELECTWORD
+        30403: #selector(EditorTextView.selectCurrentLine(_:)),		// F_SELECTLINE
+        30410: #selector(EditorTextView.beginSelection(_:)),		// F_BEGIN_SEL
+        30510: #selector(EditorTextView.beginBoxSelectionAction(_:)),	// F_BEGIN_BOX
         31099: #selector(NSResponder.cancelOperation(_:)),			// F_CANCEL_MODE 各種モードの取り消し
 
         // 検索（第 32 步）
@@ -78,15 +74,19 @@ enum CommandTable {
 
     /// 这个功能的动作。还没有移植时是 nil
     static func selector(for code: Int) -> Selector? {
-        selectors[code]
+        if let selector = selectors[code] { return selector }
+        if EditorTextView.cursorCommands[code] != nil { return #selector(EditorTextView.cursorCommandAction(_:)) }
+        if (30385...30392).contains(code) { return #selector(EditorTextView.wheelCommandAction(_:)) }	// F_WHEELUP～F_WHEELPAGERIGHT
+        return nil
     }
 
     /// 按功能编号执行：先从 view 沿响应链找（单元测试里窗口不是 key 也能用），再交给 NSApp。
-    /// 执行了时返回 true
+    /// sender 是带着功能编号的 CommandSender（几个功能共用一个动作时用来区分）。执行了时返回 true
     @discardableResult
     static func perform(_ code: Int, from responder: NSResponder?) -> Bool {
         guard let selector = selector(for: code) else { return false }
-        if let responder, responder.tryToPerform(selector, with: responder) { return true }
-        return NSApp.sendAction(selector, to: nil, from: responder)
+        let sender = CommandSender(code)
+        if let responder, responder.tryToPerform(selector, with: sender) { return true }
+        return NSApp.sendAction(selector, to: nil, from: sender)
     }
 }

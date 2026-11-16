@@ -585,6 +585,7 @@ struct EditSettings {
 	bool addEolAtWrapOnCopy = false;		//!< 折り返し行に改行を付けてコピー（m_bAddCRLFWhenCopy）
 	bool insertSpacesForTab = false;		//!< 类型别「スペースの挿入」：TAB 键输入空白（m_bInsSpace）
 	bool autoIndent = true;					//!< 类型别「オートインデント」（m_bAutoIndent）
+	bool boxSelectLock = true;				//!< 矩形選択移動で選択をロックする（m_bBoxSelectLock，第 34 步）
 };
 
 // ---------------------------------------------------------------------------
@@ -842,6 +843,40 @@ public:
 		没有单词时是 nullopt。
 	*/
 	std::optional<Range> WordRangeAt(const Position& position) const;
+
+	// ----- 光标移动的目标（第 34 步） -----
+	//
+	// 光标、选择属于编辑画面，这里只算出原版的命令要移到的逻辑位置。
+
+	/*!
+		単語の左端／右端に移動（原版 Command_WORDLEFT / WORDRIGHT → CSearchAgent::PrevOrNextWord）。
+		按共通設定「単語単位で移動するときに、単語の両端で止まる」。找不到时 nullopt（原版这时按一个字移动）。
+	*/
+	std::optional<Position> WordMoveTarget(const Position& position, bool left) const;
+
+	/*!
+		前／次の段落へ（原版 Command_GOPREVPARAGRAPH / GONEXTPARAGRAPH）的目标逻辑行。
+		空行（只有空白、TAB、换行的行）和非空行的边界。按共通設定「段落単位で移動するときに、段落の両端で止まる」。
+		不移动时 nullopt。
+	*/
+	std::optional<std::int32_t> ParagraphTarget(std::int32_t line, bool next) const;
+
+	//! 次の変更行へ／前の変更行へ的结果
+	struct ModifiedLineJump {
+		Position position;
+		bool wrapped = false;	//!< 绕到了文件的开头（末尾）（原版的「▼先頭から再検索しました」）
+	};
+	/*!
+		次の変更行へ／前の変更行へ（原版 Command_MODIFYLINE_NEXT / PREV）：变更行的块的开头和末尾（下一行的开头）。
+		按共通設定「先頭（末尾）から再検索する」绕回。找不到时 nullopt。
+	*/
+	std::optional<ModifiedLineJump> ModifiedLineTarget(const Position& position, bool next) const;
+
+	/*!
+		逻辑行 line 的 [from, to) 之间，缩进（空白、TAB，类型别设置「全角空白もインデント」时全角空白）之后第一个字的下标。
+		只有缩进或换行时返回 from（原版 Command_GOLINETOP 的「行頭の空白を飛ばす」）。
+	*/
+	std::int32_t IndentEnd(std::int32_t line, std::int32_t from, std::int32_t to) const;
 
 	// ----- 命令 -----
 
