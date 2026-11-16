@@ -133,6 +133,7 @@ final class AboutPanel: NSObject, NSWindowDelegate {
 
         let ok = NSButton(title: NSLocalizedString("OK", comment: "IDD_ABOUT"), target: self, action: #selector(closePanel(_:)))
         ok.keyEquivalent = "\r"
+        ok.setAccessibilityIdentifier("aboutOK")
         let copy = NSButton(title: NSLocalizedString("情報をコピー", comment: "IDD_ABOUT"), target: self, action: #selector(copyInfo(_:)))
         copy.setAccessibilityIdentifier("copyInfo")
 

@@ -313,12 +313,12 @@ final class SakuraMacUITests: XCTestCase {
         let help = app.menuBars.menuBarItems["ヘルプ"]
         help.click()
         help.menuItems["バージョン情報"].click()
-        let panel = app.windows["バージョン情報"]
-        XCTAssertTrue(panel.waitForExistence(timeout: 5))
-        XCTAssertTrue(panel.staticTexts["原作者: たけ(竹パンダ) さん"].exists)
-        XCTAssertTrue(panel.buttons["情報をコピー"].exists)
-        panel.buttons["OK"].click()
-        XCTAssertFalse(panel.waitForExistence(timeout: 1))
+        // NSPanel 在 XCUITest 里不一定是 window，按里面的元素找
+        let author = app.staticTexts["原作者: たけ(竹パンダ) さん"]
+        XCTAssertTrue(author.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["copyInfo"].exists, "情報をコピー")
+        app.buttons["aboutOK"].click()
+        XCTAssertFalse(author.waitForExistence(timeout: 1))
     }
 
     // MARK: - 第 31 步：重启后从「最近使ったファイル」打开
