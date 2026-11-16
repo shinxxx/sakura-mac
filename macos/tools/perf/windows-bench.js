@@ -58,7 +58,7 @@ if (kind == "large") {
 		Editor.Undo();
 	});
 	measure("rewrap at 40 columns", function () {
-		Editor.ChgWrapColumn(40);
+		Editor.ChangeWrapColumn(40);
 	});
 	measure("replace all", function () {
 		Editor.GoFileTop();
