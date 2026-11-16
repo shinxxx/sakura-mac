@@ -195,6 +195,18 @@ extension EditorTextView {
 
     private var lineCountForLayout: Int { document.lineCount }
 
+    /// 上下移动：按排版行移动（折り返した行里也一行一行地移动）。横向位置尽量保持。
+    /// 超出文档时停在第一行、最后一行（原版 Cursor_UPDOWN）
+    func moveVertically(_ delta: Int) {
+        let current = caretRowAndIndex
+        let target = min(max(0, current.row + delta), max(0, displayLineCount - 1))
+        guard target != current.row else { return }
+        let x = preferredX ?? displayX(row: current.row, index: current.index)
+        preferredX = x
+        let i = index(row: target, x: x)
+        setCaret(position(row: target, index: i), keepPreferredX: true, atLineEnd: isWrapped(target) && i == row(target).text.length)
+    }
+
     /// 原版 Command_LEFT：有选择时只取消选择；行头时到上一行的末尾
     private func moveCaretLeft() {
         if cancelSelectionBeforeMove(toEnd: false) { return }
