@@ -22,7 +22,7 @@
 每个时间输出成 `[PERF] 名字: N ms (limit L ms)`。普通的测试（Debug）的上限定得宽，只防止明显变慢；
 CI 的 `core-perf-macos`（Release）和 `perf-windows` 把两边的时间写进各自 job 的 Summary，用来比较。
 
-注意：CI 的 macOS（Apple Silicon）和 Windows 的机器不同，时间只能看大概（同一个量级、没有哪一项慢很多）。
+注意：官方发布版只有 Win32（32 位）的 exe，Windows 的时间是 32 位版的。CI 的 macOS（Apple Silicon）和 Windows 的机器不同，时间只能看大概（同一个量级、没有哪一项慢很多）。
 Windows 版的时间包括宏的解释和画面的更新，Mac 的核心库测试不画画面。
 
 ## 本机（Linux clang -O2）的核心库的时间

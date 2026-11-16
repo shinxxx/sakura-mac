@@ -116,14 +116,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Download Sakura Editor (official release, x64)
+      - name: Download Sakura Editor (official release)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
           $rel.assets | ForEach-Object { $_.name }
-          $asset = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'x64' -and $_.name -match 'Release' -and $_.name -match 'Exe' } | Select-Object -First 1
-          if (-not $asset) { throw "x64 Release Exe zip not found in $($rel.tagName)" }
+          # 官方版只有 Win32 的时候用 Win32（有 x64 时优先 x64）
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
           gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
           Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
           "Sakura Editor $($rel.tagName) ($($asset.name))" | Tee-Object perf-version.txt
