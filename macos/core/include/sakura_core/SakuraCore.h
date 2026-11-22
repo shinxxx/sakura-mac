@@ -90,6 +90,26 @@ bool IsSettingsImportPending();
 Text SettingsBackupPath();
 
 // ---------------------------------------------------------------------------
+// 共通設定的读写（第 39 步：共通設定窗口）
+// ---------------------------------------------------------------------------
+
+/*!
+	共通設定的一项的值。节和项目与 sakura.ini 相同（例："Common" / "bIsFreeCursorMode"）。
+	值是 sakura.ini 里的写法（数值是十进制，字符串原样）。
+	能用的节：Common、Nickname（ファイル名表示）、Statusbar（ステータスバー）。没有这一项时是空的 optional。
+*/
+std::optional<Text> GetCommonSetting(const Text& section, const Text& key);
+
+/*!
+	改共通設定的一项。与把 sakura.ini 的这一项改成 value 再读入相同（原版读入时的范围限制等照样）。
+	没有这一项时 false，什么也不改。
+*/
+bool SetCommonSetting(const Text& section, const Text& key, const Text& value);
+
+//! 现在的设置写进 sakura.ini（与结束时相同）。导入设置以后、重新启动之前不写，返回 false
+bool SaveSettings();
+
+// ---------------------------------------------------------------------------
 // 编码、换行符
 // ---------------------------------------------------------------------------
 
@@ -261,6 +281,10 @@ std::vector<RecentFolder> RecentFolders();
 std::optional<RecentFile> FindRecentFile(const Text& path);
 //! 删除这个文件的历史（打不开的文件，原版 F_FILE_USED_RECENTLY 打开失败时）
 void RemoveRecentFile(const Text& path);
+//! 删除全部「最近使ったファイル」（共通設定 > 全般「履歴をクリア」，原版 CMRUFile::ClearAll。お気に入り也删除，第 39 步）
+void ClearRecentFiles();
+//! 删除全部「最近使ったフォルダー」（原版 CMRUFolder::ClearAll，第 39 步）
+void ClearRecentFolders();
 
 //! 打开时从历史恢复的位置（原版 CMruListener::OnAfterLoad）
 struct RestoredView {

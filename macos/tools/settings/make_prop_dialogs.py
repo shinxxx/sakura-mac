@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026, Sakura Editor Organization
+#
+# SPDX-License-Identifier: Zlib
+"""共通設定窗口的各页的布局（计划第 39 步）。
+
+从 sakura_core/sakura_rc.rc 的对话框模板（IDD_PROP_*）取出每个控件的种类、文字、位置（对话框单位），
+写成 JSON，App 按它摆放控件（布局、项目、顺序、文字照原版，控件用 Mac 的）。
+原版的 rc 改了以后重新运行：python3 make_prop_dialogs.py（输出 macos/app/Resources/CommonSettingsDialogs.json）
+"""
+import json
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from list_common_settings import PAGES, ROOT, CONTROL_RE, read_rc  # noqa: E402
+
+OUT = os.path.join(ROOT, "macos", "app", "Resources", "CommonSettingsDialogs.json")
+
+
+def text_of(raw):
+    """rc 的文字 → 显示的文字：&X 的 & 去掉（&& 是 &），\\n、\\r 是换行"""
+    s = raw.replace('""', '"').replace("&&", "\0").replace("&", "").replace("\0", "&")
+    s = s.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n").replace("\\t", "\t")
+    return s
+
+
+def kind_of(word, cls, style):
+    """控件的种类（App 里用的名字）"""
+    if word == "CONTROL":
+        if cls == "Button":
+            if "RADIO" in style:
+                return "radio"
+            if "CHECKBOX" in style:
+                return "check"
+            if "GROUPBOX" in style:
+                return "group"
+            return "button"
+        return {
+            "msctls_updown32": "spin", "msctls_hotkey32": "hotkey", "SysListView32": "listview",
+            "SysTreeView32": "tree", "Static": "label", "Edit": "edit", "ComboBox": "combo", "ListBox": "list",
+        }.get(cls, "unknown")
+    return {
+        "GROUPBOX": "group", "LTEXT": "label", "RTEXT": "label", "CTEXT": "label", "EDITTEXT": "edit",
+        "COMBOBOX": "combo", "LISTBOX": "list", "PUSHBUTTON": "button", "DEFPUSHBUTTON": "button",
+        "AUTOCHECKBOX": "check", "CHECKBOX": "check", "AUTORADIOBUTTON": "radio", "RADIOBUTTON": "radio",
+        "ICON": "icon",
+    }.get(word, "unknown")
+
+
+def controls(lines, dialog):
+    start = next(i for i, l in enumerate(lines) if re.match(rf"^{dialog}\s+DIALOGEX\b", l))
+    size = [int(v) for v in re.findall(r"\d+", lines[start])[-2:]]
+    i = start
+    while lines[i].strip() != "BEGIN":
+        i += 1
+    i += 1
+    result = []
+    while lines[i].strip() != "END":
+        line = lines[i]
+        while line.rstrip().endswith((",", "|")):
+            i += 1
+            line = line.rstrip() + " " + lines[i].strip()
+        i += 1
+        m = CONTROL_RE.match(line)
+        if not m:
+            continue
+        word, raw, cid, rest = m.groups()
+        cls = ""
+        if word == "CONTROL":
+            mc = re.match(r'\s*"(\w+)"\s*,(.*)$', rest)
+            cls, rest = (mc.group(1), mc.group(2)) if mc else ("", rest)
+        parts = [p.strip() for p in rest.split(",")]
+        # 样式在前（CONTROL），位置是 4 个数；LTEXT 等是位置在前，后面是样式
+        nums = [p for p in parts if re.fullmatch(r"-?\d+", p)]
+        if len(nums) < 4:
+            continue
+        if word == "CONTROL":
+            style = parts[0]
+            x, y, w, h = (int(v) for v in parts[1:5])
+        else:
+            x, y, w, h = (int(v) for v in parts[:4])
+            style = " ".join(parts[4:])
+        kind = kind_of(word, cls, style + " " + word)
+        if kind == "unknown":
+            continue
+        c = {"id": cid, "kind": kind, "frame": [x, y, w, h]}
+        if raw:
+            c["text"] = text_of(raw)
+        flags = []
+        if word == "RTEXT" or "SS_RIGHT" in style or "ES_RIGHT" in style:
+            flags.append("right")
+        if word == "CTEXT" or "SS_CENTER" in style:
+            flags.append("center")
+        if "ES_NUMBER" in style:
+            flags.append("number")
+        if "ES_MULTILINE" in style:
+            flags.append("multiline")
+        if "ES_READONLY" in style:
+            flags.append("readonly")
+        if "NOT WS_VISIBLE" in style:
+            flags.append("hidden")
+        if "WS_DISABLED" in style:
+            flags.append("disabled")
+        if "WS_GROUP" in style and "NOT WS_GROUP" not in style:
+            flags.append("group")
+        if "SS_SUNKEN" in style or "WS_BORDER" in style and kind == "label":
+            flags.append("sunken")
+        if "CBS_DROPDOWNLIST" in style:
+            flags.append("dropdownlist")
+        if flags:
+            c["flags"] = flags
+        result.append(c)
+    return size, result
+
+
+def main():
+    lines = read_rc()
+    pages = []
+    for name, dialog, _ in PAGES:
+        size, items = controls(lines, dialog)
+        pages.append({"name": name, "dialog": dialog, "size": size, "controls": items})
+    # 一个控件一行（差分好看）
+    out_lines = ['{"source": "sakura_core/sakura_rc.rc", "pages": [']
+    for n, page in enumerate(pages):
+        head = {k: v for k, v in page.items() if k != "controls"}
+        out_lines.append(" " + json.dumps(head, ensure_ascii=False)[:-1] + ', "controls": [')
+        rows = [json.dumps(c, ensure_ascii=False) for c in page["controls"]]
+        out_lines += ["  " + r + ("," if i + 1 < len(rows) else "") for i, r in enumerate(rows)]
+        out_lines.append(" ]}" + ("," if n + 1 < len(pages) else ""))
+    out_lines.append("]}")
+    data = "\n".join(out_lines)
+    out = sys.argv[1] if len(sys.argv) > 1 else OUT
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write(data + "\n")
+
+
+if __name__ == "__main__":
+    main()

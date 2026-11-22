@@ -154,8 +154,10 @@ enum MainMenuBuilder {
         let menu = NSMenu(title: name)
         menu.addItem(withTitle: "\(name) について", action: #selector(NSApplication.showSakuraAbout(_:)), keyEquivalent: "")	// 原版のバージョン情報
         menu.addItem(.separator())
-        // 共通設定。窗口在阶段 3 实现，目前不可用。
-        let settings = NSMenuItem(title: "設定…", action: nil, keyEquivalent: ",")
+        // 共通設定（第 39 步：CommonSettingsWindow.swift。与 設定 > 共通設定 相同，打开上次的页）。
+        // tag 不设功能编号：⌘, 是 macOS 的设置的键，不按键位方案换
+        let settings = NSMenuItem(title: NSLocalizedString("設定…", comment: "App 菜单（macOS）"),
+                                  action: #selector(NSApplication.showCommonSettings(_:)), keyEquivalent: ",")
         menu.addItem(settings)
         menu.addItem(.separator())
         let services = NSMenuItem(title: "サービス", action: nil, keyEquivalent: "")

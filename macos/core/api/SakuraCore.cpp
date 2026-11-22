@@ -311,6 +311,66 @@ ImportResult ImportSettings(const Text& path)
 bool IsSettingsImportPending() { return g_settingsImportPending; }
 
 // ---------------------------------------------------------------------------
+// 共通設定的读写（第 39 步）
+// ---------------------------------------------------------------------------
+
+namespace {
+
+//! 共通設定的节的读写（CShareData_IO 的 protected 函数）
+class CommonSettingIO : private CShareData_IO {
+public:
+	//! 节的读写。不是共通設定窗口用的节时 false
+	static bool IO(CDataProfile& profile, sakura::wstring_view section)
+	{
+		if (section == LTEXT("Common")) {
+			ShareData_IO_Common(profile);
+		} else if (section == LTEXT("Nickname")) {
+			ShareData_IO_Nickname(profile);
+		} else if (section == LTEXT("Statusbar")) {
+			ShareData_IO_Statusbar(profile);
+		} else {
+			return false;
+		}
+		return true;
+	}
+};
+
+} // namespace
+
+std::optional<Text> GetCommonSetting(const Text& section, const Text& key)
+{
+	if (!IsStarted()) return std::nullopt;
+	CDataProfile profile;
+	profile.SetWritingMode();
+	if (!CommonSettingIO::IO(profile, section)) return std::nullopt;
+	sakura::wstring value;
+	if (!profile.GetProfileData(section, key, value)) return std::nullopt;
+	return Text(value);
+}
+
+bool SetCommonSetting(const Text& section, const Text& key, const Text& value)
+{
+	if (!IsStarted()) return false;
+	// 这一节现在的值写进 profile，只换这一项，再按原版读入（范围限制等与读 sakura.ini 时相同）
+	CDataProfile profile;
+	profile.SetWritingMode();
+	if (!CommonSettingIO::IO(profile, section)) return false;
+	sakura::wstring current;
+	if (!profile.GetProfileData(section, key, current)) return false;
+	profile.SetProfileData(section, key, value);
+	profile.SetReadingMode();
+	CommonSettingIO::IO(profile, section);
+	return true;
+}
+
+bool SaveSettings()
+{
+	if (!IsStarted() || g_settingsImportPending) return false;
+	CShareData_IO::SaveShareData();
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // 编码、换行符、命令名
 // ---------------------------------------------------------------------------
 
@@ -406,6 +466,20 @@ void RemoveRecentFile(const Text& path)
 	const int n = cRecentFile.FindItemByPath(path.c_str());
 	if (0 <= n) cRecentFile.DeleteItem(n);
 	cRecentFile.Terminate();
+}
+
+void ClearRecentFiles()
+{
+	if (!IsStarted()) return;
+	CMRUFile cMRU;
+	cMRU.ClearAll();
+}
+
+void ClearRecentFolders()
+{
+	if (!IsStarted()) return;
+	CMRUFolder cMRUFolder;
+	cMRUFolder.ClearAll();
 }
 
 // 文件对话框的编码列表（第 30 步）
