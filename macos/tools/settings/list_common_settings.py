@@ -7,7 +7,7 @@
 从 sakura_core/sakura_rc.rc 的对话框模板（IDD_PROP_*）取出每个控件和它的文字，
 再从 sakura_core/prop/CPropCom*.cpp 找出这个控件读写的 CommonSetting 成员（m_Common.m_sXxx.m_yyy）。
 输出 CSV（UTF-8 BOM，Excel 能直接打开）：页、控件 ID、种类、文字、成员、sakura.ini 的节和项目、Mac 版的处理
-（○ 与原版相同地读写、× Mac 版做不到（变灰）、次の PR／第 N 步 以后移植）。
+（○ 与原版相同地读写、× Mac 版做不到（变灰）、第 N 步 以后移植）。
 结果放在 macos/docs/common-settings.csv。
 
 用法：python3 list_common_settings.py [输出文件]（默认输出到标准输出）
@@ -58,7 +58,8 @@ INI_OVERRIDES = {
     "IDC_COMBO_WHEEL_PAGESCROLL": "Common/nPageScrollByWheel", "IDC_COMBO_WHEEL_HSCROLL": "Common/nHorizontalScrollByWheel",
     "IDC_COMBO_LANGUAGE": "Common/szLanguageDll",
     "IDC_CHECK_DispTabClose": "Common/bDispTabClose", "IDC_COMBO_TAB_POSITION": "Common/eTabPosition",
-    "IDC_STATIC_TABFONT": "Common/lfTabFont…",
+    "IDC_STATIC_TABFONT": "Common/lfTabFont, lfTabFontPs, lfTabFaceName",
+    "IDC_BUTTON_WINSIZE": "Common/bSaveWindowSize, nSaveWindowPos, nWinSizeType, nWinSizeCX, nWinSizeCY, nWinPosX, nWinPosY",
     "IDC_CHECK_DISP_UNICODE_IN_SJIS": "Statusbar/DispUnicodeInSjis", "IDC_CHECK_DISP_UNICODE_IN_JIS": "Statusbar/DispUnicodeInJis",
     "IDC_CHECK_DISP_UNICODE_IN_EUC": "Statusbar/DispUnicodeInEuc", "IDC_CHECK_DISP_UTF8_CODEPOINT": "Statusbar/DispUtf8Codepoint",
     "IDC_CHECK_DISP_SP_CODEPOINT": "Statusbar/DispSurrogatePairCodepoint",
@@ -79,7 +80,7 @@ INI_OVERRIDES = {
     "IDC_EDIT_BACKUPFOLDER": "Common/szBackUpFolder",
     "IDC_RADIO_DFORM_1": "Common/nDateFormatType", "IDC_RADIO_TFORM_1": "Common/nTimeFormatType",
     "IDC_COMBO_TAGJUMP": "Common/nTagJumpMode", "IDC_COMBO_KEYWORD_TAGJUMP": "Common/nTagJumpModeKeyword",
-    "IDC_STATIC_KEYWORDHELPFONT": "Common/lfKeywordHelpFont…",
+    "IDC_STATIC_KEYWORDHELPFONT": "Common/khlf, khps, khlfFaceName",
 }
 
 # Mac 版的处理（第 39 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
@@ -90,8 +91,7 @@ LATER_PAGES = {
 MAC_DECISIONS = {
     "IDC_CHECK_USETRAYICON": "×（タスクトレイがない。偏离项 7）", "IDC_CHECK_STAYTASKTRAY": "×（同上）",
     "IDC_HOTKEY_TRAYMENU": "×（同上）", "IDC_CHECK_MEMDC": "×（Windows の描画方式）",
-    "IDC_COMBO_LANGUAGE": "×（言語 DLL。Mac 版はシステムの言語）", "IDC_BUTTON_WINSIZE": "次の PR（位置と大きさの設定）",
-    "IDC_BUTTON_TABFONT": "次の PR（フォント）", "IDC_STATIC_TABFONT": "次の PR（フォント）",
+    "IDC_COMBO_LANGUAGE": "×（言語 DLL。Mac 版はシステムの言語）",
     "IDC_CHECK_VISTA_STYLE_FILEDIALOG": "×（Windows のダイアログの種類）",
     "IDC_COMBO_FILESHAREMODE": "×（Windows の共有モード。偏离项 9）",
     "IDC_EDIT_REGEXPLIB": "×（正規表現は組み込みの bregonig。偏离项 9）", "IDC_LABEL_REGEXP": "×（同上）",
@@ -100,11 +100,9 @@ MAC_DECISIONS = {
     "IDC_EDIT_EXTHTMLHELP": "×（同上）", "IDC_BUTTON_OPENEXTHTMLHELP": "×（同上）", "IDC_CHECK_HTMLHELPISSINGLE": "×（同上）",
     "IDC_EDIT_MIGEMO_DLL": "×（migemo は組み込み。偏离项 9）", "IDC_BUTTON_OPENMDLL": "×（同上）",
     "IDC_EDIT_MIGEMO_DICT": "×（同上）", "IDC_BUTTON_OPENMDICT": "×（同上）",
-    "IDC_STATIC_KEYWORDHELPFONT": "次の PR（フォント）", "IDC_BUTTON_KEYWORDHELPFONT": "次の PR（フォント）",
+    # フォント名とサイズの表示（RTEXT だが値を表示する）
+    "IDC_STATIC_TABFONT": "○", "IDC_STATIC_KEYWORDHELPFONT": "○",
 }
-FNAME_LIST = {"IDC_LIST_FNAME", "IDC_EDIT_FNAME_FROM", "IDC_EDIT_FNAME_TO", "IDC_BUTTON_FNAME_INS", "IDC_BUTTON_FNAME_ADD",
-              "IDC_BUTTON_FNAME_UPD", "IDC_BUTTON_FNAME_DEL", "IDC_BUTTON_FNAME_TOP", "IDC_BUTTON_FNAME_UP",
-              "IDC_BUTTON_FNAME_DOWN", "IDC_BUTTON_FNAME_LAST"}
 
 
 def mac_decision(page, cid, kind):
@@ -112,8 +110,6 @@ def mac_decision(page, cid, kind):
         return LATER_PAGES[page]
     if cid in MAC_DECISIONS:
         return MAC_DECISIONS[cid]
-    if cid in FNAME_LIST:
-        return "次の PR（置換リストの編集）"
     if kind in ("LTEXT", "RTEXT", "CTEXT", "GROUPBOX"):
         return ""
     return "○"

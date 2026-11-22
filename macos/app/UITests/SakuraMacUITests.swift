@@ -356,6 +356,40 @@ final class SakuraMacUITests: XCTestCase {
         window.buttons["CommonSettingsCancel"].click()
     }
 
+    /// 共通設定 > ウィンドウ「位置と大きさの設定」（模态的对话框）、ファイル名表示 的置換リスト（第 39 步第 2 个 PR）
+    func testCommonSettingsDialogAndList() {
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+
+        window.staticTexts["CommonSettingsPage_ウィンドウ"].click()
+        let sizeButton = window.buttons["IDC_BUTTON_WINSIZE"]
+        XCTAssertTrue(sizeButton.waitForExistence(timeout: 2))
+        sizeButton.click()
+        let dialog = app.windows["WinSizeDialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5), "ウィンドウの位置と大きさ")
+        dialog.radioButtons["IDC_RADIO_WINSIZE_SET"].click()
+        XCTAssertTrue(dialog.textFields["IDC_EDIT_SX"].isEnabled, "直接指定 のとき 幅 を変えられる")
+        dialog.radioButtons["IDC_RADIO_WINSIZE_DEF"].click()
+        XCTAssertFalse(dialog.textFields["IDC_EDIT_SX"].isEnabled)
+        dialog.buttons["IDOK"].click()
+        XCTAssertFalse(dialog.waitForExistence(timeout: 1), "閉じる で閉じる")
+
+        window.staticTexts["CommonSettingsPage_ファイル名表示"].click()
+        let table = window.tables["IDC_LIST_FNAME_table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 2), "置換リスト")
+        let count = table.tableRows.count
+        let from = window.textFields["IDC_EDIT_FNAME_FROM"]
+        from.click()
+        from.typeKey("a", modifierFlags: .command)
+        from.typeText("/Volumes/UITest/")
+        window.buttons["IDC_BUTTON_FNAME_ADD"].click()
+        XCTAssertEqual(table.tableRows.count, count + 1, "追加")
+        window.buttons["IDC_BUTTON_FNAME_DEL"].click()
+        XCTAssertEqual(table.tableRows.count, count, "削除")
+        window.buttons["CommonSettingsCancel"].click()
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

@@ -475,6 +475,8 @@ NS_SWIFT_NAME(EditorCore)
 + (nullable NSString *)commonSettingInSection:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(commonSetting(section:key:));
 //! 改共通設定的一项（与改 sakura.ini 后读入相同，范围限制照原版）。没有这一项时 NO
 + (BOOL)setCommonSetting:(NSString *)value section:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(setCommonSetting(_:section:key:));
+//! 一次改同一节的几项（项目 → 值）。ファイル名表示 的置換リスト（ArrNum、From%02d、To%02d）用。有一项不在这一节里时 NO，什么也不改
++ (BOOL)setCommonSettings:(NSDictionary<NSString *, NSString *> *)values section:(NSString *)section NS_SWIFT_NAME(setCommonSettings(_:section:));
 //! 现在的设置写进 sakura.ini。导入设置以后、重新启动之前不写，返回 NO
 + (BOOL)saveSettings;
 

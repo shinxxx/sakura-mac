@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Zlib
 """共通設定窗口的各页的布局（计划第 39 步）。
 
-从 sakura_core/sakura_rc.rc 的对话框模板（IDD_PROP_*）取出每个控件的种类、文字、位置（对话框单位），
+从 sakura_core/sakura_rc.rc 的对话框模板（IDD_PROP_*，和从各页打开的对话框 DIALOGS）取出每个控件的种类、文字、位置（对话框单位），
 写成 JSON，App 按它摆放控件（布局、项目、顺序、文字照原版，控件用 Mac 的）。
 原版的 rc 改了以后重新运行：python3 make_prop_dialogs.py（输出 macos/app/Resources/CommonSettingsDialogs.json）
 """
@@ -17,6 +17,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 from list_common_settings import PAGES, ROOT, CONTROL_RE, read_rc  # noqa: E402
 
 OUT = os.path.join(ROOT, "macos", "app", "Resources", "CommonSettingsDialogs.json")
+
+# 从共通設定的页打开的对话框（第 39 步）。名字是模板的 CAPTION
+DIALOGS = [
+    "IDD_WINPOSSIZE",	# ウィンドウ > 位置と大きさの設定（原版 CDlgWinSize）
+]
 
 
 def text_of(raw):
@@ -115,20 +120,43 @@ def controls(lines, dialog):
     return size, result
 
 
-def main():
-    lines = read_rc()
-    pages = []
-    for name, dialog, _ in PAGES:
-        size, items = controls(lines, dialog)
-        pages.append({"name": name, "dialog": dialog, "size": size, "controls": items})
-    # 一个控件一行（差分好看）
-    out_lines = ['{"source": "sakura_core/sakura_rc.rc", "pages": [']
+def caption(lines, dialog):
+    start = next(i for i, l in enumerate(lines) if re.match(rf"^{dialog}\s+DIALOGEX\b", l))
+    for line in lines[start:]:
+        m = re.match(r'^CAPTION\s+"(.*)"', line)
+        if m:
+            return text_of(m.group(1))
+        if line.strip() == "BEGIN":
+            break
+    return dialog
+
+
+def dump(pages):
+    """一个控件一行（差分好看）"""
+    out_lines = []
     for n, page in enumerate(pages):
         head = {k: v for k, v in page.items() if k != "controls"}
         out_lines.append(" " + json.dumps(head, ensure_ascii=False)[:-1] + ', "controls": [')
         rows = [json.dumps(c, ensure_ascii=False) for c in page["controls"]]
         out_lines += ["  " + r + ("," if i + 1 < len(rows) else "") for i, r in enumerate(rows)]
         out_lines.append(" ]}" + ("," if n + 1 < len(pages) else ""))
+    return out_lines
+
+
+def main():
+    lines = read_rc()
+    pages = []
+    for name, dialog, _ in PAGES:
+        size, items = controls(lines, dialog)
+        pages.append({"name": name, "dialog": dialog, "size": size, "controls": items})
+    dialogs = []
+    for dialog in DIALOGS:
+        size, items = controls(lines, dialog)
+        dialogs.append({"name": caption(lines, dialog), "dialog": dialog, "size": size, "controls": items})
+    out_lines = ['{"source": "sakura_core/sakura_rc.rc", "pages": [']
+    out_lines += dump(pages)
+    out_lines.append('], "dialogs": [')
+    out_lines += dump(dialogs)
     out_lines.append("]}")
     data = "\n".join(out_lines)
     out = sys.argv[1] if len(sys.argv) > 1 else OUT

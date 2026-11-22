@@ -6,6 +6,7 @@
 	- 值的范围限制与原版读入 sakura.ini 时相同（例：ファイルの履歴MAX 最大 36）
 	- 改一项不影响同一节的其他项
 	- 没有的项目、共通設定窗口不用的节不改
+	- 一次改几项（SetCommonSettings）：ファイル名表示 的置換リスト的项数可以变；有一项不行时什么也不改
 	- SaveSettings 以后 sakura.ini 里是新的值，重新启动后也是
 */
 /*
@@ -122,6 +123,50 @@ TEST_F(MacCommonSettingTest, SetRejectsUnknownItems)
 	EXPECT_FALSE(SetCommonSetting(u"Types(0)", u"szTypeName", u"x"));
 	EXPECT_FALSE(SetCommonSetting(u"MRU", u"_MRU_Counts", u"0"));
 	EXPECT_FALSE(Common().m_sGeneral.m_bIsFreeCursorMode);
+}
+
+//! 一次改几项：置換リスト的项数变多、变少（原版 CPropFileName::GetData 写 ArrNum 和 From%02d、To%02d）
+TEST_F(MacCommonSettingTest, SetSeveralChangesFileNameList)
+{
+	auto& fileName = Common().m_sFileName;
+	ASSERT_TRUE(SetCommonSettings(u"Nickname", { { u"ArrNum", u"0" } }));
+	EXPECT_EQ(0, fileName.m_nTransformFileNameArrNum);
+	EXPECT_FALSE(GetCommonSetting(u"Nickname", u"From00").has_value());
+
+	// 一项一项地改不行（ArrNum 以外的项目还没有），一起改可以
+	EXPECT_FALSE(SetCommonSetting(u"Nickname", u"From00", u"%HOME%\\"));
+	EXPECT_TRUE(SetCommonSettings(u"Nickname", {
+		{ u"ArrNum", u"2" }, { u"From00", u"%HOME%\\" }, { u"To00", u"~\\" }, { u"From01", u"C:\\Work\\" }, { u"To01", u"W:" },
+	}));
+	EXPECT_EQ(2, fileName.m_nTransformFileNameArrNum);
+	EXPECT_STREQ(LTEXT("%HOME%\\"), fileName.m_szTransformFileNameFrom[0]);
+	EXPECT_STREQ(LTEXT("~\\"), fileName.m_szTransformFileNameTo[0]);
+	EXPECT_STREQ(LTEXT("C:\\Work\\"), fileName.m_szTransformFileNameFrom[1]);
+	EXPECT_EQ(u"W:", GetCommonSetting(u"Nickname", u"To01"));
+
+	// 变少：后面的项清空（原版读入时）
+	EXPECT_TRUE(SetCommonSettings(u"Nickname", { { u"ArrNum", u"1" } }));
+	EXPECT_EQ(1, fileName.m_nTransformFileNameArrNum);
+	EXPECT_STREQ(LTEXT(""), fileName.m_szTransformFileNameFrom[1]);
+	EXPECT_FALSE(GetCommonSetting(u"Nickname", u"From01").has_value());
+
+	// 范围限制：最多 MAX_TRANSFORM_FILENAME 项
+	EXPECT_TRUE(SetCommonSettings(u"Nickname", { { u"ArrNum", u"100" } }));
+	EXPECT_EQ(MAX_TRANSFORM_FILENAME, fileName.m_nTransformFileNameArrNum);
+}
+
+//! 一次改几项：有一项不在这一节里时 false，别的项也不改
+TEST_F(MacCommonSettingTest, SetSeveralRejectsAllWhenOneIsUnknown)
+{
+	Common().m_sFileName.m_nTransformFileNameArrNum = 1;
+	wcscpy(Common().m_sFileName.m_szTransformFileNameFrom[0], LTEXT("A"));
+	Common().m_sFileName.m_bTransformShortPath = true;
+	EXPECT_FALSE(SetCommonSettings(u"Nickname", { { u"bShortPath", u"0" }, { u"From05", u"X" } }));
+	EXPECT_TRUE(Common().m_sFileName.m_bTransformShortPath);
+	EXPECT_FALSE(SetCommonSettings(u"Nickname", { { u"ArrNum", u"0" }, { u"NoSuchKey", u"1" } }));
+	EXPECT_EQ(1, Common().m_sFileName.m_nTransformFileNameArrNum);
+	EXPECT_STREQ(LTEXT("A"), Common().m_sFileName.m_szTransformFileNameFrom[0]);
+	EXPECT_FALSE(SetCommonSettings(u"MRU", { { u"_MRU_Counts", u"0" } }));
 }
 
 //! 保存：sakura.ini 里是新的值，重新启动后也是

@@ -350,16 +350,37 @@ std::optional<Text> GetCommonSetting(const Text& section, const Text& key)
 
 bool SetCommonSetting(const Text& section, const Text& key, const Text& value)
 {
+	return SetCommonSettings(section, { { key, value } });
+}
+
+bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Text>>& values)
+{
 	if (!IsStarted()) return false;
-	// 这一节现在的值写进 profile，只换这一项，再按原版读入（范围限制等与读 sakura.ini 时相同）
+	// 这一节现在的值写进 profile（失败时恢复用）
+	CDataProfile before;
+	before.SetWritingMode();
+	if (!CommonSettingIO::IO(before, section)) return false;
+	// 再写一次，换这些项，按原版读入（范围限制、ArrNum 以后的项清空等与读 sakura.ini 时相同）
 	CDataProfile profile;
 	profile.SetWritingMode();
-	if (!CommonSettingIO::IO(profile, section)) return false;
-	sakura::wstring current;
-	if (!profile.GetProfileData(section, key, current)) return false;
-	profile.SetProfileData(section, key, value);
+	CommonSettingIO::IO(profile, section);
+	for (const auto& [key, value] : values) {
+		profile.SetProfileData(section, key, value);
+	}
 	profile.SetReadingMode();
 	CommonSettingIO::IO(profile, section);
+	// 读入以后这一节里没有的项目（不存在的项目、ArrNum 以外的 From%02d 等）：失败，恢复原来的值
+	CDataProfile after;
+	after.SetWritingMode();
+	CommonSettingIO::IO(after, section);
+	for (const auto& [key, value] : values) {
+		sakura::wstring current;
+		if (!after.GetProfileData(section, key, current)) {
+			before.SetReadingMode();
+			CommonSettingIO::IO(before, section);
+			return false;
+		}
+	}
 	return true;
 }
 
