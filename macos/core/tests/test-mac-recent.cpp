@@ -279,3 +279,20 @@ TEST_F(MacRecentTest, UpdatesWhenHistoryIsFull)
 	EXPECT_EQ(ToText(a), RecentFiles()[0].path);
 	EXPECT_EQ(120, RecentFiles()[0].caret.line);
 }
+
+//! 共通設定 > 全般「履歴をクリア」（第 39 步，原版 CMRUFile::ClearAll、CMRUFolder::ClearAll）
+TEST_F(MacRecentTest, ClearRemovesAllFilesOrFolders)
+{
+	const auto a = File("a.txt", "abc\n");
+	Open(a);
+	ASSERT_FALSE(RecentFiles().empty());
+	ASSERT_FALSE(RecentFolders().empty());
+
+	ClearRecentFiles();
+	EXPECT_TRUE(RecentFiles().empty());
+	EXPECT_FALSE(FindRecentFile(ToText(a)).has_value());
+	EXPECT_FALSE(RecentFolders().empty());	// フォルダーの履歴は残る
+
+	ClearRecentFolders();
+	EXPECT_TRUE(RecentFolders().empty());
+}

@@ -92,6 +92,26 @@ enum CommandTable {
         31141: #selector(EditorTextView.wrapNone(_:)),				// F_TMPWRAPNOWRAP
         31142: #selector(EditorTextView.wrapSettingWidth(_:)),		// F_TMPWRAPSETTING
         31143: #selector(EditorTextView.wrapWindowWidth(_:)),		// F_TMPWRAPWINDOW
+        // 第 39 步：共通設定（CommonSettingsWindow.swift）。各页的功能打开那一页
+        31112: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION 共通設定
+        32000: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_GENERAL 共通設定『全般』
+        32001: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_WINDOW
+        32002: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_EDIT
+        32003: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_FILE
+        32004: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_BACKUP
+        32005: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_FORMAT
+        32007: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_GREP
+        32008: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_KEYBIND
+        32009: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_CUSTMENU
+        32010: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_TOOLBAR
+        32011: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_KEYWORD
+        32012: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_HELPER
+        32013: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_MACRO
+        32014: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_FNAME
+        32015: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_TAB
+        32016: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_STATUSBAR
+        32017: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_PLUGIN
+        32018: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_MAINMENU
 
         // ウィンドウ（第 26 步）
         31320: #selector(NSWindow.performClose(_:)),				// F_WINCLOSE 閉じる

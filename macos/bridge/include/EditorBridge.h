@@ -471,6 +471,13 @@ NS_SWIFT_NAME(EditorCore)
 //! 导入前的设置的备份（sakura.ini.before-import）
 @property (class, readonly, copy) NSString *settingsBackupPath;
 
+//! 共通設定的一项（第 39 步）。节和项目与 sakura.ini 相同（Common、Nickname、Statusbar），值是 ini 里的写法。没有这一项时 nil
++ (nullable NSString *)commonSettingInSection:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(commonSetting(section:key:));
+//! 改共通設定的一项（与改 sakura.ini 后读入相同，范围限制照原版）。没有这一项时 NO
++ (BOOL)setCommonSetting:(NSString *)value section:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(setCommonSetting(_:section:key:));
+//! 现在的设置写进 sakura.ini。导入设置以后、重新启动之前不写，返回 NO
++ (BOOL)saveSettings;
+
 //! 编码的显示名（"SJIS"、"UTF-8" 等）。不能用的编码是空字符串
 + (NSString *)nameOfEncoding:(ECEncoding)encoding NS_SWIFT_NAME(name(ofEncoding:));
 //! 功能的名字（与原版菜单相同，日文）。不存在时是空字符串
@@ -501,6 +508,10 @@ NS_SWIFT_NAME(EditorCore)
 + (nullable ECRecentFile *)recentFileForPath:(NSString *)path NS_SWIFT_NAME(recentFile(path:));
 //! 从历史里删除这个文件
 + (void)removeRecentFileAtPath:(NSString *)path NS_SWIFT_NAME(removeRecentFile(path:));
+//! 删除全部「最近使ったファイル」（共通設定 > 全般「履歴をクリア」，第 39 步）
++ (void)clearRecentFiles;
+//! 删除全部「最近使ったフォルダー」（第 39 步）
++ (void)clearRecentFolders;
 
 /*!
 	文字宽度用 Core Text 测量（第 27 步，原版用 GDI）。App 启动时调用一次。

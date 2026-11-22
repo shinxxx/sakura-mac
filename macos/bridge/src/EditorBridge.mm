@@ -458,6 +458,22 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 	return ToNSString(core::SettingsBackupPath());
 }
 
++ (NSString *)commonSettingInSection:(NSString *)section key:(NSString *)key
+{
+	const auto value = core::GetCommonSetting(ToText(section), ToText(key));
+	return value ? ToNSString(*value) : nil;
+}
+
++ (BOOL)setCommonSetting:(NSString *)value section:(NSString *)section key:(NSString *)key
+{
+	return core::SetCommonSetting(ToText(section), ToText(key), ToText(value)) ? YES : NO;
+}
+
++ (BOOL)saveSettings
+{
+	return core::SaveSettings() ? YES : NO;
+}
+
 + (NSString *)nameOfEncoding:(ECEncoding)encoding
 {
 	if (!FitsInt32(encoding)) return @"";
@@ -549,6 +565,16 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 + (void)removeRecentFileAtPath:(NSString *)path
 {
 	core::RemoveRecentFile(ToText(path));
+}
+
++ (void)clearRecentFiles
+{
+	core::ClearRecentFiles();
+}
+
++ (void)clearRecentFolders
+{
+	core::ClearRecentFolders();
 }
 
 + (void)useCoreTextMeasurement

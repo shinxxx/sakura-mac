@@ -175,6 +175,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         reloadColors()
         NotificationCenter.default.addObserver(self, selector: #selector(fontDidChange(_:)),
                                                name: Self.fontDidChangeNotification, object: nil)
+        // 第 39 步：共通設定窗口按了 OK（原版 MYWM_CHANGESETTING 时各窗口的 OnChangeSetting）
+        NotificationCenter.default.addObserver(self, selector: #selector(commonSettingsDidChange(_:)),
+                                               name: Self.commonSettingsDidChangeNotification, object: nil)
         // 输入法打开、关闭时，光标的颜色跟着变
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardInputSourceDidChange(_:)),
                                                name: NSTextInputContext.keyboardSelectionDidChangeNotification, object: nil)
@@ -202,6 +205,17 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         ascent = ceil(font.ascender)
         charHeight = ceil(font.ascender - font.descender)
         lineHeight = charHeight + CGFloat(max(0, settings.lineSpacing))
+    }
+
+    /// 共通設定窗口按了 OK 时发出（第 39 步）
+    static let commonSettingsDidChangeNotification = Notification.Name("SakuraCommonSettingsDidChange")
+
+    /// 共通設定变了：重新读设置，重画（原版 CEditWnd::OnChangeSetting → CEditView::OnChangeSetting）
+    @objc private func commonSettingsDidChange(_ notification: Notification) {
+        settings = document.viewSettings
+        updateFontMetrics()
+        reloadColors()
+        contentDidChange()
     }
 
     /// 字体变了（設定 > フォント設定）：重新排版，重新计算行高

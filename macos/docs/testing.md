@@ -68,3 +68,8 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 - 核心库的 `MacPerfTest.*`、App 的 `PerformanceTests` 在普通的测试里一起运行（Debug，上限定得宽，只防止明显变慢）。
 - CI 的 `core-perf-macos` 用 Release 构建量核心库的时间，`perf-windows` 在 Windows 上用官方版的宏量同样的操作，
   两边的时间写在各自 job 的 Summary 里。详见 [phase2-performance.md](phase2-performance.md)。
+
+## 共通設定窗口（第 39 步）
+
+- App 的 `CommonSettingsTests` 大多用假的设置（没写过的项从核心库读，写的值留在测试里），不改测试进程的设置；`testOKAppliesToCore` 用真的核心库，结束时改回去。
+- 确认对话框、文件夹的选择换成测试用的（`CommonSettingsPages.confirm`、`inform`、`chooseFolder`），不出模态窗口。详见 [phase3-common-settings.md](phase3-common-settings.md)。

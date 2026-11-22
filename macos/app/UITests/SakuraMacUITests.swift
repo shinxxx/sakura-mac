@@ -321,6 +321,41 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertFalse(author.waitForExistence(timeout: 1))
     }
 
+    // MARK: - 第 39 步：共通設定窗口
+
+    /// ⌘,（App 菜单的「設定…」）打开共通設定：左边是原版的页，换页，改一项按 OK，再打开时是改过的值、上次的页
+    func testCommonSettingsWindow() {
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        XCTAssertTrue(window.staticTexts["CommonSettingsPage_バックアップ"].exists, "页的列表")
+
+        window.staticTexts["CommonSettingsPage_タブバー"].click()
+        XCTAssertTrue(window.checkBoxes["IDC_CHECK_DispTabWnd"].waitForExistence(timeout: 2), "タブバー 页")
+
+        window.staticTexts["CommonSettingsPage_全般"].click()
+        let freeCaret = window.checkBoxes["IDC_CHECK_FREECARET"]
+        XCTAssertTrue(freeCaret.waitForExistence(timeout: 2))
+        XCTAssertFalse(window.checkBoxes["IDC_CHECK_USETRAYICON"].isEnabled, "タスクトレイ は Mac 版では使えない")
+        let before = freeCaret.value as? Int ?? -1
+        freeCaret.click()
+        window.buttons["CommonSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+
+        key(",", .command)
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+        XCTAssertTrue(freeCaret.waitForExistence(timeout: 2), "上次的页（全般）")
+        XCTAssertEqual(freeCaret.value as? Int, before == 1 ? 0 : 1, "OK した値")
+
+        // キャンセル は変えない
+        freeCaret.click()
+        window.buttons["CommonSettingsCancel"].click()
+        key(",", .command)
+        XCTAssertTrue(freeCaret.waitForExistence(timeout: 5))
+        XCTAssertEqual(freeCaret.value as? Int, before == 1 ? 0 : 1, "キャンセル した値は残らない")
+        window.buttons["CommonSettingsCancel"].click()
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

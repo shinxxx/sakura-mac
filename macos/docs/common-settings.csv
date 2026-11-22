@@ -1,0 +1,300 @@
+﻿页,控件,种类,文字,CommonSetting 成员,sakura.ini（节/项目）,Mac 版
+全般,IDC_CHECK_FREECARET,AUTOCHECKBOX,フリーカーソル(F),m_sGeneral.m_bIsFreeCursorMode,Common/bIsFreeCursorMode,○
+全般,IDC_CHECK_STOPS_BOTH_ENDS_WHEN_SEARCH_WORD,AUTOCHECKBOX,単語単位で移動するときに単語の両端に止まる(B),m_sGeneral.m_bStopsBothEndsWhenSearchWord,Common/bStopsBothEndsWhenSearchWord,○
+全般,IDC_CHECK_STOPS_BOTH_ENDS_WHEN_SEARCH_PARAGRAPH,AUTOCHECKBOX,段落単位で移動するときに段落の両端に止まる(P),m_sGeneral.m_bStopsBothEndsWhenSearchParagraph,Common/bStopsBothEndsWhenSearchParagraph,○
+全般,IDC_CHECK_NOMOVE_ACTIVATE_BY_MOUSE,AUTOCHECKBOX,マウスクリックでのアクティブ化ではカーソルを移動しない(O),m_sGeneral.m_bNoCaretMoveByActivation,Common/NoCaretMoveByActivation,○
+全般,IDC_RADIO_CARETTYPE0,AUTORADIOBUTTON,Windows風,m_sGeneral.GetCaretType(),Common/nCaretType,○
+全般,IDC_RADIO_CARETTYPE1,AUTORADIOBUTTON,MS-DOS風,,Common/nCaretType,○
+全般,IDC_CHECK_USETRAYICON,AUTOCHECKBOX,タスクトレイを使う(T),m_sGeneral.m_bUseTaskTray,Common/bTaskTrayUse,×（タスクトレイがない。偏离项 7）
+全般,IDC_CHECK_STAYTASKTRAY,AUTOCHECKBOX,タスクトレイに常駐(R),m_sGeneral.m_bUseTaskTray m_sGeneral.m_bStayTaskTray,Common/bTaskTrayUse Common/bTaskTrayStay,×（同上）
+全般,IDC_HOTKEY_TRAYMENU,msctls_hotkey32,HotKey1,m_sGeneral.m_wTrayMenuHotKeyCode m_sGeneral.m_wTrayMenuHotKeyMods,Common/wTrayMenuHotKeyCode Common/wTrayMenuHotKeyMods,×（同上）
+全般,IDC_CHECK_CLOSEALLCONFIRM,AUTOCHECKBOX,同時に複数の編集用ウィンドウを閉じるとき確認(U),m_sGeneral.m_bCloseAllConfirm,Common/bCloseAllConfirm,○
+全般,IDC_CHECK_EXITCONFIRM,AUTOCHECKBOX,サクラエディタの全終了で編集用ウィンドウを閉じるとき確認(V),m_sGeneral.m_bExitConfirm,Common/bExitConfirm,○
+全般,IDC_EDIT_REPEATEDSCROLLLINENUM,EDITTEXT,行数(N),m_sGeneral.m_nRepeatedScrollLineNum,Common/nRepeatedScrollLineNum,○
+全般,IDC_CHECK_REPEATEDSCROLLSMOOTH,AUTOCHECKBOX,少し滑らかにする(S),m_sGeneral.m_nRepeatedScroll_Smooth,Common/nRepeatedScroll_Smooth,○
+全般,IDC_COMBO_WHEEL_PAGESCROLL,COMBOBOX,組み合わせてホイール操作した時ページスクロールする(J),,Common/nPageScrollByWheel,○
+全般,IDC_COMBO_WHEEL_HSCROLL,COMBOBOX,組み合わせてホイール操作した時横スクロールする(H),,Common/nHorizontalScrollByWheel,○
+全般,IDC_CHECK_MEMDC,AUTOCHECKBOX,画面キャッシュを使う(G),m_sWindow.m_bUseCompatibleBMP,Common/bUseCompotibleBMP,×（Windows の描画方式）
+全般,IDC_EDIT_MAX_MRU_FILE,EDITTEXT,ファイルの履歴MAX,m_sGeneral.m_nMRUArrNum_MAX,Common/nMRUArrNum_MAX,○
+全般,IDC_BUTTON_CLEAR_MRU_FILE,PUSHBUTTON,履歴をクリア(C)...,,,○
+全般,IDC_EDIT_MAX_MRU_FOLDER,EDITTEXT,フォルダーの履歴MAX,m_sGeneral.m_nOPENFOLDERArrNum_MAX,Common/nOPENFOLDERArrNum_MAX,○
+全般,IDC_BUTTON_CLEAR_MRU_FOLDER,PUSHBUTTON,履歴をクリア(L)...,,,○
+ウィンドウ,IDC_CHECK_DispTOOLBAR,AUTOCHECKBOX,ツールバー表示(T),m_sWindow.m_bDispTOOLBAR,Common/bDispTOOLBAR,○
+ウィンドウ,IDC_CHECK_DispFUNCKEYWND,AUTOCHECKBOX,ファンクションキー表示(K),m_sWindow.m_bDispFUNCKEYWND,Common/bDispFUNCKEYWND,○
+ウィンドウ,IDC_CHECK_DispSTATUSBAR,AUTOCHECKBOX,ステータスバー表示(S),m_sWindow.m_bDispSTATUSBAR,Common/bDispSTATUSBAR,○
+ウィンドウ,IDC_CHECK_bScrollBarHorz,AUTOCHECKBOX,水平スクロールバー(R),m_sWindow.m_bScrollBarHorz,Common/bScrollBarHorz,○
+ウィンドウ,IDC_CHECK_bMenuIcon,AUTOCHECKBOX,アイコン付きメニュー(I),m_sWindow.m_bMenuIcon,Common/bMenuIcon,○
+ウィンドウ,IDC_CHECK_bDarkMode,AUTOCHECKBOX,ダークモード(D),m_sWindow.m_bDarkMode,Common/bDarkMode,○
+ウィンドウ,IDC_BUTTON_WINSIZE,PUSHBUTTON,位置と大きさの設定(W)...,,,次の PR（位置と大きさの設定）
+ウィンドウ,IDC_EDIT_nRulerHeight,EDITTEXT,ルーラーの高さ(E),m_sWindow.m_nRulerHeight,Common/nRulerHeight,○
+ウィンドウ,IDC_EDIT_nRulerBottomSpace,EDITTEXT,ルーラーとテキストの隙間(P),m_sWindow.m_nRulerBottomSpace,Common/nRulerBottomSpace,○
+ウィンドウ,IDC_EDIT_nLineNumberRightSpace,EDITTEXT,行番号とテキストの隙間(L),m_sWindow.m_nLineNumRightSpace,Common/nLineNumberRightSpace,○
+ウィンドウ,IDC_CHECK_SplitterWndVScroll,AUTOCHECKBOX,垂直スクロールの同期をとる(V),m_sWindow.m_bSplitterWndVScroll,Common/bSplitterWndVScroll,○
+ウィンドウ,IDC_CHECK_SplitterWndHScroll,AUTOCHECKBOX,水平スクロールの同期をとる(H),m_sWindow.m_bSplitterWndHScroll,Common/bSplitterWndHScroll,○
+ウィンドウ,IDC_RADIO_FUNCKEYWND_PLACE1,AUTORADIOBUTTON,上(O),m_sWindow.m_nFUNCKEYWND_Place,Common/nFUNCKEYWND_Place,○
+ウィンドウ,IDC_RADIO_FUNCKEYWND_PLACE2,AUTORADIOBUTTON,下(B),m_sWindow.m_nFUNCKEYWND_Place,Common/nFUNCKEYWND_Place,○
+ウィンドウ,IDC_EDIT_FUNCKEYWND_GROUPNUM,EDITTEXT,グループボタン数(G),m_sWindow.m_nFUNCKEYWND_GroupNum,Common/nFUNCKEYWND_GroupNum,○
+ウィンドウ,IDC_WINCAPTION_ACTIVE,EDITTEXT,アクティブ時(1),m_sWindow.m_szWindowCaptionActive,Common/szWinCaptionActive,○
+ウィンドウ,IDC_WINCAPTION_INACTIVE,EDITTEXT,非アクティブ時(2),m_sWindow.m_szWindowCaptionInactive,Common/szWinCaptionInactive,○
+ウィンドウ,IDC_COMBO_LANGUAGE,COMBOBOX,言語,,Common/szLanguageDll,×（言語 DLL。Mac 版はシステムの言語）
+メインメニュー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
+メインメニュー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
+メインメニュー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
+メインメニュー,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
+メインメニュー,IDC_CHECK_KEY_PARENTHESES,AUTOCHECKBOX,アクセスキーを必ず( )付で表示(P),m_sMainMenu.m_bMainMenuKeyParentheses,,第 41 步
+メインメニュー,IDC_LABEL_MENU,LTEXT,メニュー(M),,,第 41 步
+メインメニュー,IDC_TREE_RES,SysTreeView32,Menu,,,第 41 步
+メインメニュー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,,第 41 步
+メインメニュー,IDC_BUTTON_INSERT_NODE,PUSHBUTTON,＋(N),,,第 41 步
+メインメニュー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,,第 41 步
+メインメニュー,IDC_BUTTON_INSERT,PUSHBUTTON,上⇒(Q),,,第 41 步
+メインメニュー,IDC_BUTTON_INSERT_A,PUSHBUTTON,下⇒(A),,,第 41 步
+メインメニュー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,,第 41 步
+メインメニュー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,,第 41 步
+メインメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
+メインメニュー,IDC_BUTTON_RIGHT,PUSHBUTTON,→(R),,,第 41 步
+メインメニュー,IDC_BUTTON_LEFT,PUSHBUTTON,←(L),,,第 41 步
+メインメニュー,IDC_BUTTON_EXPAND,PUSHBUTTON,全開(H),,,第 41 步
+メインメニュー,IDC_BUTTON_COLLAPSE,PUSHBUTTON,全閉(Z),,,第 41 步
+メインメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
+メインメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
+メインメニュー,IDC_BUTTON_CHECK,PUSHBUTTON,検査(T),,,第 41 步
+メインメニュー,IDC_BUTTON_CLEAR,PUSHBUTTON,クリア(C),,,第 41 步
+メインメニュー,IDC_BUTTON_INITIALIZE,PUSHBUTTON,初期設定(E),,,第 41 步
+ツールバー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
+ツールバー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
+ツールバー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
+ツールバー,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
+ツールバー,IDC_CHECK_TOOLBARISFLAT,AUTOCHECKBOX,フラットなボタン(L),m_sToolBar.m_bToolBarIsFlat,,第 41 步
+ツールバー,IDC_LABEL_TOOLBAR,LTEXT,ツールバー(T),,,第 41 步
+ツールバー,IDC_LIST_RES,LISTBOX,ツールバー(T),,,第 41 步
+ツールバー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,,第 41 步
+ツールバー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,,第 41 步
+ツールバー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,,第 41 步
+ツールバー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,,第 41 步
+ツールバー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,,第 41 步
+ツールバー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
+ツールバー,IDC_BUTTON_INSERTWRAP,PUSHBUTTON,折返(W),,,第 41 步
+タブバー,IDC_CHECK_DispTabWnd,AUTOCHECKBOX,タブバーを表示する(D),m_sTabBar.m_bDispTabWnd,Common/bDispTabWnd,○
+タブバー,IDC_CHECK_DispTabWndMultiWin,AUTOCHECKBOX,ウィンドウをまとめてグループ化する(B),m_sTabBar.m_bDispTabWndMultiWin,Common/bDispTabWndMultiWin,○
+タブバー,IDC_CHECK_RetainEmptyWindow,AUTOCHECKBOX,最後のファイルを閉じたとき(無題)文書を残す(R),m_sTabBar.m_bTab_RetainEmptyWin,Common/bTab_RetainEmptyWin,○
+タブバー,IDC_CHECK_CloseOneWin,AUTOCHECKBOX,ウィンドウの閉じるボタンは現在のファイルのみ閉じる(C),m_sTabBar.m_bTab_CloseOneWin,Common/bTab_CloseOneWin,○
+タブバー,IDC_CHECK_OpenNewWin,AUTOCHECKBOX,外部から起動するときは新しいウインドウで開く(O),m_sTabBar.m_bNewWindow,Common/bNewWindow,○
+タブバー,IDC_CHECK_DispTabIcon,AUTOCHECKBOX,アイコン表示(I),m_sTabBar.m_bDispTabIcon,Common/bDispTabIcon,○
+タブバー,IDC_CHECK_SameTabWidth,AUTOCHECKBOX,等幅(E),m_sTabBar.m_bSameTabWidth,Common/bSameTabWidth,○
+タブバー,IDC_TextTabClose,LTEXT,閉じるボタン(X),,,
+タブバー,IDC_CHECK_DispTabClose,COMBOBOX,閉じるボタン(X),,Common/bDispTabClose,○
+タブバー,IDC_BUTTON_TABFONT,PUSHBUTTON,フォント(F)...,,,次の PR（フォント）
+タブバー,IDC_STATIC_TABFONT,RTEXT,Font,m_sTabBar.m_lf m_sTabBar.m_nPointSize,Common/lfTabFont…,次の PR（フォント）
+タブバー,IDC_CHECK_SortTabList,AUTOCHECKBOX,タブ一覧をソートする(S),m_sTabBar.m_bSortTabList,Common/bSortTabList,○
+タブバー,IDC_CHECK_TAB_MULTILINE,AUTOCHECKBOX,多段(M),m_sTabBar.m_bTabMultiLine,Common/bTabMultiLine,○
+タブバー,IDC_TAB_POSITION,RTEXT,表示位置(P),,,
+タブバー,IDC_COMBO_TAB_POSITION,COMBOBOX,表示位置(P),,Common/eTabPosition,○
+タブバー,IDC_TextTabCaption,LTEXT,タイトル(T),,,
+タブバー,IDC_TABWND_CAPTION,EDITTEXT,タイトル(T),m_sTabBar.m_szTabWndCaption,Common/szTabWndCaption,○
+タブバー,IDC_CHECK_ChgWndByWheel,AUTOCHECKBOX,マウスホイールでタブ切替(W),m_sTabBar.m_bChgWndByWheel,Common/bChgWndByWheel,○
+ステータスバー,IDC_CHECK_DISP_UNICODE_IN_SJIS,AUTOCHECKBOX,"SJIS, Latin1等で文字コード値をUnicodeで表示する(S)",m_sStatusbar.m_bDispUniInSjis,Statusbar/DispUnicodeInSjis,○
+ステータスバー,IDC_CHECK_DISP_UNICODE_IN_JIS,AUTOCHECKBOX,JISで文字コード値をUnicodeで表示する(J),m_sStatusbar.m_bDispUniInJis,Statusbar/DispUnicodeInJis,○
+ステータスバー,IDC_CHECK_DISP_UNICODE_IN_EUC,AUTOCHECKBOX,EUCで文字コード値をUnicodeで表示する(E),m_sStatusbar.m_bDispUniInEuc,Statusbar/DispUnicodeInEuc,○
+ステータスバー,IDC_CHECK_DISP_UTF8_CODEPOINT,AUTOCHECKBOX,UTF-8およびCESU-8をコードポイントで表示する(8),m_sStatusbar.m_bDispUtf8Codepoint,Statusbar/DispUtf8Codepoint,○
+ステータスバー,IDC_CHECK_DISP_SP_CODEPOINT,AUTOCHECKBOX,サロゲートペアをコードポイントで表示する(P),m_sStatusbar.m_bDispSPCodepoint,Statusbar/DispSurrogatePairCodepoint,○
+ステータスバー,IDC_CHECK_DISP_SELCOUNT_BY_BYTE,AUTOCHECKBOX,選択文字数を文字単位ではなくバイト単位で表示する(B)　※高負荷のため非推奨,m_sStatusbar.m_bDispSelCountByByte,Statusbar/DispSelectCountByByte,○
+ステータスバー,IDC_CHECK_DISP_COL_BY_CHAR,AUTOCHECKBOX,現在桁をルーラー単位ではなく文字単位で表示する(C),m_sStatusbar.m_bDispColByChar,Statusbar/DispColByChar,○
+編集,IDC_CHECK_ADDCRLFWHENCOPY,AUTOCHECKBOX,折り返し行に改行を付けてコピー(C),m_sEdit.m_bAddCRLFWhenCopy,Common/bAddCRLFWhenCopy,○
+編集,IDC_CHECK_COPYnDISABLESELECTEDAREA,AUTOCHECKBOX,コピーしたら選択解除(R),m_sEdit.m_bCopyAndDisablSelection,Common/bCopyAndDisablSelection,○
+編集,IDC_CHECK_bEnableNoSelectCopy,AUTOCHECKBOX,選択なしでコピーを可能にする(E),m_sEdit.m_bEnableNoSelectCopy,Common/bEnableNoSelectCopy,○
+編集,IDC_CHECK_bEnableLineModePaste,AUTOCHECKBOX,ラインモード貼り付けを可能にする(L),m_sEdit.m_bEnableLineModePaste,Common/bEnableLineModePaste,○
+編集,IDC_CHECK_CONVERTEOLPASTE,AUTOCHECKBOX,改行コードを変換して貼り付ける(P),m_sEdit.m_bConvertEOLPaste,Common/bConvertEOLPaste,○
+編集,IDC_CHECK_DRAGDROP,AUTOCHECKBOX,ドラッグ  ドロップ編集する(D),m_sEdit.m_bUseOLE_DragDrop,Common/bUseOLE_DragDrop,○
+編集,IDC_CHECK_DROPSOURCE,AUTOCHECKBOX,ドロップ元にする(S),m_sEdit.m_bUseOLE_DropSource,Common/bUseOLE_DropSource,○
+編集,IDC_CHECK_bNotOverWriteCRLF,AUTOCHECKBOX,改行コードは上書きしない(N),m_sEdit.m_bNotOverWriteCRLF,Common/bNotOverWriteCRLF,○
+編集,IDC_CHECK_bOverWriteFixMode,AUTOCHECKBOX,文字幅に合わせてスペースを詰める(F),m_sEdit.m_bOverWriteFixMode,Common/bOverWriteFixMode,○
+編集,IDC_CHECK_bOverWriteBoxDelete,AUTOCHECKBOX,矩形入力で選択範囲を削除する(G),m_sEdit.m_bOverWriteBoxDelete,Common/bOverWriteBoxDelete,○
+編集,IDC_CHECK_bSelectClickedURL,AUTOCHECKBOX,クリックでURLを選択する,m_sEdit.m_bSelectClickedURL,Common/bSelectClickedURL,○
+編集,IDC_RADIO_CURDIR,AUTORADIOBUTTON,カレントフォルダー(U),m_sEdit.m_eOpenDialogDir,Common/eOpenDialogDir,○
+編集,IDC_RADIO_MRUDIR,AUTORADIOBUTTON,最近使ったフォルダー(M),m_sEdit.m_eOpenDialogDir,Common/eOpenDialogDir,○
+編集,IDC_RADIO_SELDIR,AUTORADIOBUTTON,指定フォルダー(F),m_sEdit.m_eOpenDialogDir,Common/eOpenDialogDir,○
+編集,IDC_EDIT_FILEOPENDIR,EDITTEXT,クリッカブルURL,m_sEdit.m_OpenDialogSelDir,Common/szOpenDialogSelDir,○
+編集,IDC_BUTTON_FILEOPENDIR,PUSHBUTTON,...,,,○
+編集,IDC_CHECK_VISTA_STYLE_FILEDIALOG,AUTOCHECKBOX,Vistaスタイルのファイルダイアログ(I),m_sEdit.m_bVistaStyleFileDialog,Common/bVistaStyleFileDialog,×（Windows のダイアログの種類）
+編集,IDC_CHECK_ENABLEEXTEOL,AUTOCHECKBOX,"改行コードNEL, PS, LSを有効にする(O)",m_sEdit.m_bEnableExtEol,Common/bEnableExtEol,○
+編集,IDC_CHECK_BOXSELECTLOCK,AUTOCHECKBOX,矩形選択移動で選択をロックする(B),m_sEdit.m_bBoxSelectLock,Common/bBoxSelectLock,○
+ファイル,IDC_COMBO_FILESHAREMODE,COMBOBOX,排他制御(H),,Common/nFileShareMode,×（Windows の共有モード。偏离项 9）
+ファイル,IDC_CHECK_bCheckFileTimeStamp,AUTOCHECKBOX,更新の監視(W),m_sFile.m_bCheckFileTimeStamp,Common/bCheckFileTimeStamp,○
+ファイル,IDC_LABEL_AUTOLOAD_DELAY,LTEXT,自動読込時遅延(A),,,
+ファイル,IDC_EDIT_AUTOLOAD_DELAY,EDITTEXT,自動読込時遅延(A),m_sFile.m_nAutoloadDelay,Common/nAutoloadDelay,○
+ファイル,IDC_CHECK_bUneditableIfUnwritable,AUTOCHECKBOX,上書き禁止検出時は編集禁止にする(N),m_sFile.m_bUneditableIfUnwritable,Common/bUneditableIfUnwritable,○
+ファイル,IDC_CHECK_ENABLEUNMODIFIEDOVERWRITE,AUTOCHECKBOX,無変更でも上書きする(S),m_sFile.m_bEnableUnmodifiedOverwrite,Common/bEnableUnmodifiedOverwrite,○
+ファイル,IDC_CHECK_AUTOSAVE,AUTOCHECKBOX,自動的に保存する(U),m_sBackup.IsAutoBackupEnabled(),Common/bBackUpType2_Opt1（BKUP_AUTO ビット）,○
+ファイル,IDC_LABEL_AUTOSAVE,LTEXT,間隔は(I),,,
+ファイル,IDC_EDIT_AUTOBACKUP_INTERVAL,EDITTEXT,間隔は(I),,Common/bBackUpType2_Opt3,○
+ファイル,IDC_LABEL_AUTOSAVE2,LTEXT,分ごと,,,
+ファイル,IDC_CHECK_NoFilterSaveNew,AUTOCHECKBOX,新規から保存時は全ファイル表示(O),m_sFile.m_bNoFilterSaveNew,Common/bNoFilterSaveNew,○
+ファイル,IDC_CHECK_NoFilterSaveFile,AUTOCHECKBOX,新規以外から保存時は全ファイル表示(F),m_sFile.m_bNoFilterSaveFile,Common/bNoFilterSaveFile,○
+ファイル,IDC_CHECK_bDropFileAndClose,AUTOCHECKBOX,ファイルのドロップは「閉じて開く」にする(L),m_sFile.m_bDropFileAndClose,Common/bDropFileAndClose,○
+ファイル,IDC_LABEL_AUTOSAVE3,LTEXT,ファイルのドロップは一度にMAX,,,
+ファイル,IDC_EDIT_nDropFileNumMax,EDITTEXT,ファイルのドロップは一度にMAX,m_sFile.m_nDropFileNumMax,Common/nDropFileNumMax,○
+ファイル,IDC_LABEL_AUTOSAVE4,LTEXT,個までとする,,,
+ファイル,IDC_LANEL_NOTE,LTEXT,←注：ドロップファイルは1つのみ有効,,,
+ファイル,IDC_CHECK_RestoreCurPosition,AUTOCHECKBOX,ファイルを開いたときにカーソル位置を復元する(C),m_sFile.GetRestoreCurPosition(),Common/m_bRestoreCurPosition,○
+ファイル,IDC_CHECK_RestoreBookmarks,AUTOCHECKBOX,ファイルを開いたときにブックマークを復元する(B),m_sFile.GetRestoreBookmarks(),Common/m_bRestoreBookmarks,○
+ファイル,IDC_CHECK_AutoMIMEDecode,AUTOCHECKBOX,ファイルを開いたときにMIMEエンコードされたヘッダーをデコードする(D),m_sFile.GetAutoMIMEdecode(),Common/bAutoMIMEdecode,○
+ファイル,IDC_CHECK_QueryIfCodeChange,AUTOCHECKBOX,前回と異なる文字コードのとき問い合わせを行う(Q),m_sFile.GetQueryIfCodeChange(),Common/bQueryIfCodeChange,○
+ファイル,IDC_CHECK_AlertIfFileNotExist,AUTOCHECKBOX,開こうとしたファイルが存在しないとき警告する(E),m_sFile.GetAlertIfFileNotExist(),Common/bAlertIfFileNotExist,○
+ファイル,IDC_CHECK_ALERT_IF_LARGEFILE,AUTOCHECKBOX,開こうとしたファイルが大きい場合に警告する(T),m_sFile.m_bAlertIfLargeFile,Common/bAlertIfLargeFile,○
+ファイル,IDC_EDIT_ALERT_FILESIZE,EDITTEXT,←注：ドロップファイルは1つのみ有効,m_sFile.m_nAlertFileSize,Common/nAlertFileSize,○
+ファイル名表示,IDC_CHECK_SHORTPATH,AUTOCHECKBOX,長いパスの省略表示(L),m_sFileName.m_bTransformShortPath,Nickname/bShortPath,○
+ファイル名表示,IDC_EDIT_SHORTMAXWIDTH,EDITTEXT,文字数(N),m_sFileName.m_nTransformShortMaxWidth,Nickname/nShortPathMaxWidth,○
+ファイル名表示,IDC_LIST_FNAME,SysListView32,List1,m_sFileName.m_nTransformFileNameArrNum,"Nickname/ArrNum, From%02d, To%02d",次の PR（置換リストの編集）
+ファイル名表示,IDC_EDIT_FNAME_FROM,EDITTEXT,置換前(F),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_EDIT_FNAME_TO,EDITTEXT,置換後(R),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_INS,PUSHBUTTON,挿入(S),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_ADD,PUSHBUTTON,追加(A),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_UPD,PUSHBUTTON,更新(E),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_DEL,PUSHBUTTON,削除(D),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_TOP,PUSHBUTTON,先頭(T),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_UP,PUSHBUTTON,上へ(U),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_DOWN,PUSHBUTTON,下へ(G),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_BUTTON_FNAME_LAST,PUSHBUTTON,最終(B),,,次の PR（置換リストの編集）
+バックアップ,IDC_CHECK_BACKUP,AUTOCHECKBOX,保存時にバックアップを作成する(K),m_sBackup.m_bBackUp,Common/bBackUp,○
+バックアップ,IDC_CHECK_BACKUP_ADVANCED,AUTOCHECKBOX,詳細設定する(A),m_sBackup.m_bBackUpPathAdvanced,Common/bBackUpPathAdvanced,○
+バックアップ,IDC_EDIT_BACKUPFILE,EDITTEXT,バックアップの作成,m_sBackup.m_szBackUpPathAdvanced,Common/szBackUpPathAdvanced,○
+バックアップ,IDC_RADIO_BACKUP_TYPE1,AUTORADIOBUTTON,拡張子を .bakに変更したもの(1世代 B),,Common/nBackUpType,○
+バックアップ,IDC_RADIO_BACKUP_TYPE3,AUTORADIOBUTTON,拡張子を連番(.b00～b98)に変更したもの(G),,Common/nBackUpType,○
+バックアップ,IDC_RADIO_BACKUP_DATETYPE1,AUTORADIOBUTTON,ファイル名の後ろに保存時の日付・時刻を付加したもの(E),,Common/nBackUpType,○
+バックアップ,IDC_RADIO_BACKUP_DATETYPE2,AUTORADIOBUTTON,ファイル名の後ろに前回の保存時の日付・時刻を付加したもの(U),,Common/nBackUpType,○
+バックアップ,IDC_CHECK_BACKUP_RETAINEXT,AUTOCHECKBOX,元の拡張子を保存(R),m_sBackup.GetBackupType(),Common/nBackUpType,○
+バックアップ,IDC_LABEL_BACKUP_3,LTEXT,保存する世代数(1-99 N),,,
+バックアップ,IDC_EDIT_BACKUP_3,EDITTEXT,保存する世代数(1-99 N),,Common/bBackUpType2_Opt2（下位 16 ビット）,○
+バックアップ,IDC_CHECK_BACKUP_YEAR,AUTOCHECKBOX,西暦(Y),,Common/bBackUpType2_Opt1（BKUP_YEAR）,○
+バックアップ,IDC_CHECK_BACKUP_MONTH,AUTOCHECKBOX,月(M),,Common/bBackUpType2_Opt1（BKUP_MONTH）,○
+バックアップ,IDC_CHECK_BACKUP_DAY,AUTOCHECKBOX,日(D),,Common/bBackUpType2_Opt1（BKUP_DAY）,○
+バックアップ,IDC_CHECK_BACKUP_HOUR,AUTOCHECKBOX,時(H),,Common/bBackUpType2_Opt1（BKUP_HOUR）,○
+バックアップ,IDC_CHECK_BACKUP_MIN,AUTOCHECKBOX,分(I),,Common/bBackUpType2_Opt1（BKUP_MIN）,○
+バックアップ,IDC_CHECK_BACKUP_SEC,AUTOCHECKBOX,秒(S),,Common/bBackUpType2_Opt1（BKUP_SEC）,○
+バックアップ,IDC_RADIO_BACKUP_DATETYPE1A,AUTORADIOBUTTON,保存時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○
+バックアップ,IDC_RADIO_BACKUP_DATETYPE2A,AUTORADIOBUTTON,前回のファイル更新時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○
+バックアップ,IDC_LABEL_BACKUP_HELP2,LTEXT,$x : x個上のフォルダー名(0-9)\r* : 拡張子\r\r%Y/%m/%d : 年月日 %y西暦(2桁) \r%H:%M:%S: 時分秒   \r%% : '%'記号\r,,,
+バックアップ,IDC_CHECK_BACKUPFOLDER,AUTOCHECKBOX,指定フォルダーに作成する(P),m_sBackup.m_bBackUpFolder,Common/bBackUpFolder,○
+バックアップ,IDC_CHECK_BACKUP_FOLDER_RM,AUTOCHECKBOX,リムーバブルメディアのみ(L),m_sBackup.m_bBackUpFolderRM,Common/bBackUpFolderRM,○
+バックアップ,IDC_LABEL_BACKUP_4,LTEXT,フォルダー名(F),,,
+バックアップ,IDC_EDIT_BACKUPFOLDER,EDITTEXT,フォルダー名(F),m_sBackup.m_szBackUpFolder,Common/szBackUpFolder,○
+バックアップ,IDC_BUTTON_BACKUP_FOLDER_REF,PUSHBUTTON,...,,,○
+バックアップ,IDC_CHECK_BACKUP_DUSTBOX,AUTOCHECKBOX,バックアップファイルをごみ箱に放り込む(X),m_sBackup.m_bBackUpDustBox,Common/bBackUpDustBox,○
+バックアップ,IDC_CHECK_BACKUPDIALOG,AUTOCHECKBOX,作成前に確認する(V),m_sBackup.m_bBackUpDialog,Common/bBackUpDialog,○
+書式,IDC_RADIO_DFORM_0,AUTORADIOBUTTON,標準(S),m_sFormat.m_nDateFormatType,Common/nDateFormatType,○
+書式,IDC_RADIO_DFORM_1,AUTORADIOBUTTON,カスタム(C),,Common/nDateFormatType,○
+書式,IDC_LABEL_DFORM,LTEXT,D:,,,
+書式,IDC_EDIT_DFORM,EDITTEXT,D:,m_sFormat.m_szDateFormat,Common/szDateFormat,○
+書式,IDC_EDIT_DFORM_EX,EDITTEXT,表示例,m_sFormat.m_nDateFormatType m_sFormat.m_szDateFormat,Common/nDateFormatType Common/szDateFormat,○
+書式,IDC_RADIO_TFORM_0,AUTORADIOBUTTON,標準(N),m_sFormat.m_nTimeFormatType,Common/nTimeFormatType,○
+書式,IDC_RADIO_TFORM_1,AUTORADIOBUTTON,カスタム(U),,Common/nTimeFormatType,○
+書式,IDC_LABEL_TFORM,LTEXT,T:,,,
+書式,IDC_EDIT_TFORM,EDITTEXT,T:,m_sFormat.m_szTimeFormat,Common/szTimeFormat,○
+書式,IDC_EDIT_TFORM_EX,EDITTEXT,表示例,m_sFormat.m_nTimeFormatType m_sFormat.m_szTimeFormat,Common/nTimeFormatType Common/szTimeFormat,○
+書式,IDC_EDIT_MIDASHIKIGOU,EDITTEXT,見出し記号(R),m_sFormat.m_szMidashiKigou,Common/szMidashiKigou,○
+書式,IDC_EDIT_INYOUKIGOU,EDITTEXT,引用符(Q),m_sFormat.m_szInyouKigou,Common/szInyouKigou,○
+検索,IDC_CHECK_bCaretTextForSearch,AUTOCHECKBOX,カーソル位置の文字列をデフォルトの検索文字列にする(C),m_sSearch.m_bCaretTextForSearch,Common/bCaretTextForSearch,○
+検索,IDC_CHECK_INHERIT_KEY_OTHER_VIEW,AUTOCHECKBOX,次・前検索で他のビューでの検索条件変更を引き継ぐ(I),m_sSearch.m_bInheritKeyOtherView,Common/m_bInheritKeyOtherView,○
+検索,IDC_LABEL_REGEXP,LTEXT,正規表現ライブラリ指定(L),,,×（同上）
+検索,IDC_LABEL_REGEXP_VER,LTEXT,正規表現ライブラリ指定(L),,,△（組み込みのライブラリを表示）
+検索,IDC_EDIT_REGEXPLIB,EDITTEXT,正規表現ライブラリ指定(L),m_sSearch.m_szRegexpLib,Common/szRegexpLib,×（正規表現は組み込みの bregonig。偏离项 9）
+検索,IDC_CHECK_bGrepExitConfirm,AUTOCHECKBOX,Grepモードで保存確認する(V),m_sSearch.m_bGrepExitConfirm,Common/bGrepExitConfirm,○
+検索,IDC_CHECK_GREPREALTIME,AUTOCHECKBOX,リアルタイムで表示する(R),m_sSearch.m_bGrepRealTimeView,Common/bGrepRealTime,○
+検索,IDC_CHECK_GTJW_RETURN,AUTOCHECKBOX,エンターキーでタグジャンプ(E),m_sSearch.m_bGTJW_RETURN,Common/bGTJW_RETURN,○
+検索,IDC_CHECK_GTJW_LDBLCLK,AUTOCHECKBOX,ダブルクリックでタグジャンプ(W),m_sSearch.m_bGTJW_LDBLCLK,Common/bGTJW_LDBLCLK,○
+検索,IDC_COMBO_TAGJUMP,COMBOBOX,タグファイルの検索(T):,,Common/nTagJumpMode,○
+検索,IDC_COMBO_KEYWORD_TAGJUMP,COMBOBOX,キーワード指定のタグファイル検索(K):,,Common/nTagJumpModeKeyword,○
+キー割り当て,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
+キー割り当て,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
+キー割り当て,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
+キー割り当て,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
+キー割り当て,IDC_LABEL_FUNCtoKEY,LTEXT,機能に割り当てられているキー(G),,,第 41 步
+キー割り当て,IDC_LIST_ASSIGNEDKEYS,LISTBOX,機能に割り当てられているキー(G),,,第 41 步
+キー割り当て,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
+キー割り当て,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
+キー割り当て,IDC_LABEL_KEYKIND,LTEXT,キー(Y),,,第 41 步
+キー割り当て,IDC_LIST_KEY,LISTBOX,キー(Y),m_sKeyBind.m_pKeyNameArr m_sKeyBind.m_nKeyNameArrNum,,第 41 步
+キー割り当て,IDC_CHECK_SHIFT,AUTOCHECKBOX,Shift,,,第 41 步
+キー割り当て,IDC_CHECK_CTRL,AUTOCHECKBOX,Ctrl,,,第 41 步
+キー割り当て,IDC_CHECK_ALT,AUTOCHECKBOX,ALt,,,第 41 步
+キー割り当て,IDC_LABEL_KEYtoFUNC,LTEXT,キーに割り当てられている機能,,,第 41 步
+キー割り当て,IDC_EDIT_KEYSFUNC,EDITTEXT,キーに割り当てられている機能,,,第 41 步
+キー割り当て,IDC_BUTTON_ASSIGN,PUSHBUTTON,割当(B),,,第 41 步
+キー割り当て,IDC_BUTTON_RELEASE,PUSHBUTTON,解除(R),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
+カスタムメニュー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
+カスタムメニュー,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENUCHOICE,RTEXT,選択(C),,,第 41 步
+カスタムメニュー,IDC_COMBO_MENU,COMBOBOX,選択(C),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENUNAME,LTEXT,メニュー名(N),,,第 41 步
+カスタムメニュー,IDC_EDIT_MENUNAME,EDITTEXT,メニュー名(N),m_sCustomMenu.m_szCustMenuNameArr,,第 41 步
+カスタムメニュー,IDC_BUTTON_MENUNAME,PUSHBUTTON,設定(R),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENU,LTEXT,メニュー(M),,,第 41 步
+カスタムメニュー,IDC_LIST_RES,LISTBOX,メニュー(M),,,第 41 步
+カスタムメニュー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,,第 41 步
+カスタムメニュー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,,第 41 步
+カスタムメニュー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,,第 41 步
+カスタムメニュー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,,第 41 步
+カスタムメニュー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,,第 41 步
+カスタムメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
+カスタムメニュー,IDC_LABEL_MENUKEYCHANGE,LTEXT,↑ダブルクリックでアクセスキー設定可,,,第 41 步
+カスタムメニュー,IDC_CHECK_SUBMENU,AUTOCHECKBOX,サブメニューとして表示(S),m_sCustomMenu.m_bCustMenuPopupArr,,第 41 步
+カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
+カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
+強調キーワード,IDC_COMBO_SET,COMBOBOX,セット名(N),,,第 40 步
+強調キーワード,IDC_BUTTON_ADDSET,PUSHBUTTON,セット追加(M)...,m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
+強調キーワード,IDC_BUTTON_DELSET,PUSHBUTTON,セット削除(R)...,,,第 40 步
+強調キーワード,IDC_LIST_KEYWORD,SysListView32,List5,m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
+強調キーワード,IDC_BUTTON_ADDKEYWORD,PUSHBUTTON,追加(A)...,,,第 40 步
+強調キーワード,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,編集(E)...,,,第 40 步
+強調キーワード,IDC_BUTTON_DELKEYWORD,PUSHBUTTON,削除(D),,,第 40 步
+強調キーワード,IDC_CHECK_KEYWORDCASE,AUTOCHECKBOX,英大文字小文字区別(C),m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
+強調キーワード,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步
+強調キーワード,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步
+強調キーワード,IDC_STATIC_KEYWORD_COUNT,RTEXT,(最大 100 文字   登録数 9999 / 9999 個),,,第 40 步
+強調キーワード,IDC_BUTTON_KEYSETRENAME,PUSHBUTTON,変更(H),,,第 40 步
+強調キーワード,IDC_BUTTON_KEYCLEAN,PUSHBUTTON,整理(O),,,第 40 步
+強調キーワード,IDOK,PUSHBUTTON,OK,,,第 40 步
+強調キーワード,IDCANCEL,PUSHBUTTON,キャンセル(X),,,第 40 步
+支援,IDC_CHECK_m_bHokanKey_RETURN,AUTOCHECKBOX,Enter,m_sHelper.m_bHokanKey_RETURN,Common/bHokanKey_RETURN,○
+支援,IDC_CHECK_m_bHokanKey_TAB,AUTOCHECKBOX,Tab,m_sHelper.m_bHokanKey_TAB,Common/bHokanKey_TAB,○
+支援,IDC_CHECK_m_bHokanKey_RIGHT,AUTOCHECKBOX,→(R),m_sHelper.m_bHokanKey_RIGHT,Common/bHokanKey_RIGHT,○
+支援,IDC_EDIT_EXTHELP1,EDITTEXT,外部ヘルプの設定(L),m_sHelper.m_szExtHelp,Common/szExtHelp,×（Windows のヘルプ）
+支援,IDC_BUTTON_OPENHELP1,PUSHBUTTON,(1)...,,,×（同上）
+支援,IDC_EDIT_EXTHTMLHELP,EDITTEXT,外部HTMLヘルプの設定(P),m_sHelper.m_szExtHtmlHelp,Common/szExtHtmlHelp,×（同上）
+支援,IDC_BUTTON_OPENEXTHTMLHELP,PUSHBUTTON,(2)...,,,×（同上）
+支援,IDC_CHECK_HTMLHELPISSINGLE,AUTOCHECKBOX,ビューアを複数起動しない(N),m_sHelper.m_bHtmlHelpIsSingle,Common/bHtmlHelpIsSingle,×（同上）
+支援,IDC_STATIC_KEYWORDHELPFONT,RTEXT,Font,m_sHelper.m_lf m_sHelper.m_nPointSize,Common/lfKeywordHelpFont…,次の PR（フォント）
+支援,IDC_BUTTON_KEYWORDHELPFONT,PUSHBUTTON,フォント(F)...,,,次の PR（フォント）
+支援,IDC_EDIT_MIGEMO_DLL,EDITTEXT,DLL(M),m_sHelper.m_szMigemoDll,Common/szMigemoDll,×（migemo は組み込み。偏离项 9）
+支援,IDC_BUTTON_OPENMDLL,PUSHBUTTON,(3)...,,,×（同上）
+支援,IDC_EDIT_MIGEMO_DICT,EDITTEXT,辞書(I),m_sHelper.m_szMigemoDict,Common/szMigemoDict,×（同上）
+支援,IDC_BUTTON_OPENMDICT,PUSHBUTTON,(4)...,,,×（同上）
+マクロ,IDC_MACRODIR,EDITTEXT,マクロフォルダー,m_sMacro.m_szMACROFOLDER,Folders/szMACROFOLDER,第 45 步
+マクロ,IDC_MACRODIRREF,PUSHBUTTON,...,,,第 45 步
+マクロ,IDC_PYTHONDIR,EDITTEXT,Pythonフォルダー,m_sMacro.m_szPythonDirectory,,第 45 步
+マクロ,IDC_PYTHONDIRREF,PUSHBUTTON,...,,,第 45 步
+マクロ,IDC_MACROLIST,SysListView32,List1,,,第 45 步
+マクロ,IDC_MACRONAME,EDITTEXT,名前(N),m_sMacro.m_MacroTable,,第 45 步
+マクロ,IDC_MACROPATH,COMBOBOX,File,m_sMacro.m_MacroTable,,第 45 步
+マクロ,IDC_CHECK_RELOADWHENEXECUTE,AUTOCHECKBOX,マクロを実行するたびにファイルを読み込みなおす（L）,,,第 45 步
+マクロ,IDC_MACROCANCELTIMER,EDITTEXT,キャンセル確認待ち時間,m_sMacro.m_nMacroCancelTimer,,第 45 步
+マクロ,IDC_CHECK_MacroOnOpened,AUTOCHECKBOX,新規／開ファイル後(O),,,第 45 步
+マクロ,IDC_CHECK_MacroOnTypeChanged,AUTOCHECKBOX,タイプ変更後(T),,,第 45 步
+マクロ,IDC_CHECK_MacroOnSave,AUTOCHECKBOX,ファイル保存前(S),,,第 45 步
+マクロ,IDC_COMBO_MACROID,COMBOBOX,Id:,,,第 45 步
+マクロ,IDC_MACRO_REG,PUSHBUTTON,設定(A),,,第 45 步
+プラグイン,IDC_CHECK_PluginEnable,AUTOCHECKBOX,プラグインを有効にする(E),m_sPlugin.m_bEnablePlugin,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_INST_ZIP,PUSHBUTTON,ZIPプラグインを導入(Z),,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_OpenFolder,PUSHBUTTON,フォルダーを開く(F),,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_SearchNew,PUSHBUTTON,新規プラグインを追加(I),,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGINLIST,SysListView32,List1,,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_LABEL_PLUGIN_Description,LTEXT,説明,,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_LABEL_PLUGIN_Author,LTEXT,作者,,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_LABEL_PLUGIN_Version,LTEXT,バージョン,,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_URL,PUSHBUTTON,配布元(D),m_sPlugin.m_PluginTable,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_Remove,PUSHBUTTON,削除(R),,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_OPTION,PUSHBUTTON,設定(P),,,×（DLL のプラグインは Mac 版では使えない）
+プラグイン,IDC_PLUGIN_README,PUSHBUTTON,ReadMe(M),,,×（DLL のプラグインは Mac 版では使えない）
