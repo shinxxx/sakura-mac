@@ -8,8 +8,8 @@ import EditorBridge
 /// 共通設定窗口的各页（计划第 39 步）：原版 CPropCom*.cpp 的 SetData / GetData / Enable…Input 的移植。
 ///
 /// 值是 sakura.ini 的「节/项目」（原版 CShareData_IO 的名字）。GetData 里的范围限制也照原版。
-/// 这一步移植的页：全般、ウィンドウ、タブバー、ステータスバー、編集、ファイル、ファイル名表示（置換リスト以外）、
-/// バックアップ、書式、検索、支援。
+/// 这一步移植的页：全般、ウィンドウ（位置と大きさの設定 も）、タブバー、ステータスバー、編集、ファイル、
+/// ファイル名表示（置換リスト も）、バックアップ、書式、検索、支援（タブバー・支援 的フォント も）。
 /// 以后的步骤：メインメニュー・ツールバー・キー割り当て・カスタムメニュー（第 41 步）、強調キーワード（第 40 步）、
 /// マクロ（第 45 步）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
 protocol CommonSettingsPageLogic {
@@ -88,6 +88,16 @@ enum CommonSettingsPages {
         panel.allowsMultipleSelection = false
         if !initial.isEmpty { panel.directoryURL = URL(fileURLWithPath: initial, isDirectory: true) }
         return panel.runModal() == .OK ? panel.url?.path : nil
+    }
+
+    /// 选字体（原版 MySelectFont：ChooseFont）。测试可以换。选了时返回字体
+    static var chooseFont: (_ font: NSFont, _ window: NSWindow?) -> NSFont? = { font, window in
+        FontPicker.choose(font, window: window)
+    }
+
+    /// 「ウィンドウの位置と大きさ」を表示する（原版 CDlgWinSize::DoModal）。测试可以换
+    static var runWinSizeDialog: (_ dialog: WinSizeDialog, _ window: NSWindow?) -> Void = { dialog, window in
+        dialog.runModal(parent: window)
     }
 
     fileprivate static var appName: String {
@@ -233,8 +243,6 @@ struct WindowPage: CommonSettingsPageLogic {
 
     /// 言語（语言 DLL。Mac 版的语言跟着系统，偏离项 9）
     var unavailable: Set<String> { [idc("COMBO_LANGUAGE")] }
-    /// 位置と大きさの設定（原版 CDlgWinSize）
-    var notYet: Set<String> { [idc("BUTTON_WINSIZE")] }
 
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.loadChecks(checks, values)
@@ -252,6 +260,27 @@ struct WindowPage: CommonSettingsPageLogic {
         for item in ints { values.set(clamp(page.int(item.id), item.range), item.key) }
         values.set(page.text(idc("WINCAPTION_ACTIVE")), "szWinCaptionActive")
         values.set(page.text(idc("WINCAPTION_INACTIVE")), "szWinCaptionInactive")
+    }
+
+    func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
+        guard id == idc("BUTTON_WINSIZE") else { return }
+        // 位置と大きさの設定（原版 CDlgWinSize。rc.right/bottom が幅・高さ、rc.top/left が X・Y 座標）
+        guard let dialog = WinSizeDialog(values: .init(
+            saveSize: values.int("bSaveWindowSize"), savePosition: values.int("nSaveWindowPos"),
+            sizeType: values.int("nWinSizeType"), width: values.int("nWinSizeCX"), height: values.int("nWinSizeCY"),
+            x: values.int("nWinPosX"), y: values.int("nWinPosY"))) else {
+            NSSound.beep()
+            return
+        }
+        CommonSettingsPages.runWinSizeDialog(dialog, window)
+        let result = dialog.values
+        values.set(result.saveSize, "bSaveWindowSize")
+        values.set(result.savePosition, "nSaveWindowPos")
+        values.set(result.sizeType, "nWinSizeType")
+        values.set(result.width, "nWinSizeCX")
+        values.set(result.height, "nWinSizeCY")
+        values.set(result.x, "nWinPosX")
+        values.set(result.y, "nWinPosY")
     }
 
     func enable(_ page: PropPage) {
@@ -288,11 +317,12 @@ struct TabPage: CommonSettingsPageLogic {
         (1, NSLocalizedString("下", comment: "STR_PROPCOMTAB_TAB_POS_BOTTOM")),
     ]
 
-    /// フォント（字体对话框在下一个 PR）
-    var notYet: Set<String> { [idc("BUTTON_TABFONT")] }
+    /// タブのフォント（sakura.ini の lfTabFont、lfTabFontPs、lfTabFaceName）
+    static let font = LogFontSetting(lf: "lfTabFont", pointSize: "lfTabFontPs", faceName: "lfTabFaceName")
 
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.loadChecks(checks, values)
+        Self.font.setLabel(page, idc("STATIC_TABFONT"), values)
         // 「ウィンドウをまとめてグループ化する」は m_bDispTabWndMultiWin の反対
         page.setChecked(idc("CHECK_DispTabWndMultiWin"), !values.bool("bDispTabWndMultiWin"))
         page.setText(idc("TABWND_CAPTION"), values.string("szTabWndCaption"))
@@ -306,6 +336,12 @@ struct TabPage: CommonSettingsPageLogic {
         values.set(page.text(idc("TABWND_CAPTION")), "szTabWndCaption")
         values.set(page.comboValue(idc("CHECK_DispTabClose"), closeButtons), "bDispTabClose")
         values.set(page.comboValue(idc("COMBO_TAB_POSITION"), positions), "eTabPosition")
+    }
+
+    func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
+        if id == idc("BUTTON_TABFONT") {
+            Self.font.choose(page, idc("STATIC_TABFONT"), values, window: window)
+        }
     }
 
     func enable(_ page: PropPage) {
@@ -483,22 +519,146 @@ struct FilePage: CommonSettingsPageLogic {
 
 // MARK: - ファイル名表示（CPropComFileName.cpp）
 
-struct FileNamePage: CommonSettingsPageLogic {
-    /// ファイル名の置換リスト（一覧の編集は次の PR）
-    var notYet: Set<String> {
-        Set(["LIST_FNAME", "EDIT_FNAME_FROM", "EDIT_FNAME_TO", "BUTTON_FNAME_INS", "BUTTON_FNAME_ADD", "BUTTON_FNAME_UPD",
-             "BUTTON_FNAME_DEL", "BUTTON_FNAME_TOP", "BUTTON_FNAME_UP", "BUTTON_FNAME_DOWN", "BUTTON_FNAME_LAST"].map(idc))
-            .union(["置換前(F)", "置換後(R)"])
-    }
+final class FileNamePage: CommonSettingsPageLogic {
+    /// 置換リストの最大数（原版 MAX_TRANSFORM_FILENAME）
+    static let maxCount = 16
+    private let list = idc("LIST_FNAME")
+    private let from = idc("EDIT_FNAME_FROM")
+    private let to = idc("EDIT_FNAME_TO")
+    /// 前回選択していた行（原版 m_nLastPos_FILENAME）
+    private var lastPosition = -1
 
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.setChecked(idc("CHECK_SHORTPATH"), values.bool("bShortPath", section: "Nickname"))
         page.setInt(idc("EDIT_SHORTMAXWIDTH"), values.int("nShortPathMaxWidth", section: "Nickname"))
+
+        // ファイル名置換リスト（置換前が空の項目は表示しない）
+        guard let listView = page.list(list) else { return }
+        if listView.table.tableColumns.count < 2, let scroll = page.control(list) {
+            let width = scroll.frame.width
+            listView.setColumns([NSLocalizedString("置換前", comment: "STR_PROPCOMFNM_LIST1"),
+                                 NSLocalizedString("置換後", comment: "STR_PROPCOMFNM_LIST2")],
+                                widths: [(width * 60 / 100).rounded(), (width * 35 / 100).rounded()])
+        }
+        let count = min(max(0, values.int("ArrNum", section: "Nickname")), Self.maxCount)
+        var rows: [[String]] = []
+        for i in 0..<count {
+            let source = values.string(Self.key("From", i), section: "Nickname")
+            if source.isEmpty { continue }
+            rows.append([source, values.string(Self.key("To", i), section: "Nickname")])
+        }
+        lastPosition = -1
+        listView.setRows(rows)
+        // 一番上を選択しておく
+        if !rows.isEmpty {
+            listView.select(0)
+            selectionChanged(page)
+        }
     }
 
     func getData(_ page: PropPage, _ values: CommonSettingsValues) {
         values.set(page.isChecked(idc("CHECK_SHORTPATH")), "bShortPath", section: "Nickname")
         values.set(page.int(idc("EDIT_SHORTMAXWIDTH")), "nShortPathMaxWidth", section: "Nickname")
+
+        // ファイル名置換リスト（置換前が空の項目は捨てる）
+        guard let rows = page.list(list)?.rows else { return }
+        let entries = rows.filter { !($0.first ?? "").isEmpty }
+        values.set(entries.count, "ArrNum", section: "Nickname")
+        for (i, entry) in entries.enumerated() {
+            values.set(entry[0], Self.key("From", i), section: "Nickname")
+            values.set(entry.count > 1 ? entry[1] : "", Self.key("To", i), section: "Nickname")
+        }
+    }
+
+    func changed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues) {
+        if id == list { selectionChanged(page) }
+    }
+
+    /// 原版 LVN_ITEMCHANGED：選択した項目をエディットへ
+    private func selectionChanged(_ page: PropPage) {
+        guard let listView = page.list(list) else { return }
+        let index = listView.selectedRow
+        if index == -1 {
+            page.setText(from, "")
+            page.setText(to, "")
+        } else if index != lastPosition {
+            page.setText(from, listView.rows[index][0])
+            page.setText(to, listView.rows[index][1])
+        }
+        // 同じ行のときはコピーしない（原版：[更新] がうまく動作しないため）
+        lastPosition = index
+    }
+
+    func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
+        guard let listView = page.list(list) else { return }
+        let index = listView.selectedRow
+        let count = listView.rows.count
+        let source = page.text(from), target = page.text(to)
+        switch id {
+        case idc("BUTTON_FNAME_INS"):	// 挿入（選択中でなければ最後に追加）
+            setItem(page, listView, index == -1 ? count : index, source, target, insert: true)
+        case idc("BUTTON_FNAME_ADD"):	// 追加
+            setItem(page, listView, count, source, target, insert: true)
+        case idc("BUTTON_FNAME_UPD"):	// 更新
+            if index != -1 {
+                setItem(page, listView, index, source, target, insert: false)
+            } else if count == 0 {
+                // リストに項目がなければ、更新ボタンで項目を追加できる
+                setItem(page, listView, 0, source, target, insert: true)
+            }
+        case idc("BUTTON_FNAME_DEL"):	// 削除
+            guard index != -1 else { return }
+            var rows = listView.rows
+            rows.remove(at: index)
+            listView.setRows(rows)
+            listView.select(index)
+        case idc("BUTTON_FNAME_TOP"):	// 先頭
+            move(page, listView, index, 0)
+        case idc("BUTTON_FNAME_UP"):	// 上へ
+            move(page, listView, index, index - 1)
+        case idc("BUTTON_FNAME_DOWN"):	// 下へ
+            move(page, listView, index, index + 1)
+        case idc("BUTTON_FNAME_LAST"):	// 最終
+            move(page, listView, index, count - 1)
+        default:
+            break
+        }
+    }
+
+    /// 原版 SetListViewItem_FILENAME：置換前が空なら何もしない。挿入はこれ以上追加できなければエラー
+    @discardableResult
+    private func setItem(_ page: PropPage, _ listView: PropList, _ index: Int, _ source: String, _ target: String, insert: Bool) -> Bool {
+        guard !source.isEmpty, index >= 0 else { return false }
+        var rows = listView.rows
+        if insert && rows.count >= Self.maxCount {
+            CommonSettingsPages.inform(NSLocalizedString("これ以上登録できません。", comment: "STR_PROPCOMFNM_ERR_REG"))
+            return false
+        }
+        if insert {
+            rows.insert([source, target], at: min(index, rows.count))
+        } else {
+            guard rows.indices.contains(index) else { return false }
+            rows[index] = [source, target]
+        }
+        listView.setRows(rows)
+        listView.select(index)
+        return true
+    }
+
+    /// 原版 MoveListViewItem_FILENAME
+    private func move(_ page: PropPage, _ listView: PropList, _ index: Int, _ index2: Int) {
+        let count = listView.rows.count
+        guard count > 0 else { return }
+        let a = min(max(index, 0), count - 1), b = min(max(index2, 0), count - 1)
+        guard a != b else { return }
+        var rows = listView.rows
+        let item = rows.remove(at: a)
+        listView.setRows(rows)
+        setItem(page, listView, b, item[0], item[1], insert: true)
+    }
+
+    private static func key(_ prefix: String, _ index: Int) -> String {
+        prefix + (index < 10 ? "0\(index)" : "\(index)")
     }
 }
 
@@ -747,11 +907,12 @@ struct HelperPage: CommonSettingsPageLogic {
              "EDIT_MIGEMO_DLL", "BUTTON_OPENMDLL", "EDIT_MIGEMO_DICT", "BUTTON_OPENMDICT"].map(idc))
             .union(["DLL(M)", "辞書(I)"])
     }
-    /// キーワードヘルプのフォント（字体对话框在下一个 PR）
-    var notYet: Set<String> { [idc("BUTTON_KEYWORDHELPFONT")] }
+    /// キーワードヘルプのフォント（sakura.ini の khlf、khps、khlfFaceName）
+    static let font = LogFontSetting(lf: "khlf", pointSize: "khps", faceName: "khlfFaceName")
 
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.loadChecks(checks, values)
+        Self.font.setLabel(page, idc("STATIC_KEYWORDHELPFONT"), values)
         page.setText(idc("EDIT_EXTHELP1"), values.string("szExtHelp"))
         page.setText(idc("EDIT_EXTHTMLHELP"), values.string("szExtHtmlHelp"))
         page.setText(idc("EDIT_MIGEMO_DLL"), values.string("szMigemoDll"))
@@ -760,5 +921,137 @@ struct HelperPage: CommonSettingsPageLogic {
 
     func getData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.storeChecks(checks, values)
+    }
+
+    func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
+        if id == idc("BUTTON_KEYWORDHELPFONT") {
+            Self.font.choose(page, idc("STATIC_KEYWORDHELPFONT"), values, window: window)
+        }
+    }
+}
+
+// MARK: - フォント（CPropCommon::SetFontLabel、MySelectFont）
+
+/// sakura.ini のフォントの設定（原版 ShareData_IO_LogFont：LOGFONT の 13 個の数、ポイントサイズ（1/10 pt）、フォント名）
+struct LogFontSetting {
+    let lf: String
+    let pointSize: String
+    let faceName: String
+
+    /// LOGFONT の数（lfHeight, lfWidth, lfEscapement, lfOrientation, lfWeight, lfItalic, lfUnderline, lfStrikeOut,
+    /// lfCharSet, lfOutPrecision, lfClipPrecision, lfQuality, lfPitchAndFamily）
+    func ints(_ values: CommonSettingsValues) -> [Int] {
+        let ints = values.string(lf).split(separator: ",").map { Int($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
+        return ints.count == 13 ? ints : [0, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0]
+    }
+
+    /// 表示する文字（原版 SetFontLabel：「名前(9pt)」、小数があれば「名前(9.5pt)」）
+    static func labelText(face: String, pointSize: Int) -> String {
+        let points = Double(pointSize) / 10
+        return pointSize % 10 != 0 ? String(format: "%@(%.1fpt)", face, points) : String(format: "%@(%.0fpt)", face, points)
+    }
+
+    /// 設定のフォント。そのフォントがなければシステムのフォント
+    static func font(face: String, pointSize: Int, bold: Bool, italic: Bool) -> NSFont {
+        let size = max(1, CGFloat(pointSize) / 10)
+        var traits: NSFontTraitMask = []
+        if bold { traits.insert(.boldFontMask) }
+        if italic { traits.insert(.italicFontMask) }
+        if let font = NSFontManager.shared.font(withFamily: face, traits: traits, weight: 5, size: size) {
+            return font
+        }
+        if let font = NSFont(name: face, size: size) { return font }
+        return NSFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
+    }
+
+    func font(_ values: CommonSettingsValues) -> NSFont {
+        let lfInts = ints(values)
+        return Self.font(face: values.string(faceName), pointSize: values.int(pointSize), bold: lfInts[4] >= 600, italic: lfInts[5] != 0)
+    }
+
+    /// ラベルにフォント名とサイズを、そのフォントで表示する（大きすぎるフォントは小さく表示）
+    func setLabel(_ page: PropPage, _ id: String, _ values: CommonSettingsValues) {
+        page.setText(id, Self.labelText(face: values.string(faceName), pointSize: values.int(pointSize)))
+        guard let label = page.control(id) as? NSTextField else { return }
+        let labelFont = self.font(values)
+        let limit = min(16, max(PropPage.font.pointSize, label.frame.height - 4))
+        label.font = labelFont.pointSize > limit ? NSFontManager.shared.convert(labelFont, toSize: limit) : labelFont
+    }
+
+    /// 「フォント」ボタン：フォントを選んで設定する（原版 MySelectFont のあと m_lf、m_nPointSize を変更）
+    func choose(_ page: PropPage, _ labelID: String, _ values: CommonSettingsValues, window: NSWindow?) {
+        guard let chosen = CommonSettingsPages.chooseFont(font(values), window) else { return }
+        set(chosen, values)
+        setLabel(page, labelID, values)
+    }
+
+    /// フォント → 設定の値。LOGFONT の高さ・太さ・斜体を変え、ほかの数はそのまま
+    func set(_ font: NSFont, _ values: CommonSettingsValues) {
+        let size = Int((font.pointSize * 10).rounded())
+        let traits = NSFontManager.shared.traits(of: font)
+        var lfInts = ints(values)
+        lfInts[0] = -Int((Double(size) * 96 / 720).rounded())	// 原版 DpiPointsToPixels（96 DPI）
+        lfInts[4] = traits.contains(.boldFontMask) ? 700 : 400	// FW_BOLD、FW_NORMAL
+        lfInts[5] = traits.contains(.italicFontMask) ? 1 : 0
+        values.set(lfInts.map(String.init).joined(separator: ","), lf)
+        values.set(size, pointSize)
+        values.set(font.familyName ?? font.fontName, faceName)
+    }
+}
+
+/// 字体面板（原版の ChooseFont ダイアログの代わり）。OK・キャンセルのボタンを付けて、閉じるまで待つ
+final class FontPicker: NSObject {
+    private var font: NSFont
+
+    private init(font: NSFont) {
+        self.font = font
+    }
+
+    static func choose(_ font: NSFont, window: NSWindow?) -> NSFont? {
+        FontPicker(font: font).run()
+    }
+
+    private func run() -> NSFont? {
+        let manager = NSFontManager.shared
+        let panel = manager.fontPanel(true)!
+        let oldTarget = manager.target
+        manager.target = self
+        manager.setSelectedFont(font, isMultiple: false)
+
+        let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 40))
+        let ok = NSButton(title: "OK", target: self, action: #selector(okClicked(_:)))
+        ok.keyEquivalent = "\r"
+        ok.frame = NSRect(x: 120, y: 6, width: 90, height: 28)
+        let cancel = NSButton(title: NSLocalizedString("キャンセル", comment: "フォントの選択"), target: self, action: #selector(cancelClicked(_:)))
+        cancel.keyEquivalent = "\u{1b}"
+        cancel.frame = NSRect(x: 22, y: 6, width: 90, height: 28)
+        accessory.addSubview(cancel)
+        accessory.addSubview(ok)
+        let oldAccessory = panel.accessoryView
+        panel.accessoryView = accessory
+
+        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: panel, queue: nil) { _ in
+            NSApp.stopModal(withCode: .cancel)
+        }
+        panel.makeKeyAndOrderFront(nil)
+        let response = NSApp.runModal(for: panel)
+        NotificationCenter.default.removeObserver(observer)
+        panel.accessoryView = oldAccessory
+        panel.orderOut(nil)
+        manager.target = oldTarget
+        return response == .OK ? font : nil
+    }
+
+    /// 字体面板で選んだ（NSFontManager が target に送る）
+    @objc func changeFont(_ sender: Any?) {
+        font = NSFontManager.shared.convert(font)
+    }
+
+    @objc private func okClicked(_ sender: Any?) {
+        NSApp.stopModal(withCode: .OK)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        NSApp.stopModal(withCode: .cancel)
     }
 }

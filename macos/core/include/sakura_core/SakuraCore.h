@@ -24,6 +24,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sakura::core {
@@ -105,6 +106,14 @@ std::optional<Text> GetCommonSetting(const Text& section, const Text& key);
 	没有这一项时 false，什么也不改。
 */
 bool SetCommonSetting(const Text& section, const Text& key, const Text& value);
+
+/*!
+	一次改同一节的几项（key, value）。与把 sakura.ini 的这些项改了再读入一次相同。
+	ファイル名表示 的置換リスト（Nickname 的 ArrNum、From%02d、To%02d）要一起改：项数变了时，
+	一项一项地改的话 ArrNum 以外的项目还没有。
+	读入以后有一项不在这一节里时（没有的项目、ArrNum 以外的 From%02d 等）false，什么也不改。
+*/
+bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Text>>& values);
 
 //! 现在的设置写进 sakura.ini（与结束时相同）。导入设置以后、重新启动之前不写，返回 false
 bool SaveSettings();

@@ -72,4 +72,4 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 ## 共通設定窗口（第 39 步）
 
 - App 的 `CommonSettingsTests` 大多用假的设置（没写过的项从核心库读，写的值留在测试里），不改测试进程的设置；`testOKAppliesToCore` 用真的核心库，结束时改回去。
-- 确认对话框、文件夹的选择换成测试用的（`CommonSettingsPages.confirm`、`inform`、`chooseFolder`），不出模态窗口。详见 [phase3-common-settings.md](phase3-common-settings.md)。
+- 确认对话框、文件夹的选择换成测试用的、字体的选择、「ウィンドウの位置と大きさ」对话框换成测试用的（`CommonSettingsPages.confirm`、`inform`、`chooseFolder`、`chooseFont`、`runWinSizeDialog`），不出模态窗口。详见 [phase3-common-settings.md](phase3-common-settings.md)。

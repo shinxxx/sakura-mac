@@ -469,6 +469,16 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 	return core::SetCommonSetting(ToText(section), ToText(key), ToText(value)) ? YES : NO;
 }
 
++ (BOOL)setCommonSettings:(NSDictionary<NSString *, NSString *> *)values section:(NSString *)section
+{
+	std::vector<std::pair<core::Text, core::Text>> items;
+	items.reserve(values.count);
+	for (NSString *key in values) {
+		items.emplace_back(ToText(key), ToText(values[key]));
+	}
+	return core::SetCommonSettings(ToText(section), items) ? YES : NO;
+}
+
 + (BOOL)saveSettings
 {
 	return core::SaveSettings() ? YES : NO;

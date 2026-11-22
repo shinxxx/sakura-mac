@@ -23,9 +23,11 @@ final class CommonSettingsTests: XCTestCase {
             values["\(section)/\(key)"] ?? EditorCore.commonSetting(section: section, key: key)
         }
 
-        func setValue(_ value: String, section: String, key: String) -> Bool {
-            values["\(section)/\(key)"] = value
-            writes.append("\(section)/\(key)")
+        func setValues(_ values: [String: String], section: String) -> Bool {
+            for (key, value) in values.sorted(by: { $0.key < $1.key }) {
+                self.values["\(section)/\(key)"] = value
+                writes.append("\(section)/\(key)")
+            }
             return true
         }
 
@@ -417,6 +419,206 @@ final class CommonSettingsTests: XCTestCase {
         type(page, "IDC_EDIT_SHORTMAXWIDTH", "80")
         controller.ok(nil)
         XCTAssertEqual(store.values["Nickname/nShortPathMaxWidth"], "80")
+    }
+
+    /// ファイル名表示 的置換リスト（原版 CPropFileName：挿入・追加・更新・削除・先頭・上へ・下へ・最終）
+    func testFileNameReplaceList() throws {
+        store.values["Nickname/ArrNum"] = "2"
+        store.values["Nickname/From00"] = "%USERPROFILE%\\"
+        store.values["Nickname/To00"] = "~\\"
+        store.values["Nickname/From01"] = "C:\\Work\\"
+        store.values["Nickname/To01"] = "W:"
+        let (controller, page) = try open("ファイル名表示")
+        let list = try XCTUnwrap(page.list("IDC_LIST_FNAME"))
+        let from = "IDC_EDIT_FNAME_FROM", to = "IDC_EDIT_FNAME_TO"
+        func press(_ name: String) { page.onButton?("IDC_BUTTON_FNAME_" + name) }
+        func sources() -> [String] { list.rows.map { $0[0] } }
+
+        XCTAssertEqual(list.table.tableColumns.map(\.title), ["置換前", "置換後"])
+        XCTAssertEqual(list.rows, [["%USERPROFILE%\\", "~\\"], ["C:\\Work\\", "W:"]])
+        XCTAssertTrue(page.isEnabled("IDC_LIST_FNAME"))
+        XCTAssertTrue(page.isEnabled("IDC_BUTTON_FNAME_ADD"))
+        // 一番上を選択して、エディットに表示
+        XCTAssertEqual(list.selectedRow, 0)
+        XCTAssertEqual(page.text(from), "%USERPROFILE%\\")
+        list.select(1)
+        XCTAssertEqual(page.text(from), "C:\\Work\\")
+        XCTAssertEqual(page.text(to), "W:")
+
+        // 追加：最後に
+        page.setText(from, "D:\\Data\\")
+        page.setText(to, "D:")
+        press("ADD")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "C:\\Work\\", "D:\\Data\\"])
+        XCTAssertEqual(list.selectedRow, 2)
+        // 挿入：選択中の位置に
+        page.setText(from, "E:\\")
+        page.setText(to, "E:")
+        press("INS")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "C:\\Work\\", "E:\\", "D:\\Data\\"])
+        XCTAssertEqual(list.selectedRow, 2)
+        // 更新
+        page.setText(to, "EE:")
+        press("UPD")
+        XCTAssertEqual(list.rows[2], ["E:\\", "EE:"])
+        // 置換前が空なら何もしない
+        page.setText(from, "")
+        press("ADD")
+        press("INS")
+        XCTAssertEqual(list.rows.count, 4)
+
+        // 先頭・下へ・最終・上へ
+        press("TOP")
+        XCTAssertEqual(sources(), ["E:\\", "%USERPROFILE%\\", "C:\\Work\\", "D:\\Data\\"])
+        XCTAssertEqual(list.selectedRow, 0)
+        XCTAssertEqual(page.text(from), "E:\\")
+        press("DOWN")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "E:\\", "C:\\Work\\", "D:\\Data\\"])
+        press("LAST")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "C:\\Work\\", "D:\\Data\\", "E:\\"])
+        XCTAssertEqual(list.selectedRow, 3)
+        press("UP")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "C:\\Work\\", "E:\\", "D:\\Data\\"])
+        XCTAssertEqual(list.selectedRow, 2)
+        // 削除：同じ位置を選択
+        press("DEL")
+        XCTAssertEqual(sources(), ["%USERPROFILE%\\", "C:\\Work\\", "D:\\Data\\"])
+        XCTAssertEqual(list.selectedRow, 2)
+
+        // OK：ArrNum と From%02d、To%02d（変わった項目だけ）
+        controller.ok(nil)
+        XCTAssertEqual(store.values["Nickname/ArrNum"], "3")
+        XCTAssertEqual(store.values["Nickname/From02"], "D:\\Data\\")
+        XCTAssertEqual(store.values["Nickname/To02"], "D:")
+        XCTAssertFalse(store.writes.contains("Nickname/From00"))
+    }
+
+    /// 置換リスト：空のときは [更新] でも追加できる。16 個より多くは登録できない
+    func testFileNameReplaceListLimits() throws {
+        store.values["Nickname/ArrNum"] = "0"
+        let (controller, page) = try open("ファイル名表示")
+        defer { controller.cancel(nil) }
+        let list = try XCTUnwrap(page.list("IDC_LIST_FNAME"))
+        XCTAssertEqual(list.selectedRow, -1)
+        XCTAssertEqual(page.text("IDC_EDIT_FNAME_FROM"), "")
+        page.setText("IDC_EDIT_FNAME_FROM", "A")
+        page.onButton?("IDC_BUTTON_FNAME_UPD")
+        XCTAssertEqual(list.rows, [["A", ""]])
+
+        var messages: [String] = []
+        CommonSettingsPages.inform = { messages.append($0) }
+        defer { CommonSettingsPages.inform = { _ in } }
+        for i in 1..<16 {
+            page.setText("IDC_EDIT_FNAME_FROM", "F\(i)")
+            page.onButton?("IDC_BUTTON_FNAME_ADD")
+        }
+        XCTAssertEqual(list.rows.count, 16)
+        XCTAssertEqual(messages, [])
+        page.onButton?("IDC_BUTTON_FNAME_ADD")
+        XCTAssertEqual(list.rows.count, 16)
+        XCTAssertEqual(messages, ["これ以上登録できません。"])
+        // 更新は 16 個でもできる
+        page.setText("IDC_EDIT_FNAME_FROM", "Z")
+        page.onButton?("IDC_BUTTON_FNAME_UPD")
+        XCTAssertEqual(list.rows.count, 16)
+        XCTAssertEqual(list.rows[list.selectedRow][0], "Z")
+    }
+
+    /// タブバー・支援 のフォント（原版 MySelectFont、SetFontLabel）
+    func testFonts() throws {
+        store.values["Common/bDispTabWnd"] = "1"
+        store.values["Common/lfTabFont"] = "-12,0,0,0,400,0,0,0,128,3,2,1,49"
+        store.values["Common/lfTabFontPs"] = "90"
+        store.values["Common/lfTabFaceName"] = "Helvetica"
+        var shown: [NSFont] = []
+        var chosen: NSFont?
+        CommonSettingsPages.chooseFont = { font, _ in
+            shown.append(font)
+            return chosen
+        }
+        defer { CommonSettingsPages.chooseFont = { _, _ in nil } }
+
+        let (controller, page) = try open("タブバー")
+        XCTAssertEqual(page.text("IDC_STATIC_TABFONT"), "Helvetica(9pt)")
+        XCTAssertTrue(page.isEnabled("IDC_BUTTON_TABFONT"))
+        // キャンセル：変えない
+        page.onButton?("IDC_BUTTON_TABFONT")
+        XCTAssertEqual(shown.last?.familyName, "Helvetica")
+        XCTAssertEqual(shown.last?.pointSize, 9)
+        XCTAssertEqual(page.text("IDC_STATIC_TABFONT"), "Helvetica(9pt)")
+        // 選んだ：高さ・太さ・ポイントサイズ・名前を変え、ほかの数はそのまま
+        chosen = try XCTUnwrap(NSFont(name: "Helvetica-Bold", size: 10.5))
+        page.onButton?("IDC_BUTTON_TABFONT")
+        XCTAssertEqual(page.text("IDC_STATIC_TABFONT"), "Helvetica(10.5pt)")
+        controller.ok(nil)
+        XCTAssertEqual(store.values["Common/lfTabFont"], "-14,0,0,0,700,0,0,0,128,3,2,1,49")
+        XCTAssertEqual(store.values["Common/lfTabFontPs"], "105")
+        XCTAssertEqual(store.values["Common/lfTabFaceName"], "Helvetica")
+
+        store.values["Common/khlf"] = "-16,0,0,0,700,0,0,0,1,0,0,0,0"
+        store.values["Common/khps"] = "120"
+        store.values["Common/khlfFaceName"] = "Courier"
+        let (helperController, helper) = try open("支援")
+        XCTAssertEqual(helper.text("IDC_STATIC_KEYWORDHELPFONT"), "Courier(12pt)")
+        chosen = try XCTUnwrap(NSFont(name: "Helvetica-Oblique", size: 14))
+        helper.onButton?("IDC_BUTTON_KEYWORDHELPFONT")
+        XCTAssertEqual(NSFontManager.shared.traits(of: try XCTUnwrap(shown.last)).contains(.boldFontMask), true, "設定のフォントは太字")
+        XCTAssertEqual(helper.text("IDC_STATIC_KEYWORDHELPFONT"), "Helvetica(14pt)")
+        helperController.ok(nil)
+        XCTAssertEqual(store.values["Common/khlf"], "-19,0,0,0,400,1,0,0,1,0,0,0,0")
+        XCTAssertEqual(store.values["Common/khps"], "140")
+        XCTAssertEqual(store.values["Common/khlfFaceName"], "Helvetica")
+    }
+
+    /// ウィンドウ「位置と大きさの設定」（原版 CDlgWinSize）
+    func testWindowSizeDialog() throws {
+        store.values["Common/bSaveWindowSize"] = "2"
+        store.values["Common/nSaveWindowPos"] = "0"
+        store.values["Common/nWinSizeType"] = "2"
+        store.values["Common/nWinSizeCX"] = "800"
+        store.values["Common/nWinSizeCY"] = "600"
+        store.values["Common/nWinPosX"] = "-10"
+        store.values["Common/nWinPosY"] = "20"
+        var shown = false
+        CommonSettingsPages.runWinSizeDialog = { [self] dialog, _ in
+            shown = true
+            let d = dialog.page
+            XCTAssertEqual(dialog.title, "ウィンドウの位置と大きさ")
+            XCTAssertTrue(d.isChecked("IDC_RADIO_WINSIZE_SET"))
+            XCTAssertTrue(d.isChecked("IDC_RADIO_WINPOS_DEF"))
+            XCTAssertEqual(d.selectedIndex("IDC_COMBO_WINTYPE"), 1, "最大化")
+            XCTAssertEqual(d.text("IDC_EDIT_SX"), "800")
+            XCTAssertEqual(d.text("IDC_EDIT_SY"), "600")
+            XCTAssertEqual(d.text("IDC_EDIT_WX"), "-10")
+            XCTAssertEqual(d.text("IDC_EDIT_WY"), "20")
+            // 直接指定のときだけ数を変えられる
+            XCTAssertTrue(d.isEnabled("IDC_EDIT_SX"))
+            XCTAssertTrue(d.isEnabled("IDC_COMBO_WINTYPE"))
+            XCTAssertFalse(d.isEnabled("IDC_EDIT_WX"))
+            XCTAssertFalse(d.isEnabled("IDC_BUTTON_HELP"))
+            click(d, "IDC_RADIO_WINPOS_SET")
+            XCTAssertFalse(d.isChecked("IDC_RADIO_WINPOS_DEF"))
+            XCTAssertTrue(d.isEnabled("IDC_EDIT_WX"))
+            XCTAssertTrue(d.isEnabled("IDC_EDIT_WY"))
+            click(d, "IDC_RADIO_WINSIZE_SAVE")
+            XCTAssertFalse(d.isEnabled("IDC_EDIT_SX"))
+            XCTAssertFalse(d.isEnabled("IDC_COMBO_WINTYPE"))
+            type(d, "IDC_EDIT_WY", "-30")
+            d.select("IDC_COMBO_WINTYPE", 2)	// (最小化)
+            d.onButton?("IDOK")
+        }
+        defer { CommonSettingsPages.runWinSizeDialog = { _, _ in } }
+        let (controller, page) = try open("ウィンドウ")
+        XCTAssertTrue(page.isEnabled("IDC_BUTTON_WINSIZE"))
+        page.onButton?("IDC_BUTTON_WINSIZE")
+        XCTAssertTrue(shown)
+        controller.ok(nil)
+        XCTAssertEqual(store.values["Common/bSaveWindowSize"], "1")
+        XCTAssertEqual(store.values["Common/nSaveWindowPos"], "2")
+        XCTAssertEqual(store.values["Common/nWinSizeType"], "1", "SIZE_MINIMIZED")
+        XCTAssertEqual(store.values["Common/nWinPosY"], "-30")
+        XCTAssertFalse(store.writes.contains("Common/nWinPosX"))
+        XCTAssertFalse(store.writes.contains("Common/nWinSizeCX"))
     }
 
     /// 全般「履歴をクリア」：确认以后删除（原版 CMRUFile::ClearAll）

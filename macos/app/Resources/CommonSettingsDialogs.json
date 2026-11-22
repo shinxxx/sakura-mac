@@ -431,4 +431,30 @@
   {"id": "IDC_PLUGIN_OPTION", "kind": "button", "frame": [96, 205, 80, 14], "text": "設定(P)"},
   {"id": "IDC_PLUGIN_README", "kind": "button", "frame": [186, 205, 80, 14], "text": "ReadMe(M)"}
  ]}
+], "dialogs": [
+ {"name": "ウィンドウの位置と大きさ", "dialog": "IDD_WINPOSSIZE", "size": [177, 159], "controls": [
+  {"id": "IDC_RADIO_WINPOS_DEF", "kind": "radio", "frame": [15, 19, 61, 10], "text": "指定しない(D)", "flags": ["group"]},
+  {"id": "IDC_RADIO_WINPOS_SAVE", "kind": "radio", "frame": [15, 32, 52, 10], "text": "継承する(I)"},
+  {"id": "IDC_RADIO_WINPOS_SET", "kind": "radio", "frame": [15, 45, 56, 10], "text": "直接指定(S)"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [81, 29, 31, 10], "text": "X座標(X)"},
+  {"id": "IDC_EDIT_WX", "kind": "edit", "frame": [115, 25, 33, 14], "flags": ["right", "number"]},
+  {"id": "IDC_SPIN_WX", "kind": "spin", "frame": [148, 25, 10, 14], "text": "Spin1"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [81, 43, 31, 10], "text": "Y座標(Y)"},
+  {"id": "IDC_EDIT_WY", "kind": "edit", "frame": [115, 41, 33, 14], "flags": ["right", "number"]},
+  {"id": "IDC_SPIN_WY", "kind": "spin", "frame": [148, 41, 10, 14], "text": "Spin1"},
+  {"id": "IDC_RADIO_WINSIZE_DEF", "kind": "radio", "frame": [15, 79, 60, 10], "text": "指定しない(E)", "flags": ["group"]},
+  {"id": "IDC_RADIO_WINSIZE_SAVE", "kind": "radio", "frame": [15, 91, 55, 10], "text": "継承する(N)"},
+  {"id": "IDC_RADIO_WINSIZE_SET", "kind": "radio", "frame": [15, 103, 56, 10], "text": "直接指定(T)"},
+  {"id": "IDC_COMBO_WINTYPE", "kind": "combo", "frame": [84, 74, 64, 52], "flags": ["group", "dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [84, 94, 20, 10], "text": "幅(W)"},
+  {"id": "IDC_EDIT_SX", "kind": "edit", "frame": [115, 91, 33, 14], "flags": ["right", "number"]},
+  {"id": "IDC_SPIN_SX", "kind": "spin", "frame": [148, 90, 10, 14], "text": "Spin1"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [84, 110, 25, 10], "text": "高さ(G)"},
+  {"id": "IDC_EDIT_SY", "kind": "edit", "frame": [115, 108, 33, 14], "flags": ["right", "number"]},
+  {"id": "IDC_SPIN_SY", "kind": "spin", "frame": [148, 108, 10, 14], "text": "Spin1"},
+  {"id": "IDOK", "kind": "button", "frame": [26, 138, 50, 14], "text": "閉じる(C)", "flags": ["group"]},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [110, 137, 54, 15], "text": "ヘルプ(H)", "flags": ["group"]},
+  {"id": "IDC_STATIC", "kind": "group", "frame": [7, 7, 163, 52], "text": "起動時の位置"},
+  {"id": "IDC_STATIC", "kind": "group", "frame": [7, 66, 163, 63], "text": "大きさ"}
+ ]}
 ]}

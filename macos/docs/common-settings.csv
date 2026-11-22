@@ -25,7 +25,7 @@
 ウィンドウ,IDC_CHECK_bScrollBarHorz,AUTOCHECKBOX,水平スクロールバー(R),m_sWindow.m_bScrollBarHorz,Common/bScrollBarHorz,○
 ウィンドウ,IDC_CHECK_bMenuIcon,AUTOCHECKBOX,アイコン付きメニュー(I),m_sWindow.m_bMenuIcon,Common/bMenuIcon,○
 ウィンドウ,IDC_CHECK_bDarkMode,AUTOCHECKBOX,ダークモード(D),m_sWindow.m_bDarkMode,Common/bDarkMode,○
-ウィンドウ,IDC_BUTTON_WINSIZE,PUSHBUTTON,位置と大きさの設定(W)...,,,次の PR（位置と大きさの設定）
+ウィンドウ,IDC_BUTTON_WINSIZE,PUSHBUTTON,位置と大きさの設定(W)...,,"Common/bSaveWindowSize, nSaveWindowPos, nWinSizeType, nWinSizeCX, nWinSizeCY, nWinPosX, nWinPosY",○
 ウィンドウ,IDC_EDIT_nRulerHeight,EDITTEXT,ルーラーの高さ(E),m_sWindow.m_nRulerHeight,Common/nRulerHeight,○
 ウィンドウ,IDC_EDIT_nRulerBottomSpace,EDITTEXT,ルーラーとテキストの隙間(P),m_sWindow.m_nRulerBottomSpace,Common/nRulerBottomSpace,○
 ウィンドウ,IDC_EDIT_nLineNumberRightSpace,EDITTEXT,行番号とテキストの隙間(L),m_sWindow.m_nLineNumRightSpace,Common/nLineNumberRightSpace,○
@@ -84,8 +84,8 @@
 タブバー,IDC_CHECK_SameTabWidth,AUTOCHECKBOX,等幅(E),m_sTabBar.m_bSameTabWidth,Common/bSameTabWidth,○
 タブバー,IDC_TextTabClose,LTEXT,閉じるボタン(X),,,
 タブバー,IDC_CHECK_DispTabClose,COMBOBOX,閉じるボタン(X),,Common/bDispTabClose,○
-タブバー,IDC_BUTTON_TABFONT,PUSHBUTTON,フォント(F)...,,,次の PR（フォント）
-タブバー,IDC_STATIC_TABFONT,RTEXT,Font,m_sTabBar.m_lf m_sTabBar.m_nPointSize,Common/lfTabFont…,次の PR（フォント）
+タブバー,IDC_BUTTON_TABFONT,PUSHBUTTON,フォント(F)...,,,○
+タブバー,IDC_STATIC_TABFONT,RTEXT,Font,m_sTabBar.m_lf m_sTabBar.m_nPointSize,"Common/lfTabFont, lfTabFontPs, lfTabFaceName",○
 タブバー,IDC_CHECK_SortTabList,AUTOCHECKBOX,タブ一覧をソートする(S),m_sTabBar.m_bSortTabList,Common/bSortTabList,○
 タブバー,IDC_CHECK_TAB_MULTILINE,AUTOCHECKBOX,多段(M),m_sTabBar.m_bTabMultiLine,Common/bTabMultiLine,○
 タブバー,IDC_TAB_POSITION,RTEXT,表示位置(P),,,
@@ -145,17 +145,17 @@
 ファイル,IDC_EDIT_ALERT_FILESIZE,EDITTEXT,←注：ドロップファイルは1つのみ有効,m_sFile.m_nAlertFileSize,Common/nAlertFileSize,○
 ファイル名表示,IDC_CHECK_SHORTPATH,AUTOCHECKBOX,長いパスの省略表示(L),m_sFileName.m_bTransformShortPath,Nickname/bShortPath,○
 ファイル名表示,IDC_EDIT_SHORTMAXWIDTH,EDITTEXT,文字数(N),m_sFileName.m_nTransformShortMaxWidth,Nickname/nShortPathMaxWidth,○
-ファイル名表示,IDC_LIST_FNAME,SysListView32,List1,m_sFileName.m_nTransformFileNameArrNum,"Nickname/ArrNum, From%02d, To%02d",次の PR（置換リストの編集）
-ファイル名表示,IDC_EDIT_FNAME_FROM,EDITTEXT,置換前(F),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_EDIT_FNAME_TO,EDITTEXT,置換後(R),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_INS,PUSHBUTTON,挿入(S),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_ADD,PUSHBUTTON,追加(A),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_UPD,PUSHBUTTON,更新(E),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_DEL,PUSHBUTTON,削除(D),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_TOP,PUSHBUTTON,先頭(T),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_UP,PUSHBUTTON,上へ(U),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_DOWN,PUSHBUTTON,下へ(G),,,次の PR（置換リストの編集）
-ファイル名表示,IDC_BUTTON_FNAME_LAST,PUSHBUTTON,最終(B),,,次の PR（置換リストの編集）
+ファイル名表示,IDC_LIST_FNAME,SysListView32,List1,m_sFileName.m_nTransformFileNameArrNum,"Nickname/ArrNum, From%02d, To%02d",○
+ファイル名表示,IDC_EDIT_FNAME_FROM,EDITTEXT,置換前(F),,,○
+ファイル名表示,IDC_EDIT_FNAME_TO,EDITTEXT,置換後(R),,,○
+ファイル名表示,IDC_BUTTON_FNAME_INS,PUSHBUTTON,挿入(S),,,○
+ファイル名表示,IDC_BUTTON_FNAME_ADD,PUSHBUTTON,追加(A),,,○
+ファイル名表示,IDC_BUTTON_FNAME_UPD,PUSHBUTTON,更新(E),,,○
+ファイル名表示,IDC_BUTTON_FNAME_DEL,PUSHBUTTON,削除(D),,,○
+ファイル名表示,IDC_BUTTON_FNAME_TOP,PUSHBUTTON,先頭(T),,,○
+ファイル名表示,IDC_BUTTON_FNAME_UP,PUSHBUTTON,上へ(U),,,○
+ファイル名表示,IDC_BUTTON_FNAME_DOWN,PUSHBUTTON,下へ(G),,,○
+ファイル名表示,IDC_BUTTON_FNAME_LAST,PUSHBUTTON,最終(B),,,○
 バックアップ,IDC_CHECK_BACKUP,AUTOCHECKBOX,保存時にバックアップを作成する(K),m_sBackup.m_bBackUp,Common/bBackUp,○
 バックアップ,IDC_CHECK_BACKUP_ADVANCED,AUTOCHECKBOX,詳細設定する(A),m_sBackup.m_bBackUpPathAdvanced,Common/bBackUpPathAdvanced,○
 バックアップ,IDC_EDIT_BACKUPFILE,EDITTEXT,バックアップの作成,m_sBackup.m_szBackUpPathAdvanced,Common/szBackUpPathAdvanced,○
@@ -266,8 +266,8 @@
 支援,IDC_EDIT_EXTHTMLHELP,EDITTEXT,外部HTMLヘルプの設定(P),m_sHelper.m_szExtHtmlHelp,Common/szExtHtmlHelp,×（同上）
 支援,IDC_BUTTON_OPENEXTHTMLHELP,PUSHBUTTON,(2)...,,,×（同上）
 支援,IDC_CHECK_HTMLHELPISSINGLE,AUTOCHECKBOX,ビューアを複数起動しない(N),m_sHelper.m_bHtmlHelpIsSingle,Common/bHtmlHelpIsSingle,×（同上）
-支援,IDC_STATIC_KEYWORDHELPFONT,RTEXT,Font,m_sHelper.m_lf m_sHelper.m_nPointSize,Common/lfKeywordHelpFont…,次の PR（フォント）
-支援,IDC_BUTTON_KEYWORDHELPFONT,PUSHBUTTON,フォント(F)...,,,次の PR（フォント）
+支援,IDC_STATIC_KEYWORDHELPFONT,RTEXT,Font,m_sHelper.m_lf m_sHelper.m_nPointSize,"Common/khlf, khps, khlfFaceName",○
+支援,IDC_BUTTON_KEYWORDHELPFONT,PUSHBUTTON,フォント(F)...,,,○
 支援,IDC_EDIT_MIGEMO_DLL,EDITTEXT,DLL(M),m_sHelper.m_szMigemoDll,Common/szMigemoDll,×（migemo は組み込み。偏离项 9）
 支援,IDC_BUTTON_OPENMDLL,PUSHBUTTON,(3)...,,,×（同上）
 支援,IDC_EDIT_MIGEMO_DICT,EDITTEXT,辞書(I),m_sHelper.m_szMigemoDict,Common/szMigemoDict,×（同上）

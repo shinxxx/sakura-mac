@@ -22,7 +22,8 @@ import EditorBridge
 /// 共通設定的读写（sakura.ini 的「节/项目」）。平时是核心库，测试可以换
 protocol CommonSettingsStore: AnyObject {
     func value(section: String, key: String) -> String?
-    func setValue(_ value: String, section: String, key: String) -> Bool
+    /// 一次改同一节的几项（项目 → 值）。有一项不行时什么也不改，返回 false
+    func setValues(_ values: [String: String], section: String) -> Bool
     func save() -> Bool
 }
 
@@ -32,8 +33,8 @@ final class CoreCommonSettingsStore: CommonSettingsStore {
         EditorCore.commonSetting(section: section, key: key)
     }
 
-    func setValue(_ value: String, section: String, key: String) -> Bool {
-        EditorCore.setCommonSetting(value, section: section, key: key)
+    func setValues(_ values: [String: String], section: String) -> Bool {
+        EditorCore.setCommonSettings(values, section: section)
     }
 
     func save() -> Bool {
@@ -104,7 +105,14 @@ final class CommonSettingsValues {
         let changes = self.changes
         guard !changes.isEmpty else { return true }
         var succeeded = true
-        for (item, value) in changes where !store.setValue(value, section: item.section, key: item.key) {
+        // 按节一起写（ファイル名表示 的置換リスト：ArrNum 和 From%02d、To%02d 要一起读入）
+        var sections: [String] = []
+        var bySection: [String: [String: String]] = [:]
+        for (item, value) in changes {
+            if bySection[item.section] == nil { sections.append(item.section) }
+            bySection[item.section, default: [:]][item.key] = value
+        }
+        for section in sections where !store.setValues(bySection[section] ?? [:], section: section) {
             succeeded = false
         }
         if !store.save() { succeeded = false }
@@ -138,6 +146,12 @@ struct PropDialogs: Decodable {
     }
 
     let pages: [Page]
+    /// 从页打开的对话框（ウィンドウの位置と大きさ 等）
+    let dialogs: [Page]?
+
+    func dialog(_ name: String) -> Page? {
+        dialogs?.first { $0.dialog == name }
+    }
 
     static func load() -> PropDialogs? {
         let bundle = Bundle(for: PropPage.self)
@@ -169,6 +183,10 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     private var stepperBuddies: [ObjectIdentifier: String] = [:]
     /// Mac 版不能用的控件（一直变灰）
     private var unavailable: Set<String> = []
+    /// 列表（原版 ListBox、ListView）
+    private var lists: [String: PropList] = [:]
+    /// 负数也可以的数值框（上下按钮的范围的下限是负数）
+    private var signedFields: Set<String> = []
 
     /// 复选框、单选按钮、组合框、数值框变了（原版 WM_COMMAND 的 BN_CLICKED、CBN_SELCHANGE、EN_CHANGE）
     var onChange: ((String) -> Void)?
@@ -294,12 +312,13 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 let scroll = NSScrollView(frame: frame)
                 scroll.borderType = .bezelBorder
                 scroll.hasVerticalScroller = true
-                let table = NSTableView()
-                table.headerView = nil
-                table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("value")))
-                scroll.documentView = table
+                let list = PropList(header: control.kind == "listview")
+                list.onSelect = { [weak self] in self?.onChange?(control.id) }
+                lists[control.id] = list
+                scroll.documentView = list.table
                 view.addSubview(scroll)
                 register(scroll, control)
+                list.table.setAccessibilityIdentifier(control.id + "_table")
             case "hotkey":
                 let field = NSTextField(frame: frame)
                 field.font = Self.font
@@ -369,7 +388,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
 
     func controlTextDidChange(_ notification: Notification) {
         guard let field = notification.object as? NSTextField, let id = field.identifier?.rawValue else { return }
-        if let stepper = steppers[id] { stepper.integerValue = int(id) }
+        if let stepper = steppers[id] { stepper.integerValue = stepperValue(id) }
         onChange?(id)
     }
 
@@ -428,6 +447,19 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         (controls[id] as? NSTextField)?.stringValue = text
     }
 
+    /// GetDlgItemInt(…, TRUE)：有符号的数字。数字以外的文字时是 0
+    func signedInt(_ id: String) -> Int {
+        let text = self.text(id).trimmingCharacters(in: .whitespaces)
+        let digits = text.hasPrefix("-") ? String(text.dropFirst()) : text
+        guard !digits.isEmpty, digits.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int32(text) else { return 0 }
+        return Int(value)
+    }
+
+    /// 列表（原版 ListView 的 LVS_REPORT。测试也用）
+    func list(_ id: String) -> PropList? {
+        lists[id]
+    }
+
     /// Combo_ResetContent、Combo_InsertString、Combo_SetCurSel
     func setItems(_ id: String, _ titles: [String], selected: Int) {
         guard let popup = controls[id] as? NSPopUpButton else { return }
@@ -451,7 +483,12 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         guard let stepper = steppers[id] else { return }
         stepper.minValue = Double(range.lowerBound)
         stepper.maxValue = Double(range.upperBound)
-        stepper.integerValue = int(id)
+        if range.lowerBound < 0 { signedFields.insert(id) }
+        stepper.integerValue = stepperValue(id)
+    }
+
+    private func stepperValue(_ id: String) -> Int {
+        signedFields.contains(id) ? signedInt(id) : int(id)
     }
 
     /// Mac 版不能用的控件：一直变灰
@@ -512,6 +549,77 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             (scroll.documentView as? NSControl)?.isEnabled = on
         }
         steppers[id]?.isEnabled = on
+    }
+}
+
+// MARK: - 列表
+
+/// 原版的 ListView（LVS_REPORT | LVS_SINGLESEL）：几列的文字，一次选一行
+final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    let table = NSTableView()
+    /// 每行的文字（列的顺序）
+    private(set) var rows: [[String]] = []
+    /// 选择变了（原版 LVN_ITEMCHANGED）
+    var onSelect: (() -> Void)?
+    private var notifying = true
+
+    init(header: Bool) {
+        super.init()
+        if !header { table.headerView = nil }
+        table.allowsMultipleSelection = false
+        table.allowsEmptySelection = true
+        table.rowHeight = 17
+        table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0")))
+        table.dataSource = self
+        table.delegate = self
+    }
+
+    /// 列（原版 ListView_InsertColumn）。widths 是宽度（点）
+    func setColumns(_ titles: [String], widths: [CGFloat]) {
+        for column in table.tableColumns { table.removeTableColumn(column) }
+        for (index, title) in titles.enumerated() {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
+            column.title = title
+            column.headerCell.font = PropPage.font
+            if widths.indices.contains(index) { column.width = widths[index] }
+            table.addTableColumn(column)
+        }
+    }
+
+    /// 换掉全部的行。选择没有了（不通知）
+    func setRows(_ rows: [[String]]) {
+        self.rows = rows
+        notifying = false
+        table.reloadData()
+        table.deselectAll(nil)
+        notifying = true
+    }
+
+    /// 选中的行。没有时 -1（原版 ListView_GetNextItem(…, LVNI_SELECTED)）
+    var selectedRow: Int { table.selectedRow }
+
+    /// 选这一行（原版 ListView_SetItemState(…, LVIS_SELECTED)）。没有这行时什么也不做
+    func select(_ row: Int) {
+        guard rows.indices.contains(row) else { return }
+        table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        table.scrollRowToVisible(row)
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        rows.count
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let column = Int(tableColumn?.identifier.rawValue ?? "0") ?? 0
+        let text = rows.indices.contains(row) && rows[row].indices.contains(column) ? rows[row][column] : ""
+        let label = NSTextField(labelWithString: text)
+        label.font = PropPage.font
+        label.lineBreakMode = .byTruncatingTail
+        return label
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        if notifying { onSelect?() }
     }
 }
 
@@ -769,5 +877,127 @@ extension NSApplication {
     @objc func showCommonSettings(_ sender: Any?) {
         let code = EditorTextView.commandCode(of: sender) ?? 0
         CommonSettingsWindowController.show(page: CommonSettingsWindowController.pageOfCommand[code])
+    }
+}
+
+// MARK: - ウィンドウの位置と大きさ
+
+/// ウィンドウの位置と大きさ（原版 CDlgWinSize：共通設定 > ウィンドウ の「位置と大きさの設定」）。
+/// 布局是原版的对话框模板 IDD_WINPOSSIZE。「閉じる」でも閉じるボタンでも値を取る（原版 IDOK、IDCANCEL とも GetData）
+final class WinSizeDialog: NSObject, NSWindowDelegate {
+    /// 原版 DoModal の引数（eSaveWinSize、eSaveWinPos、nWinSizeType、rc）
+    struct Values: Equatable {
+        /// 大きさ：0 指定しない、1 継承する、2 直接指定（WINSIZEMODE_*）
+        var saveSize: Int
+        /// 起動時の位置：同上
+        var savePosition: Int
+        /// 0 普通、2 最大化、1 最小化（SIZE_RESTORED、SIZE_MAXIMIZED、SIZE_MINIMIZED）
+        var sizeType: Int
+        var width: Int
+        var height: Int
+        var x: Int
+        var y: Int
+    }
+
+    let page: PropPage
+    let title: String
+    private(set) var values: Values
+    private var window: NSWindow?
+
+    init?(values: Values) {
+        guard let definition = PropDialogs.load()?.dialog("IDD_WINPOSSIZE") else { return nil }
+        page = PropPage(definition: definition)
+        title = definition.name
+        self.values = values
+        super.init()
+        // 原版 OnInitDialog
+        page.setItems("IDC_COMBO_WINTYPE", [NSLocalizedString("普通", comment: "STR_DLGWINSZ_NORMAL"),
+                                            NSLocalizedString("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
+                                            NSLocalizedString("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+        setData()
+        page.setRange("IDC_EDIT_SX", 0...30000)
+        page.setRange("IDC_EDIT_SY", 0...30000)
+        page.setRange("IDC_EDIT_WX", -30000...30000)
+        page.setRange("IDC_EDIT_WY", -30000...30000)
+        page.onChange = { [weak self] _ in self?.renewItemState() }
+        page.onButton = { [weak self] id in
+            if id == "IDOK" { self?.close() }
+        }
+    }
+
+    private static let sizeButtons = ["IDC_RADIO_WINSIZE_DEF", "IDC_RADIO_WINSIZE_SAVE", "IDC_RADIO_WINSIZE_SET"]
+    private static let positionButtons = ["IDC_RADIO_WINPOS_DEF", "IDC_RADIO_WINPOS_SAVE", "IDC_RADIO_WINPOS_SET"]
+
+    /// 原版 SetData
+    private func setData() {
+        page.setChecked(Self.sizeButtons[(1...2).contains(values.saveSize) ? values.saveSize : 0], true)
+        page.setChecked(Self.positionButtons[(1...2).contains(values.savePosition) ? values.savePosition : 0], true)
+        page.select("IDC_COMBO_WINTYPE", values.sizeType == 1 ? 2 : values.sizeType == 2 ? 1 : 0)
+        page.setText("IDC_EDIT_SX", String(values.width))
+        page.setText("IDC_EDIT_SY", String(values.height))
+        page.setText("IDC_EDIT_WX", String(values.x))
+        page.setText("IDC_EDIT_WY", String(values.y))
+        renewItemState()
+    }
+
+    /// 原版 GetData
+    func getData() {
+        if let index = Self.sizeButtons.firstIndex(where: page.isChecked) { values.saveSize = index }
+        if let index = Self.positionButtons.firstIndex(where: page.isChecked) { values.savePosition = index }
+        switch page.selectedIndex("IDC_COMBO_WINTYPE") {
+        case 2: values.sizeType = 1	// SIZE_MINIMIZED
+        case 1: values.sizeType = 2	// SIZE_MAXIMIZED
+        default: values.sizeType = 0	// SIZE_RESTORED
+        }
+        values.width = page.signedInt("IDC_EDIT_SX")
+        values.height = page.signedInt("IDC_EDIT_SY")
+        values.x = page.signedInt("IDC_EDIT_WX")
+        values.y = page.signedInt("IDC_EDIT_WY")
+    }
+
+    /// 原版 RenewItemState：直接指定のときだけ数を変えられる
+    func renewItemState() {
+        let position = page.isChecked("IDC_RADIO_WINPOS_SET")
+        page.setEnabled("IDC_EDIT_WX", position)
+        page.setEnabled("IDC_EDIT_WY", position)
+        let size = page.isChecked("IDC_RADIO_WINSIZE_SET")
+        page.setEnabled("IDC_COMBO_WINTYPE", size)
+        page.setEnabled("IDC_EDIT_SX", size)
+        page.setEnabled("IDC_EDIT_SY", size)
+    }
+
+    /// 「閉じる」
+    func close() {
+        if let window {
+            window.close()	// windowWillClose で GetData
+        } else {
+            getData()
+        }
+    }
+
+    /// 閉じるまで待つ（原版 DoModal）
+    func runModal(parent: NSWindow?) {
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: page.view.frame.size),
+                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        panel.title = title
+        panel.isReleasedWhenClosed = false
+        panel.setAccessibilityIdentifier("WinSizeDialog")
+        panel.contentView = page.view
+        panel.delegate = self
+        (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
+        if let parent {
+            panel.setFrameOrigin(NSPoint(x: parent.frame.midX - panel.frame.width / 2, y: parent.frame.midY - panel.frame.height / 2))
+        } else {
+            panel.center()
+        }
+        window = panel
+        _ = NSApp.runModal(for: panel)
+        window = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        getData()
+        NSApp.stopModal()
     }
 }
