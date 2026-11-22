@@ -386,11 +386,11 @@ final class CommonSettingsTests: XCTestCase {
         XCTAssertTrue(page.isEnabled("IDC_EDIT_DFORM"))
         type(page, "IDC_EDIT_DFORM", "yyyy'年'M'月'")
         XCTAssertEqual(page.text("IDC_EDIT_DFORM_EX"), WindowsDateFormat.date(Date(), type: 1, format: "yyyy'年'M'月'"))
-        type(page, "IDC_EDIT_INYOUKIGOU", "> ")
+        type(page, "IDC_EDIT_INYOUKIGOU", "| ")
         controller.ok(nil)
         XCTAssertEqual(store.values["Common/nDateFormatType"], "1")
         XCTAssertEqual(store.values["Common/szDateFormat"], "yyyy'年'M'月'")
-        XCTAssertEqual(store.values["Common/szInyouKigou"], "> ")
+        XCTAssertEqual(store.values["Common/szInyouKigou"], "| ")
     }
 
     /// 検索：タグジャンプの組み合わせ（タグファイルの検索 には 2 がない）
