@@ -366,14 +366,16 @@ final class SakuraMacUITests: XCTestCase {
         let sizeButton = window.buttons["IDC_BUTTON_WINSIZE"]
         XCTAssertTrue(sizeButton.waitForExistence(timeout: 2))
         sizeButton.click()
-        let dialog = app.windows["WinSizeDialog"]
-        XCTAssertTrue(dialog.waitForExistence(timeout: 5), "ウィンドウの位置と大きさ")
-        dialog.radioButtons["IDC_RADIO_WINSIZE_SET"].click()
-        XCTAssertTrue(dialog.textFields["IDC_EDIT_SX"].isEnabled, "直接指定 のとき 幅 を変えられる")
-        dialog.radioButtons["IDC_RADIO_WINSIZE_DEF"].click()
-        XCTAssertFalse(dialog.textFields["IDC_EDIT_SX"].isEnabled)
-        dialog.buttons["IDOK"].click()
-        XCTAssertFalse(dialog.waitForExistence(timeout: 1), "閉じる で閉じる")
+        // 模态的面板在可访问性树里不一定是 windows（NSPanel 有时是 dialogs），按控件找
+        let sizeSet = app.radioButtons["IDC_RADIO_WINSIZE_SET"]
+        XCTAssertTrue(sizeSet.waitForExistence(timeout: 5), "ウィンドウの位置と大きさ")
+        sizeSet.click()
+        let width = app.textFields["IDC_EDIT_SX"]
+        XCTAssertTrue(width.isEnabled, "直接指定 のとき 幅 を変えられる")
+        app.radioButtons["IDC_RADIO_WINSIZE_DEF"].click()
+        XCTAssertFalse(width.isEnabled)
+        app.buttons["IDOK"].click()
+        XCTAssertFalse(sizeSet.waitForExistence(timeout: 1), "閉じる で閉じる")
 
         window.staticTexts["CommonSettingsPage_ファイル名表示"].click()
         let table = window.tables["IDC_LIST_FNAME_table"]
