@@ -382,6 +382,12 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(table.waitForExistence(timeout: 2), "置換リスト")
         let count = table.tableRows.count
         let from = window.textFields["IDC_EDIT_FNAME_FROM"]
+        // 设置窗口的输入框不限制成英文输入：日文、中文输入法打开时路径会变成未确定文字。输入的这段时间换成英文键盘
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() {
+            TISSelectInputSource(ascii)
+        }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
         from.click()
         from.typeKey("a", modifierFlags: .command)
         from.typeText("/Volumes/UITest/")
