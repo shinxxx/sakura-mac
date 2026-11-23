@@ -319,10 +319,20 @@ namespace {
 //! 共通設定的节的读写（CShareData_IO 的 protected 函数）
 class CommonSettingIO : private CShareData_IO {
 public:
-	//! 节的读写。不是共通設定窗口用的节时 false
+	//! 节的读写。不是共通設定窗口、タイプ別設定窗口用的节时 false
 	static bool IO(CDataProfile& profile, sakura::wstring_view section)
 	{
-		if (section == LTEXT("Common")) {
+		if (const int nType = TypeIndexOfSection(section); 0 <= nType) {
+			// タイプ別設定（第 40 步）：Types(N) 与读写 sakura.ini 时相同（ShareData_IO_TypeConfig），
+			// 读入后与原版 OK 时相同地换掉这个类型的设置（CPropTypes → CDocTypeManager::SetTypeConfig）
+			STypeConfig type;
+			if (!CDocTypeManager().GetTypeConfig(CTypeConfig(nType), type)) return false;
+			ShareData_IO_TypeConfig(profile, section, type);
+			if (profile.IsReadingMode()) {
+				type.m_nIdx = nType;
+				(void)CDocTypeManager().SetTypeConfig(CTypeConfig(nType), type);
+			}
+		} else if (section == LTEXT("Common")) {
 			ShareData_IO_Common(profile);
 		} else if (section == LTEXT("Nickname")) {
 			ShareData_IO_Nickname(profile);
@@ -332,6 +342,23 @@ public:
 			return false;
 		}
 		return true;
+	}
+
+	//! "Types(N)" 的 N（タイプ別設定 的编号）。不是这个形式或没有这个类型时 -1
+	static int TypeIndexOfSection(sakura::wstring_view section)
+	{
+		constexpr sakura::wstring_view prefix = LTEXT("Types(");
+		if (section.size() <= prefix.size() + 1 || section.substr(0, prefix.size()) != prefix || section.back() != LCHAR(')')) {
+			return -1;
+		}
+		const auto digits = section.substr(prefix.size(), section.size() - prefix.size() - 1);
+		int n = 0;
+		for (const auto ch : digits) {
+			if (ch < LCHAR('0') || LCHAR('9') < ch || 1000 <= n) return -1;
+			n = n * 10 + (ch - LCHAR('0'));
+		}
+		if (1 < digits.size() && digits.front() == LCHAR('0')) return -1;	// Types(01) 等不是 sakura.ini 的名字
+		return n < GetDllShareData().m_nTypesCount ? n : -1;
 	}
 };
 
@@ -382,6 +409,18 @@ bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Te
 		}
 	}
 	return true;
+}
+
+std::vector<TypeSettingInfo> TypeSettings()
+{
+	std::vector<TypeSettingInfo> result;
+	if (!IsStarted()) return result;
+	for (int i = 0; i < GetDllShareData().m_nTypesCount; ++i) {
+		const STypeConfigMini* mini = nullptr;
+		if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(i), &mini)) continue;
+		result.push_back({ i, Text(mini->m_szTypeName.c_str()), Text(mini->m_szTypeExts.c_str()) });
+	}
+	return result;
 }
 
 bool SaveSettings()
@@ -538,6 +577,12 @@ bool EncodingBomDefault(Encoding code)
 {
 	if (!IsValidCodeOrCPType(code)) return false;
 	return CCodeTypeName(static_cast<ECodeType>(code)).IsBomDefOn();
+}
+
+bool EncodingCanBeDefault(Encoding code)
+{
+	if (!IsValidCodeOrCPType(code)) return false;
+	return CCodeTypeName(static_cast<ECodeType>(code)).CanDefault();
 }
 
 Text EolText(Eol eol)
@@ -1759,6 +1804,36 @@ std::int32_t Document::WrapColumnsForWidth(std::int32_t width) const
 void Document::Relayout()
 {
 	m_impl->DoLayout();
+}
+
+bool Document::ApplyTypeSettingChange(std::int32_t typeIndex)
+{
+	// 原版 CEditWnd::OnChangeSetting（PM_CHANGESETTING_TYPE）：这个文档的类型，或按文件名决定的类型是改了的类型时
+	auto& d = *m_impl;
+	const Text& path = d.info.path;
+	const int nTypeByPath = path.empty() ? 0 : CDocTypeManager().GetDocumentTypeOfPath(path.c_str()).GetIndex();
+	if (d.info.typeIndex != typeIndex && nTypeByPath != typeIndex) return false;
+
+	// 以下与 CEditDoc::OnChangeSetting 相同
+	const STypeConfig old = d.typeConfig;
+	// 折り返し方法的临时设置（原版 m_bTextWrapMethodCurTemp）：现在的与原来的类型别设置不同
+	const bool bWrapTemp = d.wrapMethodCur != old.m_nTextWrapMethod
+		|| (d.wrapMethodCur == WRAP_SETTING_WIDTH && d.wrapColumnsCur != old.m_nMaxLineKetas);
+	d.ResetForType(path);	// 文書種別：按文件名重新决定（CDocTypeManager::GetDocumentTypeOfPath）
+	const STypeConfig& ref = d.typeConfig;
+	bool bTemp = bWrapTemp && old.m_id == ref.m_id;	// 类型变了时解除临时设置
+	// 折り返し方法的临时设置与类型别设置一致时解除（指定桁で折り返す 的桁数不同时保留）
+	if (bTemp && d.wrapMethodCur == ref.m_nTextWrapMethod
+		&& !(d.wrapMethodCur == WRAP_SETTING_WIDTH && d.wrapColumnsCur != ref.m_nMaxLineKetas)) {
+		bTemp = false;
+	}
+	if (!bTemp) {
+		d.wrapMethodCur = ref.m_nTextWrapMethod;
+		// 指定桁で折り返す：类型别设置的桁数。右端で折り返す：暂时用现在的桁数（界面层按窗口宽度再设）
+		if (d.wrapMethodCur == WRAP_SETTING_WIDTH) d.wrapColumnsCur = ref.m_nMaxLineKetas;
+	}
+	d.DoLayout();
+	return true;
 }
 
 std::int32_t Document::LayoutLineCount() const

@@ -113,6 +113,15 @@ enum CommandTable {
         32017: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_PLUGIN
         32018: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_MAINMENU
 
+        // 第 40 步：タイプ別設定（TypeSettingsWindow.swift）。この文書のタイプ。各页的功能打开那一页
+        31111: #selector(EditorTextView.showTypeSettings(_:)),		// F_OPTION_TYPE タイプ別設定
+        31114: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_WINDOW タイプ別設定『ウィンドウ』
+        31115: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_SCREEN タイプ別設定『スクリーン』
+        31116: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_COLOR
+        31117: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_HELPER
+        31118: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_REGEX_KEYWORD
+        31119: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_KEYHELP
+
         // ウィンドウ（第 26 步）
         31320: #selector(NSWindow.performClose(_:)),				// F_WINCLOSE 閉じる
         31340: Selector(("activateNextWindow:")),					// F_NEXTWINDOW（AppDelegate）

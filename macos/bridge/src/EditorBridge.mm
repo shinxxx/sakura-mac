@@ -284,6 +284,21 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 @implementation ECSearchSettings
 @end
 
+@implementation ECTypeSetting
+
+- (instancetype)initWithInfo:(const core::TypeSettingInfo&)info
+{
+	self = [super init];
+	if (self) {
+		_index = info.index;
+		_name = ToNSString(info.name);
+		_extensions = ToNSString(info.extensions);
+	}
+	return self;
+}
+
+@end
+
 @implementation ECEncodingChoice
 
 - (instancetype)initWithChoice:(const core::EncodingChoice&)c
@@ -500,6 +515,21 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 {
 	if (eol < ECEolNone || ECEolParagraphSeparator < eol) return @"";
 	return ToNSString(core::EolText(static_cast<core::Eol>(eol)));
+}
+
++ (NSArray<ECTypeSetting *> *)typeSettings
+{
+	const auto list = core::TypeSettings();
+	NSMutableArray<ECTypeSetting *> *result = [NSMutableArray arrayWithCapacity:list.size()];
+	for (const auto& info : list) {
+		[result addObject:[[ECTypeSetting alloc] initWithInfo:info]];
+	}
+	return result;
+}
+
++ (BOOL)encodingCanBeDefault:(ECEncoding)encoding
+{
+	return core::EncodingCanBeDefault(static_cast<core::Encoding>(encoding)) ? YES : NO;
 }
 
 + (NSArray<ECEncodingChoice *> *)encodingChoices
@@ -1115,6 +1145,7 @@ static ECSearchResult *InvalidViewResult()
 }
 
 - (void)relayout { _doc->Relayout(); }
+- (BOOL)applyTypeSettingChange:(NSInteger)typeIndex { return _doc->ApplyTypeSettingChange(static_cast<std::int32_t>(typeIndex)) ? YES : NO; }
 
 - (NSInteger)layoutLineCount { return _doc->LayoutLineCount(); }
 

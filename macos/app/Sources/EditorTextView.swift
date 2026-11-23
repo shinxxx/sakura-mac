@@ -178,6 +178,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         // 第 39 步：共通設定窗口按了 OK（原版 MYWM_CHANGESETTING 时各窗口的 OnChangeSetting）
         NotificationCenter.default.addObserver(self, selector: #selector(commonSettingsDidChange(_:)),
                                                name: Self.commonSettingsDidChangeNotification, object: nil)
+        // 第 40 步：タイプ別設定窗口按了 OK（原版 MYWM_CHANGESETTING の PM_CHANGESETTING_TYPE）
+        NotificationCenter.default.addObserver(self, selector: #selector(typeSettingsDidChange(_:)),
+                                               name: TypeSettingsWindowController.didChangeNotification, object: nil)
         // 输入法打开、关闭时，光标的颜色跟着变
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardInputSourceDidChange(_:)),
                                                name: NSTextInputContext.keyboardSelectionDidChangeNotification, object: nil)
@@ -215,6 +218,20 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         settings = document.viewSettings
         updateFontMetrics()
         reloadColors()
+        contentDidChange()
+    }
+
+    /// タイプ別設定变了：这个文档的类型（或按文件名决定的类型）是那个类型时，读新的设置，重新排版、重画
+    /// （原版 CEditWnd::OnChangeSetting の PM_CHANGESETTING_TYPE → CEditDoc::OnChangeSetting）
+    @objc private func typeSettingsDidChange(_ notification: Notification) {
+        guard let index = notification.userInfo?["index"] as? Int, document.applyTypeSettingChange(index) else { return }
+        settings = document.viewSettings
+        updateFontMetrics()
+        reloadColors()
+        clearSelection()
+        if settings.wrapMethod == .windowWidth {
+            _ = document.setWrap(.windowWidth, columns: windowWrapColumns)
+        }
         contentDidChange()
     }
 

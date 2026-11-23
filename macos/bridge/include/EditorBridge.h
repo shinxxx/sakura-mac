@@ -349,6 +349,17 @@ NS_SWIFT_NAME(EditorEncodingChoice)
 @end
 
 /*!
+	タイプ別設定的一个（sakura::core::TypeSettingInfo，第 40 步）
+*/
+NS_SWIFT_NAME(EditorTypeSetting)
+@interface ECTypeSetting : NSObject
+@property (readonly) NSInteger index;				//!< 编号（sakura.ini 的 Types(N) 的 N）。0 是「基本」
+@property (readonly, copy) NSString *name;			//!< 設定の名前
+@property (readonly, copy) NSString *extensions;	//!< ファイル拡張子
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
 	保存前的检查结果（sakura::core::SaveCheck，原版 CCodeChecker::OnCheckSave，第 30 步）
 */
 NS_SWIFT_NAME(EditorSaveCheck)
@@ -471,7 +482,7 @@ NS_SWIFT_NAME(EditorCore)
 //! 导入前的设置的备份（sakura.ini.before-import）
 @property (class, readonly, copy) NSString *settingsBackupPath;
 
-//! 共通設定的一项（第 39 步）。节和项目与 sakura.ini 相同（Common、Nickname、Statusbar），值是 ini 里的写法。没有这一项时 nil
+//! 共通設定的一项（第 39 步）。节和项目与 sakura.ini 相同（Common、Nickname、Statusbar、タイプ別設定的 Types(N)），值是 ini 里的写法。没有这一项时 nil
 + (nullable NSString *)commonSettingInSection:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(commonSetting(section:key:));
 //! 改共通設定的一项（与改 sakura.ini 后读入相同，范围限制照原版）。没有这一项时 NO
 + (BOOL)setCommonSetting:(NSString *)value section:(NSString *)section key:(NSString *)key NS_SWIFT_NAME(setCommonSetting(_:section:key:));
@@ -479,6 +490,8 @@ NS_SWIFT_NAME(EditorCore)
 + (BOOL)setCommonSettings:(NSDictionary<NSString *, NSString *> *)values section:(NSString *)section NS_SWIFT_NAME(setCommonSettings(_:section:));
 //! 现在的设置写进 sakura.ini。导入设置以后、重新启动之前不写，返回 NO
 + (BOOL)saveSettings;
+//! タイプ別設定的一览（第 40 步。顺序与 Types(0)、Types(1)… 相同）
+@property (class, readonly, copy) NSArray<ECTypeSetting *> *typeSettings;
 
 //! 编码的显示名（"SJIS"、"UTF-8" 等）。不能用的编码是空字符串
 + (NSString *)nameOfEncoding:(ECEncoding)encoding NS_SWIFT_NAME(name(ofEncoding:));
@@ -501,6 +514,8 @@ NS_SWIFT_NAME(EditorCore)
 + (BOOL)encodingCanHaveBOM:(ECEncoding)encoding NS_SWIFT_NAME(canHaveBOM(_:));
 //! 换成这个编码时 BOM 是否默认勾选（原版 CCodeTypeName::IsBomDefOn）
 + (BOOL)encodingBOMDefault:(ECEncoding)encoding NS_SWIFT_NAME(bomDefault(_:));
+//! 能否作为タイプ別設定的デフォルトの文字コード（原版 CCodeTypeName::CanDefault，第 40 步）
++ (BOOL)encodingCanBeDefault:(ECEncoding)encoding NS_SWIFT_NAME(canBeDefault(_:));
 
 //! 「最近使ったファイル」菜单里显示的历史（新的在前，「ファイルの履歴MAX」个）（第 31 步）
 @property (class, readonly, copy) NSArray<ECRecentFile *> *recentFiles;
@@ -715,6 +730,11 @@ NS_SWIFT_NAME(EditorDocument)
 - (NSInteger)wrapColumnsForWidth:(NSInteger)width NS_SWIFT_NAME(wrapColumns(forWidth:));
 //! 按现在的字体和设置重新排版
 - (void)relayout;
+/*!
+	タイプ別設定的第 typeIndex 个改了（第 40 步，原版 PM_CHANGESETTING_TYPE）：这个文档的类型（或按文件名决定的类型）是它时
+	按文件名重新决定类型、读新的设置、重新排版，返回 YES
+*/
+- (BOOL)applyTypeSettingChange:(NSInteger)typeIndex NS_SWIFT_NAME(applyTypeSettingChange(_:));
 
 //! 排版行数（空文档是 0）
 @property (readonly) NSInteger layoutLineCount;

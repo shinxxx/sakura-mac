@@ -398,6 +398,52 @@ final class SakuraMacUITests: XCTestCase {
         window.buttons["CommonSettingsCancel"].click()
     }
 
+    // MARK: - 第 40 步：タイプ別設定窗口
+
+    /// 設定 > タイプ別設定：这个文档的类型（无题是「基本」）。スクリーン 的「SPACEの挿入」打开按 OK → TAB 键输入空白；
+    /// 再打开时是改过的值，关掉按 OK → TAB 键输入 TAB。「基本」的名字不能改
+    func testTypeSettingsWindow() {
+        let window = app.windows["TypeSettings"]
+        func openTypeSettings() {
+            let settings = app.menuBars.menuBarItems["設定"]
+            settings.click()
+            let item = settings.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'タイプ別設定' AND NOT (title CONTAINS '一覧')")).firstMatch
+            XCTAssertTrue(item.waitForExistence(timeout: 3), "「設定」>「タイプ別設定」")
+            item.click()
+            XCTAssertTrue(window.waitForExistence(timeout: 5), "タイプ別設定窗口")
+        }
+        editor.click()
+        openTypeSettings()
+        XCTAssertTrue(window.staticTexts["TypeSettingsPage_キーワードヘルプ"].exists, "页的列表")
+        window.staticTexts["TypeSettingsPage_スクリーン"].click()
+        let insSpace = window.checkBoxes["IDC_CHECK_INS_SPACE"]
+        XCTAssertTrue(insSpace.waitForExistence(timeout: 2), "スクリーン 页")
+        XCTAssertEqual(window.textFields["IDC_EDIT_TYPENAME"].value as? String, "基本", "无题是「基本」")
+        XCTAssertFalse(window.textFields["IDC_EDIT_TYPENAME"].isEnabled, "「基本」の名前は変えられない")
+        XCTAssertEqual(insSpace.value as? Int, 0)
+        insSpace.click()
+        window.buttons["TypeSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+
+        editor.click()
+        key(XCUIKeyboardKey.tab.rawValue)
+        XCTAssertFalse(text.isEmpty)
+        XCTAssertFalse(text.contains("\t"), "SPACEの挿入：TAB 键输入空白")
+        XCTAssertTrue(text.allSatisfy { $0 == " " }, "空白：\(text)")
+
+        openTypeSettings()
+        XCTAssertTrue(insSpace.waitForExistence(timeout: 2), "上次的页（スクリーン）")
+        XCTAssertEqual(insSpace.value as? Int, 1, "OK した値")
+        insSpace.click()
+        window.buttons["TypeSettingsOK"].click()
+        editor.click()
+        key("a", .command)
+        key(XCUIKeyboardKey.tab.rawValue)
+        XCTAssertEqual(text, "\t", "SPACEの挿入 を外すと TAB")
+        key("z", .command)
+        key("z", .command)
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。
