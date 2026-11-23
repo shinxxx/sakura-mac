@@ -26,7 +26,7 @@ Mac 版做不到的（×）：タスクトレイ（偏离项 7）、画面キャ
 | 部分 | 文件 | 内容 |
 |---|---|---|
 | 布局 | `macos/tools/settings/make_prop_dialogs.py` → `macos/app/Resources/CommonSettingsDialogs.json` | 原版对话框模板的每个控件的种类、文字、位置（对话框单位），和从页打开的对话框（`IDD_WINPOSSIZE`）。rc 改了以后重新运行 |
-| 窗口 | `macos/app/Sources/CommonSettingsWindow.swift` | 按 JSON 排 Mac 的标准控件（对话框单位 × 1.6 点）。左边是页的列表，下边是 キャンセル、OK |
+| 窗口 | `macos/app/Sources/CommonSettingsWindow.swift` | 按 JSON 排 Mac 的标准控件（对话框单位 × 1.6 点）。左边是页的列表，下边是 キャンセル、OK（第 40 步起这部分是 `PropSheetWindowController`，タイプ別設定窗口也用）|
 | 各页 | `macos/app/Sources/CommonSettingsPages.swift` | 原版各页的 SetData / GetData / Enable…Input 的移植；フォント（`LogFontSetting`、`FontPicker`） |
 | 位置と大きさ | `macos/app/Sources/CommonSettingsWindow.swift` 的 `WinSizeDialog` | 原版 `CDlgWinSize` |
 | 日付・時刻の書式 | `macos/app/Sources/WindowsDateFormat.swift` | 書式 页的表示例：Windows 的 GetDateFormat / GetTimeFormat 的书式记号 |

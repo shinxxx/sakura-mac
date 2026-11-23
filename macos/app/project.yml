@@ -18,7 +18,7 @@ targets:
     platform: macOS
     sources:
       - path: Sources
-      # 第 39 步：共通設定窗口的布局（原版的对话框模板，macos/tools/settings/make_prop_dialogs.py 生成）
+      # 第 39、40 步：共通設定・タイプ別設定窗口的布局（原版的对话框模板，macos/tools/settings/make_prop_dialogs.py 生成）
       - path: Resources
         buildPhase: resources
     settings:
@@ -108,6 +108,11 @@ targets:
       - path: Sources/CommonSettingsPages.swift
       - path: Sources/WindowsDateFormat.swift
       - path: Resources/CommonSettingsDialogs.json
+        buildPhase: resources
+      # 第 40 步：タイプ別設定窗口
+      - path: Sources/TypeSettingsWindow.swift
+      - path: Sources/TypeSettingsPages.swift
+      - path: Resources/TypeSettingsDialogs.json
         buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip

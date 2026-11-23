@@ -50,16 +50,20 @@ final class CommonSettingsValues {
     }
 
     let store: CommonSettingsStore
+    /// 不指定节时的节：共通設定是 Common，タイプ別設定是 Types(N)（第 40 步）
+    let defaultSection: String
     private var original: [Item: String] = [:]
     private var current: [Item: String] = [:]
     private var order: [Item] = []
 
-    init(store: CommonSettingsStore) {
+    init(store: CommonSettingsStore, defaultSection: String = "Common") {
         self.store = store
+        self.defaultSection = defaultSection
     }
 
     /// 值（sakura.ini 的写法）。第一次读时从核心库取
-    func string(_ key: String, section: String = "Common") -> String {
+    func string(_ key: String, section: String? = nil) -> String {
+        let section = section ?? defaultSection
         let item = Item(section: section, key: key)
         if let value = current[item] { return value }
         let value = store.value(section: section, key: key) ?? ""
@@ -68,26 +72,27 @@ final class CommonSettingsValues {
         return value
     }
 
-    func int(_ key: String, section: String = "Common") -> Int {
+    func int(_ key: String, section: String? = nil) -> Int {
         Int(string(key, section: section).trimmingCharacters(in: .whitespaces)) ?? 0
     }
 
-    func bool(_ key: String, section: String = "Common") -> Bool {
+    func bool(_ key: String, section: String? = nil) -> Bool {
         int(key, section: section) != 0
     }
 
-    func set(_ value: String, _ key: String, section: String = "Common") {
+    func set(_ value: String, _ key: String, section: String? = nil) {
+        let section = section ?? defaultSection
         let item = Item(section: section, key: key)
         _ = string(key, section: section)	// 先记下原来的值
         current[item] = value
         if !order.contains(item) { order.append(item) }
     }
 
-    func set(_ value: Int, _ key: String, section: String = "Common") {
+    func set(_ value: Int, _ key: String, section: String? = nil) {
         set(String(value), key, section: section)
     }
 
-    func set(_ value: Bool, _ key: String, section: String = "Common") {
+    func set(_ value: Bool, _ key: String, section: String? = nil) {
         set(value ? 1 : 0, key, section: section)
     }
 
@@ -153,9 +158,10 @@ struct PropDialogs: Decodable {
         dialogs?.first { $0.dialog == name }
     }
 
-    static func load() -> PropDialogs? {
+    /// resource：共通設定是 CommonSettingsDialogs，タイプ別設定是 TypeSettingsDialogs（第 40 步）
+    static func load(_ resource: String = "CommonSettingsDialogs") -> PropDialogs? {
         let bundle = Bundle(for: PropPage.self)
-        guard let url = bundle.url(forResource: "CommonSettingsDialogs", withExtension: "json"),
+        guard let url = bundle.url(forResource: resource, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(PropDialogs.self, from: data)
     }
@@ -319,6 +325,13 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 view.addSubview(scroll)
                 register(scroll, control)
                 list.table.setAccessibilityIdentifier(control.id + "_table")
+            case "slider":
+                // 原版 msctls_trackbar32（タイプ別設定 > ウィンドウ の背景画像の透明度，第 40 步）
+                let slider = NSSlider(value: 0, minValue: 0, maxValue: 100, target: self, action: #selector(controlClicked(_:)))
+                slider.controlSize = .small
+                slider.frame = NSRect(x: frame.minX, y: frame.midY - 10, width: frame.width, height: 20)
+                view.addSubview(slider)
+                register(slider, control)
             case "hotkey":
                 let field = NSTextField(frame: frame)
                 field.font = Self.font
@@ -478,6 +491,61 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         (controls[id] as? NSPopUpButton)?.selectItem(at: index)
     }
 
+    /// 每项带值的组合框（原版 Combo_AddString + Combo_SetItemData）。名字相同的项也都放进去。
+    /// selectedValue 的项选上，没有时选 selectIfMissing（nil 时什么也不选）。选上了时 true
+    @discardableResult
+    func setTaggedItems(_ id: String, _ items: [(value: Int, title: String)], selectedValue: Int?, selectIfMissing: Int? = 0) -> Bool {
+        guard let popup = controls[id] as? NSPopUpButton else { return false }
+        popup.removeAllItems()
+        return appendTaggedItems(id, items, selectedValue: selectedValue, selectIfMissing: selectIfMissing)
+    }
+
+    /// 在后面追加带值的项（原版 CCodePage::AddComboCodePages 等）。selectedValue 的项选上了时 true
+    @discardableResult
+    func appendTaggedItems(_ id: String, _ items: [(value: Int, title: String)], selectedValue: Int?, selectIfMissing: Int? = nil) -> Bool {
+        guard let popup = controls[id] as? NSPopUpButton, let menu = popup.menu else { return false }
+        var found = false
+        for item in items {
+            let menuItem = NSMenuItem(title: item.title, action: nil, keyEquivalent: "")
+            menuItem.tag = item.value
+            menu.addItem(menuItem)
+            if !found, let selectedValue, item.value == selectedValue {
+                popup.select(menuItem)
+                found = true
+            }
+        }
+        if !found, let selectIfMissing, popup.numberOfItems > selectIfMissing {
+            popup.selectItem(at: selectIfMissing)
+        }
+        return found
+    }
+
+    /// 选中的项的值（原版 Combo_GetItemData(Combo_GetCurSel)）。没有选中时 nil
+    func selectedTag(_ id: String) -> Int? {
+        (controls[id] as? NSPopUpButton)?.selectedItem?.tag
+    }
+
+    /// 组合框的项的名字（测试用）
+    func itemTitles(_ id: String) -> [String] {
+        (controls[id] as? NSPopUpButton)?.itemTitles ?? []
+    }
+
+    /// トラックバーの位置（原版 SetTrackBarPos / GetTrackBarPos）
+    func sliderValue(_ id: String) -> Int {
+        (controls[id] as? NSSlider)?.integerValue ?? 0
+    }
+
+    func setSliderValue(_ id: String, _ value: Int) {
+        (controls[id] as? NSSlider)?.integerValue = value
+    }
+
+    /// トラックバーの範囲（原版 SetTrackBarRange）
+    func setSliderRange(_ id: String, _ range: ClosedRange<Int>) {
+        guard let slider = controls[id] as? NSSlider else { return }
+        slider.minValue = Double(range.lowerBound)
+        slider.maxValue = Double(range.upperBound)
+    }
+
     /// 上下按钮的范围（原版 SetUpDownRange）
     func setRange(_ id: String, _ range: ClosedRange<Int>) {
         guard let stepper = steppers[id] else { return }
@@ -625,37 +693,13 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
 
 // MARK: - 窗口
 
-/// 共通設定窗口。一次只有一个（原版也是）
-final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate {
-    /// 打开着的窗口
-    private(set) static var shared: CommonSettingsWindowController?
-    /// 上次的页（原版 CPropCommon::m_nPageNum：下次从这页开始）
-    static var lastPage = 0
-
-    /// F_OPTION_*（設定 > 共通設定 的各页）→ 页（原版 CViewCommander::Command_OPTION_* 的 ID_PROPCOM_PAGENUM_*）
-    static let pageOfCommand: [Int: Int] = [
-        32000: 0,	// F_OPTION_GENERAL 全般
-        32001: 1,	// F_OPTION_WINDOW ウィンドウ
-        32018: 2,	// F_OPTION_MAINMENU メインメニュー
-        32010: 3,	// F_OPTION_TOOLBAR ツールバー
-        32015: 4,	// F_OPTION_TAB タブバー
-        32016: 5,	// F_OPTION_STATUSBAR ステータスバー
-        32002: 6,	// F_OPTION_EDIT 編集
-        32003: 7,	// F_OPTION_FILE ファイル
-        32014: 8,	// F_OPTION_FNAME ファイル名表示
-        32004: 9,	// F_OPTION_BACKUP バックアップ
-        32005: 10,	// F_OPTION_FORMAT 書式
-        32007: 11,	// F_OPTION_GREP 検索
-        32008: 12,	// F_OPTION_KEYBIND キー割り当て
-        32009: 13,	// F_OPTION_CUSTMENU カスタムメニュー
-        32011: 14,	// F_OPTION_KEYWORD 強調キーワード
-        32012: 15,	// F_OPTION_HELPER 支援
-        32013: 16,	// F_OPTION_MACRO マクロ
-        32017: 17,	// F_OPTION_PLUGIN プラグイン
-    ]
-
+/// 属性表的窗口（原版 PropertySheet）：左边是页的列表，右边是页，下边是 キャンセル、OK。
+/// 共通設定（CommonSettingsWindowController）和タイプ別設定（TypeSettingsWindowController，第 40 步）共用
+class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate {
     let dialogs: PropDialogs
     let values: CommonSettingsValues
+    /// 辅助功能的标识的前缀（"CommonSettings"、"TypeSettings"）：窗口、OK、キャンセル、页的列表
+    let identifierPrefix: String
     private var pages: [PropPage?]
     private var logics: [CommonSettingsPageLogic?]
     private(set) var currentIndex = -1
@@ -663,12 +707,14 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
     private let pageContainer = PropFlippedView()
     private let noteLabel = NSTextField(wrappingLabelWithString: "")
 
-    init?(store: CommonSettingsStore = CoreCommonSettingsStore(), page: Int = 0) {
-        guard let dialogs = PropDialogs.load(), !dialogs.pages.isEmpty else { return nil }
+    init?(dialogs: PropDialogs?, values: CommonSettingsValues, title: String, identifierPrefix: String,
+          logic: (String) -> CommonSettingsPageLogic?, page: Int) {
+        guard let dialogs, !dialogs.pages.isEmpty else { return nil }
         self.dialogs = dialogs
-        values = CommonSettingsValues(store: store)
+        self.values = values
+        self.identifierPrefix = identifierPrefix
         pages = Array(repeating: nil, count: dialogs.pages.count)
-        logics = dialogs.pages.map { CommonSettingsPages.logic(for: $0.dialog) }
+        logics = dialogs.pages.map { logic($0.dialog) }
 
         let pageWidth = PropPage.points(dialogs.pages[0].size[0])
         let pageHeight = PropPage.points(dialogs.pages[0].size[1])
@@ -677,9 +723,9 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         let height = margin + buttonsHeight + margin + pageHeight + margin
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = NSLocalizedString("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）")
+        window.title = title
         window.isReleasedWhenClosed = false
-        window.setAccessibilityIdentifier("CommonSettings")
+        window.setAccessibilityIdentifier(identifierPrefix)
         super.init(window: window)
         window.delegate = self
 
@@ -698,7 +744,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         sidebar.rowHeight = 20
         sidebar.dataSource = self
         sidebar.delegate = self
-        sidebar.setAccessibilityIdentifier("CommonSettingsPages")
+        sidebar.setAccessibilityIdentifier(identifierPrefix + "Pages")
         scroll.documentView = sidebar
         content.addSubview(scroll)
 
@@ -709,11 +755,11 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         let okButton = NSButton(title: "OK", target: self, action: #selector(ok(_:)))
         okButton.keyEquivalent = "\r"
         okButton.frame = NSRect(x: width - margin - 90, y: margin, width: 90, height: 28)
-        okButton.setAccessibilityIdentifier("CommonSettingsOK")
+        okButton.setAccessibilityIdentifier(identifierPrefix + "OK")
         let cancelButton = NSButton(title: NSLocalizedString("キャンセル", comment: "共通設定窗口的按钮"), target: self, action: #selector(cancel(_:)))
         cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.frame = NSRect(x: width - margin - 90 - 8 - 90, y: margin, width: 90, height: 28)
-        cancelButton.setAccessibilityIdentifier("CommonSettingsCancel")
+        cancelButton.setAccessibilityIdentifier(identifierPrefix + "Cancel")
         for button in [okButton, cancelButton] {
             button.bezelStyle = .rounded
             content.addSubview(button)
@@ -721,7 +767,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         noteLabel.font = PropPage.font
         noteLabel.textColor = .secondaryLabelColor
         noteLabel.frame = NSRect(x: margin + sidebarWidth + margin, y: margin, width: cancelButton.frame.minX - (margin + sidebarWidth + margin) - 8, height: buttonsHeight)
-        noteLabel.setAccessibilityIdentifier("CommonSettingsNote")
+        noteLabel.setAccessibilityIdentifier(identifierPrefix + "Note")
         content.addSubview(noteLabel)
 
         sidebar.reloadData()
@@ -733,20 +779,20 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         fatalError("init(coder:) is not supported")
     }
 
-    /// 打开（已经打开时到前面，换到这页）。page 是 nil 时是上次的页
-    static func show(page: Int? = nil) {
-        if let shared {
-            if let page { shared.showPage(page) }
-            shared.showWindow(nil)
-            return
-        }
-        guard let controller = CommonSettingsWindowController(page: page ?? lastPage) else {
-            NSSound.beep()
-            return
-        }
-        shared = controller
-        controller.window?.center()
-        controller.showWindow(nil)
+    // MARK: 子类决定的地方
+
+    /// 显示了这一页（下次从这页开始：原版 m_nPageNum）
+    func pageDidShow(_ index: Int) {}
+
+    /// OK 写回以后（changed：有改过的项）。通知各窗口
+    func didApply(changed: Bool) {}
+
+    /// 窗口关了
+    func didClose() {}
+
+    /// 以后的步骤移植的页的说明
+    func laterNote(for dialog: String) -> String {
+        NSLocalizedString("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
     }
 
     // MARK: 页
@@ -775,7 +821,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
                 logic.enable(page)
             }
         } else {
-            page.disableAll(reason: Self.laterNote(for: dialogs.pages[index].dialog))
+            page.disableAll(reason: laterNote(for: dialogs.pages[index].dialog))
         }
         pages[index] = page
         return page
@@ -796,12 +842,12 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         guard index != currentIndex else { return }
         leaveCurrentPage()
         currentIndex = index
-        Self.lastPage = index
+        pageDidShow(index)
         let page = self.page(index)
         pageContainer.subviews.forEach { $0.removeFromSuperview() }
         page.view.frame.origin = .zero
         pageContainer.addSubview(page.view)
-        noteLabel.stringValue = logics[index] == nil ? Self.laterNote(for: dialogs.pages[index].dialog) : ""
+        noteLabel.stringValue = logics[index] == nil ? laterNote(for: dialogs.pages[index].dialog) : ""
         if sidebar.selectedRow != index {
             sidebar.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
         }
@@ -812,16 +858,6 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         logic.getData(page, values)
     }
 
-    /// 以后的步骤移植的页的说明
-    static func laterNote(for dialog: String) -> String {
-        switch dialog {
-        case "IDD_PROP_PLUGIN":
-            return NSLocalizedString("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
-        default:
-            return NSLocalizedString("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
-        }
-    }
-
     // MARK: OK / キャンセル
 
     /// OK：看过的页的值写回，保存 sakura.ini，通知所有窗口（原版 PSN_APPLY → ApplyData → MYWM_CHANGESETTING）
@@ -829,9 +865,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         leaveCurrentPage()
         let changed = !values.changes.isEmpty
         let succeeded = values.apply()
-        if changed {
-            NotificationCenter.default.post(name: EditorTextView.commonSettingsDidChangeNotification, object: nil)
-        }
+        didApply(changed: changed)
         if !succeeded {
             NSSound.beep()
         }
@@ -848,7 +882,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
     }
 
     func windowWillClose(_ notification: Notification) {
-        if Self.shared === self { Self.shared = nil }
+        didClose()
     }
 
     // MARK: 页的列表
@@ -860,7 +894,7 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let label = NSTextField(labelWithString: dialogs.pages[row].name)
         label.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        label.setAccessibilityIdentifier("CommonSettingsPage_\(dialogs.pages[row].name)")
+        label.setAccessibilityIdentifier("\(identifierPrefix)Page_\(dialogs.pages[row].name)")
         return label
     }
 
@@ -868,6 +902,88 @@ final class CommonSettingsWindowController: NSWindowController, NSWindowDelegate
         let row = sidebar.selectedRow
         if row >= 0 { showPage(row) }
     }
+}
+
+/// 共通設定窗口。一次只有一个（原版也是）
+final class CommonSettingsWindowController: PropSheetWindowController {
+    /// 打开着的窗口
+    private(set) static var shared: CommonSettingsWindowController?
+    /// 上次的页（原版 CPropCommon::m_nPageNum：下次从这页开始）
+    static var lastPage = 0
+
+    /// F_OPTION_*（設定 > 共通設定 的各页）→ 页（原版 CViewCommander::Command_OPTION_* 的 ID_PROPCOM_PAGENUM_*）
+    static let pageOfCommand: [Int: Int] = [
+        32000: 0,	// F_OPTION_GENERAL 全般
+        32001: 1,	// F_OPTION_WINDOW ウィンドウ
+        32018: 2,	// F_OPTION_MAINMENU メインメニュー
+        32010: 3,	// F_OPTION_TOOLBAR ツールバー
+        32015: 4,	// F_OPTION_TAB タブバー
+        32016: 5,	// F_OPTION_STATUSBAR ステータスバー
+        32002: 6,	// F_OPTION_EDIT 編集
+        32003: 7,	// F_OPTION_FILE ファイル
+        32014: 8,	// F_OPTION_FNAME ファイル名表示
+        32004: 9,	// F_OPTION_BACKUP バックアップ
+        32005: 10,	// F_OPTION_FORMAT 書式
+        32007: 11,	// F_OPTION_GREP 検索
+        32008: 12,	// F_OPTION_KEYBIND キー割り当て
+        32009: 13,	// F_OPTION_CUSTMENU カスタムメニュー
+        32011: 14,	// F_OPTION_KEYWORD 強調キーワード
+        32012: 15,	// F_OPTION_HELPER 支援
+        32013: 16,	// F_OPTION_MACRO マクロ
+        32017: 17,	// F_OPTION_PLUGIN プラグイン
+    ]
+
+    init?(store: CommonSettingsStore = CoreCommonSettingsStore(), page: Int = 0) {
+        super.init(dialogs: PropDialogs.load(), values: CommonSettingsValues(store: store),
+                   title: NSLocalizedString("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）"),
+                   identifierPrefix: "CommonSettings", logic: CommonSettingsPages.logic(for:), page: page)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    /// 打开（已经打开时到前面，换到这页）。page 是 nil 时是上次的页
+    static func show(page: Int? = nil) {
+        if let shared {
+            if let page { shared.showPage(page) }
+            shared.showWindow(nil)
+            return
+        }
+        guard let controller = CommonSettingsWindowController(page: page ?? lastPage) else {
+            NSSound.beep()
+            return
+        }
+        shared = controller
+        controller.window?.center()
+        controller.showWindow(nil)
+    }
+
+    override func pageDidShow(_ index: Int) {
+        Self.lastPage = index
+    }
+
+    override func didApply(changed: Bool) {
+        if changed {
+            NotificationCenter.default.post(name: EditorTextView.commonSettingsDidChangeNotification, object: nil)
+        }
+    }
+
+    override func didClose() {
+        if Self.shared === self { Self.shared = nil }
+    }
+
+    /// 以后的步骤移植的页的说明
+    override func laterNote(for dialog: String) -> String {
+        switch dialog {
+        case "IDD_PROP_PLUGIN":
+            return NSLocalizedString("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
+        default:
+            return super.laterNote(for: dialog)
+        }
+    }
+
 }
 
 // MARK: - 菜单的动作

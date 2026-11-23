@@ -97,7 +97,8 @@ Text SettingsBackupPath();
 /*!
 	共通設定的一项的值。节和项目与 sakura.ini 相同（例："Common" / "bIsFreeCursorMode"）。
 	值是 sakura.ini 里的写法（数值是十进制，字符串原样）。
-	能用的节：Common、Nickname（ファイル名表示）、Statusbar（ステータスバー）。没有这一项时是空的 optional。
+	能用的节：Common、Nickname（ファイル名表示）、Statusbar（ステータスバー）、
+	Types(N)（タイプ別設定 的第 N 个，0 是「基本」。第 40 步）。没有这一项时是空的 optional。
 */
 std::optional<Text> GetCommonSetting(const Text& section, const Text& key);
 
@@ -114,6 +115,16 @@ bool SetCommonSetting(const Text& section, const Text& key, const Text& value);
 	读入以后有一项不在这一节里时（没有的项目、ArrNum 以外的 From%02d 等）false，什么也不改。
 */
 bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Text>>& values);
+
+//! タイプ別設定 的一个（原版 STypeConfigMini 的一部分。第 40 步）
+struct TypeSettingInfo {
+	std::int32_t index = 0;	//!< 编号（sakura.ini 的 Types(N) 的 N）。0 是「基本」
+	Text name;				//!< 設定の名前
+	Text extensions;		//!< ファイル拡張子
+};
+
+//! タイプ別設定 的一览（顺序与 sakura.ini 的 Types(0)、Types(1)… 相同）
+std::vector<TypeSettingInfo> TypeSettings();
 
 //! 现在的设置写进 sakura.ini（与结束时相同）。导入设置以后、重新启动之前不写，返回 false
 bool SaveSettings();
@@ -172,6 +183,9 @@ bool EncodingCanHaveBom(Encoding code);
 
 //! 保存对话框里换成这个编码时 BOM 是否默认勾选（原版 CCodeTypeName::IsBomDefOn）
 bool EncodingBomDefault(Encoding code);
+
+//! 能否作为タイプ別設定的デフォルトの文字コード（原版 CCodeTypeName::CanDefault。第 40 步）
+bool EncodingCanBeDefault(Encoding code);
 
 //! 换行符。数值与原版的 EEolType 相同
 enum class Eol : std::uint8_t {
@@ -1052,6 +1066,14 @@ public:
 
 	//! 按现在的字体和设置重新排版（字体、类型别设置改变后）
 	void Relayout();
+
+	/*!
+		タイプ別設定 的第 typeIndex 个改了（第 40 步。原版 MYWM_CHANGESETTING の PM_CHANGESETTING_TYPE）：
+		这个文档的类型是它，或者按文件名重新决定的类型是它时，按文件名重新决定类型、读新的设置、重新排版
+		（原版 CEditDoc::OnChangeSetting）。折り返し方法的临时设置（F_TMPWRAP* 等）在类型没变、设置也没变时保留。
+		重新读了时 true。
+	*/
+	bool ApplyTypeSettingChange(std::int32_t typeIndex);
 
 	//! 排版行数。空文档是 0 行（与原版 CLayoutMgr 相同）
 	std::int32_t LayoutLineCount() const;

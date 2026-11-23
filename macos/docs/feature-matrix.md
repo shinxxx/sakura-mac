@@ -4,7 +4,7 @@
 
 > 状态：**已确认**（2026-11-08 项目负责人审阅通过第 7 步的分类和优先级）。分类和优先级是根据源码自动生成并人工调整的。
 >
-> 本表只列命令和主要的非命令功能，没有逐项列出设置项。设置项与原版的对应另外列表：共通設定的每一项见 [common-settings.csv](common-settings.csv)（第 39 步，说明见 [phase3-common-settings.md](phase3-common-settings.md)）；类型别设置在第 40 步。
+> 本表只列命令和主要的非命令功能，没有逐项列出设置项。设置项与原版的对应另外列表：共通設定的每一项见 [common-settings.csv](common-settings.csv)（第 39 步，说明见 [phase3-common-settings.md](phase3-common-settings.md)）；タイプ別設定的每一项见 [type-settings.csv](type-settings.csv)（第 40 步，说明见 [phase3-type-settings.md](phase3-type-settings.md)）。
 
 ## 字段说明
 

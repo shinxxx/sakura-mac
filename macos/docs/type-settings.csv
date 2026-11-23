@@ -1,0 +1,154 @@
+﻿页,控件,种类,文字,STypeConfig 成员,sakura.ini（[Types(N)] 的项目）,Mac 版
+スクリーン,IDC_EDIT_TYPENAME,EDITTEXT,設定の名前(N),m_szTypeName m_nIdx,szTypeName,○
+スクリーン,IDC_EDIT_TYPEEXTS,EDITTEXT,ファイル拡張子(X),m_szTypeExts,szTypeExts,○
+スクリーン,IDC_COMBO_WRAPMETHOD,COMBOBOX,折り返し方法(<),,nTextWrapMethod,○
+スクリーン,IDC_EDIT_MAXLINELEN,EDITTEXT,折り返し桁数(R),m_nMaxLineKetas,nInts（2 番目）,○
+スクリーン,IDC_EDIT_CHARSPACE,EDITTEXT,文字の間隔(C),m_nColumnSpace,nInts（3 番目）,○
+スクリーン,IDC_EDIT_LINESPACE,EDITTEXT,行の間隔(L),m_nLineSpace,nLineSpace,○
+スクリーン,IDC_EDIT_TABSPACE,EDITTEXT,TAB幅(T),m_nTabSpace,nInts（4 番目）,○
+スクリーン,IDC_CHECK_TAB_ARROW,COMBOBOX,TAB表示,,bTabArrow,○
+スクリーン,IDC_EDIT_TABVIEWSTRING,EDITTEXT,TAB表示,m_szTabViewString m_bTabArrow,szTabViewString,○
+スクリーン,IDC_CHECK_INS_SPACE,AUTOCHECKBOX,SPACEの挿入,m_bInsSpace,bInsSpace,○
+スクリーン,IDC_COMBO_TSV_MODE,COMBOBOX,TSVモード（通常・TSV・CSV）,,nInts（12 番目）,○
+スクリーン,IDC_CHECK_INDENT,AUTOCHECKBOX,自動インデント(U),m_bAutoIndent,bAutoIndent,○
+スクリーン,IDC_CHECK_INDENT_WSPACE,AUTOCHECKBOX,全角空白も(Z),m_bAutoIndent_ZENSPACE,bAutoIndent_ZENSPACE,○
+スクリーン,IDC_COMBO_SMARTINDENT,COMBOBOX,スマートインデント(S),,nSmartIndent,○
+スクリーン,IDC_EDIT_INDENTCHARS,EDITTEXT,その他のインデント対象文字(I),m_szIndentChars,szIndentChars,○
+スクリーン,IDC_COMBO_INDENTLAYOUT,COMBOBOX,折り返し行インデント(2),,nIndentLayout,○
+スクリーン,IDC_CHECK_RTRIM_PREVLINE,AUTOCHECKBOX,改行時に末尾の空白を削除(E),m_bRTrimPrevLine,bRTrimPrevLine,○
+スクリーン,IDC_RADIO_OUTLINEDEFAULT,AUTORADIOBUTTON,標準ルール(B),m_eDefaultOutline,nDefaultOutline,○
+スクリーン,IDC_RADIO_OUTLINERULEFILE,AUTORADIOBUTTON,ルールファイル(D),,nDefaultOutline,○
+スクリーン,IDC_COMBO_OUTLINES,COMBOBOX,標準ルール,,nDefaultOutline,○
+スクリーン,IDC_EDIT_OUTLINERULEFILE,EDITTEXT,ルールファイル,m_szOutlineRuleFilename,szOutlineRuleFilename,○
+スクリーン,IDC_BUTTON_RULEFILE_REF,PUSHBUTTON,(1)...,,,○
+スクリーン,IDC_CHECK_USETYPEFONT,AUTOCHECKBOX,使用する(G),m_bUseTypeFont,bUseTypeFont,○
+スクリーン,IDC_STATIC_TYPEFONT,LTEXT,タイプ別フォント（フォント名とサイズ）,m_lf m_nPointSize m_bUseTypeFont,"lf, nPointSize, lfFaceName",○
+スクリーン,IDC_BUTTON_TYPEFONT,PUSHBUTTON,フォント(F)...,,"lf, nPointSize, lfFaceName",○
+スクリーン,IDC_CHECK_WORDWRAP,AUTOCHECKBOX,英文ワードラップ(W),m_bWordWrap,nInts（10 番目）,○
+スクリーン,IDC_CHECK_KINSOKURET,AUTOCHECKBOX,改行ぶら下げ(^),m_bKinsokuRet,bKinsokuRet,○
+スクリーン,IDC_CHECK_KINSOKUHIDE,AUTOCHECKBOX,ぶら下げを隠す(-),m_bKinsokuHide m_bKinsokuRet m_bKinsokuKuto,bKinsokuHide,○
+スクリーン,IDC_CHECK_KINSOKUKUTO,AUTOCHECKBOX,句読点ぶら下げ(\\),m_bKinsokuKuto,bKinsokuKuto,○
+スクリーン,IDC_EDIT_KINSOKUKUTO,EDITTEXT,句読点ぶら下げ（文字）,m_szKinsokuKuto,szKinsokuKuto,○
+スクリーン,IDC_CHECK_KINSOKUHEAD,AUTOCHECKBOX,行頭禁則([),m_bKinsokuHead,bKinsokuHead,○
+スクリーン,IDC_EDIT_KINSOKUHEAD,EDITTEXT,行頭禁則（文字）,m_szKinsokuHead,szKinsokuHead,○
+スクリーン,IDC_CHECK_KINSOKUTAIL,AUTOCHECKBOX,行末禁則(]),m_bKinsokuTail,bKinsokuTail,○
+スクリーン,IDC_EDIT_KINSOKUTAIL,EDITTEXT,行末禁則（文字）,m_szKinsokuTail,szKinsokuTail,○
+カラー,IDC_LIST_COLORS,LISTBOX,色指定(L),,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_DISP,AUTOCHECKBOX,色分け/表示(D),m_ColorInfoArr,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_BOLD,AUTOCHECKBOX,太字(B),m_ColorInfoArr,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_UNDERLINE,AUTOCHECKBOX,下線(U),m_ColorInfoArr,,第 40 步（第 2 个 PR）
+カラー,IDC_STATIC_MOZI,LTEXT,文字色(C),,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_TEXTCOLOR,PUSHBUTTON,C,m_ColorInfoArr,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_SAMETEXTCOLOR,PUSHBUTTON,文字色統一(<)...,,,第 40 步（第 2 个 PR）
+カラー,IDC_STATIC_HAIKEI,LTEXT,背景色(K),,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_BACKCOLOR,PUSHBUTTON,K,m_ColorInfoArr,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_SAMEBKCOLOR,PUSHBUTTON,背景色統一(>)...,,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
+カラー,IDC_COMBO_SET,COMBOBOX,強調キーワード1,,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_KEYWORD_SELECT,PUSHBUTTON,2～10...,,,第 40 步（第 2 个 PR）
+カラー,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,共通設定(C)...,,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_BLOCKCOMMENT_FROM,EDITTEXT,ブロック型(F),m_cBlockComments,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_BLOCKCOMMENT_TO,EDITTEXT,～(T),m_cBlockComments,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_BLOCKCOMMENT_FROM2,EDITTEXT,ブロック型(A),m_cBlockComments,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_BLOCKCOMMENT_TO2,EDITTEXT,～(Z),m_cBlockComments,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENT,EDITTEXT,行型(M),,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_LCPOS,AUTOCHECKBOX,桁(P),,,第 40 步（第 2 个 PR）
+カラー,IDC_LABEL_LCPOS,RTEXT,@,,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENTPOS,EDITTEXT,@,,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENT2,EDITTEXT,行型(E),,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_LCPOS2,AUTOCHECKBOX,桁(O),,,第 40 步（第 2 个 PR）
+カラー,IDC_LABEL_LCPOS2,RTEXT,[,,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENTPOS2,EDITTEXT,[,,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENT3,EDITTEXT,行型(G),,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_LCPOS3,AUTOCHECKBOX,桁(J),,,第 40 步（第 2 个 PR）
+カラー,IDC_LABEL_LCPOS3,RTEXT,],,,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_LINECOMMENTPOS3,EDITTEXT,],,,第 40 步（第 2 个 PR）
+カラー,IDC_COMBO_STRINGLITERAL,COMBOBOX,文字列エスケープ(Q),,,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_STRINGLINEONLY,AUTOCHECKBOX,行内のみ(\\),m_bStringLineOnly,bStringLineOnly,第 40 步（第 2 个 PR）
+カラー,IDC_CHECK_STRINGENDLINE,AUTOCHECKBOX,終了文字がない場合行末まで色分け(N),m_bStringEndLine,bStringEndLine,第 40 步（第 2 个 PR）
+カラー,IDC_EDIT_VERTLINE,EDITTEXT,縦線桁指定(3),,,第 40 步（第 2 个 PR）
+ウィンドウ,IDC_COMBO_DEFAULT_EOLTYPE,COMBOBOX,改行コード(E),,eDefaultEoltype,○
+ウィンドウ,IDC_CHECK_DEFAULT_BOM,AUTOCHECKBOX,BOM,m_encoding.m_bDefaultBom,bDefaultBom,○
+ウィンドウ,IDC_COMBO_DEFAULT_CODETYPE,COMBOBOX,文字コード(C),,eDefaultCodetype,○
+ウィンドウ,IDC_CHECK_CP,AUTOCHECKBOX,CP,m_encoding.m_eDefaultCodetype,eDefaultCodetype,○
+ウィンドウ,IDC_CHECK_PRIOR_CESU8,AUTOCHECKBOX,自動判別時にCESU-8 を優先する(U),m_encoding.m_bPriorCesu8,bPriorCesu8,○
+ウィンドウ,IDC_COMBO_IMESWITCH,COMBOBOX,ON/OFF状態(M),,nImeState（下位 2 ビット）,○
+ウィンドウ,IDC_COMBO_IMESTATE,COMBOBOX,入力モード(D),,nImeState（上位）,○
+ウィンドウ,IDC_CHECK_DOCICON,AUTOCHECKBOX,文書アイコンを使う(O),m_bUseDocumentIcon,bUseDocumentIcon,○
+ウィンドウ,IDC_RADIO_LINENUM_LAYOUT,AUTORADIOBUTTON,折り返し単位(R),m_bLineNumIsCRLF,nInts（8 番目）,○
+ウィンドウ,IDC_RADIO_LINENUM_CRLF,AUTORADIOBUTTON,改行単位(W),,nInts（8 番目）,○
+ウィンドウ,IDC_EDIT_LINENUMWIDTH,EDITTEXT,桁数,m_nLineNumWidth,nLineNumWidth,○
+ウィンドウ,IDC_RADIO_LINETERMTYPE0,AUTORADIOBUTTON,なし(N),m_nLineTermType,nInts（9 番目）,○
+ウィンドウ,IDC_RADIO_LINETERMTYPE1,AUTORADIOBUTTON,縦線(V),m_nLineTermType,nInts（9 番目）,○
+ウィンドウ,IDC_RADIO_LINETERMTYPE2,AUTORADIOBUTTON,任意(Y),m_nLineTermType,nInts（9 番目）,○
+ウィンドウ,IDC_LABEL_LINETERMCHAR,LTEXT,半角(S),,,
+ウィンドウ,IDC_EDIT_LINETERMCHAR,EDITTEXT,半角(S),m_cLineTermChar,cLineTermChar,○
+ウィンドウ,IDC_EDIT_BACKIMG_PATH,EDITTEXT,背景画像,m_szBackImgPath,bgImgPath,○
+ウィンドウ,IDC_BUTTON_BACKIMG_PATH_SEL,PUSHBUTTON,背景画像（参照）,,,○
+ウィンドウ,IDC_COMBO_BACKIMG_POS,COMBOBOX,表示位置,m_backImgPos,bgImgPos,○
+ウィンドウ,IDC_EDIT_BACKIMG_OFFSET_X,EDITTEXT,Offset X,m_backImgPosOffset,bgImgPosOffsetX,○
+ウィンドウ,IDC_EDIT_BACKIMG_OFFSET_Y,EDITTEXT,Offset Y,m_backImgPosOffset,bgImgPosOffsetY,○
+ウィンドウ,IDC_CHECK_BACKIMG_REP_X,AUTOCHECKBOX,Repeat X,m_backImgRepeatX,bgImgRepeartX,○
+ウィンドウ,IDC_CHECK_BACKIMG_REP_Y,AUTOCHECKBOX,Repeat Y,m_backImgRepeatY,bgImgRepeartY,○
+ウィンドウ,IDC_CHECK_BACKIMG_SCR_X,AUTOCHECKBOX,Scroll X,m_backImgScrollX,bgImgScrollX,○
+ウィンドウ,IDC_CHECK_BACKIMG_SCR_Y,AUTOCHECKBOX,Scroll Y,m_backImgScrollY,bgImgScrollY,○
+ウィンドウ,IDC_TRACKBAR_BACKIMG_TRANSPARENCY,msctls_trackbar32,透明度,,bgImgOpacity,○
+ウィンドウ,IDC_EDIT_BACKIMG_TRANSPARENCY,EDITTEXT,透明度,m_backImgOpacity,bgImgOpacity,○
+支援,IDC_EDIT_HOKANFILE,EDITTEXT,単語ファイル(W),m_szHokanFile,szHokanFile,○
+支援,IDC_BUTTON_HOKANFILE_REF,PUSHBUTTON,(1)...,,,○
+支援,IDC_COMBO_HOKAN_TYPE,COMBOBOX,補完種別,,nHokanType,×（補完種別はプラグインが追加する。DLL のプラグインは Mac 版では使えない。偏离项 9）
+支援,IDC_CHECK_HOKANLOHICASE,AUTOCHECKBOX,英大文字小文字を同一視(I),m_bHokanLoHiCase,bHokanLoHiCase,○
+支援,IDC_CHECK_HOKANBYFILE,AUTOCHECKBOX,編集中のファイル(F),m_bUseHokanByFile,bUseHokanByFile,○
+支援,IDC_CHECK_HOKANBYKEYWORD,AUTOCHECKBOX,強調キーワード(K),m_bUseHokanByKeyword,bUseHokanByKeyword,○
+支援,IDC_EDIT_TYPEEXTHELP,EDITTEXT,外部ヘルプ,m_szExtHelp,szExtHelp,×（Windows のヘルプ。偏离项 9）
+支援,IDC_BUTTON_TYPEOPENHELP,PUSHBUTTON,(2)...,,,×（同上）
+支援,IDC_EDIT_TYPEEXTHTMLHELP,EDITTEXT,外部HTMLヘルプ,m_szExtHtmlHelp,szExtHtmlHelp,×（同上）
+支援,IDC_BUTTON_TYPEOPENEXTHTMLHELP,PUSHBUTTON,(3)...,,,×（同上）
+支援,IDC_CHECK_TYPEHTMLHELPISSINGLE,AUTOCHECKBOX,ビューアを複数起動しない(N),m_bHtmlHelpIsSingle,bTypeHtmlHelpIsSingle,×（同上）
+支援,IDC_CHECK_CHKENTERATEND,AUTOCHECKBOX,保存時に改行コードの混在を警告する(E),m_bChkEnterAtEnd,bChkEnterAtEnd,○
+支援,IDC_CHECK_INDENTCPPSTR,AUTOCHECKBOX,文字列を無視する(S),m_bIndentCppStringIgnore,bIndentCppStringIgnore,○
+支援,IDC_CHECK_INDENTCPPCMT,AUTOCHECKBOX,コメントを無視する(C),m_bIndentCppCommentIgnore,bIndentCppCommentIgnore,○
+支援,IDC_CHECK_INDENTCPPUNDO,AUTOCHECKBOX,Undoバッファを分ける(U),m_bIndentCppUndoSep,bIndentCppUndoSep,○
+支援,IDC_CHECK_DETECT_INDENTATION_STYLE_ON_FILE_LOAD,AUTOCHECKBOX,ファイル読み込み時にインデントスタイルを検出する(T),m_bDetectIndentationStyleOnFileLoad,bDetectIndentationStyleOnFileLoad,○
+正規表現キーワード,IDC_CHECK_REGEX,AUTOCHECKBOX,正規表現キーワードを使用する(R),m_bUseRegexKeyword,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_LABEL_REGEX_VERSION,RTEXT,BREGONIG.DLL Version,,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_FRAME_REGEX,GROUPBOX,正規表現キーワード(K),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_LIST_REGEX,SysListView32,List5,,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_LABEL_REGEX_KEYWORD,LTEXT,正規表現(N),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_EDIT_REGEX,EDITTEXT,正規表現(N),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_LABEL_REGEX_COLOR,LTEXT,色指定(C),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_COMBO_REGEX_COLOR,COMBOBOX,色指定(C),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_INS,PUSHBUTTON,挿入(S),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_ADD,PUSHBUTTON,追加(A),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_UPD,PUSHBUTTON,更新(E),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_DEL,PUSHBUTTON,削除(D),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_TOP,PUSHBUTTON,先頭(T),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_UP,PUSHBUTTON,上へ(U),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_DOWN,PUSHBUTTON,下へ(G),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_LAST,PUSHBUTTON,最終(B),,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_BUTTON_REGEX_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_CHECK_KEYHELP,AUTOCHECKBOX,キーワードヘルプ機能を使う(K),m_bUseKeyWordHelp,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_FRAME_KEYHELP,GROUPBOX,辞書ファイル一覧(L),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_LIST_KEYHELP,SysListView32,List5,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_LABEL_KEYHELP_TITLE,LTEXT,<辞書の説明>,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_LABEL_KEYHELP_ABOUT,LTEXT,辞書ファイルの概要,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_LABEL_KEYHELP_KEYWORD,LTEXT,辞書ファイル,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_EDIT_KEYHELP,EDITTEXT,辞書ファイル,m_KeyHelpArr,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_REF,PUSHBUTTON,...,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_LABEL_KEYHELP_PRIOR,LTEXT,↑優先度(高),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_INS,PUSHBUTTON,挿入(S),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_UPD,PUSHBUTTON,更新(E),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_DEL,PUSHBUTTON,削除(D),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_TOP,PUSHBUTTON,先頭(T),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_UP,PUSHBUTTON,上へ(U),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_DOWN,PUSHBUTTON,下へ(G),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_LAST,PUSHBUTTON,最終(B),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_BUTTON_KEYHELP_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_CHECK_KEYHELP_ALLSEARCH,AUTOCHECKBOX,ヒットした次の辞書も検索(A),m_bUseKeyHelpAllSearch,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_CHECK_KEYHELP_KEYDISP,AUTOCHECKBOX,キーワードも表示する(W),m_bUseKeyHelpKeyDisp,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_CHECK_KEYHELP_PREFIX,AUTOCHECKBOX,選択範囲で前方一致検索(P),m_bUseKeyHelpPrefix,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_STATIC_MENU,LTEXT,右クリックメニュー(R),,,第 40 步（第 2 个 PR）
+キーワードヘルプ,IDC_COMBO_MENU,COMBOBOX,右クリックメニュー(R),m_eKeyHelpRMenuShowType,,第 40 步（第 2 个 PR）

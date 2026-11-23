@@ -100,25 +100,25 @@ enum CommonSettingsPages {
         dialog.runModal(parent: window)
     }
 
-    fileprivate static var appName: String {
+    static var appName: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "サクラエディタ"
     }
 }
 
 // MARK: - 共通的函数
 
-private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
+func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
     min(max(value, range.lowerBound), range.upperBound)
 }
 
 extension PropPage {
     /// 复选框 ← bool 项目
-    func loadChecks(_ pairs: [(id: String, key: String)], _ values: CommonSettingsValues, section: String = "Common") {
+    func loadChecks(_ pairs: [(id: String, key: String)], _ values: CommonSettingsValues, section: String? = nil) {
         for (id, key) in pairs { setChecked(id, values.bool(key, section: section)) }
     }
 
     /// 复选框 → bool 项目（Mac 版不能用的不改）
-    func storeChecks(_ pairs: [(id: String, key: String)], _ values: CommonSettingsValues, section: String = "Common") {
+    func storeChecks(_ pairs: [(id: String, key: String)], _ values: CommonSettingsValues, section: String? = nil) {
         for (id, key) in pairs where !isUnavailable(id) { values.set(isChecked(id), key, section: section) }
     }
 
@@ -135,7 +135,7 @@ extension PropPage {
 }
 
 /// 原版 ID 的简写
-private func idc(_ name: String) -> String { "IDC_" + name }
+func idc(_ name: String) -> String { "IDC_" + name }
 
 // MARK: - 全般（CPropComGeneral.cpp）
 

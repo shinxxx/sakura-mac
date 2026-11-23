@@ -80,7 +80,7 @@ TEST_F(MacCommonSettingTest, GetReturnsIniValue)
 
 	// 没有的项目、不用的节
 	EXPECT_FALSE(GetCommonSetting(u"Common", u"NoSuchKey").has_value());
-	EXPECT_FALSE(GetCommonSetting(u"Types(0)", u"szTypeName").has_value());
+	EXPECT_FALSE(GetCommonSetting(u"Types(999)", u"szTypeName").has_value());	// Types(N) は第 40 步（没有的类型）
 	EXPECT_FALSE(GetCommonSetting(u"MRU", u"_MRU_Counts").has_value());
 }
 
@@ -120,7 +120,7 @@ TEST_F(MacCommonSettingTest, SetRejectsUnknownItems)
 {
 	Common().m_sGeneral.m_bIsFreeCursorMode = false;
 	EXPECT_FALSE(SetCommonSetting(u"Common", u"NoSuchKey", u"1"));
-	EXPECT_FALSE(SetCommonSetting(u"Types(0)", u"szTypeName", u"x"));
+	EXPECT_FALSE(SetCommonSetting(u"Types(999)", u"szTypeName", u"x"));
 	EXPECT_FALSE(SetCommonSetting(u"MRU", u"_MRU_Counts", u"0"));
 	EXPECT_FALSE(Common().m_sGeneral.m_bIsFreeCursorMode);
 }
