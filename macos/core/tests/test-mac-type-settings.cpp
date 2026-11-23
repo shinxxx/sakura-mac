@@ -21,6 +21,7 @@
 
 #include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
+#include "view/colors/EColorIndexType.h"
 #include "env/DLLSHAREDATA.h"
 #include "util/file.h"
 
@@ -309,4 +310,146 @@ TEST_F(MacTypeSettingTest, SaveSettingsWritesIni)
 	ASSERT_TRUE(Startup());
 	EXPECT_STREQ(LTEXT("CPP"), Config(cpp).m_szTypeName.c_str());
 	EXPECT_STREQ(LTEXT("{}"), Config(cpp).m_szIndentChars.c_str());
+}
+
+// ---------------------------------------------------------------------------
+// 第 40 步第 2 个 PR：カラー・正規表現キーワード・キーワードヘルプ
+// ---------------------------------------------------------------------------
+
+//! 色の一覧：原版の色指定リストと同じ順序、名前、属性
+TEST_F(MacTypeSettingTest, ColorItemsMatchOriginal)
+{
+	const auto items = ColorItems();
+	ASSERT_EQ(static_cast<size_t>(COLORIDX_LAST), items.size());
+	EXPECT_EQ(u"テキスト", items[COLORIDX_TEXT].name);
+	EXPECT_EQ(u"C[TXT]", items[COLORIDX_TEXT].key);
+	EXPECT_TRUE(items[COLORIDX_TEXT].forceDisplay);
+	EXPECT_EQ(u"正規表現キーワード1", items[COLORIDX_REGEX1].name);
+	EXPECT_FALSE(items[COLORIDX_REGEX1].noText);
+	EXPECT_TRUE(items[COLORIDX_CARET].noBack);	// キャレットは背景色なし
+	for (const auto& item : items) {
+		EXPECT_TRUE(GetCommonSetting(u"Types(0)", item.key).has_value()) << Narrow(item.key);
+	}
+}
+
+//! 強調キーワードのセット名
+TEST_F(MacTypeSettingTest, KeywordSetNames)
+{
+	const auto names = KeywordSetNames();
+	auto& mgr = GetDllShareData().m_Common.m_sSpecialKeyword.m_CKeyWordSetMgr;
+	ASSERT_EQ(static_cast<size_t>(mgr.m_nKeyWordSetNum), names.size());
+	ASSERT_LT(0u, names.size());
+	EXPECT_EQ(Text(mgr.GetTypeName(0)), names[0]);
+}
+
+//! 色設定のエクスポート → インポート（原版と同じ *.col の形式）。窗口里还没 OK 的值也写出去
+TEST_F(MacTypeSettingTest, ExportAndImportColors)
+{
+	const int cpp = IndexOf(u"C/C++");
+	const auto path = (m_dir / "my.col").u16string();
+	auto result = ExportTypeSettingFile(TypeSettingFile::Colors, cpp, { { u"C[TXT]", u"1,0,123456,abcdef,0" } }, path);
+	ASSERT_TRUE(result.succeeded) << Narrow(result.message);
+	const auto file = ReadAll(m_dir / "my.col");
+	EXPECT_NE(std::string::npos, file.find("テキストエディタ色設定 Ver3"));
+	EXPECT_NE(std::string::npos, file.find("[SakuraColor]"));
+	EXPECT_NE(std::string::npos, file.find("C[TXT]=1,0,123456,abcdef,0"));
+	EXPECT_EQ(0x000000u, Config(cpp).m_ColorInfoArr[COLORIDX_TEXT].m_sColorAttr.m_cTEXT & 0) << "核心库的设置不改";
+
+	// 别的类型读入：全部的 C[…] が返る。核心库の設定は変えない
+	const int text = IndexOf(u"テキスト");
+	const auto before = Config(text).m_ColorInfoArr[COLORIDX_TEXT].m_sColorAttr.m_cTEXT;
+	result = ImportTypeSettingFile(TypeSettingFile::Colors, text, {}, path);
+	ASSERT_TRUE(result.succeeded) << Narrow(result.message);
+	ASSERT_EQ(static_cast<size_t>(COLORIDX_LAST), result.values.size());
+	EXPECT_EQ(u"C[TXT]", result.values[0].first);
+	EXPECT_EQ(u"1,0,123456,abcdef,0", result.values[0].second);
+	EXPECT_EQ(before, Config(text).m_ColorInfoArr[COLORIDX_TEXT].m_sColorAttr.m_cTEXT);
+
+	// 形式が違うファイル
+	std::ofstream(m_dir / "bad.col", std::ios::binary) << "hello\n";
+	result = ImportTypeSettingFile(TypeSettingFile::Colors, text, {}, (m_dir / "bad.col").u16string());
+	EXPECT_FALSE(result.succeeded);
+	EXPECT_NE(Text::npos, result.message.find(u"色設定ファイルの形式が違います"));
+}
+
+//! 正規表現キーワードのインポート（色は 3 文字の名前でも日本語の名前でも）。おかしいキーワードは無視して警告
+TEST_F(MacTypeSettingTest, ImportRegexKeywords)
+{
+	const int text = IndexOf(u"テキスト");
+	// 原版のエクスポートと同じ UTF-8（BOM 付き）
+	std::ofstream(m_dir / "a.rkw", std::ios::binary)
+		<< "\xEF\xBB\xBF// 正規表現キーワード Ver1\n"
+		<< "RxKey[000]=RK1,/abc/k\n"
+		<< "RxKey[001]=正規表現キーワード3,/x+/k\n"
+		<< "RxKey[002]=RK2,abc\n";	// 囲みがない
+	auto result = ImportTypeSettingFile(TypeSettingFile::RegexKeywords, text, {}, (m_dir / "a.rkw").u16string());
+	ASSERT_TRUE(result.succeeded);
+	EXPECT_EQ(u"不正なキーワードを無視しました。", result.message);
+	ASSERT_EQ(static_cast<size_t>(MAX_REGEX_KEYWORD), result.values.size());
+	EXPECT_EQ(u"RxKey[000]", result.values[0].first);
+	EXPECT_EQ(u"RK1,/abc/k", result.values[0].second);
+	EXPECT_EQ(u"RK3,/x+/k", result.values[1].second);
+	EXPECT_EQ(u"", result.values[2].second);
+
+	// BOM のないファイルは Shift_JIS として読む（原版と同じ）。読めない文字があっても落ちない
+	std::ofstream(m_dir / "u.rkw", std::ios::binary) << "// 正規表現キーワード\nRxKey[000]=RK1,/\xE3\x81/k\n";
+	result = ImportTypeSettingFile(TypeSettingFile::RegexKeywords, text, {}, (m_dir / "u.rkw").u16string());
+	(void)result;
+
+	// 窗口的值（3 項目）を写出 → 2 項目に減らす：空の値の項目は読み込み後なくてもよい
+	ASSERT_TRUE(SetCommonSettings(Section(text), { { u"bUseRegexKeyword", u"1" }, { u"RxKey[000]", u"RK1,/a/k" },
+		{ u"RxKey[001]", u"RK2,/b/k" }, { u"RxKey[002]", u"RK3,/c/k" } }));
+	EXPECT_EQ(u"RK3,/c/k", GetCommonSetting(Section(text), u"RxKey[002]"));
+	ASSERT_TRUE(SetCommonSettings(Section(text), { { u"RxKey[001]", u"RK3,/c/k" }, { u"RxKey[002]", u"" } }));
+	EXPECT_EQ(u"RK3,/c/k", GetCommonSetting(Section(text), u"RxKey[001]"));
+	EXPECT_FALSE(GetCommonSetting(Section(text), u"RxKey[002]").has_value());
+	// 空でない値で項目がなければ従来どおり失敗
+	EXPECT_FALSE(SetCommonSettings(Section(text), { { u"RxKey[050]", u"RK1,/z/k" } }));
+}
+
+//! キーワード辞書のエクスポート → インポート。見つからない辞書は「辞書ファイルが見つかりません」で無効
+TEST_F(MacTypeSettingTest, ExportAndImportKeywordHelp)
+{
+	const int text = IndexOf(u"テキスト");
+	const auto dict = m_dir / "dict.khp";
+	std::ofstream(dict, std::ios::binary) << "about\n";
+	const auto d = dict.u16string();
+	auto result = ExportTypeSettingFile(TypeSettingFile::KeywordHelp, text,
+		{ { u"KDct[00]", u"1,My dict," + d }, { u"KDct[01]", u"0,Gone,/no/such/file" } }, (m_dir / "k.txt").u16string());
+	ASSERT_TRUE(result.succeeded);
+	const auto file = ReadAll(m_dir / "k.txt");
+	EXPECT_NE(std::string::npos, file.find("キーワード辞書設定 Ver1"));
+	EXPECT_NE(std::string::npos, file.find("KDct[00]=1,My dict,"));
+
+	result = ImportTypeSettingFile(TypeSettingFile::KeywordHelp, text, {}, (m_dir / "k.txt").u16string());
+	ASSERT_TRUE(result.succeeded);
+	ASSERT_EQ(static_cast<size_t>(MAX_KEYHELP_FILE), result.values.size());
+	EXPECT_EQ(u"1,My dict," + d, result.values[0].second);
+	EXPECT_EQ(u"0,【辞書ファイルが見つかりません】,/no/such/file", result.values[1].second);
+	EXPECT_EQ(u"", result.values[2].second);
+}
+
+//! 正規表現キーワードの検査：囲み（/…/k 等）と正規表現の文法
+TEST_F(MacTypeSettingTest, CheckRegexKeyword)
+{
+	auto r = CheckRegexKeyword(u"/a+b/k");
+	EXPECT_TRUE(r.hasDelimiters);
+	EXPECT_TRUE(r.syntaxOK);
+	r = CheckRegexKeyword(u"m#a/b#ki");
+	EXPECT_TRUE(r.hasDelimiters);
+	EXPECT_TRUE(r.syntaxOK);
+	r = CheckRegexKeyword(u"abc");
+	EXPECT_FALSE(r.hasDelimiters);
+	r = CheckRegexKeyword(u"/a(/k");
+	EXPECT_TRUE(r.hasDelimiters);
+	EXPECT_FALSE(r.syntaxOK);
+}
+
+//! 辞書の説明：辞書ファイルの 1 行目（カンマは「.」）
+TEST_F(MacTypeSettingTest, KeywordHelpDictionaryAbout)
+{
+	std::ofstream(m_dir / "d.khp", std::ios::binary) << "\xEF\xBB\xBF" "C++ keywords, v1\r\nfoo\n";
+	EXPECT_EQ(u"C++ keywords. v1", KeywordHelpDictionaryAbout((m_dir / "d.khp").u16string()));
+	EXPECT_FALSE(KeywordHelpDictionaryAbout((m_dir / "none.khp").u16string()).has_value());
+	EXPECT_FALSE(KeywordHelpDictionaryAbout(u"").has_value());
 }

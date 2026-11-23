@@ -460,6 +460,39 @@ typedef NS_ENUM(NSInteger, ECImportResult) {
 } NS_SWIFT_NAME(EditorImportResult);
 
 /*!
+	タイプ別設定「カラー」页的一行（core::ColorItemInfo，第 40 步）
+*/
+NS_SWIFT_NAME(EditorColorItem)
+@interface ECColorItem : NSObject
+@property (readonly) NSInteger index;			//!< 颜色的编号
+@property (readonly, copy) NSString *name;		//!< 显示的名字
+@property (readonly, copy) NSString *key;		//!< sakura.ini 的项目（「C[TXT]」等）
+@property (readonly) BOOL forceDisplay;			//!< 「色分け/表示」不能关
+@property (readonly) BOOL noText;				//!< 没有文字色
+@property (readonly) BOOL noBack;				//!< 没有背景色
+@property (readonly) BOOL noBold;				//!< 不能是太字
+@property (readonly) BOOL noUnderline;			//!< 不能加下線
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! タイプ別設定的导入・导出的文件（core::TypeSettingFile，第 40 步）
+typedef NS_ENUM(NSInteger, ECTypeSettingFile) {
+	ECTypeSettingFileColors = 0,		//!< 色設定（*.col）
+	ECTypeSettingFileRegexKeywords,		//!< 正規表現キーワード（*.rkw）
+	ECTypeSettingFileKeywordHelp,		//!< キーワード辞書の一覧（*.txt）
+} NS_SWIFT_NAME(EditorTypeSettingFile);
+
+//! 导入・导出的结果（core::TypeSettingFileResult）
+NS_SWIFT_NAME(EditorTypeSettingFileResult)
+@interface ECTypeSettingFileResult : NSObject
+@property (readonly) BOOL succeeded;
+@property (readonly, copy) NSString *message;		//!< 原版的消息。没有时是空字符串
+//! 导入后的值（项目 → 值）。没有的项是空字符串
+@property (readonly, copy) NSDictionary<NSString *, NSString *> *values;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
 */
@@ -492,6 +525,22 @@ NS_SWIFT_NAME(EditorCore)
 + (BOOL)saveSettings;
 //! タイプ別設定的一览（第 40 步。顺序与 Types(0)、Types(1)… 相同）
 @property (class, readonly, copy) NSArray<ECTypeSetting *> *typeSettings;
+//! 「カラー」页的全部的行（第 40 步）
+@property (class, readonly, copy) NSArray<ECColorItem *> *colorItems;
+//! 強調キーワード的セット名（顺序就是编号）
+@property (class, readonly, copy) NSArray<NSString *> *keywordSetNames;
+//! 从文件读入色設定等（原版的格式）。pending 是窗口里还没 OK 的值。不改核心库的设置
++ (ECTypeSettingFileResult *)importTypeSettingFile:(ECTypeSettingFile)kind typeIndex:(NSInteger)typeIndex
+	pending:(NSDictionary<NSString *, NSString *> *)pending path:(NSString *)path NS_SWIFT_NAME(importTypeSettingFile(_:typeIndex:pending:path:));
+//! 正規表現キーワード：用「/…/k」等围起来了吗（原版 RegexKeyCheckSyntax）
++ (BOOL)regexKeywordHasDelimiters:(NSString *)keyword NS_SWIFT_NAME(regexKeywordHasDelimiters(_:));
+//! 正規表現キーワード：正则表达式的语法正确吗（原版 CheckRegexpSyntax(…, bKakomi)）
++ (BOOL)regexKeywordSyntaxOK:(NSString *)keyword NS_SWIFT_NAME(regexKeywordSyntaxOK(_:));
+//! キーワード辞書的「辞書の説明」（辞書文件的第 1 行）。打不开时 nil
++ (nullable NSString *)keywordHelpDictionaryAbout:(NSString *)path NS_SWIFT_NAME(keywordHelpDictionaryAbout(_:));
+//! 写出到文件（原版的エクスポート的格式）
++ (ECTypeSettingFileResult *)exportTypeSettingFile:(ECTypeSettingFile)kind typeIndex:(NSInteger)typeIndex
+	pending:(NSDictionary<NSString *, NSString *> *)pending path:(NSString *)path NS_SWIFT_NAME(exportTypeSettingFile(_:typeIndex:pending:path:));
 
 //! 编码的显示名（"SJIS"、"UTF-8" 等）。不能用的编码是空字符串
 + (NSString *)nameOfEncoding:(ECEncoding)encoding NS_SWIFT_NAME(name(ofEncoding:));

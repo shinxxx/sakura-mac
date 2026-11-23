@@ -14,15 +14,25 @@
 #include "StdAfx.h"
 #include <memory>
 #include "CImpExpManager.h"
+#if defined(_WIN32)
 #include "typeprop/CDlgTypeAscertain.h"
+#endif
 
+#if defined(_WIN32)
 #include "dlg/CDlgOpenFile.h"
+#endif
 #include "io/CTextStream.h"
 #include "env/CShareData_IO.h"
+#if defined(_WIN32)
 #include "plugin/CPlugin.h"
 #include "view/CEditView.h"
+#else
+#include "macro/CSMacroMgr.h"	// Mac 版：CEditView.h の代わり（ステップ 40）
+#endif
 #include "view/colors/CColorStrategy.h"
+#if defined(_WIN32)
 #include "apiwrap/StdControl.h"
+#endif
 #include "CSelectLang.h"
 #include "config/app_constants.h"
 
@@ -117,6 +127,7 @@ static WCHAR* MakeExportFileName(A& dst, const WCHAR* trg, const WCHAR* ext)
 	return res;
 }
 
+#if defined(_WIN32)	// Mac 版：ファイルの選択・メッセージは画面側で行う（移植計画のステップ 40）
 // インポート ファイル指定付き
 bool CImpExpManager::ImportUI( HINSTANCE hInstance, HWND hwndParent )
 {
@@ -203,6 +214,7 @@ bool CImpExpManager::ExportUI( HINSTANCE hInstance, HWND hwndParent )
 
 	return true;
 }
+#endif
 
 // インポート確認
 bool CImpExpManager::ImportAscertain( [[maybe_unused]] HINSTANCE hInstance, [[maybe_unused]] HWND hwndParent, [[maybe_unused]] const sakura::wstring& sFileName, [[maybe_unused]] sakura::wstring& sErrMsg )
@@ -232,6 +244,7 @@ void CImpExpManager::SetBaseName(const sakura::wstring& sBase)
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
 //                          タイプ別設定                       //
 // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- //
+#if defined(_WIN32)	// Mac 版：確認ダイアログは画面側（ステップ 40）
 // インポート確認
 bool CImpExpType::ImportAscertain( HINSTANCE hInstance, HWND hwndParent, const sakura::wstring& sFileName, sakura::wstring& sErrMsg )
 {
@@ -288,6 +301,7 @@ bool CImpExpType::ImportAscertain( HINSTANCE hInstance, HWND hwndParent, const s
 
 	return true;
 }
+#endif
 
 // インポート
 bool CImpExpType::Import( const sakura::wstring& sFileName, sakura::wstring& sErrMsg )
@@ -386,6 +400,7 @@ bool CImpExpType::Import( const sakura::wstring& sFileName, sakura::wstring& sEr
 		}
 	}
 
+#if defined(_WIN32)	// Mac 版にはプラグインがない（ステップ 40）
 	// Plugin
 	//  アウトライン解析方法
 	CommonSetting_Plugin& plugin = common.m_sPlugin;
@@ -430,6 +445,7 @@ bool CImpExpType::Import( const sakura::wstring& sFileName, sakura::wstring& sEr
 			m_Types.m_eSmartIndent = CPlug::GetSmartIndentType( CPlug::GetPluginFunctionCode(nIdx, nPlug) );
 		}
 	}
+#endif
 
 	sErrMsg = LS(STR_IMPEXP_OK_IMPORT);
 	sErrMsg += sFileName;
@@ -486,6 +502,7 @@ bool CImpExpType::Export( const sakura::wstring& sFileName, sakura::wstring& sEr
 		}
 	}
 
+#if defined(_WIN32)	// Mac 版にはプラグインがない（ステップ 40）
 	// Plugin
 	//  アウトライン解析方法
 	CommonSetting_Plugin& plugin = common.m_sPlugin;
@@ -513,6 +530,7 @@ bool CImpExpType::Export( const sakura::wstring& sFileName, sakura::wstring& sEr
 		}
 		cProfile.IOProfileData(szSecTypeEx, szKeyPluginSmartIndentId, StringBufferW(szId));
 	}
+#endif
 
 	// Version
 	DLLSHAREDATA* pShare = &GetDllShareData();

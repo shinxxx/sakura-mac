@@ -444,6 +444,62 @@ final class SakuraMacUITests: XCTestCase {
         key("z", .command)
     }
 
+    /// タイプ別設定 > カラー（第 40 步第 2 个 PR）：色指定リストの「コメント」を選び「太字」を切り替えて OK → 再び開くと切り替わっている。
+    /// 正規表現キーワード：キーワードを追加して OK → 再び開くと一覧にある
+    func testTypeSettingsColorAndRegex() {
+        let window = app.windows["TypeSettings"]
+        func openTypeSettings() {
+            let settings = app.menuBars.menuBarItems["設定"]
+            settings.click()
+            settings.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'タイプ別設定' AND NOT (title CONTAINS '一覧')")).firstMatch.click()
+            XCTAssertTrue(window.waitForExistence(timeout: 5), "タイプ別設定窗口")
+        }
+        editor.click()
+        openTypeSettings()
+        window.staticTexts["TypeSettingsPage_カラー"].click()
+        let table = window.tables["IDC_LIST_COLORS_table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 2), "色指定リスト")
+        let comment = table.staticTexts["コメント"]	// 太字にできる色（テキスト・ルーラー等はできない）
+        XCTAssertTrue(comment.waitForExistence(timeout: 2))
+        comment.click()
+        let bold = window.checkBoxes["IDC_CHECK_BOLD"]
+        XCTAssertTrue(bold.isEnabled, "コメントは太字にできる")
+        let before = bold.value as? Int ?? -1
+        bold.click()
+        window.buttons["TypeSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1))
+
+        openTypeSettings()
+        XCTAssertTrue(table.waitForExistence(timeout: 2), "上次的页（カラー）")
+        comment.click()
+        XCTAssertEqual(bold.value as? Int, before == 1 ? 0 : 1, "OK した太字")
+        bold.click()	// 元に戻す
+
+        window.staticTexts["TypeSettingsPage_正規表現キーワード"].click()
+        let regexTable = window.tables["IDC_LIST_REGEX_table"]
+        XCTAssertTrue(regexTable.waitForExistence(timeout: 2))
+        let count = regexTable.tableRows.count
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() {
+            TISSelectInputSource(ascii)
+        }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        let field = window.textFields["IDC_EDIT_REGEX"]
+        field.click()
+        field.typeKey("a", modifierFlags: .command)
+        field.typeText("/uitest[0-9]+/k")
+        window.buttons["IDC_BUTTON_REGEX_ADD"].click()
+        XCTAssertEqual(regexTable.tableRows.count, count + 1, "追加")
+        window.buttons["TypeSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1))
+
+        openTypeSettings()
+        XCTAssertTrue(regexTable.waitForExistence(timeout: 2), "上次的页（正規表現キーワード）")
+        XCTAssertEqual(regexTable.tableRows.count, count + 1, "OK した一覧")
+        // 界面测试模式的设置不保存（UITesting.swift），戻さなくてよい
+        window.buttons["TypeSettingsCancel"].click()
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

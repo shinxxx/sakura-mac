@@ -439,12 +439,403 @@ final class TypeSettingsTests: XCTestCase {
         XCTAssertEqual(store.values["\(section)/nHokanType"], "20001", "Mac 版で使えない設定は変えない")
     }
 
-    /// 以后移植的页（カラー 等）：表示だけ、変えられない
-    func testLaterPagesAreDisabled() throws {
+    // MARK: - カラー（第 2 个 PR）
+
+    /// sakura.ini の色の値（原版「%u,%u,%06x,%06x,%u」、色は BGR）
+    func testColorSettingValue() throws {
+        let value = try XCTUnwrap(ColorSettingValue(ini: "1,0,0000ff,ffffff,1"))
+        XCTAssertTrue(value.display)
+        XCTAssertFalse(value.bold)
+        XCTAssertTrue(value.underline)
+        XCTAssertEqual(value.text, 0x0000FF)	// 赤（BGR）
+        XCTAssertEqual(ColorSettingValue.color(value.text).usingColorSpace(.sRGB)?.redComponent, 1)
+        XCTAssertEqual(ColorSettingValue.bgr(NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)), 0xFF0000)
+        XCTAssertEqual(value.ini, "1,0,0000ff,ffffff,1")
+        XCTAssertNil(ColorSettingValue(ini: "1,0,zz,0,0"))
+    }
+
+    /// 縦線桁指定：「桁」と「Step(Begin,End)」（原版 SetData / GetData）
+    func testVerticalLines() {
+        XCTAssertEqual(VerticalLines.values("10,20"), [10, 20, 0])
+        XCTAssertEqual(VerticalLines.values("4(8,40),80"), [-8, 40, 4, 80, 0])
+        XCTAssertEqual(VerticalLines.values("4(8,)"), [-8, 10240, 4, 0], "End がないときは最大")
+        XCTAssertEqual(VerticalLines.values("10,x,20"), [10, 0], "読めないところで終わり")
+        XCTAssertEqual(VerticalLines.values(""), [0])
+        XCTAssertEqual(VerticalLines.text([-8, 40, 4, 80, 0]), "4(8,40),80")
+        XCTAssertEqual(VerticalLines.text([10, 20, 0, 30]), "10,20")
+        XCTAssertEqual(VerticalLines.text([-40, 8, 4, 5, 0]), "5", "End < Begin は無視")
+    }
+
+    private func colorKey(_ name: String) -> String { "\(section)/\(name)" }
+
+    /// 色指定リスト：行は原版の色の順序。✓・太字・下線・色の選択、OK で変えた色だけ書く
+    func testColorPageList() throws {
+        store.values[colorKey("C[TXT]")] = "1,0,000000,ffffff,0"
+        store.values[colorKey("C[CMT]")] = "1,0,008000,ffffff,0"
         let (controller, page) = try open("カラー")
+        let list = try XCTUnwrap(page.list("IDC_LIST_COLORS"))
+        let items = EditorCore.colorItems
+        XCTAssertEqual(list.rows.count, items.count)
+        XCTAssertEqual(list.rows.first?.first, "テキスト")
+        let comment = try XCTUnwrap(items.firstIndex { $0.key == "C[CMT]" })
+        // テキストは「色分け/表示」を外せない
         XCTAssertFalse(page.isEnabled("IDC_CHECK_DISP"))
-        XCTAssertFalse(page.isEnabled("IDC_BUTTON_IMPORT"))
+        list.onClick?(0, 0)
+        XCTAssertTrue(page.isChecked("IDC_CHECK_DISP"))
+
+        list.select(comment)
+        list.onSelect?()
+        XCTAssertTrue(page.isEnabled("IDC_CHECK_DISP"))
+        XCTAssertTrue(page.isChecked("IDC_CHECK_DISP"))
+        XCTAssertFalse(page.isChecked("IDC_CHECK_BOLD"))
+        // ✓ をクリック → 表示しない。名前をダブルクリック → 太字。右クリック → 下線
+        list.onClick?(comment, 0)
+        XCTAssertFalse(page.isChecked("IDC_CHECK_DISP"))
+        list.onDoubleClick?(comment, 1)
+        XCTAssertTrue(page.isChecked("IDC_CHECK_BOLD"))
+        list.onRightClick?(comment, 1)
+        XCTAssertTrue(page.isChecked("IDC_CHECK_UNDERLINE"))
+        // 文字色：ボタンでも見本のクリックでも色を選ぶ
+        let chooseColor = TypeSettingsPages.chooseColor
+        defer { TypeSettingsPages.chooseColor = chooseColor }
+        TypeSettingsPages.chooseColor = { _, _ in NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1) }
+        page.onButton?("IDC_BUTTON_TEXTCOLOR")
+        TypeSettingsPages.chooseColor = { _, _ in NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1) }
+        list.onClick?(comment, 3)
         controller.ok(nil)
-        XCTAssertEqual(store.writes, [])
+        XCTAssertEqual(store.values[colorKey("C[CMT]")], "0,1,0000ff,ff0000,1")
+        XCTAssertFalse(store.writes.contains(colorKey("C[TXT]")), "変えていない色は書かない")
+    }
+
+    /// 色のない項目（キャレットの背景色など）は選べない
+    func testColorPageAttributes() throws {
+        let (controller, page) = try open("カラー")
+        let items = EditorCore.colorItems
+        let caret = try XCTUnwrap(items.firstIndex { $0.noBack })
+        let list = try XCTUnwrap(page.list("IDC_LIST_COLORS"))
+        list.select(caret)
+        list.onSelect?()
+        XCTAssertFalse(page.isEnabled("IDC_BUTTON_BACKCOLOR"))
+        XCTAssertFalse(page.isEnabled("IDC_BUTTON_SAMEBKCOLOR"))
+        var asked = false
+        let chooseColor = TypeSettingsPages.chooseColor
+        defer { TypeSettingsPages.chooseColor = chooseColor }
+        TypeSettingsPages.chooseColor = { color, _ in asked = true; return color }
+        list.onClick?(caret, 3)
+        XCTAssertFalse(asked, "背景色のない項目の見本は押せない")
+        controller.cancel(nil)
+    }
+
+    /// コメント・文字列・縦線（原版 SetData / GetData）
+    func testColorPageCommentsAndLines() throws {
+        store.values[colorKey("szLineComment")] = "//"
+        store.values[colorKey("nLineCommentColumn")] = "-1"	// 桁指定なし（~0）
+        store.values[colorKey("szLineComment2")] = "REM"
+        store.values[colorKey("nLineCommentColumn2")] = "0"	// 1 桁目
+        store.values[colorKey("szBlockCommentFrom")] = "/*"
+        store.values[colorKey("szBlockCommentTo")] = "*/"
+        store.values[colorKey("bStringLineOnly")] = "0"
+        store.values[colorKey("nVertLineIdx1")] = "-8"
+        store.values[colorKey("nVertLineIdx2")] = "40"
+        store.values[colorKey("nVertLineIdx3")] = "4"
+        store.values[colorKey("nVertLineIdx4")] = "0"
+        let (controller, page) = try open("カラー")
+        XCTAssertFalse(page.isChecked("IDC_CHECK_LCPOS"))
+        XCTAssertEqual(page.text("IDC_EDIT_LINECOMMENTPOS"), "1")
+        XCTAssertFalse(page.isEnabled("IDC_EDIT_LINECOMMENTPOS"))
+        XCTAssertTrue(page.isChecked("IDC_CHECK_LCPOS2"))
+        XCTAssertEqual(page.text("IDC_EDIT_LINECOMMENTPOS2"), "1")
+        XCTAssertEqual(page.text("IDC_EDIT_BLOCKCOMMENT_FROM"), "/*")
+        XCTAssertFalse(page.isEnabled("IDC_CHECK_STRINGENDLINE"))
+        XCTAssertEqual(page.text("IDC_EDIT_VERTLINE"), "4(8,40)")
+
+        click(page, "IDC_CHECK_LCPOS")
+        type(page, "IDC_EDIT_LINECOMMENTPOS", "5")
+        type(page, "IDC_EDIT_LINECOMMENTPOS2", "0")	// 0 は桁指定なし
+        click(page, "IDC_CHECK_STRINGLINEONLY")
+        XCTAssertTrue(page.isEnabled("IDC_CHECK_STRINGENDLINE"))
+        page.select("IDC_COMBO_STRINGLITERAL", 4)	// Python
+        type(page, "IDC_EDIT_VERTLINE", "10,20")
+        controller.ok(nil)
+        XCTAssertEqual(store.values[colorKey("nLineCommentColumn")], "4")
+        XCTAssertEqual(store.values[colorKey("nLineCommentColumn2")], "-1")
+        XCTAssertEqual(store.values[colorKey("bStringLineOnly")], "1")
+        XCTAssertEqual(nInt(6), 4, "文字列エスケープは nInts の 7 番目")
+        XCTAssertEqual(store.values[colorKey("nVertLineIdx1")], "10")
+        XCTAssertEqual(store.values[colorKey("nVertLineIdx2")], "20")
+        XCTAssertEqual(store.values[colorKey("nVertLineIdx3")], "0")
+    }
+
+    /// 強調キーワード：1 はコンボボックス、2～10 はダイアログ。途中の「なし」は詰めて、色も一緒に動く
+    func testColorPageKeywordSets() throws {
+        let names = EditorCore.keywordSetNames
+        XCTAssertGreaterThan(names.count, 2)
+        store.values["\(section)/nInts"] = "\(cpp),120,0,4,0,-1,0,1,1,0,0,0"
+        store.values[colorKey("nKeywordSelect3")] = "1"
+        store.values[colorKey("C[KW2]")] = "1,0,000002,ffffff,0"
+        store.values[colorKey("C[KW3]")] = "1,0,000003,ffffff,0"
+        let (controller, page) = try open("カラー")
+        XCTAssertEqual(page.selectedTag("IDC_COMBO_SET"), 0)
+        XCTAssertEqual(page.itemTitles("IDC_COMBO_SET"), [" "] + names, "先頭は空白")
+        let runDialog = TypeSettingsPages.runKeywordSelectDialog
+        defer { TypeSettingsPages.runKeywordSelectDialog = runDialog }
+        var shown: [Int] = []
+        TypeSettingsPages.runKeywordSelectDialog = { dialog, _ in
+            shown = (0..<10).map { dialog.page.selectedTag("IDC_COMBO\($0 + 1)") ?? -99 }
+            return false	// キャンセル：詰めるだけ
+        }
+        page.onButton?("IDC_BUTTON_KEYWORD_SELECT")
+        XCTAssertEqual(Array(shown.prefix(4)), [0, -1, 1, -1])
+        controller.ok(nil)
+        // 3 番目が 2 番目に詰まり、色も 2 番目へ
+        XCTAssertEqual(nInt(5), 1)
+        XCTAssertEqual(store.values[colorKey("nKeywordSelect3")], "-1")
+        XCTAssertEqual(store.values[colorKey("C[KW2]")], "1,0,000003,ffffff,0")
+        XCTAssertEqual(store.values[colorKey("C[KW3]")], "1,0,000002,ffffff,0")
+    }
+
+    /// 文字色統一（原版 CDlgSameColor）：チェックした色を使っている項目をそろえる
+    func testSameColorDialog() throws {
+        let items = EditorCore.colorItems
+        var colors = items.map { _ in ColorSettingValue(display: true, text: 0x111111, back: 0xFFFFFF) }
+        colors[1].text = 0x222222
+        colors[2].text = 0x222222
+        colors[3].text = 0x333333
+        let dialog = try XCTUnwrap(SameColorDialog(items: items, colors: colors, text: true, color: 0x111111))
+        XCTAssertEqual(dialog.title, "文字色統一")
+        XCTAssertFalse(dialog.candidates.contains(0x111111), "そろえる色は出さない")
+        let second = try XCTUnwrap(dialog.candidates.firstIndex(of: 0x222222))
+        let list = try XCTUnwrap(dialog.page.list("IDC_LIST_COLORS"))
+        list.select(second)
+        list.onSelect?()
+        XCTAssertEqual(Array(dialog.itemNames.prefix(2)), [items[1].name, items[2].name].filter { _ in !items[1].noText })
+        dialog.toggle(second)
+        dialog.ok()
+        XCTAssertEqual(dialog.result[1].text, 0x111111)
+        XCTAssertEqual(dialog.result[2].text, 0x111111)
+        XCTAssertEqual(dialog.result[3].text, 0x333333, "チェックしていない色はそのまま")
+        dialog.checkAll(true)
+        dialog.ok()
+        XCTAssertEqual(dialog.result[3].text, 0x111111, "全チェック")
+    }
+
+    /// 色設定のエクスポート・インポート（原版と同じ *.col）。まだ OK していない色もエクスポートする
+    func testColorImportExport() throws {
+        let dir = TestCore.home.appendingPathComponent("type-colors")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("a.col").path
+        let saved = (TypeSettingsPages.chooseExportFile, TypeSettingsPages.chooseImportFile, TypeSettingsPages.showMessage)
+        defer { (TypeSettingsPages.chooseExportFile, TypeSettingsPages.chooseImportFile, TypeSettingsPages.showMessage) = saved }
+        var messages: [String] = []
+        TypeSettingsPages.showMessage = { messages.append($0) }
+        TypeSettingsPages.chooseExportFile = { _, extensions, _ in extensions == ["col"] ? path : nil }
+        TypeSettingsPages.chooseImportFile = { extensions, _ in extensions == ["col"] ? path : nil }
+
+        let (controller, page) = try open("カラー")
+        let comment = try XCTUnwrap(EditorCore.colorItems.firstIndex { $0.key == "C[CMT]" })
+        let list = try XCTUnwrap(page.list("IDC_LIST_COLORS"))
+        list.select(comment)
+        list.onSelect?()
+        TypeSettingsPages.chooseColor = { _, _ in NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1) }
+        defer { TypeSettingsPages.chooseColor = { color, _ in ColorPicker.choose(color) } }
+        page.onButton?("IDC_BUTTON_TEXTCOLOR")
+        page.onButton?("IDC_BUTTON_EXPORT")
+        XCTAssertTrue(messages.last?.hasPrefix("ファイルをエクスポートしました。") ?? false, "\(messages)")
+        let file = try String(contentsOfFile: path, encoding: .utf8)
+        XCTAssertTrue(file.contains("C[CMT]="), file)
+        XCTAssertTrue(file.contains(",00ff00,"), "まだ OK していない色")
+        controller.cancel(nil)
+
+        // 別のタイプにインポート：OK で書く
+        let text = try XCTUnwrap(EditorCore.typeSettings.first { $0.name == "テキスト" }).index
+        let (other, otherPage) = try open("カラー", type: text)
+        otherPage.onButton?("IDC_BUTTON_IMPORT")
+        other.ok(nil)
+        XCTAssertTrue(try XCTUnwrap(store.values["Types(\(text))/C[CMT]"]).contains(",00ff00,"))
+    }
+
+    // MARK: - 正規表現キーワード（第 2 个 PR）
+
+    /// 一覧（「色の名前,キーワード」）の表示と、挿入・追加・更新・削除・移動。減った項目は空にする
+    func testRegexPage() throws {
+        store.values["\(section)/bUseRegexKeyword"] = "0"
+        store.values["\(section)/RxKey[000]"] = "RK1,/aa/k"
+        store.values["\(section)/RxKey[001]"] = "RK2,/bb/k"
+        store.values["\(section)/RxKey[002]"] = "RK3,/cc/k"
+        let (controller, page) = try open("正規表現キーワード")
+        let list = try XCTUnwrap(page.list("IDC_LIST_REGEX"))
+        XCTAssertEqual(list.rows.map { $0[0] }, ["/aa/k", "/bb/k", "/cc/k"])
+        XCTAssertEqual(list.rows[1][1], "正規表現キーワード2")
+        XCTAssertEqual(list.selectedRow, 0)
+        XCTAssertEqual(page.text("IDC_EDIT_REGEX"), "/aa/k")
+        XCTAssertFalse(page.text("IDC_LABEL_REGEX_VERSION").isEmpty, "組み込みの正規表現ライブラリ")
+        let rk5 = try XCTUnwrap(EditorCore.colorItems.first { $0.key == "C[RK5]" }).index
+        XCTAssertTrue(page.itemTitles("IDC_COMBO_REGEX_COLOR").contains("正規表現キーワード5"))
+
+        // 選んだ行を変えるとエディットに写す
+        list.select(2)
+        page.onChange?("IDC_LIST_REGEX")
+        XCTAssertEqual(page.text("IDC_EDIT_REGEX"), "/cc/k")
+        // 更新：選んだ行を換える
+        type(page, "IDC_EDIT_REGEX", "/dd/k")
+        (page.control("IDC_COMBO_REGEX_COLOR") as? NSPopUpButton)?.selectItem(withTag: rk5)
+        page.onButton?("IDC_BUTTON_REGEX_UPD")
+        XCTAssertEqual(list.rows[2], ["/dd/k", "正規表現キーワード5"])
+        // 先頭へ
+        page.onButton?("IDC_BUTTON_REGEX_TOP")
+        XCTAssertEqual(list.rows.map { $0[0] }, ["/dd/k", "/aa/k", "/bb/k"])
+        XCTAssertEqual(list.selectedRow, 0)
+        // 削除して OK
+        list.select(2)
+        page.onChange?("IDC_LIST_REGEX")
+        page.onButton?("IDC_BUTTON_REGEX_DEL")
+        click(page, "IDC_CHECK_REGEX")
+        controller.ok(nil)
+        XCTAssertEqual(store.values["\(section)/bUseRegexKeyword"], "1")
+        XCTAssertEqual(store.values["\(section)/RxKey[000]"], "RK5,/dd/k")
+        XCTAssertEqual(store.values["\(section)/RxKey[001]"], "RK1,/aa/k")
+        XCTAssertEqual(store.values["\(section)/RxKey[002]"], "", "減った項目は空")
+    }
+
+    /// 登録の検査（原版 CheckKeywordList）：囲み・同じキーワード・文法（確認して登録できる）・最大数
+    func testRegexPageChecks() throws {
+        store.values["\(section)/RxKey[000]"] = "RK1,/aa/k"
+        let (controller, page) = try open("正規表現キーワード")
+        let list = try XCTUnwrap(page.list("IDC_LIST_REGEX"))
+        let saved = (TypeSettingsPages.showMessage, CommonSettingsPages.confirm)
+        defer { (TypeSettingsPages.showMessage, CommonSettingsPages.confirm) = saved }
+        var messages: [String] = []
+        TypeSettingsPages.showMessage = { messages.append($0) }
+        var answer = false
+        CommonSettingsPages.confirm = { messages.append($0); return answer }
+
+        type(page, "IDC_EDIT_REGEX", "abc")
+        page.onButton?("IDC_BUTTON_REGEX_ADD")
+        XCTAssertTrue(messages.last?.hasPrefix("正規表現キーワードを / と /k で囲ってください。") ?? false)
+        type(page, "IDC_EDIT_REGEX", "/aa/k")
+        page.onButton?("IDC_BUTTON_REGEX_ADD")
+        XCTAssertEqual(messages.last, "同じキーワードで登録済みです。")
+        type(page, "IDC_EDIT_REGEX", "/a(/k")
+        page.onButton?("IDC_BUTTON_REGEX_ADD")
+        XCTAssertTrue(messages.last?.hasPrefix("書式が正しくないか") ?? false)
+        XCTAssertEqual(list.rows.count, 1, "いいえ：登録しない")
+        answer = true
+        page.onButton?("IDC_BUTTON_REGEX_ADD")
+        XCTAssertEqual(list.rows.count, 2, "はい：登録する")
+        // 挿入：選んだ行の前
+        list.select(0)
+        page.onChange?("IDC_LIST_REGEX")
+        type(page, "IDC_EDIT_REGEX", "/zz/k")
+        page.onButton?("IDC_BUTTON_REGEX_INS")
+        XCTAssertEqual(list.rows.map { $0[0] }, ["/zz/k", "/aa/k", "/a(/k"])
+        // 更新：選んでいないとき
+        list.table.deselectAll(nil)
+        page.onButton?("IDC_BUTTON_REGEX_UPD")
+        XCTAssertEqual(messages.last, "キーワードが選択されていません。")
+        controller.cancel(nil)
+    }
+
+    /// インポート・エクスポート（*.rkw）
+    func testRegexImportExport() throws {
+        let dir = TestCore.home.appendingPathComponent("type-regex")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("a.rkw").path
+        let saved = (TypeSettingsPages.chooseExportFile, TypeSettingsPages.chooseImportFile, TypeSettingsPages.showMessage)
+        defer { (TypeSettingsPages.chooseExportFile, TypeSettingsPages.chooseImportFile, TypeSettingsPages.showMessage) = saved }
+        TypeSettingsPages.showMessage = { _ in }
+        TypeSettingsPages.chooseExportFile = { _, extensions, _ in extensions == ["rkw"] ? path : nil }
+        TypeSettingsPages.chooseImportFile = { extensions, _ in extensions == ["rkw"] ? path : nil }
+        let (controller, page) = try open("正規表現キーワード")
+        // まだ OK していないキーワードもエクスポートする
+        for (keyword, color) in [("/aa/k", "C[RK1]"), ("/bb/k", "C[RK2]")] {
+            type(page, "IDC_EDIT_REGEX", keyword)
+            let tag = try XCTUnwrap(EditorCore.colorItems.first { $0.key == color }).index
+            (page.control("IDC_COMBO_REGEX_COLOR") as? NSPopUpButton)?.selectItem(withTag: tag)
+            page.onButton?("IDC_BUTTON_REGEX_ADD")
+        }
+        page.onButton?("IDC_BUTTON_REGEX_EXPORT")
+        let file = try String(contentsOfFile: path, encoding: .utf8)
+        XCTAssertTrue(file.contains("RxKey[001]=RK2,/bb/k"), file)
+        controller.cancel(nil)
+
+        let text = try XCTUnwrap(EditorCore.typeSettings.first { $0.name == "テキスト" }).index
+        let (other, otherPage) = try open("正規表現キーワード", type: text)
+        otherPage.onButton?("IDC_BUTTON_REGEX_IMPORT")
+        XCTAssertEqual(otherPage.list("IDC_LIST_REGEX")?.rows.map { $0[0] }, ["/aa/k", "/bb/k"])
+        other.ok(nil)
+        XCTAssertEqual(store.values["Types(\(text))/RxKey[001]"], "RK2,/bb/k")
+    }
+
+    // MARK: - キーワードヘルプ（第 2 个 PR）
+
+    func testKeyHelpPage() throws {
+        let dir = TestCore.home.appendingPathComponent("type-keyhelp")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dict1 = dir.appendingPathComponent("one.khp").path, dict2 = dir.appendingPathComponent("two.khp").path
+        try "First dictionary, v1\nabc\n".write(toFile: dict1, atomically: true, encoding: .ascii)
+        try "Second\n".write(toFile: dict2, atomically: true, encoding: .ascii)
+        store.values["\(section)/bUseKeyWordHelp"] = "0"
+        store.values["\(section)/KDct[00]"] = "1,First dictionary. v1,\(dict1)"
+        let (controller, page) = try open("キーワードヘルプ")
+        let list = try XCTUnwrap(page.list("IDC_LIST_KEYHELP"))
+        XCTAssertEqual(list.rows, [["one.khp", "First dictionary. v1", dict1]])
+        XCTAssertEqual(page.text("IDC_EDIT_KEYHELP"), dict1)
+        XCTAssertFalse(page.isEnabled("IDC_LIST_KEYHELP"), "キーワードヘルプを使わないときは変えられない")
+        click(page, "IDC_CHECK_KEYHELP")
+        XCTAssertTrue(page.isEnabled("IDC_LIST_KEYHELP"))
+
+        let saved = TypeSettingsPages.showMessage
+        defer { TypeSettingsPages.showMessage = saved }
+        var messages: [String] = []
+        TypeSettingsPages.showMessage = { messages.append($0) }
+        // 挿入：辞書の 1 行目が説明。同じ辞書は登録できない、開けない辞書も
+        page.onButton?("IDC_BUTTON_KEYHELP_INS")
+        XCTAssertEqual(messages.last, "既に登録済みの辞書です。")
+        type(page, "IDC_EDIT_KEYHELP", dir.appendingPathComponent("none.khp").path)
+        page.onButton?("IDC_BUTTON_KEYHELP_INS")
+        XCTAssertTrue(messages.last?.hasPrefix("ファイルを開けませんでした。") ?? false)
+        list.table.deselectAll(nil)
+        type(page, "IDC_EDIT_KEYHELP", dict2)
+        page.onButton?("IDC_BUTTON_KEYHELP_INS")
+        XCTAssertEqual(list.rows.map { $0[1] }, ["First dictionary. v1", "Second"])
+        XCTAssertEqual(page.text("IDC_LABEL_KEYHELP_ABOUT"), "Second")
+        // 上へ
+        list.select(1)
+        page.onChange?("IDC_LIST_KEYHELP")
+        page.onButton?("IDC_BUTTON_KEYHELP_UP")
+        XCTAssertEqual(list.rows.map { $0[0] }, ["two.khp", "one.khp"])
+        page.select("IDC_COMBO_MENU", 2)
+        click(page, "IDC_CHECK_KEYHELP_PREFIX")
+        controller.ok(nil)
+        XCTAssertEqual(store.values["\(section)/bUseKeyWordHelp"], "1")
+        XCTAssertEqual(store.values["\(section)/KDct[00]"], "1,Second,\(dict2)")
+        XCTAssertEqual(store.values["\(section)/KDct[01]"], "1,First dictionary. v1,\(dict1)")
+        XCTAssertEqual(store.values["\(section)/nKeyHelpRMenuShowType"], "2")
+    }
+
+    /// 全部消すと説明を表示。チェックボックスで使う・使わない
+    func testKeyHelpPageDeleteAndUse() throws {
+        store.values["\(section)/KDct[00]"] = "1,About,/tmp/a.khp"
+        store.values["\(section)/KDct[01]"] = "1,About2,/tmp/b.khp"
+        let (controller, page) = try open("キーワードヘルプ")
+        let list = try XCTUnwrap(page.list("IDC_LIST_KEYHELP"))
+        let check = try XCTUnwrap(list.table.view(atColumn: 0, row: 1, makeIfNecessary: true) as? NSButton)
+        XCTAssertEqual(check.title, "b.khp")
+        XCTAssertEqual(check.state, .on)
+        check.performClick(nil)	// チェックを外す：使わない
+        list.select(0)
+        page.onButton?("IDC_BUTTON_KEYHELP_DEL")
+        XCTAssertEqual(list.rows.count, 1)
+        controller.ok(nil)
+        XCTAssertEqual(store.values["\(section)/KDct[00]"], "0,About2,/tmp/b.khp")
+        XCTAssertEqual(store.values["\(section)/KDct[01]"], "")
+
+        store.values["\(section)/KDct[01]"] = nil
+        let (again, againPage) = try open("キーワードヘルプ")
+        againPage.list("IDC_LIST_KEYHELP")?.select(0)
+        againPage.onButton?("IDC_BUTTON_KEYHELP_DEL")
+        XCTAssertEqual(againPage.text("IDC_LABEL_KEYHELP_ABOUT"), "辞書ファイルの１行目の文字列")
+        XCTAssertEqual(againPage.text("IDC_EDIT_KEYHELP"), "キーワード辞書ファイル パス")
+        again.cancel(nil)
     }
 }

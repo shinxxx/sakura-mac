@@ -162,6 +162,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/view/colors/CColor_RegexKeyword.cpp
   sakura_core/func/CKeyBind.cpp           # 按键分配的默认值和查找（Windows 的加速键表不用）
   sakura_core/print/CPrint.cpp            # 只编译打印设置的默认值和用纸表，打印本身在之后的打印步骤
+  sakura_core/typeprop/CImpExpManager.cpp # 第 40 步：设置的导入・导出（文件格式与原版相同）。选文件、消息、确认对话框由界面层做
 )
 list(TRANSFORM SAKURA_CORE_EXTRA_SOURCES PREPEND "${SAKURA_ROOT}/")
 list(APPEND SAKURA_CORE_SOURCES ${SAKURA_CORE_EXTRA_SOURCES})

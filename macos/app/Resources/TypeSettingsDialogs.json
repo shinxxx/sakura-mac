@@ -233,4 +233,40 @@
   {"id": "IDC_COMBO_MENU", "kind": "combo", "frame": [192, 223, 60, 180], "flags": ["dropdownlist"]}
  ]}
 ], "dialogs": [
+ {"name": "文字色統一", "dialog": "IDD_SAMECOLOR", "size": [183, 206], "controls": [
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 13, 24, 10], "text": "統一色"},
+  {"id": "IDC_STATIC_COLOR", "kind": "label", "frame": [35, 10, 86, 14], "text": "Static", "flags": ["center"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 29, 166, 10], "text": "変更対象の色(C)を選んでチェック状態にしてください"},
+  {"id": "IDC_LIST_COLORS", "kind": "list", "frame": [7, 41, 114, 90]},
+  {"id": "IDC_BUTTON_SELALL", "kind": "button", "frame": [125, 70, 49, 14], "text": "全チェック(A)"},
+  {"id": "IDC_BUTTON_SELNOTING", "kind": "button", "frame": [125, 89, 49, 14], "text": "全解除(N)"},
+  {"id": "IDC_LIST_ITEMINFO", "kind": "list", "frame": [7, 143, 114, 35]},
+  {"id": "IDOK", "kind": "button", "frame": [15, 185, 49, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [67, 185, 49, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [119, 185, 49, 14], "text": "ヘルプ(H)"}
+ ]},
+ {"name": "強調キーワードの設定", "dialog": "IDD_DIALOG_KEYWORD_SELECT", "size": [177, 197], "controls": [
+  {"id": "IDOK", "kind": "button", "frame": [31, 176, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [91, 176, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 15, 54, 13], "text": "強調キーワード1"},
+  {"id": "IDC_COMBO1", "kind": "combo", "frame": [68, 13, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 31, 54, 13], "text": "強調キーワード2"},
+  {"id": "IDC_COMBO2", "kind": "combo", "frame": [68, 29, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 48, 54, 13], "text": "強調キーワード3"},
+  {"id": "IDC_COMBO3", "kind": "combo", "frame": [68, 45, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 63, 54, 13], "text": "強調キーワード4"},
+  {"id": "IDC_COMBO4", "kind": "combo", "frame": [68, 61, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 80, 54, 13], "text": "強調キーワード5"},
+  {"id": "IDC_COMBO5", "kind": "combo", "frame": [68, 77, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 95, 54, 13], "text": "強調キーワード6"},
+  {"id": "IDC_COMBO6", "kind": "combo", "frame": [68, 93, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 111, 54, 13], "text": "強調キーワード7"},
+  {"id": "IDC_COMBO7", "kind": "combo", "frame": [68, 109, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 126, 54, 13], "text": "強調キーワード8"},
+  {"id": "IDC_COMBO8", "kind": "combo", "frame": [68, 125, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 143, 54, 13], "text": "強調キーワード9"},
+  {"id": "IDC_COMBO9", "kind": "combo", "frame": [68, 141, 104, 180], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 159, 58, 13], "text": "強調キーワード10"},
+  {"id": "IDC_COMBO10", "kind": "combo", "frame": [68, 157, 104, 180], "flags": ["dropdownlist"]}
+ ]}
 ]}

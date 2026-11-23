@@ -113,6 +113,7 @@ bool SetCommonSetting(const Text& section, const Text& key, const Text& value);
 	ファイル名表示 的置換リスト（Nickname 的 ArrNum、From%02d、To%02d）要一起改：项数变了时，
 	一项一项地改的话 ArrNum 以外的项目还没有。
 	读入以后有一项不在这一节里时（没有的项目、ArrNum 以外的 From%02d 等）false，什么也不改。
+	值是空字符串的项读入以后没有也可以（列表变短了：タイプ別設定的 RxKey[nnn]、KDct[nn] 等。第 40 步）。
 */
 bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Text>>& values);
 
@@ -125,6 +126,69 @@ struct TypeSettingInfo {
 
 //! タイプ別設定 的一览（顺序与 sakura.ini 的 Types(0)、Types(1)… 相同）
 std::vector<TypeSettingInfo> TypeSettings();
+
+//! タイプ別設定「カラー」页的一行（原版 ColorInfo 的名字和 g_ColorAttributeArr 的属性。第 40 步）
+struct ColorItemInfo {
+	std::int32_t index = 0;		//!< 颜色的编号（ColorIndex 的数值）
+	Text name;					//!< 显示的名字（「テキスト」等）
+	Text key;					//!< sakura.ini 的项目（「C[TXT]」等）。值是「表示,太字,文字色,背景色,下線」（色是 6 位 16 进制的 BGR）
+	bool forceDisplay = false;	//!< 一直显示（「色分け/表示」不能关，COLOR_ATTRIB_FORCE_DISP）
+	bool noText = false;		//!< 没有文字色（COLOR_ATTRIB_NO_TEXT）
+	bool noBack = false;		//!< 没有背景色（COLOR_ATTRIB_NO_BACK）
+	bool noBold = false;		//!< 不能是太字（COLOR_ATTRIB_NO_BOLD）
+	bool noUnderline = false;	//!< 不能加下線（COLOR_ATTRIB_NO_UNDERLINE）
+};
+
+//! 「カラー」页的全部的行（顺序与原版的色指定列表相同）
+std::vector<ColorItemInfo> ColorItems();
+
+//! 強調キーワード的セット名（共通設定 > 強調キーワード。顺序就是编号：nKeywordSelect 等的值）
+std::vector<Text> KeywordSetNames();
+
+//! タイプ別設定的导入・导出的文件（原版 CImpExpColors、CImpExpRegex、CImpExpKeyHelp。第 40 步）
+enum class TypeSettingFile {
+	Colors,			//!< 色設定（*.col）
+	RegexKeywords,	//!< 正規表現キーワード（*.rkw）
+	KeywordHelp,	//!< キーワード辞書の一覧（*.txt）
+};
+
+//! 导入・导出的结果
+struct TypeSettingFileResult {
+	bool succeeded = false;
+	Text message;	//!< 原版显示的消息（失败的原因、读入时的警告）。没有时是空
+	//! 导入后的 sakura.ini 的值（[Types(N)] 的项目）。色是全部的「C[…]」，正規表現キーワード是
+	//! RxKey[000]～RxKey[099]，キーワード辞書是 KDct[00]～KDct[19]（没有的项是空字符串）
+	std::vector<std::pair<Text, Text>> values;
+};
+
+/*!
+	从文件读入第 typeIndex 个类型的色設定・正規表現キーワード・キーワード辞書（文件格式与原版相同）。
+	pending 是窗口里还没有 OK 的值（[Types(N)] 的项目）：在这个类型的现在的设置上加上 pending 再读入。
+	不改核心库的设置（OK 时由窗口写回）。
+*/
+TypeSettingFileResult ImportTypeSettingFile(TypeSettingFile kind, std::int32_t typeIndex,
+	const std::vector<std::pair<Text, Text>>& pending, const Text& path);
+
+/*!
+	正規表現キーワード的检查（タイプ別設定 > 正規表現キーワード 的登录时，原版 CPropTypesRegex::CheckKeywordList）。
+	hasDelimiters：用「/…/k」「m#…#k」等围起来了（原版 CRegexKeyword::RegexKeyCheckSyntax）。
+	syntaxOK：正则表达式的语法正确（原版 CheckRegexpSyntax(…, bKakomi = true)）。
+*/
+struct RegexKeywordCheck {
+	bool hasDelimiters = false;
+	bool syntaxOK = false;
+};
+RegexKeywordCheck CheckRegexKeyword(const Text& keyword);
+
+/*!
+	キーワード辞書的「辞書の説明」：辞書文件的第 1 行（原版 CPropTypesKeyHelp：去掉换行，逗号换成「.」）。
+	打不开时 nullopt。相对路径从设置文件的文件夹找（原版 CTextInputStream_AbsIni）。
+*/
+std::optional<Text> KeywordHelpDictionaryAbout(const Text& path);
+
+//! 写出到文件（与原版的エクスポート相同的格式）。pending 同上
+TypeSettingFileResult ExportTypeSettingFile(TypeSettingFile kind, std::int32_t typeIndex,
+	const std::vector<std::pair<Text, Text>>& pending, const Text& path);
 
 //! 现在的设置写进 sakura.ini（与结束时相同）。导入设置以后、重新启动之前不写，返回 false
 bool SaveSettings();
