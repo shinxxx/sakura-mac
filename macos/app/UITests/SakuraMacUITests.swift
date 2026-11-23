@@ -549,7 +549,7 @@ final class SakuraMacUITests: XCTestCase {
         app.menuItems["選択系"].click()
         window.tables["IDC_LIST_FUNC_table"].staticTexts["すべて選択"].click()
         window.tables["IDC_LIST_KEY_table"].staticTexts["F12"].click()
-        let keysFunc = window.textFields["IDC_EDIT_KEYSFUNC"]
+        let keysFunc = window.descendants(matching: .any)["IDC_EDIT_KEYSFUNC"].firstMatch	// 読み取り専用の欄は staticText になることがある
         XCTAssertNotEqual(keysFunc.value as? String, "すべて選択")
         window.buttons["IDC_BUTTON_ASSIGN"].click()
         XCTAssertEqual(keysFunc.value as? String, "すべて選択", "割当")
