@@ -64,6 +64,7 @@ final class KeywordSettingsTests: XCTestCase {
         let names = EditorCore.keywordSetNames
         XCTAssertEqual(page.itemTitles("IDC_COMBO_SET"), names)
         XCTAssertFalse(page.isShown("IDOK"))
+        XCTAssertNil(page.list("IDC_LIST_KEYWORD")?.table.headerView, "原版は列の見出しなし（LVS_NOCOLUMNHEADER）")
         let editor = EditorKeywordSetEditor()!
         let set = editor.currentSet
         XCTAssertEqual(page.selectedTag("IDC_COMBO_SET"), set)

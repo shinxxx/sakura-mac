@@ -49,7 +49,15 @@ final class TypeListDialog: NSObject {
 
     func reload(select index: Int) {
         types = EditorCore.typeSettings
-        page.list(idc("LIST_TYPES"))?.setRows(types.map { [Self.label($0)] })
+        let labels = types.map { Self.label($0) }
+        if let list = page.list(idc("LIST_TYPES")) {
+            // 長い名前は横にスクロール（原版 List_SetHorizontalExtent）
+            let width = labels.map { ($0 as NSString).size(withAttributes: [.font: PropPage.font]).width }.max() ?? 0
+            list.table.columnAutoresizingStyle = .noColumnAutoresizing
+            list.table.tableColumns.first?.width = max(width + 12, (list.table.enclosingScrollView?.contentSize.width ?? 0) - 4)
+            list.table.enclosingScrollView?.hasHorizontalScroller = true
+        }
+        page.list(idc("LIST_TYPES"))?.setRows(labels.map { [$0] })
         page.list(idc("LIST_TYPES"))?.select(min(max(0, index), types.count - 1))
         enable()
     }

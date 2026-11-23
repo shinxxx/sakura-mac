@@ -253,13 +253,13 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 continue
             case "check":
                 let button = NSButton(checkboxWithTitle: text, target: self, action: #selector(controlClicked(_:)))
-                setUpButton(button, multiline: text.contains("\n"))
+                setUpButton(button, multiline: text.contains("\n") || control.has("multiline"))
                 button.frame = frame
                 view.addSubview(button)
                 register(button, control)
             case "radio":
                 let button = NSButton(radioButtonWithTitle: text, target: self, action: #selector(controlClicked(_:)))
-                setUpButton(button, multiline: text.contains("\n"))
+                setUpButton(button, multiline: text.contains("\n") || control.has("multiline"))
                 radioGroups[group, default: []].append((button, frame))
                 register(button, control)
             case "button":

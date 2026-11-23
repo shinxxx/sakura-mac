@@ -35,6 +35,7 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
         // 共通設定のページのときは OK・キャンセル はない（原版：独立ウィンドウのときだけ表示）
         page.control("IDOK")?.isHidden = tempTypeIndex == nil
         page.control("IDCANCEL")?.isHidden = tempTypeIndex == nil
+        page.list(idc("LIST_KEYWORD"))?.table.headerView = nil	// 原版 LVS_NOCOLUMNHEADER
         editor = EditorKeywordSetEditor()
         typeSets = EditorCore.typeSettings.compactMap { type in
             if type.index == tempTypeIndex { return nil }

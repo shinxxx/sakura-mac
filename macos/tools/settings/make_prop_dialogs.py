@@ -110,7 +110,7 @@ def controls(lines, dialog):
             flags.append("center")
         if "ES_NUMBER" in style:
             flags.append("number")
-        if "ES_MULTILINE" in style:
+        if "ES_MULTILINE" in style or "BS_MULTILINE" in style:
             flags.append("multiline")
         if "ES_READONLY" in style:
             flags.append("readonly")

@@ -283,8 +283,8 @@
   {"id": "IDC_BUTTON_DOWN_TYPE", "kind": "button", "frame": [130, 159, 50, 14], "text": "↓(O)"},
   {"id": "IDC_BUTTON_ADD_TYPE", "kind": "button", "frame": [130, 175, 50, 14], "text": "追加(A)"},
   {"id": "IDC_BUTTON_DEL_TYPE", "kind": "button", "frame": [130, 191, 50, 14], "text": "削除(D)"},
-  {"id": "IDC_CHECK_EXT_RMENU", "kind": "check", "frame": [130, 207, 50, 28], "text": "右クリックメニューに追加", "flags": ["disabled"]},
-  {"id": "IDC_CHECK_EXT_DBLCLICK", "kind": "check", "frame": [130, 231, 50, 28], "text": "ダブルクリックで開く", "flags": ["disabled"]},
+  {"id": "IDC_CHECK_EXT_RMENU", "kind": "check", "frame": [130, 207, 50, 28], "text": "右クリックメニューに追加", "flags": ["multiline", "disabled"]},
+  {"id": "IDC_CHECK_EXT_DBLCLICK", "kind": "check", "frame": [130, 231, 50, 28], "text": "ダブルクリックで開く", "flags": ["multiline", "disabled"]},
   {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [130, 262, 50, 14], "text": "ヘルプ(H)"}
  ]},
  {"name": "インポート確認", "dialog": "IDD_TYPE_ASCERTAIN", "size": [187, 100], "controls": [
