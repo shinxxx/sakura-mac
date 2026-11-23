@@ -445,7 +445,7 @@ final class SakuraMacUITests: XCTestCase {
     }
 
     /// タイプ別設定 > カラー（第 40 步第 2 个 PR）：色指定リストの「コメント」を選び「太字」を切り替えて OK → 再び開くと切り替わっている。
-    /// 正規表現キーワード：キーワードを追加すると一覧に出る（キャンセルで戻す）
+    /// 正規表現キーワード：キーワードを追加して OK → 再び開くと一覧にある
     func testTypeSettingsColorAndRegex() {
         let window = app.windows["TypeSettings"]
         func openTypeSettings() {
@@ -496,9 +496,8 @@ final class SakuraMacUITests: XCTestCase {
         openTypeSettings()
         XCTAssertTrue(regexTable.waitForExistence(timeout: 2), "上次的页（正規表現キーワード）")
         XCTAssertEqual(regexTable.tableRows.count, count + 1, "OK した一覧")
-        regexTable.tableRows.element(boundBy: count).click()
-        window.buttons["IDC_BUTTON_REGEX_DEL"].click()
-        window.buttons["TypeSettingsOK"].click()
+        // 界面测试模式的设置不保存（UITesting.swift），戻さなくてよい
+        window.buttons["TypeSettingsCancel"].click()
     }
 
     // MARK: - 第 35 步：导入 Windows 版的设置
