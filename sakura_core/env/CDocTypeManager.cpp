@@ -19,6 +19,10 @@
 #include "config/system_constants.h"
 #if !defined(_WIN32)
 #include "env/CShareData.h"
+#if !defined(_WIN32)
+#include "env/CRegexKeyword.h"
+#include "sakura_rc.h"
+#endif
 #endif
 
 const WCHAR* CDocTypeManager::m_typeExtSeps = LTEXT(" ;,");	// タイプ別拡張子 区切り文字
@@ -165,9 +169,43 @@ bool CDocTypeManager::AddTypeConfig(CTypeConfig cDocumentType)
 #if defined(_WIN32)
 	return FALSE != SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_ADD_TYPESETTING, (WPARAM)cDocumentType.GetIndex(), 0 );
 #else
-	// Mac 版：タイプ別設定の追加・削除はタイプ別設定一覧ダイアログで使う。ダイアログと一緒に後のステップで移植する（移植計画のステップ 21）
-	(void)cDocumentType;
-	return false;
+	// Mac 版：プロセスは 1 つなので、タイプ別設定リストを直接変える（CControlTray::OnAddTypeSetting と同じ）（移植計画のステップ 40）
+	const int nCount = m_pShareData->m_nTypesCount;
+	const int nInsert = cDocumentType.GetIndex();
+	if (nCount < 0 || int(MAX_TYPES) <= nCount || nInsert <= 0 || nCount < nInsert) {	// 0:「基本」の前には入れない
+		return false;
+	}
+	auto& types = CShareData::getInstance()->GetTypeSettings();
+	auto type = std::make_unique<STypeConfig>(*types[0]);	// 基本をコピー
+	type->m_id = int(::GetTickCount64() & 0x3fffffff) + nInsert * 0x10000;
+	// 同じ名前のものがあったらその次にする
+	int nAddNameNum = nInsert + 1;
+	::swprintf_s(type->m_szTypeName, LS(STR_TRAY_TYPE_NAME), nAddNameNum);
+	for (int k = 1; k < nCount; ++k) {
+		if (0 == wcscmp(types[k]->m_szTypeName, type->m_szTypeName)) {
+			nAddNameNum++;
+			::swprintf_s(type->m_szTypeName, LS(STR_TRAY_TYPE_NAME), nAddNameNum);
+			k = 0;
+		}
+	}
+	type->m_szTypeExts[0] = LCHAR('\0');
+	type->m_nRegexKeyMagicNumber = CRegexKeyword::GetNewMagicNumber();
+	types.resize(nCount + 1);
+	++m_pShareData->m_nTypesCount;
+	for (int i = nCount; nInsert < i; --i) {
+		types[i] = std::move(types[i - 1]);
+		types[i]->m_nIdx = i;
+		m_pShareData->m_TypeMini[i] = m_pShareData->m_TypeMini[i - 1];
+	}
+	type->m_nIdx = nInsert;
+	// 一覧の名前も新しいタイプにする（原版はここで設定しないため、一覧に前の内容が残ることがある）
+	auto& typeMini = m_pShareData->m_TypeMini[nInsert];
+	::wcscpy_s(typeMini.m_szTypeName, type->m_szTypeName);
+	::wcscpy_s(typeMini.m_szTypeExts, type->m_szTypeExts);
+	typeMini.m_id = type->m_id;
+	typeMini.m_encoding = type->m_encoding;
+	types[nInsert] = std::move(type);
+	return true;
 #endif
 }
 
@@ -177,8 +215,25 @@ bool CDocTypeManager::DelTypeConfig(CTypeConfig cDocumentType)
 #if defined(_WIN32)
 	return FALSE != SendMessageAny( m_pShareData->m_sHandles.m_hwndTray, MYWM_DEL_TYPESETTING, (WPARAM)cDocumentType.GetIndex(), 0 );
 #else
-	(void)cDocumentType;	// Mac 版：AddTypeConfig と同じ（移植計画のステップ 21）
-	return false;
+	// Mac 版：CControlTray::OnDelTypeSetting と同じ（移植計画のステップ 40）
+	const int nCount = m_pShareData->m_nTypesCount;
+	const int nDelPos = cDocumentType.GetIndex();
+	if (nCount <= 0 || nCount <= nDelPos || nDelPos <= 0) {
+		return false;
+	}
+	auto& types = CShareData::getInstance()->GetTypeSettings();
+	for (int i = nDelPos; i < nCount - 1; ++i) {
+		types[i] = std::move(types[i + 1]);
+		types[i]->m_nIdx = i;
+		m_pShareData->m_TypeMini[i] = m_pShareData->m_TypeMini[i + 1];
+	}
+	types.resize(nCount - 1);
+	m_pShareData->m_nTypesCount--;
+	auto& typeMini = m_pShareData->m_TypeMini[nCount - 1];
+	typeMini.m_szTypeName[0] = LCHAR('\0');
+	typeMini.m_szTypeExts[0] = LCHAR('\0');
+	typeMini.m_id = 0;
+	return true;
 #endif
 }
 

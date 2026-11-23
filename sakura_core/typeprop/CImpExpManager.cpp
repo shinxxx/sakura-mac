@@ -301,6 +301,35 @@ bool CImpExpType::ImportAscertain( HINSTANCE hInstance, HWND hwndParent, const s
 
 	return true;
 }
+#else
+// Mac 版：ファイルを読み、形式だけ確かめる（バージョンの確認とダイアログは画面側。ステップ 40）
+bool CImpExpType::ImportAscertain( [[maybe_unused]] HINSTANCE hInstance, [[maybe_unused]] HWND hwndParent, const sakura::wstring& sFileName, sakura::wstring& sErrMsg )
+{
+	m_cProfile.SetReadingMode();
+	if (!m_cProfile.ReadProfile( sFileName.c_str() )) {
+		sErrMsg = LS(STR_IMPEXP_ERR_FILEOPEN);
+		sErrMsg += sFileName;
+		return false;
+	}
+	int		nStructureVersion = 0;
+	if (!m_cProfile.IOProfileData( szSecInfo, szKeyStructureVersion, nStructureVersion )) {
+		sErrMsg = LS(STR_IMPEXP_ERR_TYPE);
+		return false;
+	}
+	return true;
+}
+
+bool CImpExpType::GetFileInfoMac( sakura::wstring& sTypeName, sakura::wstring& sVersion, int& nStructureVersion )
+{
+	WCHAR szLabel[1024] = {};
+	m_cProfile.IOProfileData(szSecTypes, LTEXT("szTypeName"), StringBufferW(szLabel));
+	sTypeName = szLabel;
+	sVersion = LTEXT("?");
+	m_cProfile.IOProfileData(szSecInfo, szKeyVersion, sVersion);
+	nStructureVersion = 0;
+	m_cProfile.IOProfileData( szSecInfo, szKeyStructureVersion, nStructureVersion );
+	return true;
+}
 #endif
 
 // インポート

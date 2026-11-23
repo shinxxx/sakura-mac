@@ -81,12 +81,20 @@ INI_OVERRIDES = {
     "IDC_RADIO_DFORM_1": "Common/nDateFormatType", "IDC_RADIO_TFORM_1": "Common/nTimeFormatType",
     "IDC_COMBO_TAGJUMP": "Common/nTagJumpMode", "IDC_COMBO_KEYWORD_TAGJUMP": "Common/nTagJumpModeKeyword",
     "IDC_STATIC_KEYWORDHELPFONT": "Common/khlf, khps, khlfFaceName",
+    # 強調キーワード（第 40 步）：[KeyWords] 節（ShareData_IO_KeyWords）
+    "IDC_COMBO_SET": "KeyWords/nCurrentKeyWordSetIdx, nKeyWordSetNum, szSN[nn]",
+    "IDC_BUTTON_ADDSET": "KeyWords/nKeyWordSetNum, szSN[nn]", "IDC_BUTTON_DELSET": "KeyWords/…、Types(N)/nInts, nKeywordSelect3～10",
+    "IDC_BUTTON_KEYSETRENAME": "KeyWords/szSN[nn]", "IDC_LIST_KEYWORD": "KeyWords/nKWN[nn], szKW[nn]",
+    "IDC_BUTTON_ADDKEYWORD": "KeyWords/szKW[nn]", "IDC_BUTTON_EDITKEYWORD": "KeyWords/szKW[nn]",
+    "IDC_BUTTON_DELKEYWORD": "KeyWords/szKW[nn]", "IDC_BUTTON_KEYCLEAN": "KeyWords/szKW[nn]",
+    "IDC_CHECK_KEYWORDCASE": "KeyWords/nCASE[nn]", "IDC_BUTTON_IMPORT": "KeyWords/szKW[nn]（*.kwd）",
+    "IDC_BUTTON_EXPORT": "KeyWords/szKW[nn]（*.kwd）", "IDOK": "（タイプ別設定から開いたとき）", "IDCANCEL": "（同上）",
 }
 
 # Mac 版的处理（第 39 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
 LATER_PAGES = {
     "メインメニュー": "第 41 步", "ツールバー": "第 41 步", "キー割り当て": "第 41 步", "カスタムメニュー": "第 41 步",
-    "強調キーワード": "第 40 步", "マクロ": "第 45 步", "プラグイン": "×（DLL のプラグインは Mac 版では使えない）",
+    "マクロ": "第 45 步", "プラグイン": "×（DLL のプラグインは Mac 版では使えない）",
 }
 MAC_DECISIONS = {
     "IDC_CHECK_USETRAYICON": "×（タスクトレイがない。偏离项 7）", "IDC_CHECK_STAYTASKTRAY": "×（同上）",

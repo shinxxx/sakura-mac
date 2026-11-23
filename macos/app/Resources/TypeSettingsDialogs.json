@@ -268,5 +268,36 @@
   {"id": "IDC_COMBO9", "kind": "combo", "frame": [68, 141, 104, 180], "flags": ["dropdownlist"]},
   {"id": "IDC_STATIC", "kind": "label", "frame": [7, 159, 58, 13], "text": "強調キーワード10"},
   {"id": "IDC_COMBO10", "kind": "combo", "frame": [68, 157, 104, 180], "flags": ["dropdownlist"]}
+ ]},
+ {"name": "タイプ別設定一覧", "dialog": "IDD_TYPELIST", "size": [187, 280], "controls": [
+  {"id": "IDC_STATIC", "kind": "label", "frame": [5, 5, 111, 10], "text": "下からタイプを選択してください(T):"},
+  {"id": "IDC_LIST_TYPES", "kind": "list", "frame": [5, 15, 120, 258]},
+  {"id": "IDOK", "kind": "button", "frame": [130, 15, 50, 14], "text": "設定変更(S)..."},
+  {"id": "IDC_BUTTON_TEMPCHANGE", "kind": "button", "frame": [130, 31, 50, 14], "text": "一時適用(R)"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [130, 50, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_IMPORT", "kind": "button", "frame": [130, 79, 50, 14], "text": "インポート(I)"},
+  {"id": "IDC_BUTTON_EXPORT", "kind": "button", "frame": [130, 95, 50, 14], "text": "エクスポート(E)"},
+  {"id": "IDC_BUTTON_INITIALIZE", "kind": "button", "frame": [130, 111, 50, 14], "text": "初期化(N)"},
+  {"id": "IDC_BUTTON_COPY_TYPE", "kind": "button", "frame": [130, 127, 50, 14], "text": "複製(C)"},
+  {"id": "IDC_BUTTON_UP_TYPE", "kind": "button", "frame": [130, 143, 50, 14], "text": "↑(U)"},
+  {"id": "IDC_BUTTON_DOWN_TYPE", "kind": "button", "frame": [130, 159, 50, 14], "text": "↓(O)"},
+  {"id": "IDC_BUTTON_ADD_TYPE", "kind": "button", "frame": [130, 175, 50, 14], "text": "追加(A)"},
+  {"id": "IDC_BUTTON_DEL_TYPE", "kind": "button", "frame": [130, 191, 50, 14], "text": "削除(D)"},
+  {"id": "IDC_CHECK_EXT_RMENU", "kind": "check", "frame": [130, 207, 50, 28], "text": "右クリックメニューに追加", "flags": ["disabled"]},
+  {"id": "IDC_CHECK_EXT_DBLCLICK", "kind": "check", "frame": [130, 231, 50, 28], "text": "ダブルクリックで開く", "flags": ["disabled"]},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [130, 262, 50, 14], "text": "ヘルプ(H)"}
+ ]},
+ {"name": "インポート確認", "dialog": "IDD_TYPE_ASCERTAIN", "size": [187, 100], "controls": [
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 7, 33, 10], "text": "読込先:"},
+  {"id": "IDC_RADIO_TYPE_ADD", "kind": "radio", "frame": [36, 7, 45, 10], "text": "新規追加(A)"},
+  {"id": "IDC_RADIO_TYPE_TO", "kind": "radio", "frame": [86, 7, 135, 10], "text": "基本"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 27, 33, 10], "text": "新タイプ名:"},
+  {"id": "IDC_STATIC_TYPE_FILE", "kind": "label", "frame": [45, 27, 135, 16], "text": "基本"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 47, 35, 10], "text": "色選択(C)"},
+  {"id": "IDC_COMBO_COLORS", "kind": "combo", "frame": [44, 45, 100, 250], "flags": ["dropdownlist"]},
+  {"id": "IDC_STATIC_MSG", "kind": "label", "frame": [26, 64, 154, 10], "text": "上記条件でインポートします。よろしいですか？"},
+  {"id": "IDOK", "kind": "button", "frame": [26, 79, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [78, 79, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [130, 79, 50, 14], "text": "ヘルプ(H)"}
  ]}
 ]}

@@ -21,6 +21,7 @@
 #include "env/DLLSHAREDATA.h"
 #include "util/file.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -183,4 +184,81 @@ TEST_F(MacCommonSettingTest, SaveSettingsWritesIni)
 	ASSERT_TRUE(Startup());
 	EXPECT_TRUE(Common().m_sGeneral.m_bIsFreeCursorMode);
 	EXPECT_STREQ(LTEXT("> "), Common().m_sFormat.m_szInyouKigou);
+}
+
+// ---------------------------------------------------------------------------
+// 共通設定 > 強調キーワード（第 40 步）
+// ---------------------------------------------------------------------------
+
+//! 編集は複製の上で行い、IniValues を [KeyWords] に書くと核心库のキーワードが換わる（原版 CPropKeyword と同じ）
+TEST_F(MacCommonSettingTest, KeywordSetEditorEditsCopyAndApplies)
+{
+	auto& mgr = Common().m_sSpecialKeyword.m_CKeyWordSetMgr;
+	const int before = mgr.m_nKeyWordSetNum;
+	auto editor = KeywordSetEditor::Create();
+	ASSERT_NE(nullptr, editor);
+	EXPECT_EQ(before, editor->SetCount());
+	ASSERT_TRUE(editor->AddSet(u"Mac"));
+	const int set = editor->SetCount() - 1;
+	EXPECT_EQ(set, editor->CurrentSet());
+	EXPECT_EQ(u"Mac", editor->SetName(set));
+	EXPECT_EQ(0, editor->AddKeyword(set, u"zeta"));
+	EXPECT_EQ(0, editor->AddKeyword(set, u"alpha"));
+	EXPECT_EQ(4, editor->AddKeyword(set, u"alpha")) << "重複";
+	EXPECT_EQ(3, editor->AddKeyword(set, u"")) << "空";
+	auto words = editor->Keywords(set);
+	ASSERT_EQ(2u, words.size());
+	EXPECT_EQ(u"alpha", words[0].text) << "並べた順";
+	EXPECT_TRUE(editor->UpdateKeyword(set, words[1].index, u"beta"));
+	EXPECT_FALSE(editor->UpdateKeyword(set, words[1].index, u"alpha")) << "重複は変えない";
+	editor->SetCaseSensitive(set, true);
+	EXPECT_EQ(before, mgr.m_nKeyWordSetNum) << "核心库はまだ変わらない";
+
+	std::vector<std::pair<Text, Text>> values = editor->IniValues();
+	ASSERT_TRUE(SetCommonSettings(u"KeyWords", values));
+	ASSERT_EQ(before + 1, mgr.m_nKeyWordSetNum);
+	EXPECT_STREQ(LTEXT("Mac"), mgr.GetTypeName(set));
+	EXPECT_TRUE(mgr.GetKeyWordCase(set));
+	EXPECT_EQ(2, mgr.GetKeyWordNum(set));
+
+	// セットを減らす：なくなったセットの項目は空の値
+	auto editor2 = KeywordSetEditor::Create();
+	ASSERT_TRUE(editor2->DeleteSet(set));
+	values = editor2->IniValues();
+	EXPECT_NE(values.end(), std::find_if(values.begin(), values.end(), [](const auto& v) { return v.first.rfind(u"szSN[", 0) == 0 && v.second.empty(); }));
+	ASSERT_TRUE(SetCommonSettings(u"KeyWords", values));
+	EXPECT_EQ(before, mgr.m_nKeyWordSetNum);
+}
+
+//! 整理（重複の削除）、エクスポート・インポート（*.kwd、CASE 行）
+TEST_F(MacCommonSettingTest, KeywordSetEditorCleanImportExport)
+{
+	auto editor = KeywordSetEditor::Create();
+	ASSERT_TRUE(editor->AddSet(u"T"));
+	const int set = editor->SetCount() - 1;
+	EXPECT_EQ(0, editor->AddKeyword(set, u"abc"));
+	EXPECT_EQ(0, editor->AddKeyword(set, u"ABC"));
+	EXPECT_EQ(1, editor->Clean(set)) << "大文字小文字を区別しないので重複";
+	EXPECT_EQ(1u, editor->Keywords(set).size());
+	EXPECT_LT(0, editor->FreeCount(set));
+	EXPECT_TRUE(editor->CanAddKeyword(set));
+
+	const auto dir = GetIniFileName().parent_path();
+	std::filesystem::create_directories(dir);
+	const auto path = (dir / "t.kwd").u16string();
+	Text message;
+	editor->SetCaseSensitive(set, true);
+	ASSERT_TRUE(editor->Export(set, path, message)) << std::string(message.begin(), message.end());
+	const auto file = ReadAll(dir / "t.kwd");
+	EXPECT_NE(std::string::npos, file.find("// T"));
+	EXPECT_NE(std::string::npos, file.find("// CASE=True"));
+	EXPECT_TRUE(file.find("abc") != std::string::npos || file.find("ABC") != std::string::npos);
+
+	ASSERT_TRUE(editor->AddSet(u"U"));
+	const int set2 = editor->SetCount() - 1;
+	ASSERT_TRUE(editor->Import(set2, path, message));
+	EXPECT_TRUE(editor->IsCaseSensitive(set2));
+	ASSERT_EQ(1u, editor->Keywords(set2).size());
+	EXPECT_FALSE(editor->Import(set2, (dir / "none.kwd").u16string(), message));
+	EXPECT_NE(Text::npos, message.find(u"ファイルを開けませんでした"));
 }

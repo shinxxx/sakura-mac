@@ -100,6 +100,12 @@ std::string ReadAll(const fs::path& path)
 	return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
 
+Text Num(int n)
+{
+	const auto s = std::to_string(n);
+	return Text(s.begin(), s.end());
+}
+
 std::string Narrow(const std::optional<Text>& t)
 {
 	return t ? std::string(t->begin(), t->end()) : std::string("(none)");
@@ -452,4 +458,141 @@ TEST_F(MacTypeSettingTest, KeywordHelpDictionaryAbout)
 	EXPECT_EQ(u"C++ keywords. v1", KeywordHelpDictionaryAbout((m_dir / "d.khp").u16string()));
 	EXPECT_FALSE(KeywordHelpDictionaryAbout((m_dir / "none.khp").u16string()).has_value());
 	EXPECT_FALSE(KeywordHelpDictionaryAbout(u"").has_value());
+}
+
+// ---------------------------------------------------------------------------
+// 第 40 步第 3 个 PR：タイプ別設定一覧
+// ---------------------------------------------------------------------------
+
+//! 追加・複製・↑↓・削除（原版 CDlgTypeList）
+TEST_F(MacTypeSettingTest, AddCopyMoveDeleteTypes)
+{
+	const int count = GetDllShareData().m_nTypesCount;
+	const int added = AddTypeSetting();
+	ASSERT_EQ(count, added);
+	EXPECT_EQ(count + 1, GetDllShareData().m_nTypesCount);
+	auto types = TypeSettings();
+	EXPECT_EQ(u"設定" + Num(count + 1), types[added].name);
+	EXPECT_EQ(u"", types[added].extensions);
+	EXPECT_EQ(added, Config(added).m_nIdx);
+
+	const int cpp = IndexOf(u"C/C++");
+	const int copied = CopyTypeSetting(cpp);
+	ASSERT_EQ(count + 1, copied);
+	EXPECT_EQ(u"C/C++2", TypeSettings()[copied].name) << "名前の後ろに番号";
+	EXPECT_NE(Config(cpp).m_id, Config(copied).m_id);
+	const int copied2 = CopyTypeSetting(copied);
+	ASSERT_LT(0, copied2);
+	EXPECT_EQ(u"C/C++3", TypeSettings()[copied2].name);
+
+	// ↑：一つ前と入れ替え。「基本」とは入れ替えない
+	EXPECT_EQ(copied - 1, MoveTypeSetting(copied, true));
+	EXPECT_EQ(u"C/C++2", TypeSettings()[copied - 1].name);
+	EXPECT_EQ(-1, MoveTypeSetting(1, true));
+	EXPECT_EQ(-1, MoveTypeSetting(0, false));
+
+	// 削除：「基本」は削除しない
+	EXPECT_FALSE(DeleteTypeSetting(0));
+	const int before = GetDllShareData().m_nTypesCount;
+	ASSERT_TRUE(DeleteTypeSetting(copied - 1));
+	EXPECT_EQ(before - 1, GetDllShareData().m_nTypesCount);
+	EXPECT_EQ(-1, IndexOf(u"C/C++2"));
+}
+
+//! 初期化：「基本」以外は基本の複製（設定N、拡張子なし）。「基本」は内蔵の設定
+TEST_F(MacTypeSettingTest, InitializeType)
+{
+	const int cpp = IndexOf(u"C/C++");
+	const auto name = InitializeTypeSetting(cpp);
+	EXPECT_EQ(u"設定" + Num(cpp + 1), name);
+	EXPECT_EQ(u"", TypeSettings()[cpp].extensions);
+	ASSERT_TRUE(SetCommonSetting(u"Types(0)", u"nLineSpace", u"9"));
+	EXPECT_EQ(u"基本", InitializeTypeSetting(0));
+	EXPECT_NE(9, Config(0).m_nLineSpace);
+}
+
+//! エクスポート → インポート（新規追加・上書き、色の選び方、使っている強調キーワードの *.kwd）
+TEST_F(MacTypeSettingTest, ExportAndImportType)
+{
+	const int cpp = IndexOf(u"C/C++");
+	const auto path = (m_dir / "cpp.ini").u16string();
+	auto exported = ExportTypeSetting(cpp, path);
+	ASSERT_TRUE(exported.succeeded) << Narrow(exported.message);
+	EXPECT_NE(Text::npos, exported.message.find(u"ファイルをエクスポートしました。"));
+	const auto file = ReadAll(m_dir / "cpp.ini");
+	EXPECT_NE(std::string::npos, file.find("タイプ別設定 Ver1"));
+	EXPECT_NE(std::string::npos, file.find("szTypeName=C/C++"));
+	EXPECT_NE(std::string::npos, file.find("szKeyword[1]="));
+	bool hasKwd = false;
+	for (const auto& e : fs::directory_iterator(m_dir)) hasKwd |= e.path().extension() == ".kwd";
+	EXPECT_TRUE(hasKwd) << "使っている強調キーワードも書き出す";
+
+	auto info = CheckTypeSettingFile(path);
+	ASSERT_TRUE(info.succeeded);
+	EXPECT_EQ(u"C/C++", info.typeName);
+	EXPECT_FALSE(info.versionDiffers);
+	std::ofstream(m_dir / "a.col", std::ios::binary) << "x";
+	EXPECT_EQ(std::vector<Text>{ u"a.col" }, CheckTypeSettingFile(path).colorFiles);
+
+	// 新規追加
+	const int count = GetDllShareData().m_nTypesCount;
+	TypeSettingImportChoice choice;
+	auto imported = ImportTypeSetting(path, cpp, choice);
+	ASSERT_TRUE(imported.succeeded) << Narrow(imported.message);
+	EXPECT_TRUE(imported.added);
+	EXPECT_EQ(count, imported.index);
+	EXPECT_EQ(u"C/C++", TypeSettings()[count].name);
+	EXPECT_NE(Config(cpp).m_id, Config(count).m_id);
+
+	// 上書き：テキストのタイプに読み込む。色はテキストのまま
+	const int text = IndexOf(u"テキスト");
+	ASSERT_LT(0, text);
+	const auto textColor = Config(text).m_ColorInfoArr[COLORIDX_TEXT].m_sColorAttr;
+	choice.addNew = false;
+	choice.colorType = text;
+	imported = ImportTypeSetting(path, text, choice);
+	ASSERT_TRUE(imported.succeeded);
+	EXPECT_EQ(text, imported.index);
+	EXPECT_EQ(u"C/C++", TypeSettings()[text].name);
+	EXPECT_EQ(textColor.m_cTEXT, Config(text).m_ColorInfoArr[COLORIDX_TEXT].m_sColorAttr.m_cTEXT);
+
+	// 形式の違うファイル
+	std::ofstream(m_dir / "bad.ini", std::ios::binary) << "[X]\r\na=1\r\n";
+	info = CheckTypeSettingFile((m_dir / "bad.ini").u16string());
+	EXPECT_FALSE(info.succeeded);
+	EXPECT_NE(Text::npos, info.message.find(u"不正な形式です"));
+}
+
+//! 一覧が変わった：文書のタイプの番号を ID で直す。削除されたタイプはファイル名で決め直す
+TEST_F(MacTypeSettingTest, DocumentsFollowTypeListChange)
+{
+	const int cpp = IndexOf(u"C/C++");
+	const int copied = CopyTypeSetting(cpp);
+	ASSERT_TRUE(SetCommonSetting(Section(copied), u"szTypeExts", u"zzq"));
+	auto doc = Open("a.zzq", "x\n");
+	ASSERT_EQ(copied, doc->GetFileInfo().typeIndex);
+	ASSERT_EQ(copied - 1, MoveTypeSetting(copied, true));
+	EXPECT_FALSE(doc->ApplyTypeListChange());
+	EXPECT_EQ(copied - 1, doc->GetFileInfo().typeIndex);
+	ASSERT_TRUE(DeleteTypeSetting(copied - 1));
+	EXPECT_TRUE(doc->ApplyTypeListChange());
+	EXPECT_EQ(0, doc->GetFileInfo().typeIndex);
+}
+
+//! 一時適用（F_CHANGETYPE）：設定が変わってもファイル名で戻さない
+TEST_F(MacTypeSettingTest, TemporaryTypeChange)
+{
+	const int cpp = IndexOf(u"C/C++");
+	auto doc = Open("b.txt", "x\n");
+	const int text = doc->GetFileInfo().typeIndex;
+	ASSERT_TRUE(doc->ChangeTypeTemporarily(cpp));
+	EXPECT_EQ(cpp, doc->GetFileInfo().typeIndex);
+	EXPECT_EQ(u"C/C++", doc->GetFileInfo().typeName);
+	ASSERT_TRUE(SetCommonSetting(Section(cpp), u"nLineSpace", u"6"));
+	EXPECT_TRUE(doc->ApplyTypeSettingChange(cpp));
+	EXPECT_EQ(cpp, doc->GetFileInfo().typeIndex) << "一時適用のまま";
+	EXPECT_EQ(6, doc->GetViewSettings().lineSpacing);
+	// ファイル名のタイプ（テキスト）が変わったときも読み直すが、タイプは一時適用のまま（原版 PM_CHANGESETTING_TYPE の条件）
+	EXPECT_TRUE(doc->ApplyTypeSettingChange(text));
+	EXPECT_EQ(cpp, doc->GetFileInfo().typeIndex);
 }

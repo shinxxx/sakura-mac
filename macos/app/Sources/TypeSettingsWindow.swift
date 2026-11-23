@@ -32,6 +32,8 @@ final class TypeSettingsWindowController: PropSheetWindowController {
 
     /// OK で設定が変わった（userInfo の "index" は変わったタイプの番号）
     static let didChangeNotification = Notification.Name("SakuraTypeSettingsDidChange")
+    /// タイプ別設定一覧で一覧（順序・数）が変わった
+    static let listDidChangeNotification = Notification.Name("SakuraTypeSettingsListDidChange")
 
     /// 设置的是第几个类型（sakura.ini 的 Types(N) 的 N）
     let typeIndex: Int
@@ -88,5 +90,21 @@ extension EditorTextView {
     @objc func showTypeSettings(_ sender: Any?) {
         let code = Self.commandCode(of: sender) ?? 0
         TypeSettingsWindowController.show(typeIndex: document.typeIndex, page: TypeSettingsWindowController.pageOfCommand[code])
+    }
+
+    /// 設定 > タイプ別設定一覧（F_TYPE_LIST。原版 Command_TYPE_LIST）：選んだタイプの設定を開くか、この文書に一時適用する。
+    /// タイプ別設定の窓口が開いているときは、そちらを前に出す（一覧を変えると番号がずれるため）
+    @objc func showTypeList(_ sender: Any?) {
+        if let shared = TypeSettingsWindowController.shared {
+            shared.showWindow(nil)
+            return
+        }
+        guard let dialog = TypeListDialog(selectedIndex: document.typeIndex, enableTempChange: true) else { return }
+        guard TypeSettingsPages.runTypeListDialog(dialog, window), let result = dialog.result else { return }
+        if result.temporary {
+            if document.changeTypeTemporarily(result.index) { typeSettingsReloaded() }
+        } else {
+            TypeSettingsWindowController.show(typeIndex: result.index)
+        }
     }
 }

@@ -10,7 +10,7 @@ import EditorBridge
 /// 值是 sakura.ini 的「节/项目」（原版 CShareData_IO 的名字）。GetData 里的范围限制也照原版。
 /// 这一步移植的页：全般、ウィンドウ（位置と大きさの設定 も）、タブバー、ステータスバー、編集、ファイル、
 /// ファイル名表示（置換リスト も）、バックアップ、書式、検索、支援（タブバー・支援 的フォント も）。
-/// 以后的步骤：メインメニュー・ツールバー・キー割り当て・カスタムメニュー（第 41 步）、強調キーワード（第 40 步）、
+/// 強調キーワード は第 40 步（KeywordSettingsPage.swift）。以后的步骤：メインメニュー・ツールバー・キー割り当て・カスタムメニュー（第 41 步）、
 /// マクロ（第 45 步）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
 protocol CommonSettingsPageLogic {
     /// 数值框的范围（原版 SetUpDownRange）
@@ -55,6 +55,7 @@ enum CommonSettingsPages {
         case "IDD_PROP_FORMAT": return FormatPage()
         case "IDD_PROP_GREP": return GrepPage()
         case "IDD_PROP_HELPER": return HelperPage()
+        case "IDD_PROP_KEYWORD": return KeywordSettingsPage()	// 第 40 步
         default: return nil
         }
     }
@@ -68,6 +69,21 @@ enum CommonSettingsPages {
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "共通設定的确认"))
         return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// 文字の入力（原版 CDlgInput1：題名、説明、最大文字数、初期値）。测试可以换。キャンセルは nil
+    static var input: (_ title: String, _ message: String, _ maxLength: Int, _ initial: String) -> String? = { title, message, maxLength, initial in
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "共通設定的确认"))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = initial
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return String(field.stringValue.prefix(maxLength))
     }
 
     /// 通知（原版 InfoMessage）。测试可以换

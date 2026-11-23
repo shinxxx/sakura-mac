@@ -29,6 +29,8 @@ DIALOGS = [
 TYPE_DIALOGS = [
     "IDD_SAMECOLOR",				# カラー > 文字色統一・背景色統一（原版 CDlgSameColor）
     "IDD_DIALOG_KEYWORD_SELECT",	# カラー > 強調キーワード 2～10（原版 CDlgKeywordSelect）
+    "IDD_TYPELIST",				# 設定 > タイプ別設定一覧（原版 CDlgTypeList）
+    "IDD_TYPE_ASCERTAIN",			# タイプ別設定一覧 > インポート の確認（原版 CDlgTypeAscertain）
 ]
 
 

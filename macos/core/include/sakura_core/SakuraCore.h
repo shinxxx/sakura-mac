@@ -169,6 +169,114 @@ struct TypeSettingFileResult {
 TypeSettingFileResult ImportTypeSettingFile(TypeSettingFile kind, std::int32_t typeIndex,
 	const std::vector<std::pair<Text, Text>>& pending, const Text& path);
 
+// ----- タイプ別設定一覧（第 40 步。原版 CDlgTypeList）-----
+//! 类型的最大个数（MAX_TYPES）
+std::int32_t MaxTypeSettings();
+//! 追加：在最后加一个「基本」的复制（名字是「設定N」，没有拡張子）。返回编号，不能加时 -1
+std::int32_t AddTypeSetting();
+//! 複製：在最后加这个类型的复制（名字后面的数字加 1，与原版相同）。返回编号，不能加时 -1
+std::int32_t CopyTypeSetting(std::int32_t index);
+//! 削除（「基本」不能删）
+bool DeleteTypeSetting(std::int32_t index);
+//! ↑・↓：与上・下一个交换（「基本」不动）。返回新的编号，不能动时 -1
+std::int32_t MoveTypeSetting(std::int32_t index, bool up);
+//! 初期化：「基本」回到内置的设置，别的类型换成「基本」的复制（名字「設定N」、没有拡張子）。返回新的名字，失败时空
+Text InitializeTypeSetting(std::int32_t index);
+
+//! タイプ別設定的文件（*.ini）的内容（原版 CImpExpType::ImportAscertain 读的部分）
+struct TypeSettingFileInfo {
+	bool succeeded = false;
+	Text message;				//!< 读不了时的原因
+	Text typeName;				//!< 文件里的設定の名前
+	Text version;				//!< 写出这个文件的サクラエディタ的版本
+	std::int32_t structureVersion = 0;
+	bool versionDiffers = false;	//!< 设置的结构版本与这个 App 不同（原版要确认）
+	std::vector<Text> colorFiles;	//!< 同一个文件夹里的色設定文件（*.col，确认对话框的「色選択」）
+};
+TypeSettingFileInfo CheckTypeSettingFile(const Text& path);
+
+//! インポート確認（原版 CDlgTypeAscertain）的选择
+struct TypeSettingImportChoice {
+	bool addNew = true;			//!< 新規追加（false 时换掉选着的类型）
+	std::int32_t colorType = -1;	//!< 色：-1 文件里的、0 以上是那个类型的色
+	Text colorFile;				//!< 色：同一个文件夹里的色設定文件（不是空时优先）
+};
+
+//! インポート的结果
+struct TypeSettingImportResult {
+	bool succeeded = false;
+	Text message;				//!< 原版的消息（成功时也有：读入的文件的一览）
+	std::int32_t index = -1;	//!< 读入的类型的编号
+	bool added = false;
+};
+
+/*!
+	从文件读入タイプ別設定（原版 CDlgTypeList::Import + CImpExpType::Import）。index 是选着的类型。
+	文件里的強調キーワード（*.kwd）也读入共通設定。
+*/
+TypeSettingImportResult ImportTypeSetting(const Text& path, std::int32_t index, const TypeSettingImportChoice& choice);
+//! 写出这个类型（*.ini，用到的強調キーワード也写成同一个文件夹的 *.kwd）
+TypeSettingFileResult ExportTypeSetting(std::int32_t index, const Text& path);
+
+/*!
+	共通設定 > 強調キーワード 的编辑（第 40 步。原版 CPropKeyword 在 CommonSetting 的复制上编辑）。
+	Create 时复制核心库现在的强调关键字，编辑只改这个复制；OK 时把 IniValues() 的值写进 sakura.ini 的 [KeyWords] 节
+	（SetCommonSettings(u"KeyWords", …)），与原版读入 sakura.ini 时相同地换掉。
+*/
+class KeywordSetEditor {
+public:
+	static std::unique_ptr<KeywordSetEditor> Create();
+	~KeywordSetEditor();
+	KeywordSetEditor(const KeywordSetEditor&) = delete;
+	KeywordSetEditor& operator=(const KeywordSetEditor&) = delete;
+
+	std::int32_t SetCount() const;
+	Text SetName(std::int32_t set) const;
+	bool IsCaseSensitive(std::int32_t set) const;
+	//! 选着的セット（原版 m_nCurrentKeyWordSetIdx：别的窗口的设置画面也从这个セット开始）。没有セット时 -1
+	std::int32_t CurrentSet() const;
+	void SetCurrentSet(std::int32_t set);
+
+	//! 一个关键字：编号（Update・Delete 用）和文字
+	struct Keyword {
+		std::int32_t index = 0;
+		Text text;
+	};
+	//! 这个セット的关键字（按文字排好的顺序，原版的列表 LVS_SORTASCENDING）
+	std::vector<Keyword> Keywords(std::int32_t set) const;
+	//! 还能登录几个（原版 DispKeywordCount 的「空き」）
+	std::int32_t FreeCount(std::int32_t set) const;
+	//! 还能再加一个吗（原版 CanAddKeyWord）
+	bool CanAddKeyword(std::int32_t set) const;
+
+	//! セット追加（原版 AddKeyWordSet：区分大小写是 false）。セット已经有 MAX_SETNUM 个时 false
+	bool AddSet(const Text& name);
+	//! セット削除。使用这个セット的タイプ别设置的编号由界面层调整（原版 CPropKeyword 的 m_Types_nKeyWordSetIdx）
+	bool DeleteSet(std::int32_t set);
+	void RenameSet(std::int32_t set, const Text& name);
+	void SetCaseSensitive(std::int32_t set, bool on);
+
+	//! 关键字的追加：0 成功、1 セット番号エラー、2 已满、3 空的关键字、4 重复（与原版 AddKeyWord 相同）
+	std::int32_t AddKeyword(std::int32_t set, const Text& keyword);
+	//! 关键字的编辑（重复的、空的不改）。改了时 true
+	bool UpdateKeyword(std::int32_t set, std::int32_t index, const Text& keyword);
+	void DeleteKeyword(std::int32_t set, std::int32_t index);
+	//! 整理：删掉现在的设置下不能作为强调关键字显示的关键字（重复等，原版 CleanKeyWords）。返回删掉的个数
+	std::int32_t Clean(std::int32_t set);
+
+	//! 从文件读入关键字（*.kwd，原版 CImpExpKeyWord）。成功时 true，message 是原版的消息
+	bool Import(std::int32_t set, const Text& path, Text& message);
+	bool Export(std::int32_t set, const Text& path, Text& message);
+
+	//! sakura.ini 的 [KeyWords] 节的值（项目, 值）。セット减少了时，没有了的项目是空字符串
+	std::vector<std::pair<Text, Text>> IniValues() const;
+
+private:
+	KeywordSetEditor();
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
+};
+
 /*!
 	正規表現キーワード的检查（タイプ別設定 > 正規表現キーワード 的登录时，原版 CPropTypesRegex::CheckKeywordList）。
 	hasDelimiters：用「/…/k」「m#…#k」等围起来了（原版 CRegexKeyword::RegexKeyCheckSyntax）。
@@ -1138,6 +1246,18 @@ public:
 		重新读了时 true。
 	*/
 	bool ApplyTypeSettingChange(std::int32_t typeIndex);
+
+	/*!
+		タイプ別設定一覧で类型的顺序・个数变了（第 40 步。原版 PM_CHANGESETTING_TYPE2、PM_CHANGESETTING_ALL）：
+		按 ID 找这个文档的类型的新编号。类型被删了时按文件名重新决定类型、重新排版，返回 true
+	*/
+	bool ApplyTypeListChange();
+
+	/*!
+		タイプ別設定一覧 的「一時適用」（原版 F_CHANGETYPE）：这个文档暂时用第 typeIndex 个类型，
+		之后改了设置也不按文件名换回去（原版 LockDocumentType）。重新排版
+	*/
+	bool ChangeTypeTemporarily(std::int32_t typeIndex);
 
 	//! 排版行数。空文档是 0 行（与原版 CLayoutMgr 相同）
 	std::int32_t LayoutLineCount() const;
