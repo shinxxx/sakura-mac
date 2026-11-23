@@ -444,7 +444,7 @@ final class SakuraMacUITests: XCTestCase {
         key("z", .command)
     }
 
-    /// タイプ別設定 > カラー（第 40 步第 2 个 PR）：色指定リストの行を選び「太字」を切り替えて OK → 再び開くと切り替わっている。
+    /// タイプ別設定 > カラー（第 40 步第 2 个 PR）：色指定リストの「コメント」を選び「太字」を切り替えて OK → 再び開くと切り替わっている。
     /// 正規表現キーワード：キーワードを追加すると一覧に出る（キャンセルで戻す）
     func testTypeSettingsColorAndRegex() {
         let window = app.windows["TypeSettings"]
@@ -459,8 +459,11 @@ final class SakuraMacUITests: XCTestCase {
         window.staticTexts["TypeSettingsPage_カラー"].click()
         let table = window.tables["IDC_LIST_COLORS_table"]
         XCTAssertTrue(table.waitForExistence(timeout: 2), "色指定リスト")
-        table.tableRows.element(boundBy: 1).click()	// 2 行目（ルーラー）
+        let comment = table.staticTexts["コメント"]	// 太字にできる色（テキスト・ルーラー等はできない）
+        XCTAssertTrue(comment.waitForExistence(timeout: 2))
+        comment.click()
         let bold = window.checkBoxes["IDC_CHECK_BOLD"]
+        XCTAssertTrue(bold.isEnabled, "コメントは太字にできる")
         let before = bold.value as? Int ?? -1
         bold.click()
         window.buttons["TypeSettingsOK"].click()
@@ -468,7 +471,7 @@ final class SakuraMacUITests: XCTestCase {
 
         openTypeSettings()
         XCTAssertTrue(table.waitForExistence(timeout: 2), "上次的页（カラー）")
-        table.tableRows.element(boundBy: 1).click()
+        comment.click()
         XCTAssertEqual(bold.value as? Int, before == 1 ? 0 : 1, "OK した太字")
         bold.click()	// 元に戻す
 
