@@ -91,9 +91,19 @@ INI_OVERRIDES = {
     "IDC_BUTTON_EXPORT": "KeyWords/szKW[nn]（*.kwd）", "IDOK": "（タイプ別設定から開いたとき）", "IDCANCEL": "（同上）",
 }
 
+# 同じ ID が別のページにもある控件（インポート・エクスポート等）：ページごとの sakura.ini の項目（第 41 步）
+PAGE_INI_OVERRIDES = {
+    ("キー割り当て", "IDC_COMBO_FUNCKIND"): "", ("キー割り当て", "IDC_LIST_FUNC"): "",
+    ("キー割り当て", "IDC_LIST_KEY"): "KeyBind/KeyBind[nnn]", ("キー割り当て", "IDC_BUTTON_ASSIGN"): "KeyBind/KeyBind[nnn]",
+    ("キー割り当て", "IDC_BUTTON_RELEASE"): "KeyBind/KeyBind[nnn]",
+    ("キー割り当て", "IDC_BUTTON_IMPORT"): "KeyBind/KeyBind[nnn]（*.key）", ("キー割り当て", "IDC_BUTTON_EXPORT"): "（*.key）",
+    ("メインメニュー", "IDC_BUTTON_IMPORT"): "MainMenu/…（*.mnu）", ("メインメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
+    ("カスタムメニュー", "IDC_BUTTON_IMPORT"): "CustMenu/…（*.mnu）", ("カスタムメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
+}
+
 # Mac 版的处理（第 39 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
 LATER_PAGES = {
-    "メインメニュー": "第 41 步", "ツールバー": "第 41 步", "キー割り当て": "第 41 步", "カスタムメニュー": "第 41 步",
+    "メインメニュー": "第 41 步", "ツールバー": "第 41 步", "カスタムメニュー": "第 41 步",
     "マクロ": "第 45 步", "プラグイン": "×（DLL のプラグインは Mac 版では使えない）",
 }
 MAC_DECISIONS = {
@@ -219,7 +229,10 @@ def main():
             members = members_for(source, cid)
             # 复选框、按钮等用自己的文字；输入框、列表用前面的说明文字
             caption = text if text else label
-            ini = INI_OVERRIDES.get(cid) or " ".join(keys[m] for m in members if m in keys)
+            if (page, cid) in PAGE_INI_OVERRIDES:
+                ini = PAGE_INI_OVERRIDES[(page, cid)]
+            else:
+                ini = INI_OVERRIDES.get(cid) or " ".join(keys[m] for m in members if m in keys)
             rows.append([page, cid, kind, caption.replace("&", "").replace("\\n", ""), " ".join(members), ini,
                          mac_decision(page, cid, kind)])
     out = io.StringIO()

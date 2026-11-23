@@ -945,7 +945,7 @@ bool CImpExpKeybind::Import( const sakura::wstring& sFileName, sakura::wstring& 
 	bool	bVer4;			// 新バージョン（多言語対応）のファイル
 	bool	bVer3;			// 新バージョンのファイル
 	bool	bVer2;
-	WCHAR szHeader[256];
+	WCHAR szHeader[256] = {};	// 項目が無いときに前の値が残らないように（移植計画のステップ 41）
 	bVer4 = false;
 	bVer3 = false;
 	bVer2 = false;

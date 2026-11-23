@@ -535,6 +535,35 @@ final class SakuraMacUITests: XCTestCase {
         window.buttons["CommonSettingsCancel"].click()
     }
 
+    // MARK: - 第 41 步：共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー
+
+    /// 共通設定 > キー割り当て：種別「選択系」の「すべて選択」を F12 に割り当てて OK → 編集画面で F12 が すべて選択
+    func testKeyBindPage() {
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        window.staticTexts["CommonSettingsPage_キー割り当て"].click()
+        let combo = window.popUpButtons["IDC_COMBO_FUNCKIND"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 2), "キー割り当て のページ")
+        combo.click()
+        app.menuItems["選択系"].click()
+        window.tables["IDC_LIST_FUNC_table"].staticTexts["すべて選択"].click()
+        window.tables["IDC_LIST_KEY_table"].staticTexts["F12"].click()
+        let keysFunc = window.descendants(matching: .any)["IDC_EDIT_KEYSFUNC"].firstMatch	// 読み取り専用の欄は staticText になることがある
+        XCTAssertNotEqual(keysFunc.value as? String, "すべて選択")
+        window.buttons["IDC_BUTTON_ASSIGN"].click()
+        XCTAssertEqual(keysFunc.value as? String, "すべて選択", "割当")
+        XCTAssertTrue(window.tables["IDC_LIST_ASSIGNEDKEYS_table"].staticTexts["F12"].exists, "機能に割り当てられているキー")
+        window.buttons["CommonSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+
+        editor.click()
+        editor.typeText("abc")
+        editor.typeKey(.F12, modifierFlags: [])
+        editor.typeText("x")
+        XCTAssertEqual(text, "x", "F12 で すべて選択 して x に置き換わる")
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

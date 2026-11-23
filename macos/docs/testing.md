@@ -80,3 +80,8 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
   `testOKAppliesToCoreAndOpenEditors` 用真的核心库，结束时改回去。
 - 文件的选择、编辑画面的字体、颜色的选择、文字色統一・強調キーワード 的对话框、消息换成测试用的（`TypeSettingsPages.chooseFile`、`editorFont`、
   `chooseColor`、`runSameColorDialog`、`runKeywordSelectDialog`、`chooseImportFile`、`chooseExportFile`、`showMessage`），不出模态窗口。详见 [phase3-type-settings.md](phase3-type-settings.md)。
+
+## キー割り当て・メニュー的设置（第 41 步）
+
+- App 的 `KeyBindTests` 与共通設定相同，大多用假的设置（节是 `KeyBind`）；`testOKAppliesToCore` 用真的核心库，结束时改回去。
+- 文件的选择、消息换成测试用的（`TypeSettingsPages.chooseImportFile`、`chooseExportFile`、`showMessage`）。详见 [phase3-command-settings.md](phase3-command-settings.md)。

@@ -17,8 +17,11 @@
 
 #include "StdAfx.h"
 #include "func/CFuncLookup.h"
+#if defined(_WIN32)	// Mac 版：DLL のプラグインは無い（偏離項目 9）。コンボボックス・リストボックスへの設定は画面の側（移植計画のステップ 41）
 #include "plugin/CJackManager.h"
 #include "apiwrap/StdControl.h"
+#endif
+#include "env/CommonSetting.h"
 #include "CSelectLang.h"
 
 //	オフセット値
@@ -61,7 +64,9 @@ EFunctionCode CFuncLookup::Pos2FuncCode( int category, int position, bool bGetUn
 	}
 	else if( category == nsFuncCode::nFuncKindNum + LUOFFSET_PLUGIN ){
 		//	プラグイン
+#if defined(_WIN32)
 		return CJackManager::getInstance()->GetCommandCode( position );
+#endif
 	}
 	return F_DISABLE;
 }
@@ -133,11 +138,13 @@ bool CFuncLookup::Funccode2Name( int funccode, WCHAR* ptr, size_t size ) const
 			return true;	// 定義されたコマンド
 		}
 	}
+#if defined(_WIN32)
 	else if( F_PLUGCOMMAND_FIRST <= funccode && funccode < F_PLUGCOMMAND_LAST ){
 		if( CJackManager::getInstance()->GetCommandName( funccode, ptr, bufsize ) > 0 ){
 			return true;	// プラグインコマンド
 		}
 	}
+#endif
 
 	// 未定義コマンド(または現在のプロセスではロードされていないプラグインなど)
 	if( ( pszStr = LS( funccode ) )[0] != LCHAR('\0') ){
@@ -185,6 +192,7 @@ const WCHAR* CFuncLookup::Category2Name( int category ) const
 	return nullptr;
 }
 
+#if defined(_WIN32)
 /*!	@brief ComboBoxに利用可能な機能分類一覧を登録する
 
 	@param hComboBox [in(out)] データを設定するコンボボックス
@@ -234,6 +242,8 @@ void CFuncLookup::SetListItem( HWND hListBox, int category ) const
 	}
 }
 
+#endif
+
 /*!
 	指定分類中の機能数を取得する．
 	
@@ -257,7 +267,11 @@ int CFuncLookup::GetItemCount(int category) const
 	}
 	else if( category == nsFuncCode::nFuncKindNum + LUOFFSET_PLUGIN ){
 		//	プラグインコマンド
+#if defined(_WIN32)
 		return CJackManager::getInstance()->GetCommandCount();
+#else
+		return 0;
+#endif
 	}
 	return 0;
 }

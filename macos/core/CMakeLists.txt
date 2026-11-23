@@ -161,6 +161,8 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/view/colors/CColor_KeywordSet.cpp
   sakura_core/view/colors/CColor_RegexKeyword.cpp
   sakura_core/func/CKeyBind.cpp           # 按键分配的默认值和查找（Windows 的加速键表不用）
+  sakura_core/func/Funccode.cpp           # 第 41 步：功能的分类和一览（共通設定的「種別」「機能」）。功能的可用・打勾在编辑画面
+  sakura_core/func/CFuncLookup.cpp        # 第 41 步：功能的名字和分类（DLL 插件没有）
   sakura_core/print/CPrint.cpp            # 只编译打印设置的默认值和用纸表，打印本身在之后的打印步骤
   sakura_core/typeprop/CImpExpManager.cpp # 第 40 步：设置的导入・导出（文件格式与原版相同）。选文件、消息、确认对话框由界面层做
 )

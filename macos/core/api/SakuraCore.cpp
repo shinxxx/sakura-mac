@@ -47,6 +47,8 @@
 #include "env/CDocTypeManager.h"
 #include "doc/CDocTypeSetting.h"
 #include "typeprop/CImpExpManager.h"
+#include "func/CFuncLookup.h"
+#include "func/CKeyBind.h"
 #include "mem/CNativeW.h"
 #include "util/string_ex2.h"
 #include "types/CType.h"
@@ -340,6 +342,9 @@ public:
 			}
 		} else if (section == LTEXT("KeyWords")) {
 			ShareData_IO_KeyWords(profile);	// 第 40 步：共通設定 > 強調キーワード
+		} else if (section == LTEXT("KeyBind")) {
+			// 第 41 步：共通設定 > キー割り当て
+			::ShareData_IO_KeyBind(profile, GetDllShareData().m_Common.m_sKeyBind, false);
 		} else if (section == LTEXT("Common")) {
 			ShareData_IO_Common(profile);
 		} else if (section == LTEXT("Nickname")) {
@@ -993,6 +998,146 @@ std::vector<std::pair<Text, Text>> KeywordSetEditor::IniValues() const
 		sakura::wstring value;
 		(void)profile.GetProfileData(section, key, value);
 		result.emplace_back(Text(key), Text(value));
+	}
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// 共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー（第 41 步）
+// ---------------------------------------------------------------------------
+
+struct CommandSettingsEditor::Impl {
+	std::unique_ptr<CommonSetting> common;	//!< 原版 CPropCommon::m_Common と同じ複製
+	CFuncLookup lookup;						//!< 原版 CPropCommon::m_cLookup（この複製を見る）
+	CommonSetting_KeyBind& KeyBind() { return common->m_sKeyBind; }
+	const CommonSetting_KeyBind& KeyBind() const { return common->m_sKeyBind; }
+	bool ValidKey(int key) const { return 0 <= key && key < KeyBind().m_nKeyNameArrNum; }
+};
+
+CommandSettingsEditor::CommandSettingsEditor() : m_impl(std::make_unique<Impl>()) {}
+CommandSettingsEditor::~CommandSettingsEditor() = default;
+
+std::unique_ptr<CommandSettingsEditor> CommandSettingsEditor::Create()
+{
+	if (!IsStarted()) return nullptr;
+	std::unique_ptr<CommandSettingsEditor> editor(new CommandSettingsEditor());
+	auto& impl = *editor->m_impl;
+	impl.common = std::make_unique<CommonSetting>(GetDllShareData().m_Common);
+	impl.lookup.Init(impl.common->m_sMacro.m_MacroTable, impl.common.get());
+	return editor;
+}
+
+std::vector<Text> CommandSettingsEditor::FunctionCategories() const
+{
+	std::vector<Text> result;
+	for (int i = 0; i < m_impl->lookup.GetCategoryCount(); ++i) {
+		const WCHAR* name = m_impl->lookup.Category2Name(i);
+		result.emplace_back(name ? name : LTEXT(""));
+	}
+	return result;
+}
+
+std::vector<FunctionInfo> CommandSettingsEditor::Functions(std::int32_t category) const
+{
+	// 原版 CFuncLookup::SetListItem
+	std::vector<FunctionInfo> result;
+	const int n = m_impl->lookup.GetItemCount(category);
+	for (int i = 0; i < n; ++i) {
+		const EFunctionCode code = m_impl->lookup.Pos2FuncCode(category, i);
+		if (code == F_DISABLE) continue;
+		WCHAR label[256];
+		m_impl->lookup.Pos2FuncName(category, i, label, std::size(label));
+		result.push_back({ static_cast<FunctionCode>(code), Text(label) });
+	}
+	return result;
+}
+
+Text CommandSettingsEditor::FunctionName(FunctionCode code) const
+{
+	WCHAR label[256];
+	m_impl->lookup.Funccode2Name(code, label, std::size(label));
+	return Text(label);
+}
+
+std::int32_t CommandSettingsEditor::KeyCount() const { return m_impl->KeyBind().m_nKeyNameArrNum; }
+
+Text CommandSettingsEditor::KeyName(std::int32_t key) const
+{
+	return m_impl->ValidKey(key) ? Text(m_impl->KeyBind().m_pKeyNameArr[key].m_szKeyName) : Text();
+}
+
+FunctionCode CommandSettingsEditor::KeyFunction(std::int32_t key, std::uint8_t modifiers) const
+{
+	if (!m_impl->ValidKey(key) || 8 <= modifiers) return 0;
+	return m_impl->KeyBind().m_pKeyNameArr[key].m_nFuncCodeArr[modifiers];
+}
+
+void CommandSettingsEditor::SetKeyFunction(std::int32_t key, std::uint8_t modifiers, FunctionCode code)
+{
+	if (!m_impl->ValidKey(key) || 8 <= modifiers) return;
+	m_impl->KeyBind().m_pKeyNameArr[key].m_nFuncCodeArr[modifiers] = static_cast<EFunctionCode>(code);
+}
+
+std::vector<Text> CommandSettingsEditor::AssignedKeys(FunctionCode code) const
+{
+	auto& keyBind = m_impl->KeyBind();
+	CNativeW** list = nullptr;
+	const int n = CKeyBind::GetKeyStrList(nullptr, keyBind.m_nKeyNameArrNum, keyBind.m_pKeyNameArr,
+		&list, code, FALSE);	// 原版：デフォルト機能は取得しない
+	std::vector<Text> result;
+	for (int i = 0; i < n; ++i) {
+		result.emplace_back(list[i]->GetStringPtr());
+		delete list[i];
+	}
+	delete[] list;
+	return result;
+}
+
+namespace {
+
+bool RunImpExp(CImpExpManager& manager, bool import, const Text& path, Text& message)
+{
+	sakura::wstring msg;
+	bool ok = false;
+	try {
+		ok = import ? manager.Import(sakura::wstring(path), msg) : manager.Export(sakura::wstring(path), msg);
+	} catch (...) {
+		ok = false;
+		msg = (import ? LS(STR_IMPEXP_ERR_FILEOPEN) : LS(STR_IMPEXP_ERR_EXPORT)) + sakura::wstring(path);
+	}
+	message = Text(msg);
+	return ok;
+}
+
+} // namespace
+
+bool CommandSettingsEditor::ImportKeyBind(const Text& path, Text& message)
+{
+	CImpExpKeybind manager(*m_impl->common);
+	return RunImpExp(manager, true, path, message);
+}
+
+bool CommandSettingsEditor::ExportKeyBind(const Text& path, Text& message)
+{
+	CImpExpKeybind manager(*m_impl->common);
+	return RunImpExp(manager, false, path, message);
+}
+
+std::vector<std::pair<Text, Text>> CommandSettingsEditor::IniValues(const Text& section) const
+{
+	std::vector<std::pair<Text, Text>> result;
+	CDataProfile profile;
+	profile.SetWritingMode();
+	std::vector<sakura::wstring> keys;
+	if (section == LTEXT("KeyBind")) {
+		ShareData_IO_KeyBind(profile, m_impl->common->m_sKeyBind, false);	// 原版 sakura.ini の書き込みと同じ
+		for (int i = 0; i < m_impl->KeyBind().m_nKeyNameArrNum; ++i) keys.push_back(strprintf(LTEXT("KeyBind[%03d]"), i));
+	} else {
+		return result;
+	}
+	for (const auto& key : keys) {
+		sakura::wstring value;
+		if (profile.GetProfileData(section, key, value)) result.emplace_back(Text(key), Text(value));
 	}
 	return result;
 }

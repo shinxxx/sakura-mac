@@ -58,4 +58,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-perf.cpp"         # 第 36 步：大文件、超长行的性能
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-common-settings.cpp"  # 第 39 步：共通設定的读写
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-type-settings.cpp"    # 第 40 步：タイプ別設定的读写、打开着的文档跟着变
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-command-settings.cpp" # 第 41 步：キー割り当て・メインメニュー・ツールバー・カスタムメニュー
 )

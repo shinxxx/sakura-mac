@@ -210,7 +210,7 @@ final class CommonSettingsTests: XCTestCase {
         XCTAssertTrue(helper.isEnabled("IDC_CHECK_m_bHokanKey_TAB"))
 
         // 以后的步骤的页：全部变灰，下边有说明
-        let (keyController, keybind) = try open("キー割り当て")
+        let (keyController, keybind) = try open("マクロ")
         defer { keyController.cancel(nil) }
         for control in keybind.definition.controls where control.id != "IDC_STATIC" && control.kind != "icon" && control.kind != "group" {
             XCTAssertFalse(keybind.isEnabled(control.id), control.id)

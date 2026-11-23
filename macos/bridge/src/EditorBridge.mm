@@ -993,6 +993,89 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 
 @end
 
+@implementation ECCommandSettingsEditor {
+	std::unique_ptr<core::CommandSettingsEditor> _editor;
+}
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		_editor = core::CommandSettingsEditor::Create();
+		if (!_editor) return nil;
+	}
+	return self;
+}
+
+- (NSArray<NSString *> *)functionCategories
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& name : _editor->FunctionCategories()) [result addObject:ToNSString(name)];
+	return result;
+}
+
+- (NSArray<NSNumber *> *)functionCodesInCategory:(NSInteger)category
+{
+	NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+	for (const auto& f : _editor->Functions(ClampInt32(category))) [result addObject:@(f.code)];
+	return result;
+}
+
+- (NSArray<NSString *> *)functionNamesInCategory:(NSInteger)category
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& f : _editor->Functions(ClampInt32(category))) [result addObject:ToNSString(f.name)];
+	return result;
+}
+
+- (NSString *)nameOfFunction:(NSInteger)code { return ToNSString(_editor->FunctionName(ClampInt32(code))); }
+- (NSInteger)keyCount { return _editor->KeyCount(); }
+- (NSString *)nameOfKey:(NSInteger)key { return ToNSString(_editor->KeyName(ClampInt32(key))); }
+
+- (NSInteger)functionOfKey:(NSInteger)key modifiers:(NSInteger)modifiers
+{
+	if (modifiers < 0 || 8 <= modifiers) return 0;
+	return _editor->KeyFunction(ClampInt32(key), static_cast<std::uint8_t>(modifiers));
+}
+
+- (void)setFunction:(NSInteger)code ofKey:(NSInteger)key modifiers:(NSInteger)modifiers
+{
+	if (modifiers < 0 || 8 <= modifiers) return;
+	_editor->SetKeyFunction(ClampInt32(key), static_cast<std::uint8_t>(modifiers), ClampInt32(code));
+}
+
+- (NSArray<NSString *> *)keysAssignedToFunction:(NSInteger)code
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& name : _editor->AssignedKeys(ClampInt32(code))) [result addObject:ToNSString(name)];
+	return result;
+}
+
+- (BOOL)importKeyBindFromPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ImportKeyBind(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (BOOL)exportKeyBindToPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ExportKeyBind(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section
+{
+	NSMutableDictionary<NSString *, NSString *> *result = [NSMutableDictionary dictionary];
+	for (const auto& [key, value] : _editor->IniValues(ToText(section))) result[ToNSString(key)] = ToNSString(value);
+	return result;
+}
+
+@end
+
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
 }

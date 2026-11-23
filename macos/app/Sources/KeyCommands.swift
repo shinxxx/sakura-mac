@@ -222,7 +222,7 @@ enum KeyCommands {
         return candidates.first { $0.modifiers.contains(.ctrl) } ?? candidates.first
     }
 
-    /// 按键表在两种方案之间不变，只读一次（设定画面的キー割り当て在阶段 3 移植，到时候改成变更时重新读）
+    /// 按键表在两种方案之间不变，只读一次（共通設定 > キー割り当て 改了时 reloadBindings，第 41 步）
     private static var cachedBindings: [EditorKeyBinding]?
     private static func bindings(scheme: KeyScheme) -> [EditorKeyBinding] {
         if let cachedBindings { return cachedBindings }
@@ -231,7 +231,7 @@ enum KeyCommands {
         return list
     }
 
-    /// 清掉读过的按键表（单元测试用）
+    /// 清掉读过的按键表（共通設定 > キー割り当て 的 OK 以后、单元测试）
     static func reloadBindings() {
         cachedBindings = nil
     }
