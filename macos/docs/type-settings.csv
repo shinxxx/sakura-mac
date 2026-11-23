@@ -33,41 +33,41 @@
 スクリーン,IDC_EDIT_KINSOKUHEAD,EDITTEXT,行頭禁則（文字）,m_szKinsokuHead,szKinsokuHead,○
 スクリーン,IDC_CHECK_KINSOKUTAIL,AUTOCHECKBOX,行末禁則(]),m_bKinsokuTail,bKinsokuTail,○
 スクリーン,IDC_EDIT_KINSOKUTAIL,EDITTEXT,行末禁則（文字）,m_szKinsokuTail,szKinsokuTail,○
-カラー,IDC_LIST_COLORS,LISTBOX,色指定(L),,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_DISP,AUTOCHECKBOX,色分け/表示(D),m_ColorInfoArr,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_BOLD,AUTOCHECKBOX,太字(B),m_ColorInfoArr,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_UNDERLINE,AUTOCHECKBOX,下線(U),m_ColorInfoArr,,第 40 步（第 2 个 PR）
-カラー,IDC_STATIC_MOZI,LTEXT,文字色(C),,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_TEXTCOLOR,PUSHBUTTON,C,m_ColorInfoArr,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_SAMETEXTCOLOR,PUSHBUTTON,文字色統一(<)...,,,第 40 步（第 2 个 PR）
-カラー,IDC_STATIC_HAIKEI,LTEXT,背景色(K),,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_BACKCOLOR,PUSHBUTTON,K,m_ColorInfoArr,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_SAMEBKCOLOR,PUSHBUTTON,背景色統一(>)...,,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
-カラー,IDC_COMBO_SET,COMBOBOX,強調キーワード1,,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_KEYWORD_SELECT,PUSHBUTTON,2～10...,,,第 40 步（第 2 个 PR）
-カラー,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,共通設定(C)...,,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_BLOCKCOMMENT_FROM,EDITTEXT,ブロック型(F),m_cBlockComments,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_BLOCKCOMMENT_TO,EDITTEXT,～(T),m_cBlockComments,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_BLOCKCOMMENT_FROM2,EDITTEXT,ブロック型(A),m_cBlockComments,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_BLOCKCOMMENT_TO2,EDITTEXT,～(Z),m_cBlockComments,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENT,EDITTEXT,行型(M),,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_LCPOS,AUTOCHECKBOX,桁(P),,,第 40 步（第 2 个 PR）
-カラー,IDC_LABEL_LCPOS,RTEXT,@,,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENTPOS,EDITTEXT,@,,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENT2,EDITTEXT,行型(E),,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_LCPOS2,AUTOCHECKBOX,桁(O),,,第 40 步（第 2 个 PR）
-カラー,IDC_LABEL_LCPOS2,RTEXT,[,,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENTPOS2,EDITTEXT,[,,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENT3,EDITTEXT,行型(G),,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_LCPOS3,AUTOCHECKBOX,桁(J),,,第 40 步（第 2 个 PR）
-カラー,IDC_LABEL_LCPOS3,RTEXT,],,,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_LINECOMMENTPOS3,EDITTEXT,],,,第 40 步（第 2 个 PR）
-カラー,IDC_COMBO_STRINGLITERAL,COMBOBOX,文字列エスケープ(Q),,,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_STRINGLINEONLY,AUTOCHECKBOX,行内のみ(\\),m_bStringLineOnly,bStringLineOnly,第 40 步（第 2 个 PR）
-カラー,IDC_CHECK_STRINGENDLINE,AUTOCHECKBOX,終了文字がない場合行末まで色分け(N),m_bStringEndLine,bStringEndLine,第 40 步（第 2 个 PR）
-カラー,IDC_EDIT_VERTLINE,EDITTEXT,縦線桁指定(3),,,第 40 步（第 2 个 PR）
+カラー,IDC_LIST_COLORS,LISTBOX,色指定,,"C[TXT]～（表示,太字,文字色,背景色,下線）",○
+カラー,IDC_CHECK_DISP,AUTOCHECKBOX,色分け/表示(D),m_ColorInfoArr,C[…]（表示）,○
+カラー,IDC_CHECK_BOLD,AUTOCHECKBOX,太字(B),m_ColorInfoArr,C[…]（太字）,○
+カラー,IDC_CHECK_UNDERLINE,AUTOCHECKBOX,下線(U),m_ColorInfoArr,C[…]（下線）,○
+カラー,IDC_STATIC_MOZI,LTEXT,文字色(C),,,
+カラー,IDC_BUTTON_TEXTCOLOR,PUSHBUTTON,C,m_ColorInfoArr,C[…]（文字色）,○
+カラー,IDC_BUTTON_SAMETEXTCOLOR,PUSHBUTTON,文字色統一(<)...,,C[…]（文字色）,○
+カラー,IDC_STATIC_HAIKEI,LTEXT,背景色(K),,,
+カラー,IDC_BUTTON_BACKCOLOR,PUSHBUTTON,K,m_ColorInfoArr,C[…]（背景色）,○
+カラー,IDC_BUTTON_SAMEBKCOLOR,PUSHBUTTON,背景色統一(>)...,,C[…]（背景色）,○
+カラー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,C[…]（*.col）,○
+カラー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,C[…]（*.col）,○
+カラー,IDC_COMBO_SET,COMBOBOX,強調キーワード1,,nInts（5 番目）,○
+カラー,IDC_BUTTON_KEYWORD_SELECT,PUSHBUTTON,2～10...,,"nInts（5・6 番目）, nKeywordSelect3～10",○
+カラー,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,共通設定(C)...,,共通設定 > 強調キーワード,第 40 步（第 3 个 PR：共通設定の強調キーワード）
+カラー,IDC_EDIT_BLOCKCOMMENT_FROM,EDITTEXT,ブロック型(F),m_cBlockComments,szBlockCommentFrom,○
+カラー,IDC_EDIT_BLOCKCOMMENT_TO,EDITTEXT,～(T),m_cBlockComments,szBlockCommentTo,○
+カラー,IDC_EDIT_BLOCKCOMMENT_FROM2,EDITTEXT,ブロック型(A),m_cBlockComments,szBlockCommentFrom2,○
+カラー,IDC_EDIT_BLOCKCOMMENT_TO2,EDITTEXT,～(Z),m_cBlockComments,szBlockCommentTo2,○
+カラー,IDC_EDIT_LINECOMMENT,EDITTEXT,行型(M),,szLineComment,○
+カラー,IDC_CHECK_LCPOS,AUTOCHECKBOX,桁(P),,nLineCommentColumn,○
+カラー,IDC_LABEL_LCPOS,RTEXT,@,,,
+カラー,IDC_EDIT_LINECOMMENTPOS,EDITTEXT,@,,nLineCommentColumn,○
+カラー,IDC_EDIT_LINECOMMENT2,EDITTEXT,行型(E),,szLineComment2,○
+カラー,IDC_CHECK_LCPOS2,AUTOCHECKBOX,桁(O),,nLineCommentColumn2,○
+カラー,IDC_LABEL_LCPOS2,RTEXT,[,,,
+カラー,IDC_EDIT_LINECOMMENTPOS2,EDITTEXT,[,,nLineCommentColumn2,○
+カラー,IDC_EDIT_LINECOMMENT3,EDITTEXT,行型(G),,szLineComment3,○
+カラー,IDC_CHECK_LCPOS3,AUTOCHECKBOX,桁(J),,nLineCommentColumn3,○
+カラー,IDC_LABEL_LCPOS3,RTEXT,],,,
+カラー,IDC_EDIT_LINECOMMENTPOS3,EDITTEXT,],,nLineCommentColumn3,○
+カラー,IDC_COMBO_STRINGLITERAL,COMBOBOX,文字列エスケープ,,nInts（7 番目）,○
+カラー,IDC_CHECK_STRINGLINEONLY,AUTOCHECKBOX,行内のみ(\\),m_bStringLineOnly,bStringLineOnly,○
+カラー,IDC_CHECK_STRINGENDLINE,AUTOCHECKBOX,終了文字がない場合行末まで色分け(N),m_bStringEndLine,bStringEndLine,○
+カラー,IDC_EDIT_VERTLINE,EDITTEXT,縦線桁指定,,nVertLineIdx1～,○
 ウィンドウ,IDC_COMBO_DEFAULT_EOLTYPE,COMBOBOX,改行コード(E),,eDefaultEoltype,○
 ウィンドウ,IDC_CHECK_DEFAULT_BOM,AUTOCHECKBOX,BOM,m_encoding.m_bDefaultBom,bDefaultBom,○
 ウィンドウ,IDC_COMBO_DEFAULT_CODETYPE,COMBOBOX,文字コード(C),,eDefaultCodetype,○
@@ -111,44 +111,44 @@
 支援,IDC_CHECK_INDENTCPPCMT,AUTOCHECKBOX,コメントを無視する(C),m_bIndentCppCommentIgnore,bIndentCppCommentIgnore,○
 支援,IDC_CHECK_INDENTCPPUNDO,AUTOCHECKBOX,Undoバッファを分ける(U),m_bIndentCppUndoSep,bIndentCppUndoSep,○
 支援,IDC_CHECK_DETECT_INDENTATION_STYLE_ON_FILE_LOAD,AUTOCHECKBOX,ファイル読み込み時にインデントスタイルを検出する(T),m_bDetectIndentationStyleOnFileLoad,bDetectIndentationStyleOnFileLoad,○
-正規表現キーワード,IDC_CHECK_REGEX,AUTOCHECKBOX,正規表現キーワードを使用する(R),m_bUseRegexKeyword,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_LABEL_REGEX_VERSION,RTEXT,BREGONIG.DLL Version,,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_FRAME_REGEX,GROUPBOX,正規表現キーワード(K),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_LIST_REGEX,SysListView32,List5,,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_LABEL_REGEX_KEYWORD,LTEXT,正規表現(N),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_EDIT_REGEX,EDITTEXT,正規表現(N),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_LABEL_REGEX_COLOR,LTEXT,色指定(C),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_COMBO_REGEX_COLOR,COMBOBOX,色指定(C),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_INS,PUSHBUTTON,挿入(S),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_ADD,PUSHBUTTON,追加(A),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_UPD,PUSHBUTTON,更新(E),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_DEL,PUSHBUTTON,削除(D),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_TOP,PUSHBUTTON,先頭(T),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_UP,PUSHBUTTON,上へ(U),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_DOWN,PUSHBUTTON,下へ(G),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_LAST,PUSHBUTTON,最終(B),,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
-正規表現キーワード,IDC_BUTTON_REGEX_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_CHECK_KEYHELP,AUTOCHECKBOX,キーワードヘルプ機能を使う(K),m_bUseKeyWordHelp,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_FRAME_KEYHELP,GROUPBOX,辞書ファイル一覧(L),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_LIST_KEYHELP,SysListView32,List5,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_LABEL_KEYHELP_TITLE,LTEXT,<辞書の説明>,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_LABEL_KEYHELP_ABOUT,LTEXT,辞書ファイルの概要,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_LABEL_KEYHELP_KEYWORD,LTEXT,辞書ファイル,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_EDIT_KEYHELP,EDITTEXT,辞書ファイル,m_KeyHelpArr,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_REF,PUSHBUTTON,...,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_LABEL_KEYHELP_PRIOR,LTEXT,↑優先度(高),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_INS,PUSHBUTTON,挿入(S),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_UPD,PUSHBUTTON,更新(E),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_DEL,PUSHBUTTON,削除(D),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_TOP,PUSHBUTTON,先頭(T),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_UP,PUSHBUTTON,上へ(U),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_DOWN,PUSHBUTTON,下へ(G),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_LAST,PUSHBUTTON,最終(B),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_BUTTON_KEYHELP_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_CHECK_KEYHELP_ALLSEARCH,AUTOCHECKBOX,ヒットした次の辞書も検索(A),m_bUseKeyHelpAllSearch,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_CHECK_KEYHELP_KEYDISP,AUTOCHECKBOX,キーワードも表示する(W),m_bUseKeyHelpKeyDisp,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_CHECK_KEYHELP_PREFIX,AUTOCHECKBOX,選択範囲で前方一致検索(P),m_bUseKeyHelpPrefix,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_STATIC_MENU,LTEXT,右クリックメニュー(R),,,第 40 步（第 2 个 PR）
-キーワードヘルプ,IDC_COMBO_MENU,COMBOBOX,右クリックメニュー(R),m_eKeyHelpRMenuShowType,,第 40 步（第 2 个 PR）
+正規表現キーワード,IDC_CHECK_REGEX,AUTOCHECKBOX,正規表現キーワードを使用する(R),m_bUseRegexKeyword,bUseRegexKeyword,○
+正規表現キーワード,IDC_LABEL_REGEX_VERSION,RTEXT,BREGONIG.DLL Version,,,△（組み込みの正規表現ライブラリを表示）
+正規表現キーワード,IDC_FRAME_REGEX,GROUPBOX,正規表現キーワード(K),,,
+正規表現キーワード,IDC_LIST_REGEX,SysListView32,正規表現キーワード,,"RxKey[000]～（色の名前,キーワード）",○
+正規表現キーワード,IDC_LABEL_REGEX_KEYWORD,LTEXT,正規表現(N),,,
+正規表現キーワード,IDC_EDIT_REGEX,EDITTEXT,正規表現(N),,RxKey[nnn],○
+正規表現キーワード,IDC_LABEL_REGEX_COLOR,LTEXT,色指定(C),,,
+正規表現キーワード,IDC_COMBO_REGEX_COLOR,COMBOBOX,色指定(C),,RxKey[nnn],○
+正規表現キーワード,IDC_BUTTON_REGEX_INS,PUSHBUTTON,挿入(S),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_ADD,PUSHBUTTON,追加(A),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_UPD,PUSHBUTTON,更新(E),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_DEL,PUSHBUTTON,削除(D),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_TOP,PUSHBUTTON,先頭(T),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_UP,PUSHBUTTON,上へ(U),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_DOWN,PUSHBUTTON,下へ(G),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_LAST,PUSHBUTTON,最終(B),,,○
+正規表現キーワード,IDC_BUTTON_REGEX_IMPORT,PUSHBUTTON,インポート(I)...,,RxKey[…]（*.rkw）,○
+正規表現キーワード,IDC_BUTTON_REGEX_EXPORT,PUSHBUTTON,エクスポート(X)...,,RxKey[…]（*.rkw）,○
+キーワードヘルプ,IDC_CHECK_KEYHELP,AUTOCHECKBOX,キーワードヘルプ機能を使う(K),m_bUseKeyWordHelp,bUseKeyWordHelp,○
+キーワードヘルプ,IDC_FRAME_KEYHELP,GROUPBOX,辞書ファイル一覧(L),,,
+キーワードヘルプ,IDC_LIST_KEYHELP,SysListView32,辞書ファイル一覧,,"KDct[00]～（使う,辞書の説明,パス）",○
+キーワードヘルプ,IDC_LABEL_KEYHELP_TITLE,LTEXT,<辞書の説明>,,,
+キーワードヘルプ,IDC_LABEL_KEYHELP_ABOUT,LTEXT,辞書ファイルの概要,,,○
+キーワードヘルプ,IDC_LABEL_KEYHELP_KEYWORD,LTEXT,辞書ファイル,,,
+キーワードヘルプ,IDC_EDIT_KEYHELP,EDITTEXT,辞書ファイル,m_KeyHelpArr,KDct[nn],○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_REF,PUSHBUTTON,...,,,○
+キーワードヘルプ,IDC_LABEL_KEYHELP_PRIOR,LTEXT,↑優先度(高),,,
+キーワードヘルプ,IDC_BUTTON_KEYHELP_INS,PUSHBUTTON,挿入(S),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_UPD,PUSHBUTTON,更新(E),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_DEL,PUSHBUTTON,削除(D),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_TOP,PUSHBUTTON,先頭(T),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_UP,PUSHBUTTON,上へ(U),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_DOWN,PUSHBUTTON,下へ(G),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_LAST,PUSHBUTTON,最終(B),,,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_IMPORT,PUSHBUTTON,インポート(I)...,,KDct[…]（*.txt）,○
+キーワードヘルプ,IDC_BUTTON_KEYHELP_EXPORT,PUSHBUTTON,エクスポート(X)...,,KDct[…]（*.txt）,○
+キーワードヘルプ,IDC_CHECK_KEYHELP_ALLSEARCH,AUTOCHECKBOX,ヒットした次の辞書も検索(A),m_bUseKeyHelpAllSearch,bUseKeyHelpAllSearch,○
+キーワードヘルプ,IDC_CHECK_KEYHELP_KEYDISP,AUTOCHECKBOX,キーワードも表示する(W),m_bUseKeyHelpKeyDisp,bUseKeyHelpKeyDisp,○
+キーワードヘルプ,IDC_CHECK_KEYHELP_PREFIX,AUTOCHECKBOX,選択範囲で前方一致検索(P),m_bUseKeyHelpPrefix,bUseKeyHelpPrefix,○
+キーワードヘルプ,IDC_STATIC_MENU,LTEXT,右クリックメニュー(R),,,
+キーワードヘルプ,IDC_COMBO_MENU,COMBOBOX,右クリックメニュー(R),m_eKeyHelpRMenuShowType,nKeyHelpRMenuShowType,○

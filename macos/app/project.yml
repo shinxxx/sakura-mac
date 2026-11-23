@@ -112,6 +112,8 @@ targets:
       # 第 40 步：タイプ別設定窗口
       - path: Sources/TypeSettingsWindow.swift
       - path: Sources/TypeSettingsPages.swift
+      - path: Sources/TypeSettingsColor.swift
+      - path: Sources/TypeSettingsRegexKeyHelp.swift
       - path: Resources/TypeSettingsDialogs.json
         buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）

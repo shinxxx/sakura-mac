@@ -13,14 +13,15 @@
 `macos/tools/settings/list_type_settings.py` 从原版的对话框模板（`sakura_rc.rc` 的 `IDD_PROP_SCREEN` 等）和 `typeprop/CPropTypes*.cpp` 列出每一页的每一个控件、
 它读写的 `STypeConfig` 成员、sakura.ini 的 `[Types(N)]` 的项目、Mac 版的处理，结果在 [type-settings.csv](type-settings.csv)（Excel 可以直接打开）。
 
-第 1 个 PR 的 3 页：
+第 1、2 个 PR 以后（6 页全部）：
 
 | Mac 版 | 意思 | 个数 |
 |---|---|---|
-| ○ | 与原版相同地读写 | 70 |
+| ○ | 与原版相同地读写 | 131 |
 | × | Mac 版做不到，变灰（值不改） | 6 |
-| （空） | 说明文字 | 1 |
-| 第 40 步（第 2 个 PR） | カラー、正規表現キーワード、キーワードヘルプ 页 | 76 |
+| △ | 显示不同（正規表現キーワード 的版本：显示组装进去的 bregonig） | 1 |
+| 第 40 步（第 3 个 PR） | カラー 的「共通設定...」（打开共通設定的強調キーワード） | 1 |
+| （空） | 说明文字 | 14 |
 
 Mac 版做不到的（×）：支援 页的補完種別（只有 DLL 的プラグイン 才会加，偏离项 9）、外部ヘルプ・外部 HTML ヘルプ（Windows 的帮助，偏离项 9）。
 
@@ -32,6 +33,10 @@ Mac 版做不到的（×）：支援 页的補完種別（只有 DLL 的プラ�
 | 窗口 | `macos/app/Sources/TypeSettingsWindow.swift` | `TypeSettingsWindowController`。左边的页的列表、OK・キャンセル 与共通設定窗口共用 `PropSheetWindowController`（`CommonSettingsWindow.swift`）|
 | 各页 | `macos/app/Sources/TypeSettingsPages.swift` | 原版 `CPropTypesScreen`・`CPropTypesWindow`・`CPropTypesSupport` 的 SetData / GetData 的移植 |
 | 读写 | 核心库 `GetCommonSetting` / `SetCommonSettings`（节是 `Types(N)`）、`TypeSettings()` | 用原版的 `ShareData_IO_TypeConfig`，写法和范围限制与读 sakura.ini 时完全相同。读入后与原版 OK 时相同地 `CDocTypeManager::SetTypeConfig`（一览的名字・拡張子・文字コード、「基本」的 `m_TypeBasis` 也换）|
+| カラー | `macos/app/Sources/TypeSettingsColor.swift` | 原版 `CPropTypesColor`、文字色統一・背景色統一（`CDlgSameColor`，模板 `IDD_SAMECOLOR`）、強調キーワードの設定（`CDlgKeywordSelect`，`IDD_DIALOG_KEYWORD_SELECT`）|
+| 正規表現キーワード・キーワードヘルプ | `macos/app/Sources/TypeSettingsRegexKeyHelp.swift` | 原版 `CPropTypesRegex`、`CPropTypesKeyHelp` |
+| インポート・エクスポート | 核心库 `ImportTypeSettingFile` / `ExportTypeSettingFile`，原版 `typeprop/CImpExpManager.cpp` 编进核心库 | 文件格式与原版完全相同（色 *.col、正規表現キーワード *.rkw、キーワード辞書の一覧 *.txt）。窗口里还没 OK 的值也一起写出；读入的值放进窗口，OK 时才写回。选文件、消息由界面层做（原版的 `ImportUI` / `ExportUI` 只在 Windows 编译）|
+| 列表变短 | 核心库 `SetCommonSettings` | RxKey[nnn]、KDct[nn] 这样的列表变短时，没有了的项写空的值（读入后没有这一项也可以）|
 | 打开着的文档 | 核心库 `Document::ApplyTypeSettingChange`，`EditorTextView` | 原版 `MYWM_CHANGESETTING`（`PM_CHANGESETTING_TYPE`）→ `CEditDoc::OnChangeSetting`：这个类型的文档按文件名重新决定类型、读新的设置、重新排版、重画 |
 
 与原版相同的地方：
@@ -51,29 +56,49 @@ Mac 版做不到的（×）：支援 页的補完種別（只有 DLL 的プラ�
 - 打开着的文档：原版 `PM_CHANGESETTING_TYPE` 的条件（文档的类型或按文件名决定的类型是改了的类型），拡張子改了时文档换到新的类型。
   折り返し方法的临时设置（F_TMPWRAP* 等）：类型没变、设置的折り返し方法也没变时保留；与新的设置相同时解除（原版 `m_bTextWrapMethodCurTemp`）。
 
+- カラー：色指定的列表与原版的鼠标操作相同（点 ✓ 切换「色分け/表示」、双击名字切换太字、右键切换下線、点样本选颜色）；
+  テキスト 等不能关「色分け/表示」、キャレット 等没有背景色的项目按原版的属性（`g_ColorAttributeArr`）变灰；
+  行コメント 的「桁」（不勾时存 ~桁）、縦線桁指定（「桁」和「Step(Begin,End)」，最多 200 个）、文字列エスケープ、強調キーワード 1～10
+  （中间的「なし」往前挤，颜色也一起动：原版 `RearrangeKeywordSet`）；文字色統一 是把勾上的颜色的项目都换成现在的颜色。
+- 正規表現キーワード：最多 100 个；登录时检查用 / 和 /k 等围起来了、同じキーワード、正则表达式的语法（不对时确认后也可以登录）；
+  挿入（选中的位置）・追加・更新・削除・先頭・上へ・下へ・最終；色指定 只能选有文字色和背景色的颜色。
+- キーワードヘルプ：最多 20 个；登录时读辞書文件的第 1 行作为「辞書の説明」（逗号换成「.」），打不开的文件、同じ辞書不能登录；
+  登录的辞書是「使う」；列表空了时显示说明文字；「キーワードヘルプ機能を使う」不勾时别的都变灰。
+
 与原版不同的地方（偏离项 4：布局、项目、文字照原版，外观是 Mac 的）：
 
 - 原版的属性表的标签换成左边的列表（与共通設定窗口相同）。原版是模态的，Mac 版与共通設定相同是一次只开一个的窗口；
   已经打开时再执行 タイプ別設定 只把它拿到前面（不换类型）。
 - タイプ別フォント 不使用时选字体：原版从共通設定的字体开始，Mac 版从编辑画面现在的字体开始（Mac 版的编辑字体在「フォント設定」里）。
+- 颜色的选择：原版是 Windows 的 ChooseColor 对话框，Mac 版用颜色面板，下面加了 キャンセル、OK 按钮，关掉之前等着（模态）。
+- 色指定的列表：原版是自己画的一列，Mac 版分成 ✓、名字、文字色、背景色 4 列（点的位置的意思相同）。
+- 文字色統一 的「ヘルプ」：Mac 版还没有帮助，变灰。
+- 正規表現キーワード、色设定等的インポート：原版 BOM 没有的文件按 Shift_JIS 读；Mac 版也一样，读不了的字（UTF-8 等）时与打不开的文件相同地显示错误（不会中途停止）。
 - 文件的选择（ルールファイル、背景画像、単語ファイル）用 Mac 的打开面板。原版可以写相对路径（从设置文件的文件夹），Mac 版选择后是绝对路径（手动输入相对路径照样保存）。
 
 ## 设置的生效
 
 与共通設定相同，这一步完成的是「设置窗口与原版一一对应、值与 Windows 版的 sakura.ini 相同地读写」。OK 后这个类型的文档马上按新的设置重新排版、重画，
 核心库已经移植的部分（折り返し、TAB 幅、文字・行の間隔、行番号、禁則、SPACEの挿入、オートインデント、保存时的改行コード混在警告等）按新的值动作。
-Mac 版还没有的界面在做那些界面的步骤里接上：タイプ別フォント（编辑画面的字体现在是共通的一个）、背景画像、起動時のIME、文書アイコン、
+カラー 的颜色・强调关键字・注释・縦線、正規表現キーワード 也已经用在编辑画面上（第 28、33 步的绘制）。
+Mac 版还没有的界面在做那些界面的步骤里接上：キーワードヘルプ（鼠标停留时显示辞書的说明）、タイプ別フォント（编辑画面的字体现在是共通的一个）、背景画像、起動時のIME、文書アイコン、
 アウトライン解析、入力補完、C/C++ のスマートインデント。
 
 ## 测试
 
-- 核心库 `macos/core/tests/test-mac-type-settings.cpp`（9 个）：一览的顺序、读出的值与 sakura.ini 的写法相同（`nInts`、タイプ別フォント的项目）、
+- 核心库 `macos/core/tests/test-mac-type-settings.cpp`（第 1 个 PR 9 个）：一览的顺序、读出的值与 sakura.ini 的写法相同（`nInts`、タイプ別フォント的项目）、
   改一个类型不影响别的类型、「基本」也换 `m_TypeBasis`（新文档用）、原版的范围限制、没有的项目和类型不改、
   打开着的文档跟着变（别的类型的文档不变）、拡張子改了时换类型、折り返し方法的临时设置、保存后重新启动也是新的值。
   `test-mac-common-settings.cpp`：`Types(999)` 这样没有的类型不改。
-- App `macos/app/Tests/TypeSettingsTests.swift`（17 个）：6 页的顺序和控件与原版的模板相同、各功能打开的页、编辑画面打开这个文档的类型、
+- App `macos/app/Tests/TypeSettingsTests.swift`（第 1 个 PR 17 个）：6 页的顺序和控件与原版的模板相同、各功能打开的页、编辑画面打开这个文档的类型、
   OK 只写改过的项（节是 Types(N)）、キャンセル 不改、真的核心库的 OK 和打开着的编辑画面（这个类型的跟着变，别的类型的不变）、
   スクリーン（nInts 的各个数、范围、TAB表示、「基本」的名字、アウトライン解析、禁則、タイプ別フォント）、ウィンドウ（IME 的 bit、行番号、透明度的联动、
-  デフォルトの文字コード 的列表・BOM・CP、背景画像）、支援（Mac 版不能用的项目变灰、值不改、単語ファイル）、以后移植的页只显示。
+  デフォルトの文字コード 的列表・BOM・CP、背景画像）、支援（Mac 版不能用的项目变灰、值不改、単語ファイル）。
+- 第 2 个 PR：核心库加 8 个（色的一览和属性、強調キーワード的セット名、色设定的导出・导入和格式不对的文件、正規表現キーワード的导入
+  （3 字母的名字和日文的名字、不对的关键字的警告、读不了的文件不会停）、列表变短时的空值、キーワード辞書的导出・导入（找不到的辞書）、
+  正規表現キーワード的检查、辞書の説明）。App 加 12 个（色的值的写法、縦線桁指定、色指定列表的鼠标操作和 OK、没有颜色的项目、
+  注释・文字列・縦線、強調キーワード 2～10 和往前挤、文字色統一、色的导入・导出、正規表現キーワード 的列表操作・检查・导入・导出、
+  キーワードヘルプ 的列表操作・检查・使う/使わない・全部删除）。
+  界面测试 `testTypeSettingsColorAndRegex`：カラー 选一行切换太字 OK 后再打开还是切换了的；正規表現キーワード 追加一个 OK 后再打开有，然后删除。
 - 界面测试 `testTypeSettingsWindow`：設定 > タイプ別設定 打开（无题是「基本」，名字不能改）、勾上「SPACEの挿入」按 OK 后 TAB 键输入空白，
   再打开时是改过的值和上次的页，取消勾选后 TAB 键输入 TAB。

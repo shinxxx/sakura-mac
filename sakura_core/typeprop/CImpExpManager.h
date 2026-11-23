@@ -56,7 +56,7 @@ public:
 	// フルパス名を取得
 	inline sakura::wstring MakeFullPath(sakura::wstring_view sFileName) const
 	{
-		return (std::filesystem::path{ GetDllShareData().m_sHistory.m_szIMPORTFOLDER } / sFileName).native();
+		return sakura::path_to_wstring(std::filesystem::path{ GetDllShareData().m_sHistory.m_szIMPORTFOLDER } / sFileName);
 	}
 	// ファイル名を取得
 	inline sakura::wstring GetFileName() const { return m_sOriginName; }
@@ -70,7 +70,11 @@ protected:
 		const auto szPath = std::data(importPath);
 		::SplitPath_FolderAndFile( szPath, GetDllShareData().m_sHistory.m_szIMPORTFOLDER, nullptr);
 
+#if defined(_WIN32)
 		wcscat_s(GetDllShareData().m_sHistory.m_szIMPORTFOLDER, LTEXT("\\"));
+#else
+		wcscat_s(GetDllShareData().m_sHistory.m_szIMPORTFOLDER, LTEXT("/"));	// Mac 版のパス区切り（ステップ 40）
+#endif
 	}
 
 	// デフォルト拡張子の取得(「*.txt」形式)

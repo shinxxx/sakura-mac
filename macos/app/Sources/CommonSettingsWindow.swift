@@ -104,6 +104,13 @@ final class CommonSettingsValues {
         }
     }
 
+    /// 不指定节的节里还没 OK 的值（项目 → 值）。タイプ別設定的导入・导出用（第 40 步）
+    var pending: [String: String] {
+        var result: [String: String] = [:]
+        for (item, value) in changes where item.section == defaultSection { result[item.key] = value }
+        return result
+    }
+
     /// 写回核心库，保存 sakura.ini（原版 CPropCommon::ApplyData 以后 CShareData_IO::SaveShareData）。都成功时 true
     @discardableResult
     func apply() -> Bool {
@@ -624,11 +631,17 @@ final class PropPage: NSObject, NSTextFieldDelegate {
 
 /// 原版的 ListView（LVS_REPORT | LVS_SINGLESEL）：几列的文字，一次选一行
 final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-    let table = NSTableView()
+    let table = PropTableView()
     /// 每行的文字（列的顺序）
     private(set) var rows: [[String]] = []
     /// 选择变了（原版 LVN_ITEMCHANGED）
     var onSelect: (() -> Void)?
+    /// 自己画的格子（原版 LBS_OWNERDRAWFIXED。タイプ別設定 > カラー 的色指定列表等，第 40 步）。nil 时是文字
+    var cellView: ((_ row: Int, _ column: Int) -> NSView?)?
+    /// 点了格子（原版的 WM_LBUTTONUP）、双击（WM_LBUTTONDBLCLK）、右键（WM_RBUTTONDOWN）
+    var onClick: ((_ row: Int, _ column: Int) -> Void)?
+    var onDoubleClick: ((_ row: Int, _ column: Int) -> Void)?
+    var onRightClick: ((_ row: Int, _ column: Int) -> Void)?
     private var notifying = true
 
     init(header: Bool) {
@@ -640,6 +653,26 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0")))
         table.dataSource = self
         table.delegate = self
+        table.target = self
+        table.action = #selector(clicked(_:))
+        table.doubleAction = #selector(doubleClicked(_:))
+        table.onRightClick = { [weak self] row, column in self?.onRightClick?(row, column) }
+    }
+
+    @objc private func clicked(_ sender: Any?) {
+        guard table.clickedRow >= 0 else { return }
+        onClick?(table.clickedRow, table.clickedColumn)
+    }
+
+    @objc private func doubleClicked(_ sender: Any?) {
+        guard table.clickedRow >= 0 else { return }
+        onDoubleClick?(table.clickedRow, table.clickedColumn)
+    }
+
+    /// 一行重画（自己画的格子的内容变了）
+    func reloadRow(_ row: Int) {
+        guard rows.indices.contains(row) else { return }
+        table.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
     }
 
     /// 列（原版 ListView_InsertColumn）。widths 是宽度（点）
@@ -679,6 +712,7 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let column = Int(tableColumn?.identifier.rawValue ?? "0") ?? 0
+        if let cellView, let view = cellView(row, column) { return view }
         let text = rows.indices.contains(row) && rows[row].indices.contains(column) ? rows[row][column] : ""
         let label = NSTextField(labelWithString: text)
         label.font = PropPage.font
@@ -688,6 +722,22 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         if notifying { onSelect?() }
+    }
+}
+
+/// 右键也通知的表（原版的 WM_RBUTTONDOWN）
+final class PropTableView: NSTableView {
+    var onRightClick: ((_ row: Int, _ column: Int) -> Void)?
+
+    override func rightMouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let row = self.row(at: point), column = self.column(at: point)
+        if row >= 0, let onRightClick {
+            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            onRightClick(row, column)
+        } else {
+            super.rightMouseDown(with: event)
+        }
     }
 }
 

@@ -4,16 +4,20 @@
 
 import AppKit
 import EditorBridge
+import UniformTypeIdentifiers
 
 /// タイプ別設定窗口的各页（计划第 40 步）：原版 CPropTypes*.cpp 的 SetData / GetData 的移植。
 ///
 /// 值是 sakura.ini 的 [Types(N)] 的项目（原版 ShareData_IO_TypeConfig 的名字）。GetData 里的范围限制也照原版。
-/// 这一步的第 1 个 PR：スクリーン、ウィンドウ、支援。カラー、正規表現キーワード、キーワードヘルプ 在第 2 个 PR。
+/// 第 1 个 PR：スクリーン、ウィンドウ、支援。第 2 个 PR：カラー（TypeSettingsColor.swift）、正規表現キーワード、キーワードヘルプ（TypeSettingsRegexKeyHelp.swift）。
 enum TypeSettingsPages {
     /// 对话框 → 这页的处理。nil 是以后移植的页
     static func logic(for dialog: String, typeIndex: Int) -> CommonSettingsPageLogic? {
         switch dialog {
         case "IDD_PROP_SCREEN": return TypeScreenPage(typeIndex: typeIndex)
+        case "IDD_PROP_COLOR": return TypeColorPage(typeIndex: typeIndex)
+        case "IDD_PROP_REGEX": return TypeRegexPage(typeIndex: typeIndex)
+        case "IDD_PROP_KEYHELP": return TypeKeyHelpPage(typeIndex: typeIndex)
         case "IDD_PROP_WINDOW": return TypeWindowPage()
         case "IDD_PROP_SUPPORT": return TypeSupportPage()
         default: return nil
@@ -26,7 +30,7 @@ enum TypeSettingsPages {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedFileTypes = extensions
+        panel.allowedContentTypes = extensions.compactMap { UTType(filenameExtension: $0) }
         panel.allowsOtherFileTypes = true
         if !initial.isEmpty {
             let url = URL(fileURLWithPath: initial)
@@ -38,6 +42,139 @@ enum TypeSettingsPages {
 
     /// 编辑画面现在的字体（タイプ別フォントを使わないときのフォント。原版は共通設定のフォント m_sView.m_lf）。测试可以换
     static var editorFont: () -> NSFont = { EditorTextView.currentFont }
+
+    /// 选颜色（原版 ChooseColor）。测试可以换。选了时返回颜色
+    static var chooseColor: (_ color: NSColor, _ window: NSWindow?) -> NSColor? = { color, _ in
+        ColorPicker.choose(color)
+    }
+
+    /// 文字色統一・背景色統一（原版 CDlgSameColor::DoModal）。测试可以换。OK 时 true
+    static var runSameColorDialog: (_ dialog: SameColorDialog, _ window: NSWindow?) -> Bool = { dialog, window in
+        PropModal.run(dialog.page, title: dialog.title, parent: window, identifier: "SameColorDialog") { close in dialog.onClose = close }
+    }
+
+    /// 強調キーワードの設定（原版 CDlgKeywordSelect::DoModal）。测试可以换。OK 时 true
+    static var runKeywordSelectDialog: (_ dialog: KeywordSelectDialog, _ window: NSWindow?) -> Bool = { dialog, window in
+        PropModal.run(dialog.page, title: dialog.title, parent: window, identifier: "KeywordSelectDialog") { close in dialog.onClose = close }
+    }
+
+    /// インポートするファイル（原版 CImpExpManager::ImportUI の「開く」）。测试可以换
+    static var chooseImportFile: (_ extensions: [String], _ window: NSWindow?) -> String? = { extensions, _ in
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = extensions.compactMap { UTType(filenameExtension: $0) }
+        panel.allowsOtherFileTypes = true
+        return panel.runModal() == .OK ? panel.url?.path : nil
+    }
+
+    /// エクスポートするファイル（原版 ExportUI の「名前を付けて保存」）。测试可以换
+    static var chooseExportFile: (_ defaultName: String, _ extensions: [String], _ window: NSWindow?) -> String? = { name, extensions, _ in
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = extensions.compactMap { UTType(filenameExtension: $0) }
+        panel.allowsOtherFileTypes = true
+        panel.nameFieldStringValue = name.isEmpty ? "" : name
+        return panel.runModal() == .OK ? panel.url?.path : nil
+    }
+
+    /// 原版 ErrorMessage / InfoMessage。测试可以换
+    static var showMessage: (_ message: String) -> Void = { message in
+        guard !message.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = CommonSettingsPages.appName
+        alert.informativeText = message
+        alert.runModal()
+    }
+}
+
+/// 模板做的模态对话框（IDOK・IDCANCEL・关闭按钮で閉じる）
+enum PropModal {
+    /// setClose に「閉じる（OK か）」を渡すので、ダイアログの IDOK・IDCANCEL で呼んでもらう
+    static func run(_ page: PropPage, title: String, parent: NSWindow?, identifier: String,
+                    setClose: (@escaping (Bool) -> Void) -> Void) -> Bool {
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: page.view.frame.size),
+                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        panel.title = title
+        panel.isReleasedWhenClosed = false
+        panel.setAccessibilityIdentifier(identifier)
+        panel.contentView = page.view
+        (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
+        (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
+        if let parent {
+            panel.setFrameOrigin(NSPoint(x: parent.frame.midX - panel.frame.width / 2, y: parent.frame.midY - panel.frame.height / 2))
+        } else {
+            panel.center()
+        }
+        var ok = false
+        setClose { result in
+            ok = result
+            NSApp.stopModal()
+        }
+        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: panel, queue: nil) { _ in
+            NSApp.stopModal()
+        }
+        _ = NSApp.runModal(for: panel)
+        NotificationCenter.default.removeObserver(observer)
+        panel.orderOut(nil)
+        return ok
+    }
+}
+
+/// 颜色面板（原版 ChooseColor 对话框的代替）。OK・キャンセル の按钮，关掉之前等着
+final class ColorPicker: NSObject {
+    private var color: NSColor
+
+    private init(color: NSColor) {
+        self.color = color
+    }
+
+    static func choose(_ color: NSColor) -> NSColor? {
+        ColorPicker(color: color).run()
+    }
+
+    private func run() -> NSColor? {
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.color = color
+        panel.setTarget(self)
+        panel.setAction(#selector(colorChanged(_:)))
+        let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 40))
+        let ok = NSButton(title: "OK", target: self, action: #selector(okClicked(_:)))
+        ok.keyEquivalent = "\r"
+        ok.frame = NSRect(x: 120, y: 6, width: 90, height: 28)
+        let cancel = NSButton(title: NSLocalizedString("キャンセル", comment: "色の選択"), target: self, action: #selector(cancelClicked(_:)))
+        cancel.keyEquivalent = "\u{1b}"
+        cancel.frame = NSRect(x: 22, y: 6, width: 90, height: 28)
+        accessory.addSubview(cancel)
+        accessory.addSubview(ok)
+        let oldAccessory = panel.accessoryView
+        panel.accessoryView = accessory
+        let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: panel, queue: nil) { _ in
+            NSApp.stopModal(withCode: .cancel)
+        }
+        panel.makeKeyAndOrderFront(nil)
+        let response = NSApp.runModal(for: panel)
+        NotificationCenter.default.removeObserver(observer)
+        panel.accessoryView = oldAccessory
+        panel.setTarget(nil)
+        panel.setAction(nil)
+        panel.orderOut(nil)
+        return response == .OK ? color : nil
+    }
+
+    @objc private func colorChanged(_ sender: NSColorPanel) {
+        color = sender.color
+    }
+
+    @objc private func okClicked(_ sender: Any?) {
+        color = NSColorPanel.shared.color
+        NSApp.stopModal(withCode: .OK)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        NSApp.stopModal(withCode: .cancel)
+    }
 }
 
 // MARK: - nInts（原版 ShareData_IO_TypeInts：逗号分隔的 12 个数）

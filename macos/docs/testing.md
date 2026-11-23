@@ -78,4 +78,5 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 
 - App 的 `TypeSettingsTests` 与共通設定相同，大多用假的设置（`CommonSettingsTests.FakeStore`，节是 `Types(N)`）；
   `testOKAppliesToCoreAndOpenEditors` 用真的核心库，结束时改回去。
-- 文件的选择、编辑画面的字体换成测试用的（`TypeSettingsPages.chooseFile`、`editorFont`），不出模态窗口。详见 [phase3-type-settings.md](phase3-type-settings.md)。
+- 文件的选择、编辑画面的字体、颜色的选择、文字色統一・強調キーワード 的对话框、消息换成测试用的（`TypeSettingsPages.chooseFile`、`editorFont`、
+  `chooseColor`、`runSameColorDialog`、`runKeywordSelectDialog`、`chooseImportFile`、`chooseExportFile`、`showMessage`），不出模态窗口。详见 [phase3-type-settings.md](phase3-type-settings.md)。

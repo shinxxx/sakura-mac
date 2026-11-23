@@ -299,6 +299,43 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @end
 
+@implementation ECColorItem
+
+- (instancetype)initWithInfo:(const core::ColorItemInfo&)info
+{
+	self = [super init];
+	if (self) {
+		_index = info.index;
+		_name = ToNSString(info.name);
+		_key = ToNSString(info.key);
+		_forceDisplay = info.forceDisplay;
+		_noText = info.noText;
+		_noBack = info.noBack;
+		_noBold = info.noBold;
+		_noUnderline = info.noUnderline;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECTypeSettingFileResult
+
+- (instancetype)initWithResult:(const core::TypeSettingFileResult&)r
+{
+	self = [super init];
+	if (self) {
+		_succeeded = r.succeeded;
+		_message = ToNSString(r.message);
+		NSMutableDictionary<NSString *, NSString *> *values = [NSMutableDictionary dictionary];
+		for (const auto& [key, value] : r.values) values[ToNSString(key)] = ToNSString(value);
+		_values = values;
+	}
+	return self;
+}
+
+@end
+
 @implementation ECEncodingChoice
 
 - (instancetype)initWithChoice:(const core::EncodingChoice&)c
@@ -425,6 +462,11 @@ NSArray<ECEncodingChoice *> *ToChoices(const std::vector<core::EncodingChoice>& 
 
 } // namespace
 
+// タイプ別設定的导入・导出的文件（第 40 步）
+static_assert(static_cast<NSInteger>(core::TypeSettingFile::Colors) == ECTypeSettingFileColors);
+static_assert(static_cast<NSInteger>(core::TypeSettingFile::RegexKeywords) == ECTypeSettingFileRegexKeywords);
+static_assert(static_cast<NSInteger>(core::TypeSettingFile::KeywordHelp) == ECTypeSettingFileKeywordHelp);
+
 // 导入设置的结果（第 35 步）
 static_assert(static_cast<NSInteger>(core::ImportResult::Imported) == ECImportResultImported);
 static_assert(static_cast<NSInteger>(core::ImportResult::NotSettingsFile) == ECImportResultNotSettingsFile);
@@ -525,6 +567,59 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 		[result addObject:[[ECTypeSetting alloc] initWithInfo:info]];
 	}
 	return result;
+}
+
++ (NSArray<ECColorItem *> *)colorItems
+{
+	NSMutableArray<ECColorItem *> *result = [NSMutableArray array];
+	for (const auto& item : core::ColorItems()) [result addObject:[[ECColorItem alloc] initWithInfo:item]];
+	return result;
+}
+
++ (NSArray<NSString *> *)keywordSetNames
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& name : core::KeywordSetNames()) [result addObject:ToNSString(name)];
+	return result;
+}
+
+static std::vector<std::pair<core::Text, core::Text>> ToPairs(NSDictionary<NSString *, NSString *> *values)
+{
+	std::vector<std::pair<core::Text, core::Text>> items;
+	for (NSString *key in [values.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+		items.emplace_back(ToText(key), ToText(values[key]));
+	}
+	return items;
+}
+
++ (ECTypeSettingFileResult *)importTypeSettingFile:(ECTypeSettingFile)kind typeIndex:(NSInteger)typeIndex
+	pending:(NSDictionary<NSString *, NSString *> *)pending path:(NSString *)path
+{
+	return [[ECTypeSettingFileResult alloc] initWithResult:core::ImportTypeSettingFile(
+		static_cast<core::TypeSettingFile>(kind), static_cast<std::int32_t>(typeIndex), ToPairs(pending), ToText(path))];
+}
+
++ (ECTypeSettingFileResult *)exportTypeSettingFile:(ECTypeSettingFile)kind typeIndex:(NSInteger)typeIndex
+	pending:(NSDictionary<NSString *, NSString *> *)pending path:(NSString *)path
+{
+	return [[ECTypeSettingFileResult alloc] initWithResult:core::ExportTypeSettingFile(
+		static_cast<core::TypeSettingFile>(kind), static_cast<std::int32_t>(typeIndex), ToPairs(pending), ToText(path))];
+}
+
++ (BOOL)regexKeywordHasDelimiters:(NSString *)keyword
+{
+	return core::CheckRegexKeyword(ToText(keyword)).hasDelimiters ? YES : NO;
+}
+
++ (BOOL)regexKeywordSyntaxOK:(NSString *)keyword
+{
+	return core::CheckRegexKeyword(ToText(keyword)).syntaxOK ? YES : NO;
+}
+
++ (NSString *)keywordHelpDictionaryAbout:(NSString *)path
+{
+	const auto about = core::KeywordHelpDictionaryAbout(ToText(path));
+	return about ? ToNSString(*about) : nil;
 }
 
 + (BOOL)encodingCanBeDefault:(ECEncoding)encoding

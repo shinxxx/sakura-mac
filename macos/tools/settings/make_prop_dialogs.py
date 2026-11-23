@@ -26,7 +26,10 @@ DIALOGS = [
 ]
 
 # 从タイプ別設定的页打开的对话框（第 40 步）
-TYPE_DIALOGS = []
+TYPE_DIALOGS = [
+    "IDD_SAMECOLOR",				# カラー > 文字色統一・背景色統一（原版 CDlgSameColor）
+    "IDD_DIALOG_KEYWORD_SELECT",	# カラー > 強調キーワード 2～10（原版 CDlgKeywordSelect）
+]
 
 
 def text_of(raw):

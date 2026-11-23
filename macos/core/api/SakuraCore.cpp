@@ -45,6 +45,8 @@
 #include "mem/CMemoryIterator.h"
 #include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
+#include "doc/CDocTypeSetting.h"
+#include "typeprop/CImpExpManager.h"
 #include "CSelectLang.h"
 #include "env/CShareData.h"
 #include "env/CShareData_IO.h"
@@ -57,6 +59,7 @@
 #include "extmodule/CBregexp.h"
 #include "io/CBinaryStream.h"
 #include "io/CFileLoad.h"
+#include "io/CTextStream.h"
 #include "io/CIoBridge.h"
 #include "recent/CMRUFile.h"
 #include "recent/CMRUFolder.h"
@@ -402,7 +405,7 @@ bool SetCommonSettings(const Text& section, const std::vector<std::pair<Text, Te
 	CommonSettingIO::IO(after, section);
 	for (const auto& [key, value] : values) {
 		sakura::wstring current;
-		if (!after.GetProfileData(section, key, current)) {
+		if (!after.GetProfileData(section, key, current) && !value.empty()) {	// 空的值：列表变短了（第 40 步）
 			before.SetReadingMode();
 			CommonSettingIO::IO(before, section);
 			return false;
@@ -421,6 +424,165 @@ std::vector<TypeSettingInfo> TypeSettings()
 		result.push_back({ i, Text(mini->m_szTypeName.c_str()), Text(mini->m_szTypeExts.c_str()) });
 	}
 	return result;
+}
+
+std::vector<ColorItemInfo> ColorItems()
+{
+	std::vector<ColorItemInfo> result;
+	for (int i = 0; i < COLORIDX_LAST; ++i) {
+		ColorInfo info{};
+		GetDefaultColorInfoName(&info, i);
+		const DWORD attr = g_ColorAttributeArr[i].fAttribute;
+		ColorItemInfo item;
+		item.index = i;
+		item.name = Text(info.m_szName);
+		item.key = Text(LTEXT("C[")) + GetColorNameByIndex(i) + LTEXT("]");
+		item.forceDisplay = (attr & COLOR_ATTRIB_FORCE_DISP) != 0;
+		item.noText = (attr & COLOR_ATTRIB_NO_TEXT) != 0;
+		item.noBack = (attr & COLOR_ATTRIB_NO_BACK) != 0;
+		item.noBold = (attr & COLOR_ATTRIB_NO_BOLD) != 0;
+		item.noUnderline = (attr & COLOR_ATTRIB_NO_UNDERLINE) != 0;
+		result.push_back(std::move(item));
+	}
+	return result;
+}
+
+std::vector<Text> KeywordSetNames()
+{
+	std::vector<Text> result;
+	if (!IsStarted()) return result;
+	auto& mgr = GetDllShareData().m_Common.m_sSpecialKeyword.m_CKeyWordSetMgr;
+	for (int i = 0; i < mgr.m_nKeyWordSetNum; ++i) {
+		result.emplace_back(mgr.GetTypeName(i));
+	}
+	return result;
+}
+
+namespace {
+
+//! 第 nType 个类型的设置加上窗口里的值（[Types(N)] 的项目）。核心库的设置不改
+bool TypeConfigWithPending(int nType, const std::vector<std::pair<Text, Text>>& pending, STypeConfig& type)
+{
+	if (!IsStarted() || !CDocTypeManager().GetTypeConfig(CTypeConfig(nType), type)) return false;
+	constexpr auto section = LTEXT("Types");
+	CDataProfile profile;
+	profile.SetWritingMode();
+	ShareData_IO_TypeConfig(profile, section, type);
+	for (const auto& [key, value] : pending) {
+		profile.SetProfileData(section, key, value);
+	}
+	profile.SetReadingMode();
+	ShareData_IO_TypeConfig(profile, section, type);
+	type.m_nIdx = nType;
+	for (int i = 0; i < COLORIDX_LAST; ++i) {
+		GetDefaultColorInfoName(&type.m_ColorInfoArr[i], i);	// 正規表現キーワードのインポートは色の名前でも探す
+	}
+	return true;
+}
+
+//! 导入后要返回的项目
+std::vector<sakura::wstring> TypeSettingFileKeys(TypeSettingFile kind)
+{
+	std::vector<sakura::wstring> keys;
+	switch (kind) {
+	case TypeSettingFile::Colors:
+		for (int i = 0; i < COLORIDX_LAST; ++i) keys.push_back(strprintf(LTEXT("C[%s]"), GetColorNameByIndex(i)));
+		break;
+	case TypeSettingFile::RegexKeywords:
+		for (int i = 0; i < MAX_REGEX_KEYWORD; ++i) keys.push_back(strprintf(LTEXT("RxKey[%03d]"), i));
+		break;
+	case TypeSettingFile::KeywordHelp:
+		for (int i = 0; i < MAX_KEYHELP_FILE; ++i) keys.push_back(strprintf(LTEXT("KDct[%02d]"), i));
+		break;
+	}
+	return keys;
+}
+
+std::unique_ptr<CImpExpManager> TypeSettingFileManager(TypeSettingFile kind, STypeConfig& type)
+{
+	switch (kind) {
+	case TypeSettingFile::Colors: return std::make_unique<CImpExpColors>(type.m_ColorInfoArr);
+	case TypeSettingFile::RegexKeywords: return std::make_unique<CImpExpRegex>(type);
+	case TypeSettingFile::KeywordHelp: return std::make_unique<CImpExpKeyHelp>(type);
+	}
+	return nullptr;
+}
+
+} // namespace
+
+TypeSettingFileResult ImportTypeSettingFile(TypeSettingFile kind, std::int32_t typeIndex,
+	const std::vector<std::pair<Text, Text>>& pending, const Text& path)
+{
+	TypeSettingFileResult result;
+	STypeConfig type;
+	if (!TypeConfigWithPending(typeIndex, pending, type)) return result;
+	auto manager = TypeSettingFileManager(kind, type);
+	sakura::wstring message;
+	try {
+		result.succeeded = manager && manager->Import(sakura::wstring(path), message);
+	} catch (...) {
+		// BOM のないファイルは Shift_JIS として読む（原版 CTextInputStream）。変換できない文字があると Mac 版の変換は例外になる
+		result.succeeded = false;
+		message = LS(STR_IMPEXP_ERR_FILEOPEN) + sakura::wstring(path);
+	}
+	result.message = Text(message);
+	if (!result.succeeded) return result;
+	// 读入以后的值（sakura.ini 的写法）
+	constexpr auto section = LTEXT("Types");
+	CDataProfile profile;
+	profile.SetWritingMode();
+	ShareData_IO_TypeConfig(profile, section, type);
+	for (const auto& key : TypeSettingFileKeys(kind)) {
+		sakura::wstring value;
+		(void)profile.GetProfileData(section, key, value);
+		result.values.emplace_back(Text(key), Text(value));
+	}
+	return result;
+}
+
+TypeSettingFileResult ExportTypeSettingFile(TypeSettingFile kind, std::int32_t typeIndex,
+	const std::vector<std::pair<Text, Text>>& pending, const Text& path)
+{
+	TypeSettingFileResult result;
+	STypeConfig type;
+	if (!TypeConfigWithPending(typeIndex, pending, type)) return result;
+	auto manager = TypeSettingFileManager(kind, type);
+	sakura::wstring message;
+	try {
+		result.succeeded = manager && manager->Export(sakura::wstring(path), message);
+	} catch (...) {
+		result.succeeded = false;
+		message = LS(STR_IMPEXP_ERR_EXPORT) + sakura::wstring(path);
+	}
+	result.message = Text(message);
+	return result;
+}
+
+RegexKeywordCheck CheckRegexKeyword(const Text& keyword)
+{
+	RegexKeywordCheck result;
+	result.hasDelimiters = CRegexKeyword::RegexKeyCheckSyntax(keyword.c_str()) != FALSE;
+	result.syntaxOK = CheckRegexpSyntax(keyword.c_str(), nullptr, false, -1, true);
+	return result;
+}
+
+std::optional<Text> KeywordHelpDictionaryAbout(const Text& path)
+{
+	if (!IsStarted() || path.empty()) return std::nullopt;
+	try {
+		CTextInputStream_AbsIni in(path.c_str());
+		if (!in) return std::nullopt;
+		WCHAR szAbout[DICT_ABOUT_LEN]{};
+		wcsncpy_s(szAbout, in.ReadLineW().c_str(), _TRUNCATE);
+		in.Close();
+		// 原版 strcnv：改行を削除、カンマを「.」に
+		sakura::wstring about(szAbout);
+		if (const auto pos = about.find_first_of(LTEXT("\r\n")); pos != sakura::wstring::npos) about.resize(pos);
+		std::replace(about.begin(), about.end(), LCHAR(','), LCHAR('.'));
+		return Text(about);
+	} catch (...) {
+		return std::nullopt;	// Shift_JIS として読めない文字
+	}
 }
 
 bool SaveSettings()

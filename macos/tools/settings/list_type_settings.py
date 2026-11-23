@@ -64,6 +64,30 @@ INI_OVERRIDES = {
     "IDC_TRACKBAR_BACKIMG_TRANSPARENCY": "bgImgOpacity",
     # 支援
     "IDC_COMBO_HOKAN_TYPE": "nHokanType",
+    # カラー（第 2 个 PR）
+    "IDC_LIST_COLORS": "C[TXT]～（表示,太字,文字色,背景色,下線）", "IDC_CHECK_DISP": "C[…]（表示）", "IDC_CHECK_BOLD": "C[…]（太字）",
+    "IDC_CHECK_UNDERLINE": "C[…]（下線）", "IDC_BUTTON_TEXTCOLOR": "C[…]（文字色）", "IDC_BUTTON_BACKCOLOR": "C[…]（背景色）",
+    "IDC_BUTTON_SAMETEXTCOLOR": "C[…]（文字色）", "IDC_BUTTON_SAMEBKCOLOR": "C[…]（背景色）",
+    "IDC_BUTTON_IMPORT": "C[…]（*.col）", "IDC_BUTTON_EXPORT": "C[…]（*.col）",
+    "IDC_COMBO_SET": "nInts（5 番目）", "IDC_BUTTON_KEYWORD_SELECT": "nInts（5・6 番目）, nKeywordSelect3～10",
+    "IDC_BUTTON_EDITKEYWORD": "共通設定 > 強調キーワード",
+    "IDC_EDIT_BLOCKCOMMENT_FROM": "szBlockCommentFrom", "IDC_EDIT_BLOCKCOMMENT_TO": "szBlockCommentTo",
+    "IDC_EDIT_BLOCKCOMMENT_FROM2": "szBlockCommentFrom2", "IDC_EDIT_BLOCKCOMMENT_TO2": "szBlockCommentTo2",
+    "IDC_EDIT_LINECOMMENT": "szLineComment", "IDC_CHECK_LCPOS": "nLineCommentColumn", "IDC_EDIT_LINECOMMENTPOS": "nLineCommentColumn",
+    "IDC_EDIT_LINECOMMENT2": "szLineComment2", "IDC_CHECK_LCPOS2": "nLineCommentColumn2", "IDC_EDIT_LINECOMMENTPOS2": "nLineCommentColumn2",
+    "IDC_EDIT_LINECOMMENT3": "szLineComment3", "IDC_CHECK_LCPOS3": "nLineCommentColumn3", "IDC_EDIT_LINECOMMENTPOS3": "nLineCommentColumn3",
+    "IDC_COMBO_STRINGLITERAL": "nInts（7 番目）", "IDC_CHECK_STRINGLINEONLY": "bStringLineOnly", "IDC_CHECK_STRINGENDLINE": "bStringEndLine",
+    "IDC_EDIT_VERTLINE": "nVertLineIdx1～",
+    # 正規表現キーワード
+    "IDC_CHECK_REGEX": "bUseRegexKeyword", "IDC_LIST_REGEX": "RxKey[000]～（色の名前,キーワード）",
+    "IDC_EDIT_REGEX": "RxKey[nnn]", "IDC_COMBO_REGEX_COLOR": "RxKey[nnn]",
+    "IDC_BUTTON_REGEX_IMPORT": "RxKey[…]（*.rkw）", "IDC_BUTTON_REGEX_EXPORT": "RxKey[…]（*.rkw）",
+    # キーワードヘルプ
+    "IDC_CHECK_KEYHELP": "bUseKeyWordHelp", "IDC_LIST_KEYHELP": "KDct[00]～（使う,辞書の説明,パス）",
+    "IDC_EDIT_KEYHELP": "KDct[nn]", "IDC_CHECK_KEYHELP_ALLSEARCH": "bUseKeyHelpAllSearch",
+    "IDC_CHECK_KEYHELP_KEYDISP": "bUseKeyHelpKeyDisp", "IDC_CHECK_KEYHELP_PREFIX": "bUseKeyHelpPrefix",
+    "IDC_COMBO_MENU": "nKeyHelpRMenuShowType",
+    "IDC_BUTTON_KEYHELP_IMPORT": "KDct[…]（*.txt）", "IDC_BUTTON_KEYHELP_EXPORT": "KDct[…]（*.txt）",
 }
 
 # 前面的说明文字不是这个控件的名字的（说明文字在后面、没有说明文字的）
@@ -72,22 +96,24 @@ CAPTION_OVERRIDES = {
     "IDC_EDIT_OUTLINERULEFILE": "ルールファイル", "IDC_STATIC_TYPEFONT": "タイプ別フォント（フォント名とサイズ）",
     "IDC_EDIT_KINSOKUKUTO": "句読点ぶら下げ（文字）", "IDC_EDIT_KINSOKUHEAD": "行頭禁則（文字）",
     "IDC_EDIT_KINSOKUTAIL": "行末禁則（文字）", "IDC_EDIT_BACKIMG_PATH": "背景画像", "IDC_BUTTON_BACKIMG_PATH_SEL": "背景画像（参照）",
-    "IDC_COMBO_HOKAN_TYPE": "補完種別", "IDC_EDIT_TYPEEXTHELP": "外部ヘルプ", "IDC_EDIT_TYPEEXTHTMLHELP": "外部HTMLヘルプ",
+    "IDC_COMBO_HOKAN_TYPE": "補完種別", "IDC_COMBO_SET": "強調キーワード1", "IDC_COMBO_STRINGLITERAL": "文字列エスケープ",
+    "IDC_EDIT_VERTLINE": "縦線桁指定", "IDC_LIST_COLORS": "色指定", "IDC_LIST_REGEX": "正規表現キーワード", "IDC_LIST_KEYHELP": "辞書ファイル一覧", "IDC_EDIT_TYPEEXTHELP": "外部ヘルプ", "IDC_EDIT_TYPEEXTHTMLHELP": "外部HTMLヘルプ",
     "IDC_CHECK_BACKIMG_REP_X": "Repeat X", "IDC_CHECK_BACKIMG_REP_Y": "Repeat Y",
     "IDC_CHECK_BACKIMG_SCR_X": "Scroll X", "IDC_CHECK_BACKIMG_SCR_Y": "Scroll Y",
     "IDC_EDIT_BACKIMG_OFFSET_X": "Offset X", "IDC_EDIT_BACKIMG_OFFSET_Y": "Offset Y",
 }
 
 # Mac 版的处理（第 40 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
-LATER_PAGES = {
-    "カラー": "第 40 步（第 2 个 PR）", "正規表現キーワード": "第 40 步（第 2 个 PR）", "キーワードヘルプ": "第 40 步（第 2 个 PR）",
-}
+LATER_PAGES = {}
 MAC_DECISIONS = {
     "IDC_COMBO_HOKAN_TYPE": "×（補完種別はプラグインが追加する。DLL のプラグインは Mac 版では使えない。偏离项 9）",
     "IDC_EDIT_TYPEEXTHELP": "×（Windows のヘルプ。偏离项 9）", "IDC_BUTTON_TYPEOPENHELP": "×（同上）",
     "IDC_EDIT_TYPEEXTHTMLHELP": "×（同上）", "IDC_BUTTON_TYPEOPENEXTHTMLHELP": "×（同上）",
     "IDC_CHECK_TYPEHTMLHELPISSINGLE": "×（同上）",
     "IDC_STATIC_TYPEFONT": "○",
+    "IDC_BUTTON_EDITKEYWORD": "第 40 步（第 3 个 PR：共通設定の強調キーワード）",
+    "IDC_LABEL_REGEX_VERSION": "△（組み込みの正規表現ライブラリを表示）",
+    "IDC_LABEL_KEYHELP_ABOUT": "○", "IDC_LABEL_KEYHELP_TITLE": "",
 }
 
 
