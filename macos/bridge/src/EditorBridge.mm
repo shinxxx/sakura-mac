@@ -299,6 +299,43 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @end
 
+@implementation ECTypeSettingFileInfo
+
+- (instancetype)initWithInfo:(const core::TypeSettingFileInfo&)info
+{
+	self = [super init];
+	if (self) {
+		_succeeded = info.succeeded;
+		_message = ToNSString(info.message);
+		_typeName = ToNSString(info.typeName);
+		_version = ToNSString(info.version);
+		_structureVersion = info.structureVersion;
+		_versionDiffers = info.versionDiffers;
+		NSMutableArray<NSString *> *files = [NSMutableArray array];
+		for (const auto& f : info.colorFiles) [files addObject:ToNSString(f)];
+		_colorFiles = files;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECTypeSettingImportResult
+
+- (instancetype)initWithResult:(const core::TypeSettingImportResult&)r
+{
+	self = [super init];
+	if (self) {
+		_succeeded = r.succeeded;
+		_message = ToNSString(r.message);
+		_index = r.index;
+		_added = r.added;
+	}
+	return self;
+}
+
+@end
+
 @implementation ECColorItem
 
 - (instancetype)initWithInfo:(const core::ColorItemInfo&)info
@@ -567,6 +604,33 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 		[result addObject:[[ECTypeSetting alloc] initWithInfo:info]];
 	}
 	return result;
+}
+
++ (NSInteger)maxTypeSettings { return core::MaxTypeSettings(); }
++ (NSInteger)addTypeSetting { return core::AddTypeSetting(); }
++ (NSInteger)copyTypeSetting:(NSInteger)index { return core::CopyTypeSetting(static_cast<std::int32_t>(index)); }
++ (BOOL)deleteTypeSetting:(NSInteger)index { return core::DeleteTypeSetting(static_cast<std::int32_t>(index)) ? YES : NO; }
++ (NSInteger)moveTypeSetting:(NSInteger)index up:(BOOL)up { return core::MoveTypeSetting(static_cast<std::int32_t>(index), up); }
++ (NSString *)initializeTypeSetting:(NSInteger)index { return ToNSString(core::InitializeTypeSetting(static_cast<std::int32_t>(index))); }
+
++ (ECTypeSettingFileInfo *)checkTypeSettingFile:(NSString *)path
+{
+	return [[ECTypeSettingFileInfo alloc] initWithInfo:core::CheckTypeSettingFile(ToText(path))];
+}
+
++ (ECTypeSettingImportResult *)importTypeSetting:(NSString *)path index:(NSInteger)index addNew:(BOOL)addNew
+	colorType:(NSInteger)colorType colorFile:(NSString *)colorFile
+{
+	core::TypeSettingImportChoice choice;
+	choice.addNew = addNew;
+	choice.colorType = static_cast<std::int32_t>(colorType);
+	choice.colorFile = ToText(colorFile);
+	return [[ECTypeSettingImportResult alloc] initWithResult:core::ImportTypeSetting(ToText(path), static_cast<std::int32_t>(index), choice)];
+}
+
++ (ECTypeSettingFileResult *)exportTypeSetting:(NSInteger)index path:(NSString *)path
+{
+	return [[ECTypeSettingFileResult alloc] initWithResult:core::ExportTypeSetting(static_cast<std::int32_t>(index), ToText(path))];
 }
 
 + (NSArray<ECColorItem *> *)colorItems
@@ -855,6 +919,79 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 }
 
 } // namespace
+
+@implementation ECKeywordSetEditor {
+	std::unique_ptr<core::KeywordSetEditor> _editor;
+}
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		_editor = core::KeywordSetEditor::Create();
+		if (!_editor) return nil;
+	}
+	return self;
+}
+
+- (NSInteger)setCount { return _editor->SetCount(); }
+- (NSString *)nameOfSet:(NSInteger)set { return ToNSString(_editor->SetName(static_cast<std::int32_t>(set))); }
+- (BOOL)isCaseSensitive:(NSInteger)set { return _editor->IsCaseSensitive(static_cast<std::int32_t>(set)) ? YES : NO; }
+- (NSInteger)currentSet { return _editor->CurrentSet(); }
+- (void)setCurrentSet:(NSInteger)set { _editor->SetCurrentSet(static_cast<std::int32_t>(set)); }
+
+- (NSArray<NSString *> *)keywordsOfSet:(NSInteger)set
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& k : _editor->Keywords(static_cast<std::int32_t>(set))) [result addObject:ToNSString(k.text)];
+	return result;
+}
+
+- (NSArray<NSNumber *> *)keywordIndicesOfSet:(NSInteger)set
+{
+	NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+	for (const auto& k : _editor->Keywords(static_cast<std::int32_t>(set))) [result addObject:@(k.index)];
+	return result;
+}
+
+- (NSInteger)freeCountOfSet:(NSInteger)set { return _editor->FreeCount(static_cast<std::int32_t>(set)); }
+- (BOOL)canAddKeywordToSet:(NSInteger)set { return _editor->CanAddKeyword(static_cast<std::int32_t>(set)) ? YES : NO; }
+- (BOOL)addSet:(NSString *)name { return _editor->AddSet(ToText(name)) ? YES : NO; }
+- (BOOL)deleteSet:(NSInteger)set { return _editor->DeleteSet(static_cast<std::int32_t>(set)) ? YES : NO; }
+- (void)renameSet:(NSInteger)set to:(NSString *)name { _editor->RenameSet(static_cast<std::int32_t>(set), ToText(name)); }
+- (void)setCaseSensitive:(BOOL)on ofSet:(NSInteger)set { _editor->SetCaseSensitive(static_cast<std::int32_t>(set), on); }
+- (NSInteger)addKeyword:(NSString *)keyword toSet:(NSInteger)set { return _editor->AddKeyword(static_cast<std::int32_t>(set), ToText(keyword)); }
+- (BOOL)updateKeyword:(NSInteger)index ofSet:(NSInteger)set to:(NSString *)keyword
+{
+	return _editor->UpdateKeyword(static_cast<std::int32_t>(set), static_cast<std::int32_t>(index), ToText(keyword)) ? YES : NO;
+}
+- (void)deleteKeyword:(NSInteger)index ofSet:(NSInteger)set { _editor->DeleteKeyword(static_cast<std::int32_t>(set), static_cast<std::int32_t>(index)); }
+- (NSInteger)cleanSet:(NSInteger)set { return _editor->Clean(static_cast<std::int32_t>(set)); }
+
+- (BOOL)importToSet:(NSInteger)set path:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->Import(static_cast<std::int32_t>(set), ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (BOOL)exportSet:(NSInteger)set path:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->Export(static_cast<std::int32_t>(set), ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (NSDictionary<NSString *, NSString *> *)iniValues
+{
+	NSMutableDictionary<NSString *, NSString *> *result = [NSMutableDictionary dictionary];
+	for (const auto& [key, value] : _editor->IniValues()) result[ToNSString(key)] = ToNSString(value);
+	return result;
+}
+
+@end
 
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
@@ -1241,6 +1378,8 @@ static ECSearchResult *InvalidViewResult()
 
 - (void)relayout { _doc->Relayout(); }
 - (BOOL)applyTypeSettingChange:(NSInteger)typeIndex { return _doc->ApplyTypeSettingChange(static_cast<std::int32_t>(typeIndex)) ? YES : NO; }
+- (BOOL)applyTypeListChange { return _doc->ApplyTypeListChange() ? YES : NO; }
+- (BOOL)changeTypeTemporarily:(NSInteger)typeIndex { return _doc->ChangeTypeTemporarily(static_cast<std::int32_t>(typeIndex)) ? YES : NO; }
 
 - (NSInteger)layoutLineCount { return _doc->LayoutLineCount(); }
 

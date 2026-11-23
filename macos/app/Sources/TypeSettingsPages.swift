@@ -58,6 +58,11 @@ enum TypeSettingsPages {
         PropModal.run(dialog.page, title: dialog.title, parent: window, identifier: "KeywordSelectDialog") { close in dialog.onClose = close }
     }
 
+    /// 「共通設定 - 強調キーワード」（原版 CPropKeyword::DlgProc_dialog）。测试可以换。OK 时 true
+    static var runKeywordSettingsDialog: (_ dialog: KeywordSettingsDialog, _ window: NSWindow?) -> Bool = { dialog, window in
+        PropModal.run(dialog.page, title: dialog.title, parent: window, identifier: "KeywordSettingsDialog") { close in dialog.onClose = close }
+    }
+
     /// インポートするファイル（原版 CImpExpManager::ImportUI の「開く」）。测试可以换
     static var chooseImportFile: (_ extensions: [String], _ window: NSWindow?) -> String? = { extensions, _ in
         let panel = NSOpenPanel()

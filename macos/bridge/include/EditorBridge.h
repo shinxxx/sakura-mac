@@ -492,6 +492,29 @@ NS_SWIFT_NAME(EditorTypeSettingFileResult)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+//! タイプ別設定的文件（*.ini）的内容（core::TypeSettingFileInfo，第 40 步）
+NS_SWIFT_NAME(EditorTypeSettingFileInfo)
+@interface ECTypeSettingFileInfo : NSObject
+@property (readonly) BOOL succeeded;
+@property (readonly, copy) NSString *message;
+@property (readonly, copy) NSString *typeName;
+@property (readonly, copy) NSString *version;
+@property (readonly) NSInteger structureVersion;
+@property (readonly) BOOL versionDiffers;
+@property (readonly, copy) NSArray<NSString *> *colorFiles;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! タイプ別設定的インポート的结果（core::TypeSettingImportResult）
+NS_SWIFT_NAME(EditorTypeSettingImportResult)
+@interface ECTypeSettingImportResult : NSObject
+@property (readonly) BOOL succeeded;
+@property (readonly, copy) NSString *message;
+@property (readonly) NSInteger index;
+@property (readonly) BOOL added;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 /*!
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
@@ -525,6 +548,18 @@ NS_SWIFT_NAME(EditorCore)
 + (BOOL)saveSettings;
 //! タイプ別設定的一览（第 40 步。顺序与 Types(0)、Types(1)… 相同）
 @property (class, readonly, copy) NSArray<ECTypeSetting *> *typeSettings;
+//! タイプ別設定一覧（第 40 步，原版 CDlgTypeList）：最大个数、追加、複製、削除、↑↓、初期化
+@property (class, readonly) NSInteger maxTypeSettings;
++ (NSInteger)addTypeSetting;
++ (NSInteger)copyTypeSetting:(NSInteger)index NS_SWIFT_NAME(copyTypeSetting(_:));
++ (BOOL)deleteTypeSetting:(NSInteger)index NS_SWIFT_NAME(deleteTypeSetting(_:));
++ (NSInteger)moveTypeSetting:(NSInteger)index up:(BOOL)up NS_SWIFT_NAME(moveTypeSetting(_:up:));
++ (NSString *)initializeTypeSetting:(NSInteger)index NS_SWIFT_NAME(initializeTypeSetting(_:));
++ (ECTypeSettingFileInfo *)checkTypeSettingFile:(NSString *)path NS_SWIFT_NAME(checkTypeSettingFile(_:));
+//! colorType：-1 文件里的色、0 以上是那个类型的色。colorFile 不是空时用同一个文件夹的色設定文件
++ (ECTypeSettingImportResult *)importTypeSetting:(NSString *)path index:(NSInteger)index addNew:(BOOL)addNew
+	colorType:(NSInteger)colorType colorFile:(NSString *)colorFile NS_SWIFT_NAME(importTypeSetting(_:index:addNew:colorType:colorFile:));
++ (ECTypeSettingFileResult *)exportTypeSetting:(NSInteger)index path:(NSString *)path NS_SWIFT_NAME(exportTypeSetting(_:path:));
 //! 「カラー」页的全部的行（第 40 步）
 @property (class, readonly, copy) NSArray<ECColorItem *> *colorItems;
 //! 強調キーワード的セット名（顺序就是编号）
@@ -623,6 +658,38 @@ NS_SWIFT_NAME(EditorCore)
 	排版（自动换行）也在这里（第 27 步）。光标、选择、绘制属于编辑画面，不在这里。
 	只能在一个线程（通常是主线程）里使用。
 */
+/*!
+	共通設定 > 強調キーワード 的编辑（core::KeywordSetEditor，第 40 步）。复制核心库现在的强调关键字来编辑，
+	OK 时把 iniValues 写进 [KeyWords] 节
+*/
+NS_SWIFT_NAME(EditorKeywordSetEditor)
+@interface ECKeywordSetEditor : NSObject
+- (nullable instancetype)init NS_DESIGNATED_INITIALIZER;
+@property (readonly) NSInteger setCount;
+- (NSString *)nameOfSet:(NSInteger)set NS_SWIFT_NAME(name(ofSet:));
+- (BOOL)isCaseSensitive:(NSInteger)set NS_SWIFT_NAME(isCaseSensitive(_:));
+@property NSInteger currentSet;
+//! 关键字的文字（排好的顺序）和编号
+- (NSArray<NSString *> *)keywordsOfSet:(NSInteger)set NS_SWIFT_NAME(keywords(ofSet:));
+- (NSArray<NSNumber *> *)keywordIndicesOfSet:(NSInteger)set NS_SWIFT_NAME(keywordIndices(ofSet:));
+- (NSInteger)freeCountOfSet:(NSInteger)set NS_SWIFT_NAME(freeCount(ofSet:));
+- (BOOL)canAddKeywordToSet:(NSInteger)set NS_SWIFT_NAME(canAddKeyword(toSet:));
+- (BOOL)addSet:(NSString *)name NS_SWIFT_NAME(addSet(_:));
+- (BOOL)deleteSet:(NSInteger)set NS_SWIFT_NAME(deleteSet(_:));
+- (void)renameSet:(NSInteger)set to:(NSString *)name NS_SWIFT_NAME(renameSet(_:to:));
+- (void)setCaseSensitive:(BOOL)on ofSet:(NSInteger)set NS_SWIFT_NAME(setCaseSensitive(_:ofSet:));
+//! 0 成功、1 セット番号エラー、2 已满、3 空、4 重复
+- (NSInteger)addKeyword:(NSString *)keyword toSet:(NSInteger)set NS_SWIFT_NAME(addKeyword(_:toSet:));
+- (BOOL)updateKeyword:(NSInteger)index ofSet:(NSInteger)set to:(NSString *)keyword NS_SWIFT_NAME(updateKeyword(_:ofSet:to:));
+- (void)deleteKeyword:(NSInteger)index ofSet:(NSInteger)set NS_SWIFT_NAME(deleteKeyword(_:ofSet:));
+- (NSInteger)cleanSet:(NSInteger)set NS_SWIFT_NAME(clean(set:));
+//! 读入・写出 *.kwd。message 是原版的消息
+- (BOOL)importToSet:(NSInteger)set path:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importFile(toSet:path:message:));
+- (BOOL)exportSet:(NSInteger)set path:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportFile(set:path:message:));
+//! [KeyWords] 节的值（项目 → 值）
+@property (readonly, copy) NSDictionary<NSString *, NSString *> *iniValues;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -784,6 +851,10 @@ NS_SWIFT_NAME(EditorDocument)
 	按文件名重新决定类型、读新的设置、重新排版，返回 YES
 */
 - (BOOL)applyTypeSettingChange:(NSInteger)typeIndex NS_SWIFT_NAME(applyTypeSettingChange(_:));
+//! タイプ別設定一覧で顺序・个数变了：按 ID 找新的编号（类型被删了时按文件名重新决定、重新排版，返回 YES）
+- (BOOL)applyTypeListChange;
+//! タイプ別設定一覧 的「一時適用」（原版 F_CHANGETYPE）
+- (BOOL)changeTypeTemporarily:(NSInteger)typeIndex NS_SWIFT_NAME(changeTypeTemporarily(_:));
 
 //! 排版行数（空文档是 0）
 @property (readonly) NSInteger layoutLineCount;

@@ -114,6 +114,7 @@ enum CommandTable {
         32018: #selector(NSApplication.showCommonSettings(_:)),	// F_OPTION_MAINMENU
 
         // 第 40 步：タイプ別設定（TypeSettingsWindow.swift）。この文書のタイプ。各页的功能打开那一页
+        31110: #selector(EditorTextView.showTypeList(_:)),			// F_TYPE_LIST タイプ別設定一覧
         31111: #selector(EditorTextView.showTypeSettings(_:)),		// F_OPTION_TYPE タイプ別設定
         31114: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_WINDOW タイプ別設定『ウィンドウ』
         31115: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_SCREEN タイプ別設定『スクリーン』

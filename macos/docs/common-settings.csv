@@ -56,8 +56,8 @@
 メインメニュー,IDC_BUTTON_LEFT,PUSHBUTTON,←(L),,,第 41 步
 メインメニュー,IDC_BUTTON_EXPAND,PUSHBUTTON,全開(H),,,第 41 步
 メインメニュー,IDC_BUTTON_COLLAPSE,PUSHBUTTON,全閉(Z),,,第 41 步
-メインメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
-メインメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
+メインメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+メインメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
 メインメニュー,IDC_BUTTON_CHECK,PUSHBUTTON,検査(T),,,第 41 步
 メインメニュー,IDC_BUTTON_CLEAR,PUSHBUTTON,クリア(C),,,第 41 步
 メインメニュー,IDC_BUTTON_INITIALIZE,PUSHBUTTON,初期設定(E),,,第 41 步
@@ -211,8 +211,8 @@
 キー割り当て,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
 キー割り当て,IDC_LABEL_FUNCtoKEY,LTEXT,機能に割り当てられているキー(G),,,第 41 步
 キー割り当て,IDC_LIST_ASSIGNEDKEYS,LISTBOX,機能に割り当てられているキー(G),,,第 41 步
-キー割り当て,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
-キー割り当て,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
+キー割り当て,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+キー割り当て,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
 キー割り当て,IDC_LABEL_KEYKIND,LTEXT,キー(Y),,,第 41 步
 キー割り当て,IDC_LIST_KEY,LISTBOX,キー(Y),m_sKeyBind.m_pKeyNameArr m_sKeyBind.m_nKeyNameArrNum,,第 41 步
 キー割り当て,IDC_CHECK_SHIFT,AUTOCHECKBOX,Shift,,,第 41 步
@@ -241,23 +241,23 @@
 カスタムメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
 カスタムメニュー,IDC_LABEL_MENUKEYCHANGE,LTEXT,↑ダブルクリックでアクセスキー設定可,,,第 41 步
 カスタムメニュー,IDC_CHECK_SUBMENU,AUTOCHECKBOX,サブメニューとして表示(S),m_sCustomMenu.m_bCustMenuPopupArr,,第 41 步
-カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 41 步
-カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 41 步
-強調キーワード,IDC_COMBO_SET,COMBOBOX,セット名(N),,,第 40 步
-強調キーワード,IDC_BUTTON_ADDSET,PUSHBUTTON,セット追加(M)...,m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
-強調キーワード,IDC_BUTTON_DELSET,PUSHBUTTON,セット削除(R)...,,,第 40 步
-強調キーワード,IDC_LIST_KEYWORD,SysListView32,List5,m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
-強調キーワード,IDC_BUTTON_ADDKEYWORD,PUSHBUTTON,追加(A)...,,,第 40 步
-強調キーワード,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,編集(E)...,,,第 40 步
-強調キーワード,IDC_BUTTON_DELKEYWORD,PUSHBUTTON,削除(D),,,第 40 步
-強調キーワード,IDC_CHECK_KEYWORDCASE,AUTOCHECKBOX,英大文字小文字区別(C),m_sSpecialKeyword.m_CKeyWordSetMgr,,第 40 步
-強調キーワード,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,,第 40 步
-強調キーワード,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,,第 40 步
-強調キーワード,IDC_STATIC_KEYWORD_COUNT,RTEXT,(最大 100 文字   登録数 9999 / 9999 個),,,第 40 步
-強調キーワード,IDC_BUTTON_KEYSETRENAME,PUSHBUTTON,変更(H),,,第 40 步
-強調キーワード,IDC_BUTTON_KEYCLEAN,PUSHBUTTON,整理(O),,,第 40 步
-強調キーワード,IDOK,PUSHBUTTON,OK,,,第 40 步
-強調キーワード,IDCANCEL,PUSHBUTTON,キャンセル(X),,,第 40 步
+カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+強調キーワード,IDC_COMBO_SET,COMBOBOX,セット名(N),,"KeyWords/nCurrentKeyWordSetIdx, nKeyWordSetNum, szSN[nn]",○
+強調キーワード,IDC_BUTTON_ADDSET,PUSHBUTTON,セット追加(M)...,m_sSpecialKeyword.m_CKeyWordSetMgr,"KeyWords/nKeyWordSetNum, szSN[nn]",○
+強調キーワード,IDC_BUTTON_DELSET,PUSHBUTTON,セット削除(R)...,,"KeyWords/…、Types(N)/nInts, nKeywordSelect3～10",○
+強調キーワード,IDC_LIST_KEYWORD,SysListView32,List5,m_sSpecialKeyword.m_CKeyWordSetMgr,"KeyWords/nKWN[nn], szKW[nn]",○
+強調キーワード,IDC_BUTTON_ADDKEYWORD,PUSHBUTTON,追加(A)...,,KeyWords/szKW[nn],○
+強調キーワード,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,編集(E)...,,KeyWords/szKW[nn],○
+強調キーワード,IDC_BUTTON_DELKEYWORD,PUSHBUTTON,削除(D),,KeyWords/szKW[nn],○
+強調キーワード,IDC_CHECK_KEYWORDCASE,AUTOCHECKBOX,英大文字小文字区別(C),m_sSpecialKeyword.m_CKeyWordSetMgr,KeyWords/nCASE[nn],○
+強調キーワード,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,○
+強調キーワード,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,○
+強調キーワード,IDC_STATIC_KEYWORD_COUNT,RTEXT,(最大 100 文字   登録数 9999 / 9999 個),,,
+強調キーワード,IDC_BUTTON_KEYSETRENAME,PUSHBUTTON,変更(H),,KeyWords/szSN[nn],○
+強調キーワード,IDC_BUTTON_KEYCLEAN,PUSHBUTTON,整理(O),,KeyWords/szKW[nn],○
+強調キーワード,IDOK,PUSHBUTTON,OK,,（タイプ別設定から開いたとき）,○
+強調キーワード,IDCANCEL,PUSHBUTTON,キャンセル(X),,（同上）,○
 支援,IDC_CHECK_m_bHokanKey_RETURN,AUTOCHECKBOX,Enter,m_sHelper.m_bHokanKey_RETURN,Common/bHokanKey_RETURN,○
 支援,IDC_CHECK_m_bHokanKey_TAB,AUTOCHECKBOX,Tab,m_sHelper.m_bHokanKey_TAB,Common/bHokanKey_TAB,○
 支援,IDC_CHECK_m_bHokanKey_RIGHT,AUTOCHECKBOX,→(R),m_sHelper.m_bHokanKey_RIGHT,Common/bHokanKey_RIGHT,○

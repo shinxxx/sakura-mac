@@ -181,6 +181,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         // 第 40 步：タイプ別設定窗口按了 OK（原版 MYWM_CHANGESETTING の PM_CHANGESETTING_TYPE）
         NotificationCenter.default.addObserver(self, selector: #selector(typeSettingsDidChange(_:)),
                                                name: TypeSettingsWindowController.didChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(typeListDidChange(_:)),
+                                               name: TypeSettingsWindowController.listDidChangeNotification, object: nil)
         // 输入法打开、关闭时，光标的颜色跟着变
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardInputSourceDidChange(_:)),
                                                name: NSTextInputContext.keyboardSelectionDidChangeNotification, object: nil)
@@ -224,7 +226,20 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// タイプ別設定变了：这个文档的类型（或按文件名决定的类型）是那个类型时，读新的设置，重新排版、重画
     /// （原版 CEditWnd::OnChangeSetting の PM_CHANGESETTING_TYPE → CEditDoc::OnChangeSetting）
     @objc private func typeSettingsDidChange(_ notification: Notification) {
-        guard let index = notification.userInfo?["index"] as? Int, document.applyTypeSettingChange(index) else { return }
+        // -1 は全部のタイプ（強調キーワードが変わったとき）
+        guard let changed = notification.userInfo?["index"] as? Int else { return }
+        let index = changed == -1 ? document.typeIndex : changed
+        guard document.applyTypeSettingChange(index) else { return }
+        typeSettingsReloaded()
+    }
+
+    /// タイプ別設定一覧で一覧が変わった（第 40 步。原版 PM_CHANGESETTING_TYPE2・ALL）：番号を直し、タイプが消えたら読み直す
+    @objc private func typeListDidChange(_ notification: Notification) {
+        if document.applyTypeListChange() { typeSettingsReloaded() }
+    }
+
+    /// 文書のタイプ別設定が変わった後：新しい設定で排版・重画
+    func typeSettingsReloaded() {
         settings = document.viewSettings
         updateFontMetrics()
         reloadColors()

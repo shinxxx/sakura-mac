@@ -52,6 +52,8 @@ final class CommonSettingsValues {
     let store: CommonSettingsStore
     /// 不指定节时的节：共通設定是 Common，タイプ別設定是 Types(N)（第 40 步）
     let defaultSection: String
+    /// 上次 apply 写的节（第 40 步：強調キーワード・タイプ別設定变了时各文档重新排版）
+    private(set) var appliedSections: Set<String> = []
     private var original: [Item: String] = [:]
     private var current: [Item: String] = [:]
     private var order: [Item] = []
@@ -124,6 +126,7 @@ final class CommonSettingsValues {
             if bySection[item.section] == nil { sections.append(item.section) }
             bySection[item.section, default: [:]][item.key] = value
         }
+        appliedSections = Set(sections)
         for section in sections where !store.setValues(bySection[section] ?? [:], section: section) {
             succeeded = false
         }
@@ -1017,6 +1020,10 @@ final class CommonSettingsWindowController: PropSheetWindowController {
     override func didApply(changed: Bool) {
         if changed {
             NotificationCenter.default.post(name: EditorTextView.commonSettingsDidChangeNotification, object: nil)
+        }
+        // 強調キーワード（とそれを使うタイプ別設定）が変わった：全部の文書を新しい設定で（原版 F_REDRAW）
+        if values.appliedSections.contains(where: { $0 == "KeyWords" || $0.hasPrefix("Types(") }) {
+            NotificationCenter.default.post(name: TypeSettingsWindowController.didChangeNotification, object: nil, userInfo: ["index": -1])
         }
     }
 

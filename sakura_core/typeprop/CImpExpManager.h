@@ -111,6 +111,19 @@ public:
 
 	bool	IsAddType() const noexcept { return m_bAddType; }
 
+#if !defined(_WIN32)
+	// Mac 版：確認ダイアログ（CDlgTypeAscertain）は画面側で出す。ImportAscertain はファイルを読むだけで、
+	// 確認の結果（色の選び方、新規追加か）はこれで設定する（移植計画のステップ 40）
+	void SetAscertainResultMac( int nColorType, const sakura::wstring& sColorFile, bool bAddType )
+	{
+		m_nColorType = nColorType;
+		m_sColorFile = sColorFile;
+		m_bAddType = bAddType;
+	}
+	//! 読んだファイルの設定名、バージョン（確認ダイアログ用）
+	bool GetFileInfoMac( sakura::wstring& sTypeName, sakura::wstring& sVersion, int& nStructureVersion );
+#endif
+
 private:
 	// インターフェース用
 	int 			m_nIdx;

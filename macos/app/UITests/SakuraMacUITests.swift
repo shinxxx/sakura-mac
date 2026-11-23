@@ -500,6 +500,41 @@ final class SakuraMacUITests: XCTestCase {
         window.buttons["TypeSettingsCancel"].click()
     }
 
+    /// 設定 > タイプ別設定一覧（第 40 步第 3 个 PR）：一覧が出る。追加すると 1 行増え、削除（確認して OK）で戻る。
+    /// 共通設定 > 強調キーワード：セット名とキーワードの一覧が出る
+    func testTypeListAndKeywordPage() {
+        editor.click()
+        let settings = app.menuBars.menuBarItems["設定"]
+        settings.click()
+        let item = settings.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'タイプ別設定一覧'")).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 3), "「設定」>「タイプ別設定一覧」")
+        item.click()
+        let table = app.tables["IDC_LIST_TYPES_table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 5), "タイプ別設定一覧")
+        let count = table.tableRows.count
+        XCTAssertGreaterThan(count, 10)
+        XCTAssertTrue(table.staticTexts["基本"].exists)
+        app.buttons["IDC_BUTTON_ADD_TYPE"].click()
+        XCTAssertEqual(table.tableRows.count, count + 1, "追加")
+        app.buttons["IDC_BUTTON_DEL_TYPE"].click()
+        let ok = app.buttons["OK"].firstMatch	// 確認（NSAlert）
+        XCTAssertTrue(ok.waitForExistence(timeout: 3), "削除の確認")
+        ok.click()
+        XCTAssertEqual(table.tableRows.count, count, "削除")
+        app.buttons["IDCANCEL"].click()
+        XCTAssertFalse(table.waitForExistence(timeout: 1), "キャンセルで閉じる")
+
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        window.staticTexts["CommonSettingsPage_強調キーワード"].click()
+        let combo = window.popUpButtons["IDC_COMBO_SET"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 2))
+        XCTAssertTrue(combo.isEnabled, "強調キーワード のページが使える")
+        XCTAssertGreaterThan(window.tables["IDC_LIST_KEYWORD_table"].tableRows.count, 0, "キーワードの一覧")
+        window.buttons["CommonSettingsCancel"].click()
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

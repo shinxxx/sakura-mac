@@ -47,7 +47,7 @@
 カラー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,C[…]（*.col）,○
 カラー,IDC_COMBO_SET,COMBOBOX,強調キーワード1,,nInts（5 番目）,○
 カラー,IDC_BUTTON_KEYWORD_SELECT,PUSHBUTTON,2～10...,,"nInts（5・6 番目）, nKeywordSelect3～10",○
-カラー,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,共通設定(C)...,,共通設定 > 強調キーワード,第 40 步（第 3 个 PR：共通設定の強調キーワード）
+カラー,IDC_BUTTON_EDITKEYWORD,PUSHBUTTON,共通設定(C)...,,KeyWords/…（共通設定 > 強調キーワード をその場で書く）,○
 カラー,IDC_EDIT_BLOCKCOMMENT_FROM,EDITTEXT,ブロック型(F),m_cBlockComments,szBlockCommentFrom,○
 カラー,IDC_EDIT_BLOCKCOMMENT_TO,EDITTEXT,～(T),m_cBlockComments,szBlockCommentTo,○
 カラー,IDC_EDIT_BLOCKCOMMENT_FROM2,EDITTEXT,ブロック型(A),m_cBlockComments,szBlockCommentFrom2,○

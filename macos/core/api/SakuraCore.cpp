@@ -47,6 +47,9 @@
 #include "env/CDocTypeManager.h"
 #include "doc/CDocTypeSetting.h"
 #include "typeprop/CImpExpManager.h"
+#include "mem/CNativeW.h"
+#include "util/string_ex2.h"
+#include "types/CType.h"
 #include "CSelectLang.h"
 #include "env/CShareData.h"
 #include "env/CShareData_IO.h"
@@ -335,6 +338,8 @@ public:
 				type.m_nIdx = nType;
 				(void)CDocTypeManager().SetTypeConfig(CTypeConfig(nType), type);
 			}
+		} else if (section == LTEXT("KeyWords")) {
+			ShareData_IO_KeyWords(profile);	// 第 40 步：共通設定 > 強調キーワード
 		} else if (section == LTEXT("Common")) {
 			ShareData_IO_Common(profile);
 		} else if (section == LTEXT("Nickname")) {
@@ -555,6 +560,440 @@ TypeSettingFileResult ExportTypeSettingFile(TypeSettingFile kind, std::int32_t t
 		message = LS(STR_IMPEXP_ERR_EXPORT) + sakura::wstring(path);
 	}
 	result.message = Text(message);
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// タイプ別設定一覧（第 40 步。原版 CDlgTypeList）
+// ---------------------------------------------------------------------------
+
+std::int32_t MaxTypeSettings() { return MAX_TYPES; }
+
+std::int32_t AddTypeSetting()
+{
+	if (!IsStarted()) return -1;
+	const int nNew = GetDllShareData().m_nTypesCount;
+	return CDocTypeManager().AddTypeConfig(CTypeConfig(nNew)) ? nNew : -1;
+}
+
+std::int32_t CopyTypeSetting(std::int32_t index)
+{
+	// 原版 CDlgTypeList::CopyType
+	if (!IsStarted()) return -1;
+	const int nNewTypeIndex = GetDllShareData().m_nTypesCount;
+	STypeConfig type;
+	if (!CDocTypeManager().GetTypeConfig(CTypeConfig(index), type)) return -1;
+	int n = 1;
+	bool bUpdate = true;
+	for (int i = 0; i < nNewTypeIndex; i++) {
+		if (bUpdate) {
+			WCHAR* p = nullptr;
+			for (int k = (int)wcslen(type.m_szTypeName) - 1; 0 <= k; k--) {
+				if (WCODE::Is09(type.m_szTypeName[k])) {
+					p = &type.m_szTypeName[k];
+				} else {
+					break;
+				}
+			}
+			if (p) {
+				n = _wtoi(p) + 1;
+				*p = LCHAR('\0');
+			} else {
+				n++;
+			}
+			WCHAR szNum[12];
+			auto_sprintf(szNum, LTEXT("%d"), n);
+			const auto nLen = int(wcslen(szNum));
+			WCHAR szTemp[std::size(type.m_szTypeName) + 12];
+			wcscpy(szTemp, type.m_szTypeName);
+			const auto nTempLen = int(wcslen(szTemp));
+			CNativeW cmem;
+			LimitStringLengthW(szTemp, nTempLen, int(std::size(type.m_szTypeName)) - nLen - 1, cmem);
+			wcscpy(type.m_szTypeName, cmem.GetStringPtr());
+			wcscat(type.m_szTypeName, szNum);
+			bUpdate = false;
+		}
+		const STypeConfigMini* typeMini = nullptr;
+		if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(i), &typeMini)) continue;
+		if (wcscmp(typeMini->m_szTypeName, type.m_szTypeName) == 0) {
+			i = -1;
+			bUpdate = true;
+		}
+	}
+	if (!CDocTypeManager().AddTypeConfig(CTypeConfig(nNewTypeIndex))) return -1;
+	type.m_id = int(::GetTickCount64() & 0x3fffffff) + nNewTypeIndex * 0x10000;
+	type.m_nIdx = nNewTypeIndex;
+	type.m_nRegexKeyMagicNumber = CRegexKeyword::GetNewMagicNumber();
+	CDocTypeManager().SetTypeConfig(CTypeConfig(nNewTypeIndex), type);
+	return nNewTypeIndex;
+}
+
+bool DeleteTypeSetting(std::int32_t index)
+{
+	if (!IsStarted() || index <= 0) return false;
+	return CDocTypeManager().DelTypeConfig(CTypeConfig(index));
+}
+
+std::int32_t MoveTypeSetting(std::int32_t index, bool up)
+{
+	// 原版 CDlgTypeList::UpType / DownType：「基本」は動かない
+	if (!IsStarted() || index <= 0) return -1;
+	const int other = up ? index - 1 : index + 1;
+	if (other <= 0 || GetDllShareData().m_nTypesCount <= other) return -1;
+	auto type1 = std::make_unique<STypeConfig>();
+	auto type2 = std::make_unique<STypeConfig>();
+	CDocTypeManager().GetTypeConfig(CTypeConfig(index), *type1);
+	CDocTypeManager().GetTypeConfig(CTypeConfig(other), *type2);
+	type1->m_nIdx = other;
+	type2->m_nIdx = index;
+	CDocTypeManager().SetTypeConfig(CTypeConfig(index), *type2);
+	CDocTypeManager().SetTypeConfig(CTypeConfig(other), *type1);
+	return other;
+}
+
+Text InitializeTypeSetting(std::int32_t index)
+{
+	// 原版 CDlgTypeList::InitializeType（確認は画面側）
+	if (!IsStarted()) return {};
+	const STypeConfigMini* typeMini = nullptr;
+	if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(index), &typeMini)) return {};
+	const int iDocType = CDocTypeManager().GetDocumentTypeOfId(typeMini->m_id).GetIndex();
+	if (iDocType < 0) return {};
+	auto type = std::make_unique<STypeConfig>();
+	if (0 != iDocType) {
+		CDocTypeManager().GetTypeConfig(CTypeConfig(0), *type);	// 基本をコピー
+		int nNameNum = iDocType + 1;
+		bool bUpdate = true;
+		for (int i = 1; i < GetDllShareData().m_nTypesCount; i++) {
+			if (bUpdate) {
+				auto_sprintf(type->m_szTypeName, LS(STR_DLGTYPELIST_SETNAME), nNameNum);
+				nNameNum++;
+				bUpdate = false;
+			}
+			if (iDocType == i) continue;
+			const STypeConfigMini* typeMini2 = nullptr;
+			if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(i), &typeMini2)) continue;
+			if (wcscmp(typeMini2->m_szTypeName, type->m_szTypeName) == 0) {
+				i = 0;
+				bUpdate = true;
+			}
+		}
+		type->m_szTypeExts[0] = LCHAR('\0');
+		type->m_nIdx = iDocType;
+		type->m_id = int(::GetTickCount64() & 0x3fffffff) + iDocType * 0x10000;
+		type->m_nRegexKeyMagicNumber = CRegexKeyword::GetNewMagicNumber();
+	} else {
+		CType_Basis basis;
+		basis.InitTypeConfig(0, *type);
+	}
+	CDocTypeManager().SetTypeConfig(CTypeConfig(iDocType), *type);
+	return Text(type->m_szTypeName.c_str());
+}
+
+namespace {
+
+//! インポート・エクスポートのフォルダー（原版 CImpExpManager::SetImportFolder。キーワード・色のファイルはここ）
+void SetImportFolderOf(const Text& path)
+{
+	auto& folder = GetDllShareData().m_sHistory.m_szIMPORTFOLDER;
+	::SplitPath_FolderAndFile(path.c_str(), folder, nullptr);
+	wcscat_s(folder, LTEXT("/"));
+}
+
+} // namespace
+
+TypeSettingFileInfo CheckTypeSettingFile(const Text& path)
+{
+	TypeSettingFileInfo info;
+	if (!IsStarted()) return info;
+	STypeConfig type;
+	CImpExpType imp(0, type, nullptr);
+	sakura::wstring message;
+	try {
+		info.succeeded = imp.ImportAscertain(nullptr, nullptr, sakura::wstring(path), message);
+	} catch (...) {
+		info.succeeded = false;
+		message = LS(STR_IMPEXP_ERR_FILEOPEN) + sakura::wstring(path);
+	}
+	info.message = Text(message);
+	if (!info.succeeded) return info;
+	sakura::wstring name, version;
+	int nStructureVersion = 0;
+	imp.GetFileInfoMac(name, version, nStructureVersion);
+	info.typeName = Text(name);
+	info.version = Text(version);
+	info.structureVersion = nStructureVersion;
+	info.versionDiffers = static_cast<unsigned int>(nStructureVersion) != GetDllShareData().m_vStructureVersion;
+	// 同じフォルダーの *.col（原版 CDlgTypeAscertain::SetData）
+	std::error_code ec;
+	const auto dir = std::filesystem::path(path).parent_path();
+	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+		if (entry.is_regular_file(ec) && entry.path().extension() == ".col") {
+			info.colorFiles.push_back(entry.path().filename().u16string());
+		}
+	}
+	std::sort(info.colorFiles.begin(), info.colorFiles.end());
+	return info;
+}
+
+TypeSettingImportResult ImportTypeSetting(const Text& path, std::int32_t index, const TypeSettingImportChoice& choice)
+{
+	// 原版 CDlgTypeList::Import
+	TypeSettingImportResult result;
+	if (!IsStarted()) return result;
+	const STypeConfigMini* typeMini = nullptr;
+	if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(index), &typeMini)) return result;
+	const int id = typeMini->m_id;
+	STypeConfig type;
+	CDocTypeManager().GetTypeConfig(CTypeConfig(0), type);
+	CImpExpType imp(index, type, nullptr);
+	sakura::wstring message;
+	try {
+		if (!imp.ImportAscertain(nullptr, nullptr, sakura::wstring(path), message)) {
+			result.message = Text(message);
+			return result;
+		}
+		SetImportFolderOf(path);
+		int nColorType = choice.colorType;
+		if (!choice.colorFile.empty()) nColorType = MAX_TYPES;
+		imp.SetAscertainResultMac(nColorType, sakura::wstring(choice.colorFile), choice.addNew);
+		if (!imp.Import(sakura::wstring(path), message)) {
+			result.message = Text(message);
+			return result;
+		}
+	} catch (...) {
+		result.message = Text(LS(STR_IMPEXP_ERR_FILEOPEN) + sakura::wstring(path));
+		return result;
+	}
+	int nIdx;
+	if (choice.addNew) {
+		nIdx = AddTypeSetting();
+		if (nIdx < 0) return result;
+	} else {
+		nIdx = CDocTypeManager().GetDocumentTypeOfId(id).GetIndex();
+		if (nIdx < 0) return result;
+	}
+	type.m_nIdx = nIdx;
+	type.m_nRegexKeyMagicNumber = CRegexKeyword::GetNewMagicNumber();
+	CDocTypeManager().SetTypeConfig(CTypeConfig(nIdx), type);
+	result.succeeded = true;
+	result.message = Text(message);
+	result.index = nIdx;
+	result.added = choice.addNew;
+	return result;
+}
+
+TypeSettingFileResult ExportTypeSetting(std::int32_t index, const Text& path)
+{
+	TypeSettingFileResult result;
+	if (!IsStarted()) return result;
+	STypeConfig type;
+	if (!CDocTypeManager().GetTypeConfig(CTypeConfig(index), type)) return result;
+	CImpExpType imp(index, type, nullptr);
+	imp.SetBaseName(sakura::wstring(type.m_szTypeName.c_str()));
+	SetImportFolderOf(path);
+	sakura::wstring message;
+	try {
+		result.succeeded = imp.Export(sakura::wstring(path), message);
+	} catch (...) {
+		result.succeeded = false;
+		message = LS(STR_IMPEXP_ERR_EXPORT) + sakura::wstring(path);
+	}
+	result.message = Text(message);
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// 共通設定 > 強調キーワード（第 40 步）
+// ---------------------------------------------------------------------------
+
+struct KeywordSetEditor::Impl {
+	std::unique_ptr<CommonSetting> common;	//!< 原版 CPropCommon::m_Common と同じ複製（CImpExpKeyWord はこれを使う）
+	int initialSetCount = 0;				//!< 作ったときのセット数（減ったセットの項目を空にする）
+	CKeyWordSetMgr& Mgr() { return common->m_sSpecialKeyword.m_CKeyWordSetMgr; }
+	const CKeyWordSetMgr& Mgr() const { return common->m_sSpecialKeyword.m_CKeyWordSetMgr; }
+	bool Valid(int set) const { return 0 <= set && set < Mgr().m_nKeyWordSetNum; }
+};
+
+KeywordSetEditor::KeywordSetEditor() : m_impl(std::make_unique<Impl>()) {}
+KeywordSetEditor::~KeywordSetEditor() = default;
+
+std::unique_ptr<KeywordSetEditor> KeywordSetEditor::Create()
+{
+	if (!IsStarted()) return nullptr;
+	std::unique_ptr<KeywordSetEditor> editor(new KeywordSetEditor());
+	editor->m_impl->common = std::make_unique<CommonSetting>(GetDllShareData().m_Common);
+	editor->m_impl->initialSetCount = editor->m_impl->Mgr().m_nKeyWordSetNum;
+	return editor;
+}
+
+std::int32_t KeywordSetEditor::SetCount() const { return m_impl->Mgr().m_nKeyWordSetNum; }
+
+Text KeywordSetEditor::SetName(std::int32_t set) const
+{
+	return m_impl->Valid(set) ? Text(const_cast<CKeyWordSetMgr&>(m_impl->Mgr()).GetTypeName(set)) : Text();
+}
+
+bool KeywordSetEditor::IsCaseSensitive(std::int32_t set) const
+{
+	return m_impl->Valid(set) && const_cast<CKeyWordSetMgr&>(m_impl->Mgr()).GetKeyWordCase(set);
+}
+
+std::int32_t KeywordSetEditor::CurrentSet() const
+{
+	const auto& mgr = m_impl->Mgr();
+	if (mgr.m_nKeyWordSetNum <= 0) return -1;
+	return std::clamp(mgr.m_nCurrentKeyWordSetIdx, 0, mgr.m_nKeyWordSetNum - 1);
+}
+
+void KeywordSetEditor::SetCurrentSet(std::int32_t set)
+{
+	if (m_impl->Valid(set)) m_impl->Mgr().m_nCurrentKeyWordSetIdx = set;
+}
+
+std::vector<KeywordSetEditor::Keyword> KeywordSetEditor::Keywords(std::int32_t set) const
+{
+	std::vector<Keyword> result;
+	if (!m_impl->Valid(set)) return result;
+	auto& mgr = const_cast<CKeyWordSetMgr&>(m_impl->Mgr());
+	for (int i = 0; i < mgr.GetKeyWordNum(set); ++i) {
+		result.push_back({ i, Text(mgr.GetKeyWord(set, i)) });
+	}
+	std::stable_sort(result.begin(), result.end(), [](const Keyword& a, const Keyword& b) { return a.text < b.text; });
+	return result;
+}
+
+std::int32_t KeywordSetEditor::FreeCount(std::int32_t set) const
+{
+	if (!m_impl->Valid(set)) return 0;
+	auto& mgr = const_cast<CKeyWordSetMgr&>(m_impl->Mgr());
+	// 原版 DispKeywordCount：確保済みの空き + 未割り当て
+	return mgr.GetAllocSize(set) - mgr.GetKeyWordNum(set) + mgr.GetFreeSize();
+}
+
+bool KeywordSetEditor::CanAddKeyword(std::int32_t set) const
+{
+	return m_impl->Valid(set) && const_cast<CKeyWordSetMgr&>(m_impl->Mgr()).CanAddKeyWord(set);
+}
+
+bool KeywordSetEditor::AddSet(const Text& name)
+{
+	auto& mgr = m_impl->Mgr();
+	if (MAX_SETNUM <= mgr.m_nKeyWordSetNum || name.empty()) return false;
+	if (!mgr.AddKeyWordSet(name.c_str(), false)) return false;
+	mgr.m_nCurrentKeyWordSetIdx = mgr.m_nKeyWordSetNum - 1;
+	return true;
+}
+
+bool KeywordSetEditor::DeleteSet(std::int32_t set)
+{
+	if (!m_impl->Valid(set)) return false;
+	return m_impl->Mgr().DelKeyWordSet(set);
+}
+
+void KeywordSetEditor::RenameSet(std::int32_t set, const Text& name)
+{
+	if (m_impl->Valid(set) && !name.empty()) m_impl->Mgr().SetTypeName(set, name.c_str());
+}
+
+void KeywordSetEditor::SetCaseSensitive(std::int32_t set, bool on)
+{
+	if (m_impl->Valid(set)) m_impl->Mgr().SetKeyWordCase(set, on ? 1 : 0);
+}
+
+std::int32_t KeywordSetEditor::AddKeyword(std::int32_t set, const Text& keyword)
+{
+	if (!m_impl->Valid(set)) return 1;
+	return m_impl->Mgr().AddKeyWord(set, keyword.c_str());
+}
+
+bool KeywordSetEditor::UpdateKeyword(std::int32_t set, std::int32_t index, const Text& keyword)
+{
+	if (!m_impl->Valid(set)) return false;
+	return m_impl->Mgr().UpdateKeyWord(set, index, keyword.c_str()) != nullptr;
+}
+
+void KeywordSetEditor::DeleteKeyword(std::int32_t set, std::int32_t index)
+{
+	if (m_impl->Valid(set)) m_impl->Mgr().DelKeyWord(set, index);
+}
+
+std::int32_t KeywordSetEditor::Clean(std::int32_t set)
+{
+	return m_impl->Valid(set) ? m_impl->Mgr().CleanKeyWords(set) : 0;
+}
+
+bool KeywordSetEditor::Import(std::int32_t set, const Text& path, Text& message)
+{
+	if (!m_impl->Valid(set)) return false;
+	bool bCase = false;	// 原版 Import_List_KeyWord：ファイルに CASE がなければ区別しない
+	CImpExpKeyWord cImpExpKeyWord(*m_impl->common, set, bCase);
+	sakura::wstring msg;
+	bool ok = false;
+	try {
+		ok = cImpExpKeyWord.Import(sakura::wstring(path), msg);
+	} catch (...) {
+		ok = false;
+		msg = LS(STR_IMPEXP_ERR_FILEOPEN) + sakura::wstring(path);
+	}
+	message = Text(msg);
+	return ok;
+}
+
+bool KeywordSetEditor::Export(std::int32_t set, const Text& path, Text& message)
+{
+	if (!m_impl->Valid(set)) return false;
+	bool bCase = m_impl->Mgr().GetKeyWordCase(set);
+	CImpExpKeyWord cImpExpKeyWord(*m_impl->common, set, bCase);
+	sakura::wstring msg;
+	bool ok = false;
+	try {
+		ok = cImpExpKeyWord.Export(sakura::wstring(path), msg);
+	} catch (...) {
+		ok = false;
+		msg = LS(STR_IMPEXP_ERR_EXPORT) + sakura::wstring(path);
+	}
+	message = Text(msg);
+	return ok;
+}
+
+std::vector<std::pair<Text, Text>> KeywordSetEditor::IniValues() const
+{
+	// 原版 ShareData_IO_KeyWords の書き込みと同じ
+	auto& mgr = const_cast<CKeyWordSetMgr&>(m_impl->Mgr());
+	constexpr auto section = LTEXT("KeyWords");
+	CDataProfile profile;
+	profile.SetWritingMode();
+	int nCurrent = mgr.m_nCurrentKeyWordSetIdx;
+	int nSetNum = mgr.m_nKeyWordSetNum;
+	profile.IOProfileData(section, LTEXT("nCurrentKeyWordSetIdx"), nCurrent);
+	profile.IOProfileData(section, LTEXT("nKeyWordSetNum"), nSetNum);
+	std::vector<sakura::wstring> keys = { LTEXT("nCurrentKeyWordSetIdx"), LTEXT("nKeyWordSetNum") };
+	const int nKeys = std::max(nSetNum, m_impl->initialSetCount);
+	for (int i = 0; i < nKeys; ++i) {
+		const auto sn = strprintf(LTEXT("szSN[%02d]"), i), cs = strprintf(LTEXT("nCASE[%02d]"), i);
+		const auto kwn = strprintf(LTEXT("nKWN[%02d]"), i), size = strprintf(LTEXT("szKW[%02d].Size"), i);
+		const auto kw = strprintf(LTEXT("szKW[%02d]"), i);
+		keys.insert(keys.end(), { sn, cs, kwn, size, kw });
+		if (nSetNum <= i) continue;	// 減ったセット：空の値
+		profile.IOProfileData(section, sn, StringBufferW(mgr.m_szSetNameArr[i]));
+		profile.IOProfileData(section, cs, mgr.m_bKEYWORDCASEArr[i]);
+		profile.IOProfileData(section, kwn, mgr.m_nKeyWordNumArr[i]);
+		sakura::wstring strMem;
+		for (int j = 0; j < mgr.m_nKeyWordNumArr[i]; ++j) {
+			strMem += mgr.GetKeyWord(i, j);
+			strMem += LCHAR('\t');
+		}
+		auto nMemLen = static_cast<int>(strMem.length() + 1);
+		profile.IOProfileData(section, size, nMemLen);
+		profile.IOProfileData(section, kw, strMem);
+	}
+	std::vector<std::pair<Text, Text>> result;
+	for (const auto& key : keys) {
+		sakura::wstring value;
+		(void)profile.GetProfileData(section, key, value);
+		result.emplace_back(Text(key), Text(value));
+	}
 	return result;
 }
 
@@ -848,6 +1287,7 @@ struct Document::Impl {
 	std::optional<RestoredView> restoredView;	//!< 打开时从历史恢复的位置（第 31 步）
 	std::shared_ptr<SearchMarkCache> searchMarkCache;	//!< 查找文字标记用的条件（第 32 步）
 	std::unique_ptr<CRegexKeyword> regexKeyword;	//!< 正規表現キーワード（第 33 步，原版 CEditView::m_cRegexKeyword）
+	bool typeLocked = false;	//!< タイプ別設定一覧の一時適用（原版 CDocType::m_nSettingTypeLocked。第 40 步）
 
 	~Impl()
 	{
@@ -1294,7 +1734,7 @@ Result Document::SaveAs(const Text& path, const SaveOptions& options)
 	d.info.bom = bBom;
 	d.loadedEncoding = eCharCode;
 	d.loadedBom = bBom;
-	if (bTypeChanged) {
+	if (bTypeChanged && !d.typeLocked) {	// 一時適用中はそのまま（原版 SetDocumentType(…, false) は lock 中は何もしない。第 40 步）
 		// 另存为：扩展名变了，类型别设置也跟着变（CEditDoc::OnChangeType → OnChangeSetting 重新排版）
 		const std::int32_t oldType = d.info.typeIndex;
 		d.ResetForType(path);
@@ -1948,6 +2388,38 @@ bool Document::SetWrap(WrapMethod method, std::int32_t columns)
 	return true;
 }
 
+bool Document::ApplyTypeListChange()
+{
+	auto& d = *m_impl;
+	const CTypeConfig type = CDocTypeManager().GetDocumentTypeOfId(d.typeConfig.m_id);
+	if (type.IsValidType()) {
+		// 原版 CDocType::SetDocumentTypeIdx：番号と名前だけ
+		d.info.typeIndex = type.GetIndex();
+		d.typeConfig.m_nIdx = type.GetIndex();
+		if (const STypeConfigMini* mini = d.TypeMini()) d.info.typeName = Text(mini->m_szTypeName.c_str());
+		return false;
+	}
+	// 削除された：ファイル名で決め直す（原版 PM_CHANGESETTING_ALL → OnChangeSetting）
+	d.typeLocked = false;
+	d.ResetForType(d.info.path);
+	d.ResetWrap();
+	d.DoLayout();
+	return true;
+}
+
+bool Document::ChangeTypeTemporarily(std::int32_t typeIndex)
+{
+	// 原版 Command_CHANGETYPE：SetDocumentTypeIdx(id, true) → LockDocumentType → OnChangeType
+	auto& d = *m_impl;
+	const STypeConfigMini* mini = nullptr;
+	if (!CDocTypeManager().GetTypeConfigMini(CTypeConfig(typeIndex), &mini)) return false;
+	d.ResetForType(d.info.path, mini->m_id);
+	d.typeLocked = true;
+	d.ResetWrap();
+	d.DoLayout();
+	return true;
+}
+
 std::int32_t Document::WrapColumnsForWidth(std::int32_t width) const
 {
 	// CEditView::GetWrapOverhang：减去折り返し記号和ぶら下げ的宽度
@@ -1981,7 +2453,13 @@ bool Document::ApplyTypeSettingChange(std::int32_t typeIndex)
 	// 折り返し方法的临时设置（原版 m_bTextWrapMethodCurTemp）：现在的与原来的类型别设置不同
 	const bool bWrapTemp = d.wrapMethodCur != old.m_nTextWrapMethod
 		|| (d.wrapMethodCur == WRAP_SETTING_WIDTH && d.wrapColumnsCur != old.m_nMaxLineKetas);
-	d.ResetForType(path);	// 文書種別：按文件名重新决定（CDocTypeManager::GetDocumentTypeOfPath）
+	// 文書種別：按文件名重新决定（CDocTypeManager::GetDocumentTypeOfPath）。一時適用中はそのタイプのまま（原版 SetDocumentType の lock）
+	if (d.typeLocked && CDocTypeManager().GetDocumentTypeOfId(old.m_id).IsValidType()) {
+		d.ResetForType(path, old.m_id);
+	} else {
+		d.typeLocked = false;
+		d.ResetForType(path);
+	}
 	const STypeConfig& ref = d.typeConfig;
 	bool bTemp = bWrapTemp && old.m_id == ref.m_id;	// 类型变了时解除临时设置
 	// 折り返し方法的临时设置与类型别设置一致时解除（指定桁で折り返す 的桁数不同时保留）

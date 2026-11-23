@@ -204,8 +204,6 @@ final class TypeColorPage: CommonSettingsPageLogic {
         Dictionary(uniqueKeysWithValues: Self.lineComments.map { ($0.pos, 1...1000) })
     }
 
-    /// 「共通設定」（強調キーワードの編集）は第 3 个 PR
-    var notYet: Set<String> { [idc("BUTTON_EDITKEYWORD")] }
 
     // MARK: SetData / GetData
 
@@ -460,6 +458,21 @@ final class TypeColorPage: CommonSettingsPageLogic {
             keywordSets[0] = combo <= 0 ? -1 : combo - 1
             guard let dialog = KeywordSelectDialog(sets: keywordSets) else { return }
             if TypeSettingsPages.runKeywordSelectDialog(dialog, window) { keywordSets = dialog.sets }
+            rearrangeKeywordSets()
+            loadKeywordCombo(page)
+            page.list(idc("LIST_COLORS"))?.table.reloadData()
+            updateColorControls(page)
+        case idc("BUTTON_EDITKEYWORD"):
+            // 共通設定の強調キーワードを編集（原版：その場で共通設定に反映し、このタイプのセット番号も直す）
+            let combo = page.selectedIndex(idc("COMBO_SET"))
+            keywordSets[0] = combo <= 0 ? -1 : combo - 1
+            guard let dialog = KeywordSettingsDialog(tempSets: keywordSets, typeIndex: typeIndex,
+                                                     typeName: values.string("szTypeName"), typeExts: values.string("szTypeExts")),
+                  TypeSettingsPages.runKeywordSettingsDialog(dialog, window) else { return }
+            if dialog.apply() {
+                NotificationCenter.default.post(name: TypeSettingsWindowController.didChangeNotification, object: nil, userInfo: ["index": -1])
+            }
+            if let sets = dialog.logic.tempSets { keywordSets = sets }
             rearrangeKeywordSets()
             loadKeywordCombo(page)
             page.list(idc("LIST_COLORS"))?.table.reloadData()

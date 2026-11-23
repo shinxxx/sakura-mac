@@ -70,7 +70,7 @@ INI_OVERRIDES = {
     "IDC_BUTTON_SAMETEXTCOLOR": "C[…]（文字色）", "IDC_BUTTON_SAMEBKCOLOR": "C[…]（背景色）",
     "IDC_BUTTON_IMPORT": "C[…]（*.col）", "IDC_BUTTON_EXPORT": "C[…]（*.col）",
     "IDC_COMBO_SET": "nInts（5 番目）", "IDC_BUTTON_KEYWORD_SELECT": "nInts（5・6 番目）, nKeywordSelect3～10",
-    "IDC_BUTTON_EDITKEYWORD": "共通設定 > 強調キーワード",
+    "IDC_BUTTON_EDITKEYWORD": "KeyWords/…（共通設定 > 強調キーワード をその場で書く）",
     "IDC_EDIT_BLOCKCOMMENT_FROM": "szBlockCommentFrom", "IDC_EDIT_BLOCKCOMMENT_TO": "szBlockCommentTo",
     "IDC_EDIT_BLOCKCOMMENT_FROM2": "szBlockCommentFrom2", "IDC_EDIT_BLOCKCOMMENT_TO2": "szBlockCommentTo2",
     "IDC_EDIT_LINECOMMENT": "szLineComment", "IDC_CHECK_LCPOS": "nLineCommentColumn", "IDC_EDIT_LINECOMMENTPOS": "nLineCommentColumn",
@@ -111,7 +111,6 @@ MAC_DECISIONS = {
     "IDC_EDIT_TYPEEXTHTMLHELP": "×（同上）", "IDC_BUTTON_TYPEOPENEXTHTMLHELP": "×（同上）",
     "IDC_CHECK_TYPEHTMLHELPISSINGLE": "×（同上）",
     "IDC_STATIC_TYPEFONT": "○",
-    "IDC_BUTTON_EDITKEYWORD": "第 40 步（第 3 个 PR：共通設定の強調キーワード）",
     "IDC_LABEL_REGEX_VERSION": "△（組み込みの正規表現ライブラリを表示）",
     "IDC_LABEL_KEYHELP_ABOUT": "○", "IDC_LABEL_KEYHELP_TITLE": "",
 }
