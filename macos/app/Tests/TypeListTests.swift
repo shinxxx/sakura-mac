@@ -46,6 +46,11 @@ final class TypeListTests: XCTestCase {
         XCTAssertFalse(dialog.page.isEnabled("IDC_BUTTON_DOWN_TYPE"))
         XCTAssertFalse(dialog.page.isEnabled("IDC_BUTTON_DEL_TYPE"))
         XCTAssertFalse(dialog.page.isEnabled("IDC_CHECK_EXT_RMENU"), "Windows の関連付け")
+        // 長い名前は切らずに横スクロール（原版 List_SetHorizontalExtent）、チェックボックスの文字は折り返す（BS_MULTILINE）
+        XCTAssertTrue(list.table.enclosingScrollView?.hasHorizontalScroller ?? false)
+        let longest = list.rows.map { ($0[0] as NSString).size(withAttributes: [.font: PropPage.font]).width }.max() ?? 0
+        XCTAssertGreaterThanOrEqual(list.table.tableColumns[0].width, longest)
+        XCTAssertEqual((dialog.page.control("IDC_CHECK_EXT_RMENU") as? NSButton)?.cell?.wraps, true)
         list.select(1)
         dialog.enable()
         XCTAssertFalse(dialog.page.isEnabled("IDC_BUTTON_UP_TYPE"), "2 番目は「基本」の上に行けない")
