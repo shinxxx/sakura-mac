@@ -585,6 +585,49 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(app.menuBars.menuBarItems["編集"].exists)
     }
 
+    /// 共通設定 > カスタムメニュー：メニュー名を設定して OK → 開き直してもその名前。ツールバー：アイコン付きの一覧、区切を追加して OK
+    func testCustomMenuAndToolbarPages() {
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        window.staticTexts["CommonSettingsPage_カスタムメニュー"].click()
+        let menuCombo = window.popUpButtons["IDC_COMBO_MENU"]
+        XCTAssertTrue(menuCombo.waitForExistence(timeout: 2), "カスタムメニュー のページ")
+        menuCombo.click()
+        app.menuItems["メニュー1"].click()
+        let name = window.textFields["IDC_EDIT_MENUNAME"]
+        // 日文・中文输入法打开时文字会变成未确定文字：输入的这段时间换成英文键盘
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() {
+            TISSelectInputSource(ascii)
+        }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        name.click()
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("UITest")
+        window.buttons["IDC_BUTTON_MENUNAME"].click()
+        XCTAssertEqual(menuCombo.value as? String, "UITest", "メニュー名")
+
+        window.staticTexts["CommonSettingsPage_ツールバー"].click()
+        let toolbar = window.tables["IDC_LIST_RES_table"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 2), "ツールバー のページ")
+        XCTAssertTrue(toolbar.images.firstMatch.exists, "アイコン")
+        let count = toolbar.tableRows.count
+        window.buttons["IDC_BUTTON_INSERTSEPARATOR"].click()
+        XCTAssertEqual(toolbar.tableRows.count, count + 1, "区切")
+        window.buttons["CommonSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+
+        key(",", .command)
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+        XCTAssertEqual(window.tables["IDC_LIST_RES_table"].tableRows.count, count + 1, "上次的页（ツールバー）、OK した値")
+        window.staticTexts["CommonSettingsPage_カスタムメニュー"].click()
+        menuCombo.click()
+        XCTAssertTrue(app.menuItems["UITest"].exists, "OK したメニュー名")
+        app.typeKey(.escape, modifierFlags: [])
+        window.buttons["CommonSettingsCancel"].click()
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。

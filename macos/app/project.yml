@@ -19,6 +19,7 @@ targets:
     sources:
       - path: Sources
       # 第 39、40 步：共通設定・タイプ別設定窗口的布局（原版的对话框模板，macos/tools/settings/make_prop_dialogs.py 生成）
+      # 第 41 步：ツールバーのアイコン mytool.bmp（原版 IDB_MYTOOL。src/main/resources/images へのシンボリックリンク）
       - path: Resources
         buildPhase: resources
     settings:
@@ -121,6 +122,9 @@ targets:
       # 第 41 步：共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー
       - path: Sources/KeyBindPage.swift
       - path: Sources/MainMenuPage.swift
+      - path: Sources/CustomMenuToolbarPages.swift
+      - path: Resources/mytool.bmp	# ツールバーのアイコン（原版 IDB_MYTOOL。src/main/resources/images へのリンク）
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

@@ -103,12 +103,23 @@ PAGE_INI_OVERRIDES = {
     **{("メインメニュー", f"IDC_BUTTON_{b}"): "MainMenu/MM[nnn]" for b in
        ("DELETE", "INSERT_NODE", "INSERTSEPARATOR", "INSERT", "INSERT_A", "ADD", "UP", "DOWN", "RIGHT", "LEFT", "CLEAR", "INITIALIZE")},
     ("メインメニュー", "IDC_COMBO_FUNCKIND"): "", ("メインメニュー", "IDC_LIST_FUNC"): "",
-    ("カスタムメニュー", "IDC_BUTTON_IMPORT"): "CustMenu/…（*.mnu）", ("カスタムメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
+    ("カスタムメニュー", "IDC_BUTTON_IMPORT"): "CustMenu/szCMN[nn], bCMPOP[nn], nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]（*.mnu）",
+    ("カスタムメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
+    ("カスタムメニュー", "IDC_COMBO_FUNCKIND"): "", ("カスタムメニュー", "IDC_LIST_FUNC"): "", ("カスタムメニュー", "IDC_COMBO_MENU"): "",
+    ("カスタムメニュー", "IDC_EDIT_MENUNAME"): "CustMenu/szCMN[nn]", ("カスタムメニュー", "IDC_BUTTON_MENUNAME"): "CustMenu/szCMN[nn]",
+    ("カスタムメニュー", "IDC_CHECK_SUBMENU"): "CustMenu/bCMPOP[nn]",
+    ("カスタムメニュー", "IDC_LIST_RES"): "CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",
+    **{("カスタムメニュー", f"IDC_BUTTON_{b}"): "CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]" for b in
+       ("DELETE", "INSERTSEPARATOR", "INSERT", "ADD", "UP", "DOWN")},
+    ("ツールバー", "IDC_COMBO_FUNCKIND"): "", ("ツールバー", "IDC_LIST_FUNC"): "",
+    ("ツールバー", "IDC_CHECK_TOOLBARISFLAT"): "Toolbar/bToolBarIsFlat",
+    ("ツールバー", "IDC_LIST_RES"): "Toolbar/nToolBarButtonNum, nTBB[nnn]",
+    **{("ツールバー", f"IDC_BUTTON_{b}"): "Toolbar/nToolBarButtonNum, nTBB[nnn]" for b in
+       ("DELETE", "INSERTSEPARATOR", "INSERT", "ADD", "UP", "DOWN", "INSERTWRAP")},
 }
 
 # Mac 版的处理（第 39 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
 LATER_PAGES = {
-    "ツールバー": "第 41 步", "カスタムメニュー": "第 41 步",
     "マクロ": "第 45 步", "プラグイン": "×（DLL のプラグインは Mac 版では使えない）",
 }
 MAC_DECISIONS = {

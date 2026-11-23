@@ -15,10 +15,11 @@
 |---|---|---|
 | 共通設定的复制 | 核心库 `CommandSettingsEditor`（`macos/core/api/SakuraCore.cpp`），App 的 `CommonSettingsValues.commandEditor` | 与原版 `CPropCommon::m_Common` 相同，打开窗口时复制一次，这几页都在这个复制上编辑：在カスタムメニュー 页改的名字，回到キー割り当て 页时「機能」列表里就是新的名字（原版 `PSN_SETACTIVE`）。OK 时各页把复制的 sakura.ini 的值（`IniValues(节)`）里改过的项写进窗口的值，与别的页相同地写回、保存 |
 | 功能的分类和名字 | 原版 `func/Funccode.cpp`（分类和一览的表）、`func/CFuncLookup.cpp` 编进核心库 | 「種別」是原版的分类 + 外部マクロ + カスタムメニュー + プラグイン；「機能」与原版 `SetListItem` 相同（没有定义的不要）。カスタムメニュー・外部マクロ的名字用复制里的。Windows 的部分（ComboBox・ListBox 的设置、DLL 插件）用 `#if defined(_WIN32)` 留在原处 |
-| 读写 | 核心库 `GetCommonSetting` / `SetCommonSettings` 的节 `KeyBind`、`MainMenu` | 用原版的 `ShareData_IO_KeyBind`（写 sakura.ini 时的写法：`KeyBind[nnn]=键码,8 个功能,键名`）、`ShareData_IO_MainMenu`（`MM[nnn]=层次,种类,功能,アクセスキー,名字`），读入与读 sakura.ini 时相同。メインメニュー 的项目变少时，没有了的 `MM[nnn]` 写空的值 |
+| 读写 | 核心库 `GetCommonSetting` / `SetCommonSettings` 的节 `KeyBind`、`MainMenu`、`CustMenu`、`Toolbar` | 用原版的 `ShareData_IO_KeyBind`（写 sakura.ini 时的写法：`KeyBind[nnn]=键码,8 个功能,键名`）、`ShareData_IO_MainMenu`（`MM[nnn]=层次,种类,功能,アクセスキー,名字`），读入与读 sakura.ini 时相同。メインメニュー 的项目变少时，没有了的 `MM[nnn]` 写空的值 |
 | キー割り当て | `macos/app/Sources/KeyBindPage.swift` | 原版 `CPropKeybind` 的移植 |
 | メインメニュー | `macos/app/Sources/MainMenuPage.swift`，核心库 `CommandSettingsEditor::MainMenuEntries` / `SetMainMenu` 等 | 原版 `CPropMainMenu` 的移植。ツリー是 `PropTree`（`CommonSettingsWindow.swift`，Mac 的 NSOutlineView）。原版 SetData（复制 → ツリー）和 GetData（ツリー → 复制：种类按功能编号决定、菜单栏最多 20 个、没有「共通設定」时加 auto_add）在核心库 |
-| インポート・エクスポート | 核心库 `CommandSettingsEditor::ImportKeyBind` / `ExportKeyBind`（原版 `CImpExpKeybind`）、`ImportMainMenu` / `ExportMainMenu`（`CImpExpMainMenu`） | 文件格式与原版完全相同（*.key、メインメニュー 是 *.ini）。读入的值放进复制，OK 时才写回 |
+| カスタムメニュー・ツールバー | `macos/app/Sources/CustomMenuToolbarPages.swift`，核心库 `CommandSettingsEditor::CustomMenuItems` / `ToolbarButtons` 等 | 原版 `CPropCustmenu`、`CPropToolBar` 的移植。ツールバー的ボタン表是原版的 `CMenuDrawer`（核心库里已经编译的部分），图标是原版的 `mytool.bmp`（`Resources/mytool.bmp` 是到 `src/main/resources/images` 的链接，`ToolbarIcons` 按原版 `CImageListMgr` 切成 16×16、左上的颜色透明） |
+| インポート・エクスポート | 核心库 `CommandSettingsEditor::ImportKeyBind` / `ExportKeyBind`（原版 `CImpExpKeybind`）、`ImportMainMenu` / `ExportMainMenu`（`CImpExpMainMenu`）、`ImportCustomMenu` / `ExportCustomMenu`（`CImpExpCustMenu`） | 文件格式与原版完全相同（*.key、メインメニュー 是 *.ini、カスタムメニュー 是 *.mnu）。读入的值放进复制，OK 时才写回 |
 
 ## キー割り当て（第 1 个 PR）
 
@@ -62,6 +63,24 @@
 - 子菜单的名字：原版在ツリー里直接编辑（F2），Mac 版按 F2 打开输入框（与アクセスキー相同）。空的名字是「編集してください」，改了名字的子菜单变成 F_NODE（与原版相同）。
 - 菜单栏：Mac 版前面一直有 App 菜单，「ウィンドウ」里加「しまう」等（第 34 步，偏离项 1）；「アクセスキーを必ず( )付で表示」与アクセスキー一样，Mac 的菜单不显示（值照原版保存）。
 
+## カスタムメニュー・ツールバー（第 3 个 PR）
+
+与原版相同的地方：
+
+- カスタムメニュー：「選択」是 25 个菜单（右クリックメニュー、メニュー1～23、タブメニュー；设置了名字时是那个名字），打开时选右クリックメニュー 和它的第一项。
+  「種別」最后是「特別機能」。項目显示「機能名(キー)」、区切線是「 ─────────────」。
+- カスタムメニュー 的按钮：削除（选同一位置，最后的时候选前一个）、---・→（选着的项目的前面，没选时最前面）、>>（最后）、↑↓；
+  →・>> 之后「機能」列表选下一个；项目已经有 48 个（`MAX_CUSTOM_MENU_ITEMS`）时 ---・→・>> 不能按。双击项目（区切線以外）设定アクセスキー。
+  「設定」把メニュー名写进去，「選択」的名字马上变；キー割り当て・メインメニュー 页的「カスタムメニュー」分类里也是新的名字（同一个复制）。サブメニューとして表示。
+- ツールバー：列表是图标和功能名，区切是「───────────」、折返是「――ツールバー折返――」、不明的番号是「────不　明────」（原版 `DrawToolBarItemList`）。
+  「機能」只列出有按钮的功能（原版 `FindToolbarNoFromCommandId`），没有「特別機能」。
+- ツールバー 的按钮：---・折返（选着的项目的前面，选新加的）、→（前面加，选着的还是原来的项目）、>>（最后）、↑↓、削除；フラットなボタン。
+
+与原版不同的地方：
+
+- Mac 版现在还没有工具栏和右键菜单（カスタムメニュー）：这一步只做设置页，值与原版相同地保存；显示工具栏、右键菜单在以后做这些画面的步骤里用这些设置。
+- カスタムメニュー 的アクセスキー：原版按 1 个字节保存（`KEYCODE`），Mac 版也只保存 ASCII 的字（日文等的字不保存）。
+
 ## 测试
 
 - 核心库 `macos/core/tests/test-mac-command-settings.cpp`（第 1 个 PR 5 个）：「種別」「機能」（外部マクロ 50 个、カスタムメニュー 的第一个是右クリックメニュー、プラグイン 是空的）、
@@ -73,4 +92,7 @@
 - 第 2 个 PR：核心库加 4 个（SetData 的名字和特別機能、GetData 和 auto_add・写回・重新启动、菜单栏 20 个的限制、初期設定・インポート・エクスポート）；
   App `MainMenuSettingsTests` 6 个（ツリーと按钮的可用、插入・移动・删除、アクセスキー・名字・検査、クリア・初期設定・OK 的值、真的核心库、インポート・エクスポート）；
   界面测试 `testMainMenuPage`（删掉「ファイル」按 OK，菜单栏里就没有「ファイル」了）。
+- 第 3 个 PR：核心库加 3 个（カスタムメニュー的名字・项目・写回・重新启动・项目变少时的空值，インポート・エクスポート，ツールバー的按钮・图标・区切・折返・写回）；
+  App `CustomMenuToolbarTests` 7 个（菜单的一览、项目的编辑和 OK 的值、名字在キー割り当て 页也是新的、48 个的上限、ツールバー的一览和图标、ツールバー的编辑和 OK 的值、インポート・エクスポート）；
+  界面测试 `testCustomMenuAndToolbarPages`（メニュー名、ツールバー加区切，OK 后再打开还是改过的）。
 - 界面测试 `testKeyBindPage`：共通設定 > キー割り当て 把「選択系 > すべて選択」分配给 F12，OK 后在编辑画面按 F12 全选。

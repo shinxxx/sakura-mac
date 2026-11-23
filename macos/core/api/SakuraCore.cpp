@@ -49,6 +49,7 @@
 #include "typeprop/CImpExpManager.h"
 #include "func/CFuncLookup.h"
 #include "func/CKeyBind.h"
+#include "uiparts/CMenuDrawer.h"
 #include "mem/CNativeW.h"
 #include "util/string_ex2.h"
 #include "types/CType.h"
@@ -347,6 +348,11 @@ public:
 			::ShareData_IO_KeyBind(profile, GetDllShareData().m_Common.m_sKeyBind, false);
 		} else if (section == LTEXT("MainMenu")) {
 			ShareData_IO_MainMenu(profile);	// 第 41 步：共通設定 > メインメニュー
+		} else if (section == LTEXT("CustMenu")) {
+			ShareData_IO_CustMenu(profile);	// 第 41 步：共通設定 > カスタムメニュー
+		} else if (section == LTEXT("Toolbar")) {
+			CMenuDrawer menuDrawer;			// 第 41 步：共通設定 > ツールバー（プラグインのボタンの番号を探す表）
+			ShareData_IO_Toolbar(profile, &menuDrawer);
 		} else if (section == LTEXT("Common")) {
 			ShareData_IO_Common(profile);
 		} else if (section == LTEXT("Nickname")) {
@@ -1012,6 +1018,10 @@ struct CommandSettingsEditor::Impl {
 	std::unique_ptr<CommonSetting> common;	//!< 原版 CPropCommon::m_Common と同じ複製
 	CFuncLookup lookup;						//!< 原版 CPropCommon::m_cLookup（この複製を見る）
 	int initialMainMenuNum = 0;				//!< 作ったときのメインメニューの項目数（減った MM[nnn] を空にする）
+	std::array<int, MAX_CUSTOM_MENU> initialCustMenuNum{};	//!< 同じくカスタムメニューの項目数
+	int initialToolbarNum = 0;				//!< 同じくツールバーのボタン数
+	std::unique_ptr<CMenuDrawer> menuDrawer = std::make_unique<CMenuDrawer>();	//!< ツールバーのボタン表（原版 m_pcMenuDrawer）
+	bool ValidCustMenu(int menu) const { return 0 <= menu && menu < MAX_CUSTOM_MENU; }
 	CommonSetting_KeyBind& KeyBind() { return common->m_sKeyBind; }
 	const CommonSetting_KeyBind& KeyBind() const { return common->m_sKeyBind; }
 	bool ValidKey(int key) const { return 0 <= key && key < KeyBind().m_nKeyNameArrNum; }
@@ -1028,6 +1038,8 @@ std::unique_ptr<CommandSettingsEditor> CommandSettingsEditor::Create()
 	impl.common = std::make_unique<CommonSetting>(GetDllShareData().m_Common);
 	impl.lookup.Init(impl.common->m_sMacro.m_MacroTable, impl.common.get());
 	impl.initialMainMenuNum = impl.common->m_sMainMenu.m_nMainMenuNum;
+	for (int i = 0; i < MAX_CUSTOM_MENU; ++i) impl.initialCustMenuNum[i] = impl.common->m_sCustomMenu.m_nCustMenuItemNumArr[i];
+	impl.initialToolbarNum = impl.common->m_sToolBar.m_nToolBarButtonNum;
 	return editor;
 }
 
@@ -1290,6 +1302,125 @@ bool CommandSettingsEditor::ExportMainMenu(const Text& path, Text& message)
 	return RunImpExp(manager, false, path, message);
 }
 
+// ----- カスタムメニュー -----
+
+std::int32_t CommandSettingsEditor::CustomMenuCount() const { return MAX_CUSTOM_MENU; }
+std::int32_t CommandSettingsEditor::MaxCustomMenuItems() const { return MAX_CUSTOM_MENU_ITEMS; }
+
+Text CommandSettingsEditor::CustomMenuDisplayName(std::int32_t menu) const
+{
+	if (!m_impl->ValidCustMenu(menu)) return Text();
+	WCHAR buf[MAX_CUSTOM_MENU_NAME_LEN + 1];
+	return Text(m_impl->lookup.Custmenu2Name(menu, buf, std::size(buf)));
+}
+
+Text CommandSettingsEditor::CustomMenuName(std::int32_t menu) const
+{
+	return m_impl->ValidCustMenu(menu) ? Text(m_impl->common->m_sCustomMenu.m_szCustMenuNameArr[menu].c_str()) : Text();
+}
+
+void CommandSettingsEditor::SetCustomMenuName(std::int32_t menu, const Text& name)
+{
+	if (!m_impl->ValidCustMenu(menu)) return;
+	// 原版 DlgItem_GetText(…, MAX_CUSTOM_MENU_NAME_LEN)：最大 MAX_CUSTOM_MENU_NAME_LEN - 1 文字
+	m_impl->common->m_sCustomMenu.m_szCustMenuNameArr[menu] = sakura::wstring(name).substr(0, MAX_CUSTOM_MENU_NAME_LEN - 1).c_str();
+}
+
+bool CommandSettingsEditor::CustomMenuIsSubmenu(std::int32_t menu) const
+{
+	return m_impl->ValidCustMenu(menu) && m_impl->common->m_sCustomMenu.m_bCustMenuPopupArr[menu];
+}
+
+void CommandSettingsEditor::SetCustomMenuIsSubmenu(std::int32_t menu, bool on)
+{
+	if (m_impl->ValidCustMenu(menu)) m_impl->common->m_sCustomMenu.m_bCustMenuPopupArr[menu] = on;
+}
+
+std::vector<CommandSettingsEditor::CustomMenuItem> CommandSettingsEditor::CustomMenuItems(std::int32_t menu) const
+{
+	std::vector<CustomMenuItem> result;
+	if (!m_impl->ValidCustMenu(menu)) return result;
+	const auto& cm = m_impl->common->m_sCustomMenu;
+	for (int i = 0; i < std::clamp(cm.m_nCustMenuItemNumArr[menu], 0, MAX_CUSTOM_MENU_ITEMS); ++i) {
+		result.push_back({ static_cast<FunctionCode>(cm.m_nCustMenuItemFuncArr[menu][i]),
+			static_cast<char16_t>(static_cast<unsigned char>(cm.m_nCustMenuItemKeyArr[menu][i])) });
+	}
+	return result;
+}
+
+void CommandSettingsEditor::SetCustomMenuItems(std::int32_t menu, const std::vector<CustomMenuItem>& items)
+{
+	if (!m_impl->ValidCustMenu(menu)) return;
+	auto& cm = m_impl->common->m_sCustomMenu;
+	const int n = std::min<int>(static_cast<int>(items.size()), MAX_CUSTOM_MENU_ITEMS);
+	for (int i = 0; i < n; ++i) {
+		cm.m_nCustMenuItemFuncArr[menu][i] = static_cast<EFunctionCode>(items[i].code);
+		cm.m_nCustMenuItemKeyArr[menu][i] = items[i].accessKey < 0x80 ? static_cast<KEYCODE>(items[i].accessKey) : '\0';	// 原版は 1 バイトの文字
+	}
+	for (int i = n; i < MAX_CUSTOM_MENU_ITEMS; ++i) {
+		cm.m_nCustMenuItemFuncArr[menu][i] = F_0;
+		cm.m_nCustMenuItemKeyArr[menu][i] = '\0';
+	}
+	cm.m_nCustMenuItemNumArr[menu] = n;
+}
+
+bool CommandSettingsEditor::ImportCustomMenu(const Text& path, Text& message)
+{
+	CImpExpCustMenu manager(*m_impl->common);
+	return RunImpExp(manager, true, path, message);
+}
+
+bool CommandSettingsEditor::ExportCustomMenu(const Text& path, Text& message)
+{
+	CImpExpCustMenu manager(*m_impl->common);
+	return RunImpExp(manager, false, path, message);
+}
+
+// ----- ツールバー -----
+
+std::vector<std::int32_t> CommandSettingsEditor::ToolbarButtons() const
+{
+	const auto& tb = m_impl->common->m_sToolBar;
+	return std::vector<std::int32_t>(tb.m_nToolBarButtonIdxArr, tb.m_nToolBarButtonIdxArr + std::clamp(tb.m_nToolBarButtonNum, 0, MAX_TOOLBAR_BUTTON_ITEMS));
+}
+
+bool CommandSettingsEditor::ToolbarIsFlat() const { return m_impl->common->m_sToolBar.m_bToolBarIsFlat; }
+
+void CommandSettingsEditor::SetToolbar(const std::vector<std::int32_t>& buttons, bool flat)
+{
+	// 原版 CPropToolbar::GetData
+	auto& tb = m_impl->common->m_sToolBar;
+	const int n = std::min<int>(static_cast<int>(buttons.size()), MAX_TOOLBAR_BUTTON_ITEMS);
+	std::copy_n(buttons.begin(), n, tb.m_nToolBarButtonIdxArr);
+	std::fill(tb.m_nToolBarButtonIdxArr + n, tb.m_nToolBarButtonIdxArr + MAX_TOOLBAR_BUTTON_ITEMS, 0);
+	tb.m_nToolBarButtonNum = n;
+	tb.m_bToolBarIsFlat = flat;
+}
+
+CommandSettingsEditor::ToolbarButtonInfo CommandSettingsEditor::ToolbarButton(std::int32_t number) const
+{
+	// 原版 CPropToolbar::DrawToolBarItemList
+	const TBBUTTON tbb = m_impl->menuDrawer->getButton(number);
+	ToolbarButtonInfo info;
+	info.code = tbb.idCommand;
+	if (tbb.fsStyle & TBSTYLE_SEP) {
+		info.kind = tbb.idCommand == F_SEPARATOR ? ToolbarButtonKind::Separator
+			: tbb.idCommand == F_MENU_NOT_USED_FIRST ? ToolbarButtonKind::Wrap : ToolbarButtonKind::Unknown;
+	} else if (tbb.idCommand != F_DISABLE) {
+		info.kind = ToolbarButtonKind::Button;
+		info.icon = tbb.iBitmap;
+	}	// 範囲外の番号（原版 getButton の「未定義のボタン情報」）は Unknown
+	return info;
+}
+
+std::int32_t CommandSettingsEditor::ToolbarButtonNumber(FunctionCode code) const
+{
+	return m_impl->menuDrawer->FindToolbarNoFromCommandId(code);
+}
+
+std::int32_t CommandSettingsEditor::ToolbarSeparatorNumber() const { return CMenuDrawer::TOOLBAR_BUTTON_F_SEPARATOR; }
+std::int32_t CommandSettingsEditor::ToolbarWrapNumber() const { return CMenuDrawer::TOOLBAR_BUTTON_F_TOOLBARWRAP; }
+
 std::vector<std::pair<Text, Text>> CommandSettingsEditor::IniValues(const Text& section) const
 {
 	std::vector<std::pair<Text, Text>> result;
@@ -1307,6 +1438,30 @@ std::vector<std::pair<Text, Text>> CommandSettingsEditor::IniValues(const Text& 
 		profile.IOProfileData(section, LTEXT("nMainMenuVer"), version);
 		keys = { LTEXT("nMainMenuNum"), LTEXT("bKeyParentheses"), LTEXT("nMainMenuVer") };
 		for (int i = 0; i < std::max(menu.m_nMainMenuNum, m_impl->initialMainMenuNum); ++i) keys.push_back(strprintf(LTEXT("MM[%03d]"), i));
+	} else if (section == LTEXT("CustMenu")) {
+		// 原版 ShareData_IO_CustMenu の書き込みと同じ
+		auto& menu = m_impl->common->m_sCustomMenu;
+		CShareData_IO::IO_CustMenu(profile, menu, false);
+		for (int i = 0; i < MAX_CUSTOM_MENU; ++i) {
+			keys.push_back(strprintf(LTEXT("szCMN[%02d]"), i));
+			keys.push_back(strprintf(LTEXT("bCMPOP[%02d]"), i));
+			keys.push_back(strprintf(LTEXT("nCMIN[%02d]"), i));
+			for (int j = 0; j < std::max(menu.m_nCustMenuItemNumArr[i], m_impl->initialCustMenuNum[i]); ++j) {
+				keys.push_back(strprintf(LTEXT("nCMIF[%02d][%02d]"), i, j));
+				keys.push_back(strprintf(LTEXT("nCMIK[%02d][%02d]"), i, j));
+			}
+		}
+	} else if (section == LTEXT("Toolbar")) {
+		// 原版 ShareData_IO_Toolbar の書き込みと同じ（Mac 版はプラグインのボタンが無いので番号だけ）
+		auto& tb = m_impl->common->m_sToolBar;
+		profile.IOProfileData(section, LTEXT("bToolBarIsFlat"), tb.m_bToolBarIsFlat);
+		profile.IOProfileData(section, LTEXT("nToolBarButtonNum"), tb.m_nToolBarButtonNum);
+		keys = { LTEXT("bToolBarIsFlat"), LTEXT("nToolBarButtonNum") };
+		for (int i = 0; i < std::max(tb.m_nToolBarButtonNum, m_impl->initialToolbarNum); ++i) {
+			const auto key = strprintf(LTEXT("nTBB[%03d]"), i);
+			if (i < tb.m_nToolBarButtonNum) profile.IOProfileData(section, key, tb.m_nToolBarButtonIdxArr[i]);
+			keys.push_back(key);
+		}
 	} else {
 		return result;
 	}

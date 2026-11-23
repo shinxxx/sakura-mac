@@ -1136,6 +1136,79 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 	return ok ? YES : NO;
 }
 
+- (NSInteger)customMenuCount { return _editor->CustomMenuCount(); }
+- (NSInteger)maxCustomMenuItems { return _editor->MaxCustomMenuItems(); }
+- (NSString *)displayNameOfCustomMenu:(NSInteger)menu { return ToNSString(_editor->CustomMenuDisplayName(ClampInt32(menu))); }
+- (NSString *)nameOfCustomMenu:(NSInteger)menu { return ToNSString(_editor->CustomMenuName(ClampInt32(menu))); }
+- (void)setName:(NSString *)name ofCustomMenu:(NSInteger)menu { _editor->SetCustomMenuName(ClampInt32(menu), ToText(name)); }
+- (BOOL)customMenuIsSubmenu:(NSInteger)menu { return _editor->CustomMenuIsSubmenu(ClampInt32(menu)) ? YES : NO; }
+- (void)setCustomMenu:(NSInteger)menu isSubmenu:(BOOL)on { _editor->SetCustomMenuIsSubmenu(ClampInt32(menu), on); }
+
+- (NSArray<NSNumber *> *)codesOfCustomMenu:(NSInteger)menu
+{
+	NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+	for (const auto& item : _editor->CustomMenuItems(ClampInt32(menu))) [result addObject:@(item.code)];
+	return result;
+}
+
+- (NSArray<NSString *> *)accessKeysOfCustomMenu:(NSInteger)menu
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& item : _editor->CustomMenuItems(ClampInt32(menu))) {
+		[result addObject:item.accessKey ? ToNSString(core::Text(1, item.accessKey)) : @""];
+	}
+	return result;
+}
+
+- (void)setCustomMenu:(NSInteger)menu codes:(NSArray<NSNumber *> *)codes accessKeys:(NSArray<NSString *> *)keys
+{
+	std::vector<core::CommandSettingsEditor::CustomMenuItem> items;
+	for (NSUInteger i = 0; i < codes.count; ++i) {
+		const core::Text key = i < keys.count ? ToText(keys[i]) : core::Text();
+		items.push_back({ ClampInt32(codes[i].integerValue), key.empty() ? char16_t(0) : key[0] });
+	}
+	_editor->SetCustomMenuItems(ClampInt32(menu), items);
+}
+
+- (BOOL)importCustomMenuFromPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ImportCustomMenu(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (BOOL)exportCustomMenuToPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ExportCustomMenu(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (NSArray<NSNumber *> *)toolbarButtons
+{
+	NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+	for (const auto n : _editor->ToolbarButtons()) [result addObject:@(n)];
+	return result;
+}
+
+- (BOOL)toolbarIsFlat { return _editor->ToolbarIsFlat() ? YES : NO; }
+
+- (void)setToolbarButtons:(NSArray<NSNumber *> *)buttons flat:(BOOL)flat
+{
+	std::vector<std::int32_t> list;
+	for (NSNumber *n in buttons) list.push_back(ClampInt32(n.integerValue));
+	_editor->SetToolbar(list, flat);
+}
+
+- (NSInteger)kindOfToolbarButton:(NSInteger)number { return static_cast<NSInteger>(_editor->ToolbarButton(ClampInt32(number)).kind); }
+- (NSInteger)functionOfToolbarButton:(NSInteger)number { return _editor->ToolbarButton(ClampInt32(number)).code; }
+- (NSInteger)iconOfToolbarButton:(NSInteger)number { return _editor->ToolbarButton(ClampInt32(number)).icon; }
+- (NSInteger)toolbarButtonForFunction:(NSInteger)code { return _editor->ToolbarButtonNumber(ClampInt32(code)); }
+- (NSInteger)toolbarSeparatorButton { return _editor->ToolbarSeparatorNumber(); }
+- (NSInteger)toolbarWrapButton { return _editor->ToolbarWrapNumber(); }
+
 - (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section
 {
 	NSMutableDictionary<NSString *, NSString *> *result = [NSMutableDictionary dictionary];
