@@ -97,13 +97,18 @@ PAGE_INI_OVERRIDES = {
     ("キー割り当て", "IDC_LIST_KEY"): "KeyBind/KeyBind[nnn]", ("キー割り当て", "IDC_BUTTON_ASSIGN"): "KeyBind/KeyBind[nnn]",
     ("キー割り当て", "IDC_BUTTON_RELEASE"): "KeyBind/KeyBind[nnn]",
     ("キー割り当て", "IDC_BUTTON_IMPORT"): "KeyBind/KeyBind[nnn]（*.key）", ("キー割り当て", "IDC_BUTTON_EXPORT"): "（*.key）",
-    ("メインメニュー", "IDC_BUTTON_IMPORT"): "MainMenu/…（*.mnu）", ("メインメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
+    ("メインメニュー", "IDC_BUTTON_IMPORT"): "MainMenu/nMainMenuNum, MM[nnn]（*.ini）", ("メインメニュー", "IDC_BUTTON_EXPORT"): "（*.ini）",
+    ("メインメニュー", "IDC_TREE_RES"): "MainMenu/nMainMenuNum, MM[nnn]",
+    ("メインメニュー", "IDC_CHECK_KEY_PARENTHESES"): "MainMenu/bKeyParentheses",
+    **{("メインメニュー", f"IDC_BUTTON_{b}"): "MainMenu/MM[nnn]" for b in
+       ("DELETE", "INSERT_NODE", "INSERTSEPARATOR", "INSERT", "INSERT_A", "ADD", "UP", "DOWN", "RIGHT", "LEFT", "CLEAR", "INITIALIZE")},
+    ("メインメニュー", "IDC_COMBO_FUNCKIND"): "", ("メインメニュー", "IDC_LIST_FUNC"): "",
     ("カスタムメニュー", "IDC_BUTTON_IMPORT"): "CustMenu/…（*.mnu）", ("カスタムメニュー", "IDC_BUTTON_EXPORT"): "（*.mnu）",
 }
 
 # Mac 版的处理（第 39 步）。没写的：这一步移植的页的项目是「○」（与原版相同地读写）
 LATER_PAGES = {
-    "メインメニュー": "第 41 步", "ツールバー": "第 41 步", "カスタムメニュー": "第 41 步",
+    "ツールバー": "第 41 步", "カスタムメニュー": "第 41 步",
     "マクロ": "第 45 步", "プラグイン": "×（DLL のプラグインは Mac 版では使えない）",
 }
 MAC_DECISIONS = {

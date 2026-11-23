@@ -345,6 +345,8 @@ public:
 		} else if (section == LTEXT("KeyBind")) {
 			// 第 41 步：共通設定 > キー割り当て
 			::ShareData_IO_KeyBind(profile, GetDllShareData().m_Common.m_sKeyBind, false);
+		} else if (section == LTEXT("MainMenu")) {
+			ShareData_IO_MainMenu(profile);	// 第 41 步：共通設定 > メインメニュー
 		} else if (section == LTEXT("Common")) {
 			ShareData_IO_Common(profile);
 		} else if (section == LTEXT("Nickname")) {
@@ -1009,6 +1011,7 @@ std::vector<std::pair<Text, Text>> KeywordSetEditor::IniValues() const
 struct CommandSettingsEditor::Impl {
 	std::unique_ptr<CommonSetting> common;	//!< 原版 CPropCommon::m_Common と同じ複製
 	CFuncLookup lookup;						//!< 原版 CPropCommon::m_cLookup（この複製を見る）
+	int initialMainMenuNum = 0;				//!< 作ったときのメインメニューの項目数（減った MM[nnn] を空にする）
 	CommonSetting_KeyBind& KeyBind() { return common->m_sKeyBind; }
 	const CommonSetting_KeyBind& KeyBind() const { return common->m_sKeyBind; }
 	bool ValidKey(int key) const { return 0 <= key && key < KeyBind().m_nKeyNameArrNum; }
@@ -1024,6 +1027,7 @@ std::unique_ptr<CommandSettingsEditor> CommandSettingsEditor::Create()
 	auto& impl = *editor->m_impl;
 	impl.common = std::make_unique<CommonSetting>(GetDllShareData().m_Common);
 	impl.lookup.Init(impl.common->m_sMacro.m_MacroTable, impl.common.get());
+	impl.initialMainMenuNum = impl.common->m_sMainMenu.m_nMainMenuNum;
 	return editor;
 }
 
@@ -1123,6 +1127,169 @@ bool CommandSettingsEditor::ExportKeyBind(const Text& path, Text& message)
 	return RunImpExp(manager, false, path, message);
 }
 
+// ----- メインメニュー -----
+
+namespace {
+
+//! 原版 RemoveAmpersand：「&&」を「&」に
+sakura::wstring RemoveDoubleAmpersand(sakura::wstring label)
+{
+	for (size_t pos = 0; (pos = label.find(LCHAR('&'), pos)) != sakura::wstring::npos; ++pos) {
+		if (pos + 1 < label.size() && label[pos + 1] == LCHAR('&')) label.erase(pos, 1);
+	}
+	return label;
+}
+
+//! 原版 SupplementAmpersand：「&」を「&&」に
+sakura::wstring DoubleAmpersand(sakura::wstring label)
+{
+	for (size_t pos = 0; (pos = label.find(LCHAR('&'), pos)) != sakura::wstring::npos; pos += 2) {
+		if (pos + 1 >= label.size() || label[pos + 1] != LCHAR('&')) label.replace(pos, 1, LTEXT("&&"));
+	}
+	return label;
+}
+
+} // namespace
+
+std::vector<CommandSettingsEditor::MainMenuEntry> CommandSettingsEditor::MainMenuEntries() const
+{
+	// 原版 CPropMainMenu::SetData
+	std::vector<MainMenuEntry> result;
+	const auto& menu = m_impl->common->m_sMainMenu;
+	const int n = std::clamp<int>(menu.m_nMainMenuNum, 0, MAX_MAINMENU);
+	for (int i = 0; i < n; ++i) {
+		const CMainMenu& m = menu.m_cMainMenuTbl[i];
+		MainMenuEntry entry;
+		entry.level = m.m_nLevel;
+		entry.code = m.m_nFunc;
+		switch (m.m_nType) {
+		case T_LEAF: {
+			WCHAR label[256 + 10];
+			m_impl->lookup.Funccode2Name(m.m_nFunc, label, std::size(label));
+			entry.name = Text(label);
+			break;
+		}
+		case T_SEPARATOR:
+			entry.name = Text(LS(STR_PROPCOMMAINMENU_SEP));
+			break;
+		case T_SPECIAL:
+			entry.name = Text(LS(m.m_nFunc));
+			break;
+		case T_NODE:
+			entry.isNode = true;
+			entry.name = Text(m.m_nFunc == F_NODE ? RemoveDoubleAmpersand(sakura::wstring(m.m_sName.c_str())) : sakura::wstring(LS(m.m_nFunc)));
+			break;
+		}
+		entry.accessKey = Text(m.m_sKey.c_str());
+		result.push_back(std::move(entry));
+	}
+	return result;
+}
+
+bool CommandSettingsEditor::MainMenuKeyParentheses() const { return m_impl->common->m_sMainMenu.m_bMainMenuKeyParentheses; }
+
+bool CommandSettingsEditor::SetMainMenu(const std::vector<MainMenuEntry>& entries, bool keyParentheses)
+{
+	// 原版 CPropMainMenu::GetData / GetDataTree
+	auto& menu = m_impl->common->m_sMainMenu;
+	menu.m_bMainMenuKeyParentheses = keyParentheses;
+	menu.m_nMainMenuNum = 0;
+	std::fill(std::begin(menu.m_nMenuTopIdx), std::end(menu.m_nMenuTopIdx), -1);
+	bool optionOk = false;
+	int topCount = 0;
+	std::optional<int> skipDeeperThan;	// 菜单栏の項目が多すぎるとき：その項目と下位項目は入れない（原版の continue）
+	for (const auto& entry : entries) {
+		if (skipDeeperThan) {
+			if (entry.level > *skipDeeperThan) continue;
+			skipDeeperThan.reset();
+		}
+		if (menu.m_nMainMenuNum >= MAX_MAINMENU) return false;
+		if (entry.level == 0) {
+			if (topCount >= MAX_MAINMENU_TOP) {
+				skipDeeperThan = 0;
+				continue;
+			}
+			menu.m_nMenuTopIdx[topCount++] = menu.m_nMainMenuNum;
+		}
+		CMainMenu& m = menu.m_cMainMenuTbl[menu.m_nMainMenuNum++];
+		m.m_sName = LTEXT("");
+		const auto code = static_cast<EFunctionCode>(entry.code);
+		if (code == F_NODE) {
+			m.m_nType = T_NODE;
+			m.m_sName = DoubleAmpersand(sakura::wstring(entry.name)).substr(0, MAX_MAIN_MENU_NAME_LEN).c_str();
+		} else if (code == F_SEPARATOR) {
+			m.m_nType = T_SEPARATOR;
+		} else if (entry.isNode) {
+			m.m_nType = T_NODE;	// 名前はリソースから
+		} else if (F_SPECIAL_FIRST <= code && code <= F_SPECIAL_LAST) {
+			m.m_nType = T_SPECIAL;
+		} else {
+			if (code == F_OPTION) optionOk = true;
+			m.m_nType = T_LEAF;
+		}
+		m.m_nFunc = code;
+		m.m_sKey = sakura::wstring(entry.accessKey).substr(0, 1).c_str();
+		m.m_nLevel = entry.level;
+	}
+	if (!optionOk) {
+		// 「共通設定」が無いと設定を変えられなくなるので最後に追加（原版 auto_add）
+		int level = 0;
+		if (topCount < MAX_MAINMENU_TOP && menu.m_nMainMenuNum + 1 < MAX_MAINMENU) {
+			menu.m_nMenuTopIdx[topCount++] = menu.m_nMainMenuNum;
+			CMainMenu& node = menu.m_cMainMenuTbl[menu.m_nMainMenuNum++];
+			node.m_nType = T_NODE;
+			node.m_nFunc = F_NODE;
+			node.m_sName = LTEXT("auto_add");
+			node.m_sKey = LTEXT("");
+			node.m_nLevel = level++;
+		} else {
+			level = 1;
+		}
+		if (menu.m_nMainMenuNum >= MAX_MAINMENU) return false;
+		CMainMenu& option = menu.m_cMainMenuTbl[menu.m_nMainMenuNum++];
+		option.m_nType = T_LEAF;
+		option.m_nFunc = F_OPTION;
+		option.m_sName = LTEXT("");
+		option.m_sKey = LTEXT("");
+		option.m_nLevel = level;
+	}
+	return true;
+}
+
+void CommandSettingsEditor::InitializeMainMenu()
+{
+	// 原版 IDC_BUTTON_INITIALIZE
+	CDataProfile profile;
+	std::vector<sakura::wstring> data;
+	profile.SetReadingMode();
+	profile.ReadProfileRes(MAKEINTRESOURCE(IDR_MENU1), MAKEINTRESOURCE(ID_RC_TYPE_INI), &data);
+	CShareData_IO::IO_MainMenu(profile, &data, m_impl->common->m_sMainMenu, false);
+}
+
+Text CommandSettingsEditor::SpecialFunctionCategory() const { return Text(LS(STR_SPECIAL_FUNC)); }
+
+std::vector<FunctionInfo> CommandSettingsEditor::SpecialFunctions() const
+{
+	std::vector<FunctionInfo> result;
+	for (int i = 0; i < nsFuncCode::nFuncList_Special_Num; ++i) {
+		const auto code = nsFuncCode::pnFuncList_Special[i];
+		result.push_back({ static_cast<FunctionCode>(code), Text(LS(code)) });
+	}
+	return result;
+}
+
+bool CommandSettingsEditor::ImportMainMenu(const Text& path, Text& message)
+{
+	CImpExpMainMenu manager(*m_impl->common);
+	return RunImpExp(manager, true, path, message);
+}
+
+bool CommandSettingsEditor::ExportMainMenu(const Text& path, Text& message)
+{
+	CImpExpMainMenu manager(*m_impl->common);
+	return RunImpExp(manager, false, path, message);
+}
+
 std::vector<std::pair<Text, Text>> CommandSettingsEditor::IniValues(const Text& section) const
 {
 	std::vector<std::pair<Text, Text>> result;
@@ -1132,12 +1299,21 @@ std::vector<std::pair<Text, Text>> CommandSettingsEditor::IniValues(const Text& 
 	if (section == LTEXT("KeyBind")) {
 		ShareData_IO_KeyBind(profile, m_impl->common->m_sKeyBind, false);	// 原版 sakura.ini の書き込みと同じ
 		for (int i = 0; i < m_impl->KeyBind().m_nKeyNameArrNum; ++i) keys.push_back(strprintf(LTEXT("KeyBind[%03d]"), i));
+	} else if (section == LTEXT("MainMenu")) {
+		// 原版 ShareData_IO_MainMenu の書き込みと同じ
+		auto& menu = m_impl->common->m_sMainMenu;
+		CShareData_IO::IO_MainMenu(profile, menu, false);
+		int version = 2;
+		profile.IOProfileData(section, LTEXT("nMainMenuVer"), version);
+		keys = { LTEXT("nMainMenuNum"), LTEXT("bKeyParentheses"), LTEXT("nMainMenuVer") };
+		for (int i = 0; i < std::max(menu.m_nMainMenuNum, m_impl->initialMainMenuNum); ++i) keys.push_back(strprintf(LTEXT("MM[%03d]"), i));
 	} else {
 		return result;
 	}
 	for (const auto& key : keys) {
 		sakura::wstring value;
-		if (profile.GetProfileData(section, key, value)) result.emplace_back(Text(key), Text(value));
+		(void)profile.GetProfileData(section, key, value);	// 減った項目は空の値
+		result.emplace_back(Text(key), Text(value));
 	}
 	return result;
 }

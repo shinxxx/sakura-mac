@@ -694,6 +694,17 @@ NS_SWIFT_NAME(EditorKeywordSetEditor)
 	共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー 的编辑（core::CommandSettingsEditor，第 41 步）。
 	复制核心库现在的共通設定（原版 CPropCommon::m_Common），这几页共用一个；OK 时把 iniValues(section:) 写进那一节
 */
+//! メインメニュー的一项（core::CommandSettingsEditor::MainMenuEntry，第 41 步）
+NS_SWIFT_NAME(EditorMainMenuEntry)
+@interface ECMainMenuEntry : NSObject
+@property NSInteger level;
+@property BOOL isNode;
+@property NSInteger code;
+@property (copy) NSString *name;
+@property (copy) NSString *accessKey;
+- (instancetype)initWithLevel:(NSInteger)level isNode:(BOOL)isNode code:(NSInteger)code name:(NSString *)name accessKey:(NSString *)accessKey;
+@end
+
 NS_SWIFT_NAME(EditorCommandSettingsEditor)
 @interface ECCommandSettingsEditor : NSObject
 - (nullable instancetype)init NS_DESIGNATED_INITIALIZER;
@@ -715,7 +726,20 @@ NS_SWIFT_NAME(EditorCommandSettingsEditor)
 //! 读入・写出 *.key。message 是原版的消息
 - (BOOL)importKeyBindFromPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importKeyBind(path:message:));
 - (BOOL)exportKeyBindToPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportKeyBind(path:message:));
-//! 这一节的值（项目 → 值）。节：KeyBind
+// ----- メインメニュー -----
+@property (readonly, copy) NSArray<ECMainMenuEntry *> *mainMenuEntries;
+@property (readonly) BOOL mainMenuKeyParentheses;
+//! 页的内容写进复制（原版 GetData：没有「共通設定」时加在最后）
+- (BOOL)setMainMenu:(NSArray<ECMainMenuEntry *> *)entries keyParentheses:(BOOL)keyParentheses NS_SWIFT_NAME(setMainMenu(_:keyParentheses:));
+//! 初期設定（内置的 MainMenu.ini）
+- (void)initializeMainMenu;
+//! 「特別機能」
+@property (readonly, copy) NSString *specialFunctionCategory;
+@property (readonly, copy) NSArray<NSNumber *> *specialFunctionCodes;
+@property (readonly, copy) NSArray<NSString *> *specialFunctionNames;
+- (BOOL)importMainMenuFromPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importMainMenu(path:message:));
+- (BOOL)exportMainMenuToPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportMainMenu(path:message:));
+//! 这一节的值（项目 → 值）。节：KeyBind、MainMenu
 - (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section NS_SWIFT_NAME(iniValues(section:));
 @end
 

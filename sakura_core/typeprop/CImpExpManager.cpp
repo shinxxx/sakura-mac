@@ -1133,7 +1133,7 @@ bool CImpExpCustMenu::Import( const sakura::wstring& sFileName, sakura::wstring&
 	cProfile.ReadProfile(strPath.c_str());
 
 	//バージョン確認
-	WCHAR szHeader[256];
+	WCHAR szHeader[256] = {};	// 項目が無いときに前の値が残らないように（移植計画のステップ 41）
 	cProfile.IOProfileData(szSecInfo, LTEXT("MENU_VERSION"), StringBufferW(szHeader));
 	if(wcscmp(szHeader, WSTR_CUSTMENU_HEAD_V2)!=0) {
 		sErrMsg = sakura::wstring(LS(STR_IMPEXP_CUSTMENU_FORMAT)) + sFileName;
@@ -1297,7 +1297,7 @@ bool CImpExpMainMenu::Import( const sakura::wstring& sFileName, sakura::wstring&
 	cProfile.ReadProfile( strPath.c_str() );
 
 	//バージョン確認
-	WCHAR szHeader[256];
+	WCHAR szHeader[256] = {};	// 項目が無いときに前の値が残らないように（移植計画のステップ 41）
 	cProfile.IOProfileData(szSecInfo, LTEXT("MENU_VERSION"), StringBufferW(szHeader));
 	if(wcscmp(szHeader, WSTR_MAINMENU_HEAD_V1)!=0) {
 		sErrMsg = sakura::wstring(LS(STR_IMPEXP_MEINMENU)) + sFileName;

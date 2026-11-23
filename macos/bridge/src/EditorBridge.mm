@@ -993,6 +993,21 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 
 @end
 
+@implementation ECMainMenuEntry
+- (instancetype)initWithLevel:(NSInteger)level isNode:(BOOL)isNode code:(NSInteger)code name:(NSString *)name accessKey:(NSString *)accessKey
+{
+	self = [super init];
+	if (self) {
+		_level = level;
+		_isNode = isNode;
+		_code = code;
+		_name = [name copy];
+		_accessKey = [accessKey copy];
+	}
+	return self;
+}
+@end
+
 @implementation ECCommandSettingsEditor {
 	std::unique_ptr<core::CommandSettingsEditor> _editor;
 }
@@ -1063,6 +1078,60 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 {
 	core::Text text;
 	const bool ok = _editor->ExportKeyBind(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (NSArray<ECMainMenuEntry *> *)mainMenuEntries
+{
+	NSMutableArray<ECMainMenuEntry *> *result = [NSMutableArray array];
+	for (const auto& e : _editor->MainMenuEntries()) {
+		[result addObject:[[ECMainMenuEntry alloc] initWithLevel:e.level isNode:e.isNode code:e.code
+			name:ToNSString(e.name) accessKey:ToNSString(e.accessKey)]];
+	}
+	return result;
+}
+
+- (BOOL)mainMenuKeyParentheses { return _editor->MainMenuKeyParentheses() ? YES : NO; }
+
+- (BOOL)setMainMenu:(NSArray<ECMainMenuEntry *> *)entries keyParentheses:(BOOL)keyParentheses
+{
+	std::vector<core::CommandSettingsEditor::MainMenuEntry> list;
+	for (ECMainMenuEntry *e in entries) {
+		list.push_back({ ClampInt32(e.level), e.isNode ? true : false, ClampInt32(e.code), ToText(e.name), ToText(e.accessKey) });
+	}
+	return _editor->SetMainMenu(list, keyParentheses) ? YES : NO;
+}
+
+- (void)initializeMainMenu { _editor->InitializeMainMenu(); }
+- (NSString *)specialFunctionCategory { return ToNSString(_editor->SpecialFunctionCategory()); }
+
+- (NSArray<NSNumber *> *)specialFunctionCodes
+{
+	NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+	for (const auto& f : _editor->SpecialFunctions()) [result addObject:@(f.code)];
+	return result;
+}
+
+- (NSArray<NSString *> *)specialFunctionNames
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& f : _editor->SpecialFunctions()) [result addObject:ToNSString(f.name)];
+	return result;
+}
+
+- (BOOL)importMainMenuFromPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ImportMainMenu(ToText(path), text);
+	if (message) *message = ToNSString(text);
+	return ok ? YES : NO;
+}
+
+- (BOOL)exportMainMenuToPath:(NSString *)path message:(NSString **)message
+{
+	core::Text text;
+	const bool ok = _editor->ExportMainMenu(ToText(path), text);
 	if (message) *message = ToNSString(text);
 	return ok ? YES : NO;
 }

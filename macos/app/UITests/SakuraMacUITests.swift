@@ -564,6 +564,27 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "x", "F12 で すべて選択 して x に置き換わる")
     }
 
+    /// 共通設定 > メインメニュー：「ファイル」を下位項目ごと削除して OK → 菜单栏に「ファイル」が無くなる
+    func testMainMenuPage() {
+        XCTAssertTrue(app.menuBars.menuBarItems["ファイル"].exists)
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        window.staticTexts["CommonSettingsPage_メインメニュー"].click()
+        let outline = window.outlines["IDC_TREE_RES_outline"]
+        XCTAssertTrue(outline.waitForExistence(timeout: 2), "メインメニュー のページ")
+        outline.staticTexts["ファイル(F)"].click()
+        window.buttons["IDC_BUTTON_DELETE"].click()
+        let ok = app.buttons["OK"].firstMatch	// 下位項目ごと削除の確認（NSAlert）
+        XCTAssertTrue(ok.waitForExistence(timeout: 3), "削除の確認")
+        ok.click()
+        XCTAssertFalse(outline.staticTexts["ファイル(F)"].exists, "削除")
+        window.buttons["CommonSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+        XCTAssertFalse(app.menuBars.menuBarItems["ファイル"].waitForExistence(timeout: 1), "菜单栏を作り直した")
+        XCTAssertTrue(app.menuBars.menuBarItems["編集"].exists)
+    }
+
     // MARK: - 第 35 步：导入 Windows 版的设置
 
     /// 設定 >「Windows 版の設定をインポート…」→ 确认 →（窗口关闭）→ 重新启动后，导入的按键分配生效。
