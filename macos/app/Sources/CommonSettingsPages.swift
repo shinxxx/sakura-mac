@@ -10,7 +10,8 @@ import EditorBridge
 /// 值是 sakura.ini 的「节/项目」（原版 CShareData_IO 的名字）。GetData 里的范围限制也照原版。
 /// 这一步移植的页：全般、ウィンドウ（位置と大きさの設定 も）、タブバー、ステータスバー、編集、ファイル、
 /// ファイル名表示（置換リスト も）、バックアップ、書式、検索、支援（タブバー・支援 的フォント も）。
-/// 強調キーワード は第 40 步（KeywordSettingsPage.swift）。以后的步骤：メインメニュー・ツールバー・キー割り当て・カスタムメニュー（第 41 步）、
+/// 強調キーワード は第 40 步（KeywordSettingsPage.swift）、キー割り当て は第 41 步（KeyBindPage.swift）。
+/// 以后的步骤：メインメニュー・ツールバー・カスタムメニュー（第 41 步）、
 /// マクロ（第 45 步）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
 protocol CommonSettingsPageLogic {
     /// 数值框的范围（原版 SetUpDownRange）
@@ -29,6 +30,8 @@ protocol CommonSettingsPageLogic {
     func changed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues)
     /// 按钮
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?)
+    /// 又显示了这一页（原版 PSN_SETACTIVE。第一次是 setData）
+    func activate(_ page: PropPage, _ values: CommonSettingsValues)
 }
 
 extension CommonSettingsPageLogic {
@@ -38,6 +41,7 @@ extension CommonSettingsPageLogic {
     func enable(_ page: PropPage) {}
     func changed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues) {}
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {}
+    func activate(_ page: PropPage, _ values: CommonSettingsValues) {}
 }
 
 enum CommonSettingsPages {
@@ -56,6 +60,7 @@ enum CommonSettingsPages {
         case "IDD_PROP_GREP": return GrepPage()
         case "IDD_PROP_HELPER": return HelperPage()
         case "IDD_PROP_KEYWORD": return KeywordSettingsPage()	// 第 40 步
+        case "IDD_PROP_KEYBIND": return KeyBindPage()			// 第 41 步
         default: return nil
         }
     }

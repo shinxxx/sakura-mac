@@ -690,6 +690,35 @@ NS_SWIFT_NAME(EditorKeywordSetEditor)
 @property (readonly, copy) NSDictionary<NSString *, NSString *> *iniValues;
 @end
 
+/*!
+	共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー 的编辑（core::CommandSettingsEditor，第 41 步）。
+	复制核心库现在的共通設定（原版 CPropCommon::m_Common），这几页共用一个；OK 时把 iniValues(section:) 写进那一节
+*/
+NS_SWIFT_NAME(EditorCommandSettingsEditor)
+@interface ECCommandSettingsEditor : NSObject
+- (nullable instancetype)init NS_DESIGNATED_INITIALIZER;
+// ----- 機能の検索（原版 CFuncLookup）-----
+//! 「種別」
+@property (readonly, copy) NSArray<NSString *> *functionCategories;
+//! 这个分类的功能的编号和名字
+- (NSArray<NSNumber *> *)functionCodesInCategory:(NSInteger)category NS_SWIFT_NAME(functionCodes(inCategory:));
+- (NSArray<NSString *> *)functionNamesInCategory:(NSInteger)category NS_SWIFT_NAME(functionNames(inCategory:));
+- (NSString *)nameOfFunction:(NSInteger)code NS_SWIFT_NAME(name(ofFunction:));
+// ----- キー割り当て -----
+@property (readonly) NSInteger keyCount;
+- (NSString *)nameOfKey:(NSInteger)key NS_SWIFT_NAME(name(ofKey:));
+//! modifiers 是 Shift 1、Ctrl 2、Alt 4 的组合。0 是未割当
+- (NSInteger)functionOfKey:(NSInteger)key modifiers:(NSInteger)modifiers NS_SWIFT_NAME(function(ofKey:modifiers:));
+- (void)setFunction:(NSInteger)code ofKey:(NSInteger)key modifiers:(NSInteger)modifiers NS_SWIFT_NAME(setFunction(_:ofKey:modifiers:));
+//! 機能に割り当てられているキー（「Shift+Ctrl+F3」等）
+- (NSArray<NSString *> *)keysAssignedToFunction:(NSInteger)code NS_SWIFT_NAME(keysAssigned(toFunction:));
+//! 读入・写出 *.key。message 是原版的消息
+- (BOOL)importKeyBindFromPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importKeyBind(path:message:));
+- (BOOL)exportKeyBindToPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportKeyBind(path:message:));
+//! 这一节的值（项目 → 值）。节：KeyBind
+- (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section NS_SWIFT_NAME(iniValues(section:));
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 

@@ -934,6 +934,59 @@ std::vector<KeyBinding> KeyBindings();
 //! 这个键（keyCode + modifiers）分配的功能（原版 CKeyBind::GetFuncCode）。没有分配时是 0
 FunctionCode FunctionForKey(std::uint16_t keyCode, std::uint8_t modifiers);
 
+//! 一个功能（共通設定的「機能」列表的一行）
+struct FunctionInfo {
+	FunctionCode code = 0;
+	Text name;
+};
+
+/*!
+	共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー 的编辑（第 41 步）。
+	与原版 CPropCommon 相同，Create 时复制核心库现在的共通設定（m_Common），这些页都在这个复制上编辑：
+	在カスタムメニュー 页改的名字，キー割り当て 页的「機能」列表马上用（原版 CFuncLookup 看 m_Common）。
+	OK 时把 IniValues(节) 的值写进 sakura.ini 的那一节（SetCommonSettings），与原版读入 sakura.ini 时相同地换掉。
+*/
+class CommandSettingsEditor {
+public:
+	static std::unique_ptr<CommandSettingsEditor> Create();
+	~CommandSettingsEditor();
+	CommandSettingsEditor(const CommandSettingsEditor&) = delete;
+	CommandSettingsEditor& operator=(const CommandSettingsEditor&) = delete;
+
+	// ----- 機能の検索（原版 CFuncLookup）-----
+	//! 「種別」：原版的分类 + 外部マクロ + カスタムメニュー + プラグイン（SetCategory2Combo）
+	std::vector<Text> FunctionCategories() const;
+	//! 「機能」：这个分类的功能（原版 SetListItem：没有定义的不要。Mac 版プラグイン 是空的）
+	std::vector<FunctionInfo> Functions(std::int32_t category) const;
+	//! 功能的名字（原版 Funccode2Name：カスタムメニュー的名字、外部マクロ的名字用这个复制的）
+	Text FunctionName(FunctionCode code) const;
+
+	// ----- キー割り当て（原版 CPropKeybind）-----
+	//! 键的个数和名字（原版 m_pKeyNameArr、m_nKeyNameArrNum：鼠标的「ダブルクリック」等也在里面）
+	std::int32_t KeyCount() const;
+	Text KeyName(std::int32_t key) const;
+	//! 这个键 + keymod 的组合的功能（原版 m_nFuncCodeArr[i]。0 是未割当）
+	FunctionCode KeyFunction(std::int32_t key, std::uint8_t modifiers) const;
+	//! 割当（code）・解除（0）
+	void SetKeyFunction(std::int32_t key, std::uint8_t modifiers, FunctionCode code);
+	//! 機能に割り当てられているキー（原版 CKeyBind::GetKeyStrList：「Shift+Ctrl+F3」等，デフォルト機能は含めない）
+	std::vector<Text> AssignedKeys(FunctionCode code) const;
+	//! キー割り当て的インポート・エクスポート（*.key，原版 CImpExpKeybind）。message 是原版的消息
+	bool ImportKeyBind(const Text& path, Text& message);
+	bool ExportKeyBind(const Text& path, Text& message);
+
+	/*!
+		sakura.ini 的这一节的值（项目, 值）。能用的节：KeyBind。
+		写法与原版保存 sakura.ini 时相同。
+	*/
+	std::vector<std::pair<Text, Text>> IniValues(const Text& section) const;
+
+private:
+	CommandSettingsEditor();
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
+};
+
 // ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------

@@ -56,8 +56,8 @@
 メインメニュー,IDC_BUTTON_LEFT,PUSHBUTTON,←(L),,,第 41 步
 メインメニュー,IDC_BUTTON_EXPAND,PUSHBUTTON,全開(H),,,第 41 步
 メインメニュー,IDC_BUTTON_COLLAPSE,PUSHBUTTON,全閉(Z),,,第 41 步
-メインメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
-メインメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+メインメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,MainMenu/…（*.mnu）,第 41 步
+メインメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,（*.mnu）,第 41 步
 メインメニュー,IDC_BUTTON_CHECK,PUSHBUTTON,検査(T),,,第 41 步
 メインメニュー,IDC_BUTTON_CLEAR,PUSHBUTTON,クリア(C),,,第 41 步
 メインメニュー,IDC_BUTTON_INITIALIZE,PUSHBUTTON,初期設定(E),,,第 41 步
@@ -205,23 +205,23 @@
 検索,IDC_CHECK_GTJW_LDBLCLK,AUTOCHECKBOX,ダブルクリックでタグジャンプ(W),m_sSearch.m_bGTJW_LDBLCLK,Common/bGTJW_LDBLCLK,○
 検索,IDC_COMBO_TAGJUMP,COMBOBOX,タグファイルの検索(T):,,Common/nTagJumpMode,○
 検索,IDC_COMBO_KEYWORD_TAGJUMP,COMBOBOX,キーワード指定のタグファイル検索(K):,,Common/nTagJumpModeKeyword,○
-キー割り当て,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
-キー割り当て,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
-キー割り当て,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
-キー割り当て,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
-キー割り当て,IDC_LABEL_FUNCtoKEY,LTEXT,機能に割り当てられているキー(G),,,第 41 步
-キー割り当て,IDC_LIST_ASSIGNEDKEYS,LISTBOX,機能に割り当てられているキー(G),,,第 41 步
-キー割り当て,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
-キー割り当て,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
-キー割り当て,IDC_LABEL_KEYKIND,LTEXT,キー(Y),,,第 41 步
-キー割り当て,IDC_LIST_KEY,LISTBOX,キー(Y),m_sKeyBind.m_pKeyNameArr m_sKeyBind.m_nKeyNameArrNum,,第 41 步
-キー割り当て,IDC_CHECK_SHIFT,AUTOCHECKBOX,Shift,,,第 41 步
-キー割り当て,IDC_CHECK_CTRL,AUTOCHECKBOX,Ctrl,,,第 41 步
-キー割り当て,IDC_CHECK_ALT,AUTOCHECKBOX,ALt,,,第 41 步
-キー割り当て,IDC_LABEL_KEYtoFUNC,LTEXT,キーに割り当てられている機能,,,第 41 步
-キー割り当て,IDC_EDIT_KEYSFUNC,EDITTEXT,キーに割り当てられている機能,,,第 41 步
-キー割り当て,IDC_BUTTON_ASSIGN,PUSHBUTTON,割当(B),,,第 41 步
-キー割り当て,IDC_BUTTON_RELEASE,PUSHBUTTON,解除(R),,,第 41 步
+キー割り当て,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,
+キー割り当て,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,○
+キー割り当て,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,
+キー割り当て,IDC_LIST_FUNC,LISTBOX,機能(F),,,○
+キー割り当て,IDC_LABEL_FUNCtoKEY,LTEXT,機能に割り当てられているキー(G),,,
+キー割り当て,IDC_LIST_ASSIGNEDKEYS,LISTBOX,機能に割り当てられているキー(G),,,○
+キー割り当て,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyBind/KeyBind[nnn]（*.key）,○
+キー割り当て,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,（*.key）,○
+キー割り当て,IDC_LABEL_KEYKIND,LTEXT,キー(Y),,,
+キー割り当て,IDC_LIST_KEY,LISTBOX,キー(Y),m_sKeyBind.m_pKeyNameArr m_sKeyBind.m_nKeyNameArrNum,KeyBind/KeyBind[nnn],○
+キー割り当て,IDC_CHECK_SHIFT,AUTOCHECKBOX,Shift,,,○
+キー割り当て,IDC_CHECK_CTRL,AUTOCHECKBOX,Ctrl,,,○
+キー割り当て,IDC_CHECK_ALT,AUTOCHECKBOX,ALt,,,○
+キー割り当て,IDC_LABEL_KEYtoFUNC,LTEXT,キーに割り当てられている機能,,,
+キー割り当て,IDC_EDIT_KEYSFUNC,EDITTEXT,キーに割り当てられている機能,,,○
+キー割り当て,IDC_BUTTON_ASSIGN,PUSHBUTTON,割当(B),,KeyBind/KeyBind[nnn],○
+キー割り当て,IDC_BUTTON_RELEASE,PUSHBUTTON,解除(R),,KeyBind/KeyBind[nnn],○
 カスタムメニュー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
 カスタムメニュー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
 カスタムメニュー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
@@ -241,8 +241,8 @@
 カスタムメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
 カスタムメニュー,IDC_LABEL_MENUKEYCHANGE,LTEXT,↑ダブルクリックでアクセスキー設定可,,,第 41 步
 カスタムメニュー,IDC_CHECK_SUBMENU,AUTOCHECKBOX,サブメニューとして表示(S),m_sCustomMenu.m_bCustMenuPopupArr,,第 41 步
-カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
-カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,KeyWords/szKW[nn]（*.kwd）,第 41 步
+カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,CustMenu/…（*.mnu）,第 41 步
+カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,（*.mnu）,第 41 步
 強調キーワード,IDC_COMBO_SET,COMBOBOX,セット名(N),,"KeyWords/nCurrentKeyWordSetIdx, nKeyWordSetNum, szSN[nn]",○
 強調キーワード,IDC_BUTTON_ADDSET,PUSHBUTTON,セット追加(M)...,m_sSpecialKeyword.m_CKeyWordSetMgr,"KeyWords/nKeyWordSetNum, szSN[nn]",○
 強調キーワード,IDC_BUTTON_DELSET,PUSHBUTTON,セット削除(R)...,,"KeyWords/…、Types(N)/nInts, nKeywordSelect3～10",○

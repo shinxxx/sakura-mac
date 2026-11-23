@@ -27,11 +27,12 @@
 //	sakura_rc.rcファイルの下のほうにあるString Tableも参照のこと
 
 #include "StdAfx.h"
-#include <Shlwapi.h>
 #include "func/Funccode.h"
 #include "config/maxdata.h" //MAX_MRU
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
+#if defined(_WIN32)	// Mac 版：機能の分類と一覧（共通設定の「種別」「機能」）だけ使う。ヘルプ番号と機能の有効・チェック状態は編集画面の側（移植計画のステップ 41）
+#include <Shlwapi.h>
 #include "doc/CEditDoc.h"
 #include "_main/CAppMode.h"
 #include "CEditApp.h"
@@ -42,6 +43,7 @@
 #include "env/CMarkMgr.h"	// CAutoMarkMgr
 #include "util/os.h"
 #include "sakura.hh"
+#endif
 
 //using namespace nsFuncCode;
 
@@ -545,6 +547,7 @@ const EFunctionCode* nsFuncCode::ppnFuncListArr[] = {
 };
 const int nsFuncCode::nFincListNumArrNum = int(std::size(nsFuncCode::pnFuncListNumArr));
 
+#if defined(_WIN32)
 //! 機能番号に応じてヘルプトピック番号を返す
 /*!
 	@author Stonee
@@ -1323,3 +1326,4 @@ bool IsFuncChecked( const CEditDoc* pcEditDoc, const DLLSHAREDATA* pShareData, E
 
 	return false;
 }
+#endif

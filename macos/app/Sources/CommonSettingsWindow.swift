@@ -58,6 +58,9 @@ final class CommonSettingsValues {
     private var current: [Item: String] = [:]
     private var order: [Item] = []
 
+    /// 共通設定 > キー割り当て・メインメニュー・ツールバー・カスタムメニュー 共用的复制（第 41 步。原版 CPropCommon::m_Common）
+    lazy var commandEditor: EditorCommandSettingsEditor? = EditorCommandSettingsEditor()
+
     init(store: CommonSettingsStore, defaultSection: String = "Common") {
         self.store = store
         self.defaultSection = defaultSection
@@ -896,7 +899,12 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
         leaveCurrentPage()
         currentIndex = index
         pageDidShow(index)
+        let isNew = pages[index] == nil
         let page = self.page(index)
+        if !isNew, let logic = logics[index] {
+            logic.activate(page, values)	// 原版 PSN_SETACTIVE
+            logic.enable(page)
+        }
         pageContainer.subviews.forEach { $0.removeFromSuperview() }
         page.view.frame.origin = .zero
         pageContainer.addSubview(page.view)
@@ -1020,6 +1028,11 @@ final class CommonSettingsWindowController: PropSheetWindowController {
     override func didApply(changed: Bool) {
         if changed {
             NotificationCenter.default.post(name: EditorTextView.commonSettingsDidChangeNotification, object: nil)
+        }
+        // キー割り当て が変わった：メニューのショートカットを新しい割り当てで（第 41 步）
+        if values.appliedSections.contains("KeyBind") {
+            KeyCommands.reloadBindings()
+            NotificationCenter.default.post(name: MainMenuBuilder.keyBindingsDidChangeNotification, object: nil)
         }
         // 強調キーワード（とそれを使うタイプ別設定）が変わった：全部の文書を新しい設定で（原版 F_REDRAW）
         if values.appliedSections.contains(where: { $0 == "KeyWords" || $0.hasPrefix("Types(") }) {

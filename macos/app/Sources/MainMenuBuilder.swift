@@ -51,11 +51,16 @@ enum MainMenuBuilder {
             }
         }
         applyKeyEquivalents(mainMenu)
-        NotificationCenter.default.addObserver(forName: KeyScheme.didChangeNotification, object: nil, queue: .main) { _ in
-            applyKeyEquivalents(mainMenu)
+        for name in [KeyScheme.didChangeNotification, keyBindingsDidChangeNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                applyKeyEquivalents(mainMenu)
+            }
         }
         return mainMenu
     }
+
+    /// 共通設定 > キー割り当て を OK した（第 41 步）：菜单的快捷键按新的分配
+    static let keyBindingsDidChangeNotification = Notification.Name("SakuraKeyBindingsDidChange")
 
     /// 原版的顶层菜单、子菜单的功能编号（Funccode_x.hsrc 的 F_*_TOPMENU 等）
     enum MenuCode {
