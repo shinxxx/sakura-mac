@@ -1,0 +1,18 @@
+title: アセンブラ アウトライン
+[list]
+行 *	桁	関数名	
+4	1	start	ラベル <
+7	1	loop1	ラベル
+10	1	func1	PROC
+13	1	func1	ENDP
+15	1	func2	PROC
+16	1	inner_label	ラベル
+18	1	func2	ENDP
+[clip]
+<FILE>(4,1): start(ラベル)
+<FILE>(7,1): loop1(ラベル)
+<FILE>(10,1): func1(PROC)
+<FILE>(13,1): func1(ENDP)
+<FILE>(15,1): func2(PROC)
+<FILE>(16,1): inner_label(ラベル)
+<FILE>(18,1): func2(ENDP)

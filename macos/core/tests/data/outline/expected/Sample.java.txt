@@ -1,0 +1,31 @@
+title: Java メソッドツリー
+[tree]
+- Sample クラス
+    定義位置 <
+    Sample
+    run
+    max
+  + Base クラス
+      定義位置
+      doIt(宣言)
+      value
+  + Listener クラス
+      定義位置
+      onEvent(宣言)
+    日本語メソッド
+- Second クラス
+    定義位置
+    second
+[clip]
+<FILE>(6,1): Sample::定義位置
+<FILE>(9,1): Sample::Sample
+<FILE>(14,1): Sample::run
+<FILE>(20,1): Sample::max
+<FILE>(24,1): Sample\Base::定義位置
+<FILE>(25,1): Sample\Base::doIt(宣言)
+<FILE>(26,1): Sample\Base::value
+<FILE>(29,1): Sample\Listener::定義位置
+<FILE>(30,1): Sample\Listener::onEvent(宣言)
+<FILE>(38,1): Sample::日本語メソッド
+<FILE>(43,1): Second::定義位置
+<FILE>(44,1): Second::second

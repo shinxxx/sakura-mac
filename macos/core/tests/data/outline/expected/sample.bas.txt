@@ -1,0 +1,36 @@
+title: Visual Basic アウトライン
+[list]
+行 *	桁	関数名	
+5	1	MAX_COUNT	定数（パブリック） <
+6	1	MIN_COUNT	定数（プライベート）
+8	1	Colors	列挙型宣言（パブリック）
+13	1	Point	ユーザ定義型宣言（プライベート）
+18	1	Changed	イベント宣言（パブリック）
+20	1	GetTickCount	関数宣言（プライベート）
+21	1	Sleep	プロシージャ宣言（パブリック）
+23	1	Add	関数（パブリック）
+27	1	Reset	プロシージャ（プライベート）
+30	1	Helper	関数（フレンド）
+33	1	Counter	プロシージャ（静的 パブリック）
+36	1	StaticFunc	関数（静的 パブリック）
+39	1	Value	プロパティ 取得（パブリック）
+42	1	Value	プロパティ 設定（パブリック）
+45	1	Target	プロパティ 参照（プライベート）
+48	1	NoModifier	プロシージャ（パブリック）
+[clip]
+<FILE>(5,1): MAX_COUNT(定数（パブリック）)
+<FILE>(6,1): MIN_COUNT(定数（プライベート）)
+<FILE>(8,1): Colors(列挙型宣言（パブリック）)
+<FILE>(13,1): Point(ユーザ定義型宣言（プライベート）)
+<FILE>(18,1): Changed(イベント宣言（パブリック）)
+<FILE>(20,1): GetTickCount(関数宣言（プライベート）)
+<FILE>(21,1): Sleep(プロシージャ宣言（パブリック）)
+<FILE>(23,1): Add(関数（パブリック）)
+<FILE>(27,1): Reset(プロシージャ（プライベート）)
+<FILE>(30,1): Helper(関数（フレンド）)
+<FILE>(33,1): Counter(プロシージャ（静的 パブリック）)
+<FILE>(36,1): StaticFunc(関数（静的 パブリック）)
+<FILE>(39,1): Value(プロパティ 取得（パブリック）)
+<FILE>(42,1): Value(プロパティ 設定（パブリック）)
+<FILE>(45,1): Target(プロパティ 参照（プライベート）)
+<FILE>(48,1): NoModifier(プロシージャ（パブリック）)

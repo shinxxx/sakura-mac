@@ -15,9 +15,41 @@ class CEditDoc;
 class CFuncInfoArr;
 struct SOneRule;
 
+#if defined(_WIN32)
+using COutlineDocRef = CEditDoc;
+#else
+class CDocLineMgr;
+class CLayoutMgr;
+class CEol;
+struct STypeConfig;
+
+/*!
+	Mac 版：CEditDoc はまだ移植していないので、アウトライン解析が使う部分だけを持つ（移植計画のステップ 42）。
+	メンバー名は CEditDoc と同じなので、解析のコード（types/CType_*.cpp）は変更しない。
+*/
+struct COutlineDocRef {
+	struct SDocType {
+		const STypeConfig& m_type;
+		const STypeConfig& GetDocumentAttribute() const { return m_type; }
+	};
+	struct SDocFile {
+		const WCHAR* m_pszFilePath;
+		const WCHAR* GetFilePath() const { return m_pszFilePath; }
+	};
+	struct SDocEditor {
+		const CEol& m_cNewLineCode;
+	};
+	CDocLineMgr&	m_cDocLineMgr;
+	CLayoutMgr&		m_cLayoutMgr;
+	SDocType		m_cDocType;
+	SDocFile		m_cDocFile;
+	SDocEditor		m_cDocEditor;
+};
+#endif
+
 class CDocOutline{
 public:
-	CDocOutline(CEditDoc* pcDoc) : m_pcDocRef(pcDoc) { }
+	CDocOutline(COutlineDocRef* pcDoc) : m_pcDocRef(pcDoc) { }
 	void	MakeFuncList_C( CFuncInfoArr* pcFuncInfoArr,
 							EOutlineType& nOutlineType,
 						    const WCHAR* pszFileName,
@@ -40,7 +72,7 @@ public:
 						  int nMaxCount, bool& bRegex, sakura::wstring& title );	//!< ルールファイル読込 2002.04.01 YAZAKI
 	void	MakeFuncList_BookMark( CFuncInfoArr* );								//!< ブックマークリスト作成 //2001.12.03 hor
 private:
-	CEditDoc* m_pcDocRef;
+	COutlineDocRef* m_pcDocRef;
 };
 
 #endif /* SAKURA_CDOCOUTLINE_BDF55702_D938_432D_99F2_BF0F98A7C5FE_H_ */

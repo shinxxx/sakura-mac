@@ -1,0 +1,20 @@
+title: C 関数一覧
+[list]
+行 *	桁	関数名	
+6	1	add	宣言 <
+7	1	reset	宣言
+9	1	add	
+14	1	reset	
+19	1	int	
+24	1	node	
+30	1	multi_line_name	
+37	1	main	
+[clip]
+<FILE>(6,1): add(宣言)
+<FILE>(7,1): reset(宣言)
+<FILE>(9,1): add
+<FILE>(14,1): reset
+<FILE>(19,1): int
+<FILE>(24,1): node
+<FILE>(30,1): multi_line_name
+<FILE>(37,1): main

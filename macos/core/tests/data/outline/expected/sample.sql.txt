@@ -1,0 +1,20 @@
+title: PL/SQL 関数一覧
+[list]
+行 *	桁	関数名	
+2	1	pkg_sample	■パッケージ仕様部 <
+3	1	get_count	関数宣言
+4	1	do_work	プロシージャ宣言
+8	1	pkg_sample	■パッケージ本体部
+9	1	get_count	関数
+14	1	do_work	プロシージャ
+22	1	standalone_proc	プロシージャ宣言
+28	1	standalone_func	関数宣言
+[clip]
+<FILE>(2,1): pkg_sample(■パッケージ仕様部)
+<FILE>(3,1): get_count(関数宣言)
+<FILE>(4,1): do_work(プロシージャ宣言)
+<FILE>(8,1): pkg_sample(■パッケージ本体部)
+<FILE>(9,1): get_count(関数)
+<FILE>(14,1): do_work(プロシージャ)
+<FILE>(22,1): standalone_proc(プロシージャ宣言)
+<FILE>(28,1): standalone_func(関数宣言)

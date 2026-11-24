@@ -1,0 +1,21 @@
+title: XML
+[tree]
++ root  <
+  + item 
+      name first
+      value
+  + item 
+      name second
+  + ns:element 
+      ns:child
+    日本語 テキスト
+[clip]
+ root 
+   item 
+     name first
+     value
+   item 
+     name second
+   ns:element 
+     ns:child
+   日本語 テキスト
