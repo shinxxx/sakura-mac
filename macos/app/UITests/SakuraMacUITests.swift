@@ -852,7 +852,7 @@ final class SakuraMacUITests: XCTestCase {
 
     /// 検索 > アウトライン解析：ツリーに見出し、ダブルクリックでジャンプ、「自動的に閉じる」で閉じて編集画面に戻る
     func testOutlineWindow() {
-        editor.typeText("■第一章\n□節 A\n■第二章\nend")
+        editor.typeText("(1) one\n(A) sub\n(2) two\nend")	// 編集画面は英字の入力だけ（UITesting.swift）
         key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文档的开头
         let menu = app.menuBars.menuBarItems["検索"]
         menu.click()
@@ -861,18 +861,18 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(panel.waitForExistence(timeout: 5), "アウトライン解析が開いた")
         let tree = panel.outlines["IDC_TREE_FL_outline"]
         XCTAssertTrue(tree.exists)
-        XCTAssertTrue(tree.staticTexts["■第一章"].exists)
-        XCTAssertTrue(tree.staticTexts["■第二章"].exists)
+        XCTAssertTrue(tree.staticTexts["(1) one"].exists)
+        XCTAssertTrue(tree.staticTexts["(2) two"].exists)
         XCTAssertTrue(panel.popUpButtons["IDC_COMBO_nSortType"].exists, "順序")
         for title in ["コピー(C)", "ジャンプ(J)", "キャンセル(X)"] {
             XCTAssertTrue(panel.buttons[title].exists, title)
         }
         panel.checkBoxes["自動的に閉じる(D)"].click()
-        tree.staticTexts["■第二章"].doubleClick()
+        tree.staticTexts["(2) two"].doubleClick()
         let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: panel)
         wait(for: [closed], timeout: 5)	// 自動的に閉じる
         app.typeText("X")
-        XCTAssertEqual(normalizedText, "■第一章\n□節 A\nX■第二章\nend", "3 行目の先頭へジャンプした")
+        XCTAssertEqual(normalizedText, "(1) one\n(A) sub\nX(2) two\nend", "3 行目の先頭へジャンプした")
     }
 
     /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
