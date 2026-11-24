@@ -80,7 +80,7 @@ final class CommonSettingsTests: XCTestCase {
             let definition = controller.dialogs.pages[index]
             let page = controller.page(index)
             // 对话框的大小按对话框单位换算（原版 293×240）
-            XCTAssertEqual(page.view.frame.size, NSSize(width: PropPage.points(definition.size[0]), height: PropPage.points(definition.size[1])))
+            XCTAssertEqual(page.view.frame.size, NSSize(width: PropPage.pointsX(definition.size[0]), height: PropPage.points(definition.size[1])))
             // 有 ID 的控件都在，文字与原版相同
             for control in definition.controls where control.id != "IDC_STATIC" && control.kind != "icon" {
                 let view = try XCTUnwrap(page.control(control.id), "\(definition.name) \(control.id)")
@@ -91,8 +91,11 @@ final class CommonSettingsTests: XCTestCase {
         }
         let general = controller.page(0)
         XCTAssertEqual((general.control("IDC_CHECK_FREECARET") as? NSButton)?.title, "フリーカーソル(F)")
-        XCTAssertEqual(general.control("IDC_CHECK_FREECARET")?.frame,
-                       NSRect(x: PropPage.points(8), y: PropPage.points(16), width: PropPage.points(120), height: PropPage.points(10)))
+        // 位置は原版の対話框単位から。幅は文字の幅（原版の枠まで）
+        let freeCaret = try XCTUnwrap(general.control("IDC_CHECK_FREECARET")?.frame)
+        XCTAssertEqual(freeCaret.origin, NSPoint(x: PropPage.pointsX(8), y: PropPage.points(16)))
+        XCTAssertEqual(freeCaret.height, PropPage.points(10))
+        XCTAssertLessThanOrEqual(freeCaret.width, PropPage.pointsX(120))
     }
 
     /// 設定 > 共通設定 的各功能打开那一页（原版 F_OPTION_*）
