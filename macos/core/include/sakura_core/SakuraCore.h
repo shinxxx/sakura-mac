@@ -1030,7 +1030,7 @@ public:
 	struct ToolbarButtonInfo {
 		ToolbarButtonKind kind = ToolbarButtonKind::Unknown;
 		FunctionCode code = 0;
-		std::int32_t icon = -1;	//!< mytool.bmp のアイコン番号（16×16，横 33 個）
+		std::int32_t icon = -1;	//!< mytool.bmp のアイコン番号（16×16，横 32 個）
 	};
 	//! 复制里的ツールバー的ボタン番号（原版 m_nToolBarButtonIdxArr）
 	std::vector<std::int32_t> ToolbarButtons() const;
