@@ -37,7 +37,9 @@ enum TypeSettingsPages {
             panel.directoryURL = url.deletingLastPathComponent()
             panel.nameFieldStringValue = url.lastPathComponent
         }
-        return panel.runModal() == .OK ? panel.url?.path : nil
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        BookmarkStore.settingFiles.remember(url)	// 第 42 步：重启后も沙盒で読めるように
+        return url.path
     }
 
     /// 编辑画面现在的字体（タイプ別フォントを使わないときのフォント。原版は共通設定のフォント m_sView.m_lf）。测试可以换

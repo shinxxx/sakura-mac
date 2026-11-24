@@ -174,6 +174,71 @@ final class OutlineDockTests: XCTestCase {
         XCTAssertEqual(try self.panel.window?.frame.minX ?? 0, float.1.minX, accuracy: 1)
     }
 
+    /// ドッキングの外観：キャプションの文字は切れない・ボタンと重ならない、ボタンはキャプションの中、
+    /// ツリー・リストは下まで、色は編集画面の文字の色・背景色、選んだ行は反転（原版 SyncColor）
+    func testDockedAppearance() throws {
+        try open("a.txt", Self.text)
+        view.showOutline(nil)
+        try choose("左ドッキング(L)")
+        let panel = try panel
+        let dock = try XCTUnwrap(container.dock)
+        container.layoutSubtreeIfNeeded()
+        dock.layout()
+        dock.caption.layout()
+        let caption = dock.caption
+        // すべてのアウトラインの名前がキャプションに入る（既定の幅：600 の 1/3）
+        for title in ["C++ メソッドツリー", "テキスト トピックツリー", "Visual Basic アウトライン", "WZ階層付テキスト", "アセンブラ アウトライン"] {
+            caption.title.stringValue = title
+            XCTAssertLessThanOrEqual(ceil(caption.title.fittingSize.width), caption.title.frame.width + 0.5, title)
+        }
+        for b in [caption.closeButton, caption.menuButton, caption.updateButton] {
+            XCTAssertFalse(b.frame.intersects(caption.title.frame), "ボタンとタイトルが重ならない")
+            XCTAssertTrue(caption.bounds.contains(b.frame), "ボタンはキャプションの中")
+        }
+        XCTAssertFalse(caption.closeButton.frame.intersects(caption.menuButton.frame))
+        XCTAssertFalse(caption.menuButton.frame.intersects(caption.updateButton.frame))
+        XCTAssertEqual(caption.frame.height, OutlineDockView.captionHeight)
+        // 中身はキャプションの下、分割バーの内側
+        XCTAssertEqual(dock.content.frame.minY, caption.frame.maxY, accuracy: 0.5)
+        XCTAssertFalse(dock.content.frame.intersects(dock.splitterRect))
+        // ツリーは下まで
+        let tree = try XCTUnwrap(panel.page.control("IDC_TREE_FL"))
+        XCTAssertEqual(tree.frame.maxY, panel.page.view.bounds.height, accuracy: 0.5)
+        XCTAssertEqual(tree.frame.maxX, panel.page.view.bounds.width, accuracy: 0.5)
+        // 色
+        let text = view.color(.text)
+        let back = EditorTextView.nsColor(text.back), fore = EditorTextView.nsColor(text.text)
+        XCTAssertEqual(panel.treeView.backgroundColor.usingColorSpace(.sRGB), back.usingColorSpace(.sRGB))
+        XCTAssertEqual(panel.treeView.textColor?.usingColorSpace(.sRGB), fore.usingColorSpace(.sRGB))
+        let row = panel.treeView.selectedRow
+        XCTAssertGreaterThanOrEqual(row, 0, "キャレットの位置の項目を選んでいる")
+        let cell = try XCTUnwrap(panel.treeView.view(atColumn: 0, row: row, makeIfNecessary: true) as? OutlineCell)
+        cell.backgroundStyle = .emphasized
+        XCTAssertEqual(cell.textField?.textColor?.usingColorSpace(.sRGB), OutlineRowView.inverted(fore).usingColorSpace(.sRGB), "選んだ行の文字は反転")
+        let inv = try XCTUnwrap(OutlineRowView.inverted(NSColor(srgbRed: 1, green: 0.98, blue: 0.94, alpha: 1)).usingColorSpace(.sRGB))
+        XCTAssertEqual(inv.redComponent, 0, accuracy: 0.01)
+        XCTAssertEqual(inv.blueComponent, 0.06, accuracy: 0.01)
+        // フローティングに戻すと標準の色
+        try choose("フローティング(F)")
+        XCTAssertNil(try self.panel.treeView.textColor)
+    }
+
+    /// キャプションのボタンはマウスが上にあるとき強調（原版 OnNcPaint のハイライト）
+    func testCaptionButtonHover() throws {
+        try open("a.txt", Self.text)
+        view.showOutline(nil)
+        try choose("左ドッキング(L)")
+        let button = try XCTUnwrap(container.dock?.caption.closeButton)
+        XCTAssertFalse(button.isHovered)
+        let event = try XCTUnwrap(NSEvent.enterExitEvent(with: .mouseEntered, location: .zero, modifierFlags: [], timestamp: 0,
+                                                         windowNumber: window.windowNumber, context: nil, eventNumber: 0, trackingNumber: 0, userData: nil))
+        button.mouseEntered(with: event)
+        XCTAssertTrue(button.isHovered)
+        XCTAssertEqual(button.contentTintColor, NSColor.selectedMenuItemTextColor)
+        button.mouseExited(with: event)
+        XCTAssertFalse(button.isHovered)
+    }
+
     func testSplitterSizeIsSaved() throws {
         try open("a.txt", Self.text)
         view.showOutline(nil)

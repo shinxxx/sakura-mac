@@ -332,16 +332,16 @@ final class OutlineDockView: NSView {
 final class OutlineDockCaption: NSView {
     weak var dockView: OutlineDockView?
     let title = PassthroughLabel(labelWithString: "")
-    let closeButton: NSButton
-    let menuButton: NSButton
-    let updateButton: NSButton
+    let closeButton: CaptionButton
+    let menuButton: CaptionButton
+    let updateButton: CaptionButton
     /// アウトラインにフォーカスがある（キャプションの色を変える）
     var isActive = false { didSet { if oldValue != isActive { needsDisplay = true; updateColors() } } }
 
     override init(frame: NSRect) {
-        func button(_ symbol: String, _ tip: String, _ id: String) -> NSButton {
+        func button(_ symbol: String, _ tip: String, _ id: String) -> CaptionButton {
             let image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip) ?? NSImage()
-            let b = NSButton(image: image, target: nil, action: nil)
+            let b = CaptionButton(image: image, target: nil, action: nil)
             b.isBordered = false
             b.bezelStyle = .smallSquare
             b.imageScaling = .scaleProportionallyDown
@@ -377,19 +377,23 @@ final class OutlineDockCaption: NSView {
 
     override func layout() {
         super.layout()
+        // ボタンは右から「閉じる」「ウィンドウの位置」「更新」（原版 SM_CXSMSIZE 幅）
         let h = bounds.height
-        var x = bounds.width
+        let w: CGFloat = 16
+        var x = bounds.width - 2
         for b in [closeButton, menuButton, updateButton] {
-            x -= h
-            b.frame = NSRect(x: x + 2, y: 2, width: h - 4, height: h - 4)
+            x -= w
+            b.frame = NSRect(x: x, y: (h - w) / 2, width: w, height: w)
         }
         title.frame = NSRect(x: 4, y: (h - 15) / 2, width: max(0, x - 6), height: 15)
     }
 
-    private func updateColors() {
+    func updateColors() {
         title.textColor = isActive ? NSColor.selectedMenuItemTextColor : NSColor.labelColor
         for b in [closeButton, menuButton, updateButton] {
-            b.contentTintColor = isActive ? NSColor.selectedMenuItemTextColor : NSColor.secondaryLabelColor
+            // マウスが上にあるボタンは強調（原版 COLOR_ACTIVECAPTION で塗り、キャプションの文字色）
+            b.contentTintColor = isActive || b.isHovered ? NSColor.selectedMenuItemTextColor : NSColor.secondaryLabelColor
+            b.needsDisplay = true
         }
     }
 
@@ -848,4 +852,37 @@ extension EditorTextView {
 /// クリックを下（キャプション）に通す文字（タイトルのドラッグ）
 final class PassthroughLabel: NSTextField {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// キャプションのボタン：マウスが上にあるときは強調の色で塗る（原版 OnNcPaint のハイライト）
+final class CaptionButton: NSButton {
+    private(set) var isHovered = false {
+        didSet { if oldValue != isHovered { (superview as? OutlineDockCaption)?.updateColors() } }
+    }
+    private var trackingArea: NSTrackingArea?
+
+    /// ハイライトの色（キャプションが強調の色のときは少し濃く）
+    var hoverColor: NSColor {
+        let active = (superview as? OutlineDockCaption)?.isActive ?? false
+        return active ? NSColor.controlAccentColor.blended(withFraction: 0.35, of: .black) ?? .controlAccentColor : .controlAccentColor
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInKeyWindow], owner: self, userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true }
+    override func mouseExited(with event: NSEvent) { isHovered = false }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if isHovered {
+            hoverColor.setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 3, yRadius: 3).fill()
+        }
+        super.draw(dirtyRect)
+    }
 }

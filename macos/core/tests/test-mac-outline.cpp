@@ -312,6 +312,26 @@ TEST_F(MacOutlineTest, RuleFileMissing)
 	EXPECT_EQ(u"ルールファイル", result.title);
 }
 
+TEST_F(MacOutlineTest, RuleFileNotShiftJis)
+{
+	// BOM のない UTF-8 のルールファイル（Shift_JIS として読めない）：例外で止まらず、項目なし
+	const fs::path rule = fs::path(std::getenv("HOME")) / "outline-rule-utf8.rul";
+	std::ofstream(rule, std::ios::binary) << "\xE2\x96\xA0 /// \xE8\xA6\x8B\xE5\x87\xBA\xE3\x81\x97\r\n";
+	int index = -1;
+	for (const auto& t : TypeSettings()) {
+		if (t.name == u"Rule1") index = t.index;
+	}
+	ASSERT_LE(0, index);
+	ASSERT_TRUE(SetCommonSetting(u"Types(" + Num(index) + u")", u"szOutlineRuleFilename", ToText(rule.string())));
+	auto doc = Open("rule.rtx");
+	OutlineResult result;
+	EXPECT_NO_THROW(result = doc->AnalyzeOutline(OutlineType::RuleFile));
+	EXPECT_TRUE(result.items.empty());
+	EXPECT_EQ(u"ルールファイル", result.title);
+	std::error_code ec;
+	fs::remove(rule, ec);
+}
+
 // ----- 並べ替え（窓口里改「順序」、点列名） -----
 
 TEST_F(MacOutlineTest, SortTree)

@@ -19,6 +19,11 @@ final class BookmarkStore {
     static let shared = BookmarkStore(fileURL: URL(fileURLWithPath: EditorCore.settingsFilePath)
         .deletingLastPathComponent().appendingPathComponent("bookmarks.plist"))
 
+    /// 設定で選んだファイル（ルールファイル、背景画像、単語ファイル、キーワード辞書。第 42 步）：
+    /// 設定には路径だけ書くので、重启后も沙盒で読めるように書签を残す。「最近使ったファイル」とは別（履歴で消さない）
+    static let settingFiles = BookmarkStore(fileURL: URL(fileURLWithPath: EditorCore.settingsFilePath)
+        .deletingLastPathComponent().appendingPathComponent("setting-file-bookmarks.plist"))
+
     let fileURL: URL
     private var bookmarks: [String: Data]
 
@@ -64,6 +69,14 @@ final class BookmarkStore {
             if accessing { url.stopAccessingSecurityScopedResource() }
         }
         return url
+    }
+
+    /// 这个文件的书签があれば、権限を取り戻している間に body を実行する（書签がない・相対路径はそのまま）
+    func withAccess<T>(path: String, _ body: () -> T) -> T {
+        guard !path.isEmpty, let url = resolve(path: path) else { return body() }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        return body()
     }
 
     /// 只留这些路径的书签（「最近使ったファイル」里没有了的删掉）

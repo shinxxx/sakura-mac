@@ -88,9 +88,18 @@ WZ階層付テキスト、HTML、TeX、Python、Erlang、XML）、ルールフ�
 - 标题栏的按钮：原版用 Marlett・Webdings 字体的记号，Mac 用 SF Symbols（×、∨、↻），提示文字与原版相同。
 - 拖动フローティング的窗口：Mac 的窗口移动由系统处理，松开鼠标时在编辑窗口的边上才停靠；拖动中显示停靠位置的框。
 
+## 核对后的补充（第 4 个 PR）
+
+- ルールファイル：タイプ別設定的「参照」选的文件记下安全书签（`BookmarkStore.settingFiles`，`setting-file-bookmarks.plist`，与「最近使ったファイル」分开），
+  解析时用书签取回权限，App Store 版（沙盒）重启后也能读。背景画像・単語ファイル・キーワード辞書 用同一个「参照」，书签也记下了（读那些文件的功能在以后的步骤接上）。
+- ルールファイル 不是 BOM 付き UTF-8、又不能当 Shift_JIS 读时：原版会抛出没人接的异常（`CError_TextEncoding`），Mac 版与读不到时相同，项目为空（不崩溃）。
+- 浮动窗口的标题栏右键也出菜单（原版 OnContextMenu）。
+- 停靠的标题栏按钮：鼠标在上面时用强调色涂（原版 OnNcPaint 的高亮）；按钮宽 16 点，默认的 1/3 宽度下标题不被截断（自动测试检查）。
+
 ## 测试
 
 - 核心库 `test-mac-outline.cpp` 28 个（含 22 个样本与 Windows 版相同的结果）；CI `outline-windows`（Windows 官方版的结果）。
-- App `OutlineTests` 17 个、`OutlineDockTests` 9 个；`PropLayoutTests` 也检查 IDD_FUNCLIST。
-- 界面测试 `testOutlineWindow`（菜单打开、双击跳转、自動的に閉じる）、`testOutlineDocking`（左ドッキング、单击・双击跳转、× 关闭）。
+- App `OutlineTests` 19 个、`OutlineDockTests` 11 个（含停靠外观：标题不截断・不与按钮重叠、编辑画面的颜色、反色的选择）；`PropLayoutTests` 也检查 IDD_FUNCLIST。
+- 界面测试 `testOutlineWindow`（菜单打开、双击跳转、自動的に閉じる）、`testOutlineDocking`（左ドッキング、单击・双击跳转、× 关闭）、
+  `testOutlineDockingByDrag`（拖动停靠・浮动）、`testSandboxedRuleFileAfterRestart`（沙盒的 App 选沙盒外的ルールファイル，重启后解析读得到；去掉书签时这个测试失败，已确认）。
 - 在 Mac 上截图核对：フローティング（C++ ツリー、VB リスト、右键菜单、▼、順序）、ドッキング（左・右・上・下、单击跳转后的反色选择）。
