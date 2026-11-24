@@ -712,6 +712,14 @@ final class SakuraMacUITests: XCTestCase {
         item.click()
 
         let window = app.windows.matching(byTitle).firstMatch
+        // 子菜单的项目的点击が菜单の閉じる動きと重なって効かないことがある（XCUITest）：もう一度菜单から選ぶ
+        if !window.waitForExistence(timeout: 5) {
+            app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+            fileMenu.click()
+            recent.hover()
+            XCTAssertTrue(item.waitForExistence(timeout: 3))
+            item.click()
+        }
         XCTAssertTrue(window.waitForExistence(timeout: 10), "从历史打开了")
         // 光标在上次的位置（第 3 行的开头）：输入的字在 line3 前面
         app.typeText("X")
