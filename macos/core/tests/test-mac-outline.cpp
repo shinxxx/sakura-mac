@@ -280,6 +280,14 @@ TEST_F(MacOutlineTest, ResultFields)
 	// .cpp は C++
 	auto cpp = Open("sample.cpp");
 	EXPECT_EQ(OutlineType::Cpp, cpp->AnalyzeOutline().type);
+	// 解析方法の決定（Command_FUNCLIST の最初）：タイプ別設定、C/C++ は拡張子、指定したものはそのまま
+	EXPECT_EQ(OutlineType::Cpp, cpp->ResolveOutlineType(OutlineType::Default));
+	EXPECT_EQ(OutlineType::C, doc->ResolveOutlineType(OutlineType::Default));
+	EXPECT_EQ(OutlineType::CCpp, Open("sample.h")->ResolveOutlineType(OutlineType::Default));
+	EXPECT_EQ(OutlineType::Python, Open("sample.py")->ResolveOutlineType(OutlineType::Default));
+	EXPECT_EQ(OutlineType::Html, cpp->ResolveOutlineType(OutlineType::Html));
+	EXPECT_EQ(OutlineType::CCpp, cpp->ResolveOutlineType(OutlineType::CCpp));	// 指定したときは解析で決まる
+	EXPECT_EQ(OutlineType::Cpp, cpp->AnalyzeOutline(OutlineType::CCpp).type);
 	// 新規文書（ファイル名なし）：C/C++ の自動判定は C/C++ のまま
 	auto untitled = Document::Create();
 	ASSERT_EQ(Result::Ok, untitled->Insert({ 0, 0 }, u"int f()\r\n{\r\n}\r\n"));
