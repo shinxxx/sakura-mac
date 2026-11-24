@@ -848,6 +848,33 @@ final class SakuraMacUITests: XCTestCase {
         return count
     }
 
+    // MARK: - 第 42 步：アウトライン解析
+
+    /// 検索 > アウトライン解析：ツリーに見出し、ダブルクリックでジャンプ、「自動的に閉じる」で閉じて編集画面に戻る
+    func testOutlineWindow() {
+        editor.typeText("■第一章\n□節 A\n■第二章\nend")
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文档的开头
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["アウトライン解析..."].click()
+        let panel = app.dialogs["テキスト トピックツリー"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 5), "アウトライン解析が開いた")
+        let tree = panel.outlines["IDC_TREE_FL_outline"]
+        XCTAssertTrue(tree.exists)
+        XCTAssertTrue(tree.staticTexts["■第一章"].exists)
+        XCTAssertTrue(tree.staticTexts["■第二章"].exists)
+        XCTAssertTrue(panel.popUpButtons["IDC_COMBO_nSortType"].exists, "順序")
+        for title in ["コピー(C)", "ジャンプ(J)", "キャンセル(X)"] {
+            XCTAssertTrue(panel.buttons[title].exists, title)
+        }
+        panel.checkBoxes["自動的に閉じる(D)"].click()
+        tree.staticTexts["■第二章"].doubleClick()
+        let closed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: panel)
+        wait(for: [closed], timeout: 5)	// 自動的に閉じる
+        app.typeText("X")
+        XCTAssertEqual(normalizedText, "■第一章\n□節 A\nX■第二章\nend", "3 行目の先頭へジャンプした")
+    }
+
     /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
     /// 但辅助功能里算 App 的窗口。找不到时返回 App 本身（键盘输入照样进对话框）
     private func openPanel(of app: XCUIApplication) -> XCUIElement {

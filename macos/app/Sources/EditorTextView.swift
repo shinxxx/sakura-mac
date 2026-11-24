@@ -159,6 +159,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     var searchState = SearchState()
     /// 查找、置换对话框（第 32 步。原版的 CEditWnd::m_cDlgFind、m_cDlgReplace，一个窗口一个）
     var findPanel: FindPanelController?
+    /// アウトライン解析（第 42 步。原版 CEditWnd::m_cDlgFuncList）
+    var outlinePanel: OutlineWindowController?
     var replacePanel: ReplacePanelController?
 
     /// 光标的闪烁
@@ -231,6 +233,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         let index = changed == -1 ? document.typeIndex : changed
         guard document.applyTypeSettingChange(index) else { return }
         typeSettingsReloaded()
+        outlineTypeSettingsChanged()
     }
 
     /// タイプ別設定一覧で一覧が変わった（第 40 步。原版 PM_CHANGESETTING_TYPE2・ALL）：番号を直し、タイプが消えたら読み直す
@@ -1184,9 +1187,15 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         scrollToVisible(caretRect.insetBy(dx: -8, dy: 0))
         needsDisplay = true
         inputContext?.invalidateCharacterCoordinates()
+        // アウトライン解析の選択はキャレットに付いていく（原版 CCaret::ShowCaretPosInfo → NotifyCaretMovement）
+        if let outlinePanel {
+            let p = document.layoutPosition(of: caret)
+            outlinePanel.notifyCaretMovement(line: p.line + 1, column: p.x + 1)
+        }
     }
 
     func textChanged() {
+        outlinePanel?.notifyDocModification()	// 原版 CDocEditor::SetModified → NotifyDocModification
         searchState.zeroMatch = nil
         preferredX = nil
         caretAtLineEnd = false

@@ -1,0 +1,926 @@
+// Copyright (C) 2026, Sakura Editor Organization
+//
+// SPDX-License-Identifier: Zlib
+
+import AppKit
+import EditorBridge
+
+/// アウトライン解析（第 42 步。原版 CDlgFuncList、CViewCommander_Outline.cpp）。
+///
+/// 解析和ツリー・リスト的内容在核心库（Document::AnalyzeOutline：原版 Command_FUNCLIST + CDlgFuncList::SetData），
+/// 这里是窗口：布局照原版 IDD_FUNCLIST（Resources/OutlineDialogs.json），与原版相同地能改大小，
+/// ツリー・リスト跟着变大，下面的按钮、复选框留在下边。
+/// 一个编辑窗口一个，非模态（原版 DoModeless）。ドッキング（左・右・上・下）在第 3 个 PR。
+final class OutlineWindowController: NSWindowController, NSWindowDelegate {
+    /// App 不是活动的时候隐藏（浮动的面板不盖住别的 App）。单元测试时关掉
+    static var hidesOnDeactivate = true
+    /// 「コピー」の貼り付け先（単体テストでは別のペーストボード）
+    static var pasteboard: NSPasteboard = .general
+
+    weak var view: EditorTextView?
+    let page: PropPage
+    let treeView = OutlineTreeView()
+    let listView = OutlineListView()
+    private let treeData = OutlineTreeData()
+    private let listData = OutlineListData()
+
+    /// 解析结果（原版 m_pcFuncInfoArr）
+    private(set) var result: OutlineResult
+    /// アウトライン解析の種別（原版 m_nOutlineType。同じ種別かどうかの判断に使う）
+    private(set) var outlineType: OutlineType
+    /// 解析结果是最新的（原版 m_bFuncInfoArrIsUpToDate：文档改了以后 false，不再跟着光标选择）
+    private(set) var isUpToDate = true
+    /// 现在的光标（排版位置 + 1。原版 m_nCurLine、m_nCurCol）
+    private var curLine = 1
+    private var curColumn = 1
+    /// タイプ別設定の番号（原版 m_nDocType）
+    private var typeIndex: Int
+
+    static let sortTitles = [
+        NSLocalizedString("デフォルト", comment: "STR_DLGFNCLST_SORTTYPE1"),
+        NSLocalizedString("デフォルト(降順)", comment: "STR_DLGFNCLST_SORTTYPE1_2"),
+        NSLocalizedString("アルファベット順", comment: "STR_DLGFNCLST_SORTTYPE2"),
+        NSLocalizedString("アルファベット(降順)", comment: "STR_DLGFNCLST_SORTTYPE2_2"),
+    ]
+
+    init?(view: EditorTextView, result: OutlineResult, outlineType: OutlineType) {
+        guard let definition = PropDialogs.load("OutlineDialogs")?.dialog("IDD_FUNCLIST") else { return nil }
+        self.view = view
+        self.result = result
+        self.outlineType = outlineType
+        typeIndex = view.document.typeIndex
+        page = PropPage(definition: definition)
+        let size = page.view.frame.size
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
+                            styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: true)
+        panel.isFloatingPanel = true			// 原版：编辑窗口拥有的窗口，总在编辑窗口的上面
+        panel.hidesOnDeactivate = Self.hidesOnDeactivate
+        panel.isReleasedWhenClosed = false
+        panel.becomesKeyOnlyIfNeeded = false
+        // 原版 OnMinMaxInfo：最小是原来的宽 1/2、高 1/3，最大是 2 倍
+        panel.contentMinSize = NSSize(width: (size.width / 2).rounded(), height: (size.height / 3).rounded())
+        panel.contentMaxSize = NSSize(width: size.width * 2, height: size.height * 2)
+        panel.contentView = page.view
+        super.init(window: panel)
+        panel.delegate = self
+        setUpControls()
+        if let owner = view.window {
+            NotificationCenter.default.addObserver(self, selector: #selector(ownerWillClose(_:)),
+                                                   name: NSWindow.willCloseNotification, object: owner)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func ownerWillClose(_ notification: Notification) {
+        close()
+    }
+
+    // MARK: - 控件
+
+    private func setUpControls() {
+        page.view.autoresizesSubviews = true
+        // 原版 anchorList：ツリー・リストは四方、下の按钮・复选框は下、順序は上
+        for view in page.view.subviews {
+            view.autoresizingMask = [.maxXMargin, .maxYMargin]
+        }
+        for id in ["IDC_TREE_FL", "IDC_LIST_FL"] {
+            page.control(id)?.autoresizingMask = [.width, .height]
+        }
+        for id in ["IDC_BUTTON_MENU", "IDC_BUTTON_WINSIZE", "IDC_BUTTON_COPY", "IDOK", "IDCANCEL", "IDC_BUTTON_HELP",
+                   "IDC_CHECK_bAutoCloseDlgFuncList", "IDC_CHECK_bFunclistSetFocusOnJump", "IDC_CHECK_bMarkUpBlankLineEnable"] {
+            page.control(id)?.autoresizingMask = [.maxXMargin, .minYMargin]
+        }
+
+        // ツリー（原版 IDC_TREE_FL）とリスト（IDC_LIST_FL）
+        if let scroll = page.control("IDC_TREE_FL") as? NSScrollView {
+            treeView.setUp(data: treeData, controller: self)
+            scroll.documentView = treeView
+            scroll.hasHorizontalScroller = true
+        }
+        if let scroll = page.control("IDC_LIST_FL") as? NSScrollView {
+            listView.setUp(data: listData, controller: self)
+            scroll.documentView = listView
+            scroll.hasHorizontalScroller = true
+        }
+
+        // ▼（ウィンドウの位置メニュー）と ■（位置と大きさを記憶する。原版 BS_PUSHLIKE のチェックボックス）：
+        // 原版は 10×14 の小さなボタン。Mac の角丸ボタンでは「▼」が入らないので、余白のない四角いボタンにする
+        for (id, x) in [("IDC_BUTTON_MENU", 1.0), ("IDC_BUTTON_WINSIZE", 12.0)] {
+            guard let button = page.control(id) as? NSButton else { continue }
+            if id == "IDC_BUTTON_WINSIZE" { button.setButtonType(.pushOnPushOff) }
+            button.isBordered = true
+            button.bezelStyle = .smallSquare
+            button.controlSize = .small
+            button.font = PropPage.font
+            button.imagePosition = .noImage
+            let width = PropPage.pointsX(10)
+            let height = PropPage.points(14)
+            button.frame = NSRect(x: PropPage.pointsX(x), y: PropPage.points(255), width: width, height: height)
+        }
+        (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"		// DEFPUSHBUTTON
+        (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setItems("IDC_COMBO_nSortType", Self.sortTitles, selected: 0)
+
+        page.onButton = { [weak self] id in self?.buttonClicked(id) }
+        page.onChange = { [weak self] id in self?.controlChanged(id) }
+    }
+
+    // MARK: - 表示（原版 SetData）
+
+    /// 显示解析结果（原版 DoModeless / Redraw → SetData）
+    func setData(result: OutlineResult, outlineType: OutlineType) {
+        self.result = result
+        self.outlineType = outlineType
+        isUpToDate = true
+        if let view {
+            let p = view.document.layoutPosition(of: view.caret)
+            curLine = p.line + 1
+            curColumn = p.x + 1
+            typeIndex = view.document.typeIndex
+        }
+        setData()
+    }
+
+    private func setData() {
+        window?.title = result.title
+
+        // 共通設定の項目（アウトライン ダイアログを自動的に閉じる 等）
+        let autoClose = Self.commonBool("bAutoCloseDlgFuncList")
+        page.setChecked("IDC_CHECK_bAutoCloseDlgFuncList", autoClose)
+        page.setChecked("IDC_CHECK_bMarkUpBlankLineEnable", Self.commonBool("bMarkUpBlankLineEnable"))
+        page.setChecked("IDC_CHECK_bFunclistSetFocusOnJump", Self.commonBool("bFunclistSetFocusOnJump"))
+        updateWinSizeButton()
+        // ダイアログを自動的に閉じるならフォーカス移動オプションは関係ない
+        page.setEnabled("IDC_CHECK_bFunclistSetFocusOnJump", !autoClose)
+        // 空行をどう扱うかのチェックボックスはブックマーク一覧のときだけ表示する
+        page.showEnable("IDC_CHECK_bMarkUpBlankLineEnable", show: result.listType == .bookmark, enable: result.listType == .bookmark)
+        page.control("IDC_BUTTON_SETTING")?.isHidden = true
+        page.setEnabled("IDC_BUTTON_COPY", true)
+
+        // ツリー表示の時だけソート基準コンボボックスを表示
+        let showSort = result.isTree && result.listType != .fileTree
+        page.showEnable("IDC_COMBO_nSortType", show: showSort, enable: showSort)
+        page.control("IDC_STATIC_nSortType")?.isHidden = !showSort
+        page.label(NSLocalizedString("順序(S)", comment: "IDD_FUNCLIST"))?.isHidden = !showSort
+        if showSort { page.select("IDC_COMBO_nSortType", result.sort.rawValue) }
+
+        page.control("IDC_TREE_FL")?.isHidden = !result.isTree
+        page.control("IDC_LIST_FL")?.isHidden = result.isTree
+        if result.isTree {
+            treeData.load(result.tree)
+            treeView.reloadData()
+            treeData.expandInitial(treeView)
+        } else {
+            listData.load(result)
+            listView.reload(columnTitles: result.columnTitles)
+        }
+
+        // 選択状態更新
+        let index = result.item(atLayoutLine: curLine, column: curColumn)
+        if index >= 0 { setItemSelection(index, allowExpand: true) }
+        if window?.isKeyWindow == true {
+            window?.makeFirstResponder(result.isTree ? treeView : listView)
+        }
+    }
+
+    static func commonBool(_ key: String) -> Bool {
+        (EditorCore.commonSetting(section: "Common", key: key) ?? "0") != "0"
+    }
+
+    static func setCommon(_ key: String, _ value: Bool) {
+        _ = EditorCore.setCommonSetting(value ? "1" : "0", section: "Common", key: key)
+    }
+
+    private func updateWinSizeButton() {
+        guard let button = page.control("IDC_BUTTON_WINSIZE") as? NSButton else { return }
+        let remember = Self.commonBool("bRememberOutlineWindowPos")
+        button.state = remember ? .on : .off
+        // ボタンが押されているかはっきりさせる
+        button.title = remember ? "■" : "□"
+    }
+
+    // MARK: - 選択（原版 SetItemSelection）
+
+    /// この項目を選ぶ。allowExpand が false のときは閉じている親を開かず、見えている一番近い親を選ぶ
+    func setItemSelection(_ item: Int, allowExpand: Bool) {
+        if result.isTree {
+            treeData.select(item: item, in: treeView, path: result.nodePath(forItem: item).map { $0.intValue }, allowExpand: allowExpand)
+        } else {
+            listData.select(item: item, in: listView)
+        }
+    }
+
+    /// キャレットの移動を通知（原版 NotifyCaretMovement）
+    func notifyCaretMovement(line: Int, column: Int) {
+        guard window?.isVisible == true, isUpToDate else { return }
+        guard curLine != line || curColumn != column else { return }
+        curLine = line
+        curColumn = column
+        let index = result.item(atLayoutLine: line, column: column)
+        if index >= 0 { setItemSelection(index, allowExpand: false) }
+    }
+
+    /// ドキュメントの変更を通知（原版 NotifyDocModification）
+    func notifyDocModification() {
+        isUpToDate = false
+    }
+
+    // MARK: - ボタン（原版 OnBnClicked）
+
+    private func buttonClicked(_ id: String) {
+        switch id {
+        case "IDC_BUTTON_MENU":
+            guard let button = page.control("IDC_BUTTON_MENU") else { return }
+            let menu = makeMenu(dropDown: true)
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.frame.height + 2), in: button)
+        case "IDOK":
+            jump()
+        case "IDCANCEL":
+            close()
+        case "IDC_BUTTON_COPY":
+            copyToPasteboard()
+        default:
+            break
+        }
+    }
+
+    private func controlChanged(_ id: String) {
+        switch id {
+        case "IDC_BUTTON_WINSIZE":
+            // ウィンドウの位置とサイズを記憶
+            let on = (page.control(id) as? NSButton)?.state == .on
+            Self.setCommon("bRememberOutlineWindowPos", on)
+            updateWinSizeButton()
+        case "IDC_CHECK_bAutoCloseDlgFuncList", "IDC_CHECK_bMarkUpBlankLineEnable", "IDC_CHECK_bFunclistSetFocusOnJump":
+            let autoClose = page.isChecked("IDC_CHECK_bAutoCloseDlgFuncList")
+            Self.setCommon("bAutoCloseDlgFuncList", autoClose)
+            Self.setCommon("bMarkUpBlankLineEnable", page.isChecked("IDC_CHECK_bMarkUpBlankLineEnable"))
+            Self.setCommon("bFunclistSetFocusOnJump", page.isChecked("IDC_CHECK_bFunclistSetFocusOnJump"))
+            page.setEnabled("IDC_CHECK_bFunclistSetFocusOnJump", !autoClose)
+            // オプション切替後 List/Tree にフォーカス移動
+            window?.makeFirstResponder(result.isTree ? treeView : listView)
+        case "IDC_COMBO_nSortType":
+            // 原版 OnCbnSelEndOk：順序を変えてタイプ別設定に記憶
+            let index = page.selectedIndex(id)
+            guard let sort = OutlineSort(rawValue: index), sort != result.sort else { return }
+            _ = EditorCore.setCommonSetting(String(index), section: "Types(\(typeIndex))", key: "nOutlineSortType")
+            sortTree(sort)
+        default:
+            break
+        }
+    }
+
+    /// ツリーの順序を変える（開いている項目、選択はそのまま）
+    func sortTree(_ sort: OutlineSort) {
+        let expanded = treeData.expandedOrders(treeView)
+        let selected = treeData.selectedOrder(treeView)
+        result.sortTree(sort)
+        treeData.load(result.tree)
+        treeView.reloadData()
+        treeData.restore(treeView, expanded: expanded, selected: selected)
+    }
+
+    /// リストの列名をクリック（原版 LVN_COLUMNCLICK）：同じ列は昇順・降順を切り替え、タイプ別設定に記憶
+    func sortList(column: Int) {
+        let descending = column == result.sortColumn ? !result.sortDescending : result.sortDescending
+        _ = EditorCore.setCommonSettings(["nOutlineSortCol": String(column), "bOutlineSortDesc": descending ? "1" : "0"],
+                                         section: "Types(\(typeIndex))")
+        let selected = listData.selectedItem(listView)
+        result.sortRows(column: column, descending: descending)
+        listData.load(result)
+        listView.reload(columnTitles: result.columnTitles)
+        if let selected { listData.select(item: selected, in: listView) }
+    }
+
+    func copyToPasteboard() {
+        guard page.isEnabled("IDC_BUTTON_COPY") else { return }
+        let pasteboard = Self.pasteboard
+        pasteboard.clearContents()
+        pasteboard.setString(result.clipText, forType: .string)
+    }
+
+    // MARK: - ジャンプ（原版 OnJump）
+
+    /// 選んでいる項目（原版 GetData）。クラス名等の項目は nil
+    var selectedItem: OutlineItem? {
+        let index = result.isTree ? treeData.selectedItem(treeView) : listData.selectedItem(listView)
+        guard let index, result.items.indices.contains(index) else { return nil }
+        return result.items[index]
+    }
+
+    /// 選んでいる項目へカーソルを移動する。checkAutoClose：「自動的に閉じる」「フォーカスを移す」を見る
+    func jump(checkAutoClose: Bool = true) {
+        guard let item = selectedItem, let view else { return }
+        // 別のファイルの項目（ファイルツリー、タグジャンプ付きのプラグイン）は Mac 版にはまだない
+        guard item.fileName.isEmpty else { return }
+        view.jumpFromOutline(line: item.line - 1, column: item.column - 1)
+        guard checkAutoClose else { return }
+        if Self.commonBool("bAutoCloseDlgFuncList") {
+            close()
+            focusEditor()
+        } else if Self.commonBool("bFunclistSetFocusOnJump") {
+            focusEditor()
+        }
+    }
+
+    func focusEditor() {
+        guard let view, let owner = view.window else { return }
+        owner.makeKeyAndOrderFront(nil)
+        owner.makeFirstResponder(view)
+    }
+
+    // MARK: - キー（原版 Key2Command）
+
+    /// ツリー・リストでのキー入力：割り当てられた機能のうち、再解析・コピーだけ行う。処理したら true
+    func handleKey(_ event: NSEvent) -> Bool {
+        let code = KeyCommands.command(for: event)
+        switch code {
+        case 30930, 30931:	// F_OUTLINE、F_OUTLINE_TOGGLE：フォーカスがあるときはリロード
+            reload()
+            return true
+        case 30601, 30602:	// F_CUT、F_COPY
+            copyToPasteboard()
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// 再解析（原版 HandleCommand( F_OUTLINE, true, SHOW_RELOAD )）
+    func reload() {
+        view?.outlineCommand(action: .reload, type: outlineType == .bookmark ? .bookmark : .default)
+    }
+
+    // MARK: - メニュー（原版 DoMenu）
+
+    /// dropDown：「▼」ボタン（ウィンドウの位置だけ）。false は右クリック
+    func makeMenu(dropDown: Bool) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        var positionMenu = menu
+        if !dropDown {
+            menu.addItem(item(NSLocalizedString("更新(U)", comment: "STR_DLGFNCLST_MENU_UPDATE"), #selector(menuUpdate(_:))))
+            let copy = item(NSLocalizedString("コピー(C)", comment: "STR_DLGFNCLST_MENU_COPY"), #selector(menuCopy(_:)))
+            copy.isEnabled = page.isEnabled("IDC_BUTTON_COPY")
+            menu.addItem(copy)
+            if result.isTree {
+                menu.addItem(.separator())
+                menu.addItem(item(NSLocalizedString("すべて展開(E)", comment: "STR_DLGFNCLST_MENU_EXPAND"), #selector(menuExpandAll(_:))))
+                menu.addItem(item(NSLocalizedString("すべて縮小(O)", comment: "STR_DLGFNCLST_MENU_COLLAPSE"), #selector(menuCollapseAll(_:))))
+            }
+            menu.addItem(.separator())
+            let position = NSMenuItem(title: NSLocalizedString("ウィンドウの位置(W)", comment: "STR_DLGFNCLST_MENU_WINPOS"), action: nil, keyEquivalent: "")
+            positionMenu = NSMenu()
+            positionMenu.autoenablesItems = false
+            position.submenu = positionMenu
+            menu.addItem(position)
+        }
+        // ドッキング配置（第 3 个 PR でドッキングを移植するまでは選べない）
+        let sides = [
+            NSLocalizedString("左ドッキング(L)", comment: "STR_DLGFNCLST_MENU_LEFTDOC"),
+            NSLocalizedString("右ドッキング(R)", comment: "STR_DLGFNCLST_MENU_RIGHTDOC"),
+            NSLocalizedString("上ドッキング(T)", comment: "STR_DLGFNCLST_MENU_TOPDOC"),
+            NSLocalizedString("下ドッキング(B)", comment: "STR_DLGFNCLST_MENU_BOTDOC"),
+            NSLocalizedString("フローティング(F)", comment: "STR_DLGFNCLST_MENU_FLOATING"),
+            NSLocalizedString("ドッキング禁止(I)", comment: "STR_DLGFNCLST_MENU_NODOCK"),
+        ]
+        for (index, title) in sides.enumerated() {
+            let side = item(title, nil)
+            side.isEnabled = false
+            side.state = index == 4 ? .on : .off
+            positionMenu.addItem(side)
+        }
+        positionMenu.addItem(.separator())
+        let sync = item(NSLocalizedString("ドッキング配置を同期(S)", comment: "STR_DLGFNCLST_MENU_SYNC"), nil)
+        sync.isEnabled = false
+        positionMenu.addItem(sync)
+        positionMenu.addItem(.separator())
+        for title in [NSLocalizedString("ドッキング配置を共通継承(C)", comment: "STR_DLGFNCLST_MENU_INHERIT"),
+                      NSLocalizedString("ドッキング配置をタイプ別継承(Y)", comment: "STR_DLGFNCLST_MENU_TYPE")] {
+            let inherit = item(title, nil)
+            inherit.isEnabled = false
+            positionMenu.addItem(inherit)
+        }
+        positionMenu.items[positionMenu.items.count - 2].state = .on
+        positionMenu.addItem(.separator())
+        let unify = item(NSLocalizedString("継承情報を統一(U)", comment: "STR_DLGFNCLST_MENU_UNIFY"), nil)
+        unify.isEnabled = false
+        positionMenu.addItem(unify)
+        if !dropDown {
+            menu.addItem(.separator())
+            menu.addItem(item(NSLocalizedString("閉じる(X)", comment: "STR_DLGFNCLST_MENU_CLOSE"), #selector(menuClose(_:))))
+        }
+        return menu
+    }
+
+    private func item(_ title: String, _ action: Selector?) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc func menuUpdate(_ sender: Any?) { reload() }
+    @objc func menuCopy(_ sender: Any?) { copyToPasteboard() }
+    @objc func menuClose(_ sender: Any?) { close() }
+    @objc func menuExpandAll(_ sender: Any?) { treeView.expandItem(nil, expandChildren: true) }
+    @objc func menuCollapseAll(_ sender: Any?) { treeView.collapseItem(nil, collapseChildren: true) }
+
+    // MARK: - 窗口
+
+    /// 显示（原版 DoModeless）：「位置と大きさを記憶する」时在上次的位置（编辑窗口的左上为基准），否则在编辑窗口的中央
+    func show() {
+        guard let panel = window else { return }
+        if !panel.isVisible, let owner = view?.window {
+            let frame = owner.frame
+            if Self.commonBool("bRememberOutlineWindowPos"), let saved = Self.savedFrame(owner: frame) {
+                panel.setFrame(saved, display: false)
+            } else {
+                panel.setFrameTopLeftPoint(NSPoint(x: frame.midX - panel.frame.width / 2,
+                                                   y: frame.midY + panel.frame.height / 2))
+            }
+        }
+        panel.makeKeyAndOrderFront(nil)
+        panel.makeFirstResponder(result.isTree ? treeView : listView)
+    }
+
+    /// 記憶した位置（共通設定 xOutlineWindowPos 等：编辑窗口左上からの距離と大きさ、点）
+    static func savedFrame(owner: NSRect) -> NSRect? {
+        func value(_ key: String) -> Int? { Int(EditorCore.commonSetting(section: "Common", key: key) ?? "") }
+        guard let x = value("xOutlineWindowPos"), let y = value("yOutlineWindowPos"),
+              let width = value("widthOutlineWindow"), let height = value("heightOutlineWindow"),
+              width > 0, height > 0 else { return nil }
+        return NSRect(x: owner.minX + CGFloat(x), y: owner.maxY - CGFloat(y) - CGFloat(height), width: CGFloat(width), height: CGFloat(height))
+    }
+
+    /// 閉じるとき（原版 OnDestroy）：「位置と大きさを記憶する」なら位置と大きさを記憶
+    func windowWillClose(_ notification: Notification) {
+        if Self.commonBool("bRememberOutlineWindowPos"), let panel = window, let owner = view?.window {
+            let frame = panel.frame, base = owner.frame
+            _ = EditorCore.setCommonSettings([
+                "xOutlineWindowPos": String(Int((frame.minX - base.minX).rounded())),
+                "yOutlineWindowPos": String(Int((base.maxY - frame.maxY).rounded())),
+                "widthOutlineWindow": String(Int(frame.width.rounded())),
+                "heightOutlineWindow": String(Int(frame.height.rounded())),
+            ], section: "Common")
+        }
+        if view?.outlinePanel === self { view?.outlinePanel = nil }
+    }
+
+    /// Esc で閉じる
+    override func cancelOperation(_ sender: Any?) {
+        close()
+    }
+}
+
+// MARK: - ツリー
+
+/// ツリーの一項目
+final class OutlineTreeItem {
+    let node: OutlineNode
+    let children: [OutlineTreeItem]
+    weak var parent: OutlineTreeItem?
+
+    init(_ node: OutlineNode) {
+        self.node = node
+        children = node.children.map { OutlineTreeItem($0) }
+        for child in children { child.parent = self }
+    }
+}
+
+/// ツリーのデータ（原版 IDC_TREE_FL の項目）
+final class OutlineTreeData: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+    private(set) var roots: [OutlineTreeItem] = []
+
+    func load(_ tree: [OutlineNode]) {
+        roots = tree.map { OutlineTreeItem($0) }
+    }
+
+    /// 最初に開いている項目（原版 SetTreeJava の第一層の TreeView_Expand）
+    func expandInitial(_ outline: NSOutlineView) {
+        func walk(_ items: [OutlineTreeItem]) {
+            for item in items {
+                if item.node.expanded { outline.expandItem(item) }
+                walk(item.children)
+            }
+        }
+        walk(roots)
+    }
+
+    /// パスの項目
+    func item(at path: [Int]) -> OutlineTreeItem? {
+        var items = roots
+        var found: OutlineTreeItem?
+        for index in path {
+            guard items.indices.contains(index) else { return nil }
+            found = items[index]
+            items = items[index].children
+        }
+        return found
+    }
+
+    /// この項目を選ぶ（原版 SetItemSelectionForTreeView）。項目がないときは何もしない
+    func select(item: Int, in outline: NSOutlineView, path: [Int], allowExpand: Bool) {
+        guard let found = self.item(at: path) else { return }
+        var ancestors: [OutlineTreeItem] = []
+        var parent = found.parent
+        while let p = parent {
+            ancestors.insert(p, at: 0)
+            parent = p.parent
+        }
+        var target = found
+        if allowExpand {
+            for ancestor in ancestors { outline.expandItem(ancestor) }
+        } else {
+            // 未展開のアイテムは勝手に開けないよう、見えている一番近い項目を選ぶ
+            for ancestor in ancestors where !outline.isItemExpanded(ancestor) {
+                target = ancestor
+                break
+            }
+        }
+        let row = outline.row(forItem: target)
+        guard row >= 0 else { return }
+        outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        outline.scrollRowToVisible(row)
+    }
+
+    /// 選んでいる項目の items の番号（クラス名等は nil）
+    func selectedItem(_ outline: NSOutlineView) -> Int? {
+        guard let item = outline.item(atRow: outline.selectedRow) as? OutlineTreeItem, item.node.item >= 0 else { return nil }
+        return item.node.item
+    }
+
+    func selectedOrder(_ outline: NSOutlineView) -> Int? {
+        (outline.item(atRow: outline.selectedRow) as? OutlineTreeItem)?.node.order
+    }
+
+    /// 開いている項目（並べ替えの前後で同じにする）
+    func expandedOrders(_ outline: NSOutlineView) -> Set<Int> {
+        var result = Set<Int>()
+        func walk(_ items: [OutlineTreeItem]) {
+            for item in items where !item.children.isEmpty {
+                if outline.isItemExpanded(item) { result.insert(item.node.order) }
+                walk(item.children)
+            }
+        }
+        walk(roots)
+        return result
+    }
+
+    func restore(_ outline: NSOutlineView, expanded: Set<Int>, selected: Int?) {
+        var selectedItem: OutlineTreeItem?
+        func walk(_ items: [OutlineTreeItem]) {
+            for item in items {
+                if expanded.contains(item.node.order) { outline.expandItem(item) }
+                if item.node.order == selected { selectedItem = item }
+                walk(item.children)
+            }
+        }
+        walk(roots)
+        if let selectedItem {
+            let row = outline.row(forItem: selectedItem)
+            if row >= 0 {
+                outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                outline.scrollRowToVisible(row)
+            }
+        }
+    }
+
+    func outlineViewItemDidExpand(_ notification: Notification) {
+        (notification.object as? OutlineTreeView)?.fitColumn()
+    }
+
+    func outlineViewItemDidCollapse(_ notification: Notification) {
+        (notification.object as? OutlineTreeView)?.fitColumn()
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        (item as? OutlineTreeItem)?.children.count ?? roots.count
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        (item as? OutlineTreeItem)?.children[index] ?? roots[index]
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+        !((item as? OutlineTreeItem)?.children.isEmpty ?? true)
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+        let label = NSTextField(labelWithString: (item as? OutlineTreeItem)?.node.label ?? "")
+        label.font = PropPage.font
+        label.lineBreakMode = .byClipping	// 原版の TreeView は省略記号を付けず切る
+        return label
+    }
+}
+
+/// アウトラインのツリー（原版 IDC_TREE_FL）
+final class OutlineTreeView: NSOutlineView {
+    weak var controller: OutlineWindowController?
+
+    func setUp(data: OutlineTreeData, controller: OutlineWindowController) {
+        self.controller = controller
+        headerView = nil
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0"))
+        column.minWidth = 40
+        column.maxWidth = 10000
+        addTableColumn(column)
+        outlineTableColumn = column
+        columnAutoresizingStyle = .noColumnAutoresizing
+        rowHeight = 17
+        allowsMultipleSelection = false
+        allowsEmptySelection = true
+        autoresizesOutlineColumn = false
+        dataSource = data
+        delegate = data
+        target = self
+        doubleAction = #selector(doubleClicked(_:))
+        setAccessibilityIdentifier("IDC_TREE_FL_outline")
+    }
+
+    /// 列の幅を見えている項目の文字が全部入る幅にする（原版の TreeView は横にスクロールして全部見える）
+    func fitColumn() {
+        guard let column = outlineTableColumn else { return }
+        var width: CGFloat = 0
+        for row in 0..<numberOfRows {
+            guard let item = item(atRow: row) as? OutlineTreeItem else { continue }
+            let text = item.node.label as NSString
+            let indent = CGFloat(level(forRow: row) + 1) * indentationPerLevel + 16
+            width = max(width, indent + ceil(text.size(withAttributes: [.font: PropPage.font]).width) + 8)
+        }
+        let visible = enclosingScrollView?.contentSize.width ?? 0
+        column.width = max(width, visible - 4)
+    }
+
+    override func reloadData() {
+        super.reloadData()
+        fitColumn()
+    }
+
+    override func resize(withOldSuperviewSize oldSize: NSSize) {
+        super.resize(withOldSuperviewSize: oldSize)
+        fitColumn()
+    }
+
+    override func expandItem(_ item: Any?, expandChildren: Bool) {
+        super.expandItem(item, expandChildren: expandChildren)
+        fitColumn()
+    }
+
+    override func collapseItem(_ item: Any?, collapseChildren: Bool) {
+        super.collapseItem(item, collapseChildren: collapseChildren)
+        fitColumn()
+    }
+
+    /// ダブルクリック（原版 NM_DBLCLK）：ジャンプ。ツリーの展開／縮小はしない
+    @objc private func doubleClicked(_ sender: Any?) {
+        guard clickedRow >= 0 else { return }
+        controller?.jump()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if outlineKeyDown(event, controller: controller) { return }
+        super.keyDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let row = self.row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        return controller?.makeMenu(dropDown: false)
+    }
+
+    @objc func copy(_ sender: Any?) { controller?.copyToPasteboard() }
+    @objc func cut(_ sender: Any?) { controller?.copyToPasteboard() }
+}
+
+/// ツリー・リスト共通のキー（原版 TVN_KEYDOWN / LVN_KEYDOWN）：スペースはジャンプ（自動的に閉じない）、
+/// Return はジャンプ（DEFPUSHBUTTON）、その他は割り当てられた機能（Key2Command）
+private func outlineKeyDown(_ event: NSEvent, controller: OutlineWindowController?) -> Bool {
+    guard let controller else { return false }
+    let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+    if flags.isEmpty, event.charactersIgnoringModifiers == " " {
+        controller.jump(checkAutoClose: false)
+        return true
+    }
+    if flags.isEmpty, event.charactersIgnoringModifiers == "\r" || event.keyCode == 76 {
+        controller.jump()
+        return true
+    }
+    return controller.handleKey(event)
+}
+
+// MARK: - リスト
+
+/// リストのデータ（原版 IDC_LIST_FL の行）
+final class OutlineListData: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    private(set) var rows: [OutlineRow] = []
+    weak var controller: OutlineWindowController?
+
+    func load(_ result: OutlineResult) {
+        rows = result.rows
+    }
+
+    func select(item: Int, in table: NSTableView) {
+        guard let row = rows.firstIndex(where: { $0.item == item }) else { return }
+        table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        table.scrollRowToVisible(row)
+    }
+
+    func selectedItem(_ table: NSTableView) -> Int? {
+        rows.indices.contains(table.selectedRow) ? rows[table.selectedRow].item : nil
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+
+    func text(row: Int, column: Int) -> String {
+        guard rows.indices.contains(row) else { return "" }
+        let r = rows[row]
+        switch column {
+        case 0: return String(r.line)
+        case 1: return String(r.column)
+        case 2: return r.name
+        default: return r.remark
+        }
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let column = Int(tableColumn?.identifier.rawValue ?? "0") ?? 0
+        let label = NSTextField(labelWithString: text(row: row, column: column))
+        label.font = PropPage.font
+        label.lineBreakMode = .byClipping
+        return label
+    }
+
+    /// 列名のクリック（原版 LVN_COLUMNCLICK）
+    func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
+        guard let column = Int(tableColumn.identifier.rawValue) else { return }
+        controller?.sortList(column: column)
+    }
+}
+
+/// アウトラインのリスト（原版 IDC_LIST_FL：LVS_REPORT、1 行選択）
+final class OutlineListView: NSTableView {
+    weak var controller: OutlineWindowController?
+    private weak var data: OutlineListData?
+
+    func setUp(data: OutlineListData, controller: OutlineWindowController) {
+        self.controller = controller
+        self.data = data
+        data.controller = controller
+        for index in 0..<4 {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
+            column.headerCell.font = PropPage.font
+            column.minWidth = 16
+            addTableColumn(column)
+        }
+        columnAutoresizingStyle = .noColumnAutoresizing
+        rowHeight = 17
+        allowsMultipleSelection = false
+        allowsEmptySelection = true
+        allowsColumnReordering = false
+        usesAlternatingRowBackgroundColors = false
+        dataSource = data
+        delegate = data
+        target = self
+        doubleAction = #selector(doubleClicked(_:))
+        setAccessibilityIdentifier("IDC_LIST_FL_table")
+    }
+
+    /// 列名と列の幅（原版：LVSCW_AUTOSIZE の幅 + 16）
+    func reload(columnTitles: [String]) {
+        reloadData()
+        guard let data else { return }
+        for (index, column) in tableColumns.enumerated() {
+            column.title = columnTitles.indices.contains(index) ? columnTitles[index] : ""
+            var width: CGFloat = 0
+            for row in 0..<data.rows.count {
+                let text = data.text(row: row, column: index) as NSString
+                width = max(width, ceil(text.size(withAttributes: [.font: PropPage.font]).width))
+            }
+            column.width = width + 16 + 8
+        }
+    }
+
+    @objc private func doubleClicked(_ sender: Any?) {
+        guard clickedRow >= 0 else { return }
+        controller?.jump()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if outlineKeyDown(event, controller: controller) { return }
+        super.keyDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let row = self.row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        return controller?.makeMenu(dropDown: false)
+    }
+
+    @objc func copy(_ sender: Any?) { controller?.copyToPasteboard() }
+    @objc func cut(_ sender: Any?) { controller?.copyToPasteboard() }
+}
+
+// MARK: - 編集画面のコマンド（原版 CViewCommander_Outline.cpp、Command_FUNCLIST_NEXT/PREV）
+
+extension EditorTextView {
+    /// Command_FUNCLIST の nAction
+    enum OutlineAction {
+        case normal		// SHOW_NORMAL：開いている同じ種別のものはアクティブにするだけ
+        case reload		// SHOW_RELOAD：再解析
+        case toggle		// SHOW_TOGGLE：開いている同じ種別のものは閉じる
+    }
+
+    /// 検索 > アウトライン解析（F_OUTLINE）
+    @objc func showOutline(_ sender: Any?) {
+        outlineCommand(action: .normal, type: .default)
+    }
+
+    /// アウトライン解析(toggle)（F_OUTLINE_TOGGLE）
+    @objc func toggleOutline(_ sender: Any?) {
+        outlineCommand(action: .toggle, type: .default)
+    }
+
+    /// 原版 Command_FUNCLIST
+    func outlineCommand(action: OutlineAction, type requested: OutlineType) {
+        let type = document.resolveOutlineType(requested)
+        if let panel = outlinePanel, panel.window?.isVisible == true, action != .reload {
+            switch action {
+            case .normal:
+                // 開いているものと種別が同じならActiveにするだけ．異なれば再解析
+                if panel.outlineType == type {
+                    panel.show()
+                    return
+                }
+            case .toggle:
+                // 開いているものと種別が同じなら閉じる．異なれば再解析
+                if panel.outlineType == type {
+                    panel.close()
+                    return
+                }
+            case .reload:
+                break
+            }
+        }
+        // 種別は解析で決まったもの（原版 MakeFuncList_C は C/C++ を C か C++ に変える）
+        let result = document.analyzeOutline(type)
+        if let panel = outlinePanel, panel.window?.isVisible == true {
+            panel.setData(result: result, outlineType: result.type)
+            panel.show()
+        } else {
+            guard let panel = OutlineWindowController(view: self, result: result, outlineType: result.type) else { return }
+            outlinePanel = panel
+            panel.setData(result: result, outlineType: result.type)
+            panel.show()
+        }
+    }
+
+    /// タイプ別設定が変わった（原版 PM_CHANGESETTING_TYPE）：アウトラインを開いていれば、解析方法が変わったときは再解析
+    func outlineTypeSettingsChanged() {
+        guard let panel = outlinePanel, panel.window?.isVisible == true else { return }
+        let type = document.resolveOutlineType(panel.outlineType == .bookmark ? .bookmark : .default)
+        guard type != panel.outlineType else { return }
+        panel.setData(result: document.analyzeOutline(type), outlineType: type)
+    }
+
+    /// アウトラインからのジャンプ（原版 MYWM_SETCARETPOS、PM_SETCARETPOS_KEEPSELECT）：
+    /// 選択のロック中は選択しながら移動する。縦のスクロールは画面の 1/6 の余白（_CARETMARGINRATE / 3）
+    func jumpFromOutline(line: Int, column: Int) {
+        addCurrentLineToHistory()
+        let position = EditorPosition(line: line, column: column)
+        moveCursorSelecting(position)
+        let margin = CGFloat(max(1, viewRowCount / (20 / 3))) * lineHeight
+        scrollToVisible(caretRect.insetBy(dx: -8, dy: -margin))
+    }
+
+    /// 次の関数リストマークへ（F_FUNCLIST_NEXT）
+    @objc func funcListNext(_ sender: Any?) {
+        moveToFuncListMark(next: true)
+    }
+
+    /// 前の関数リストマークへ（F_FUNCLIST_PREV）
+    @objc func funcListPrev(_ sender: Any?) {
+        moveToFuncListMark(next: false)
+    }
+
+    private func moveToFuncListMark(next: Bool) {
+        var wrapped: ObjCBool = false
+        let line = document.findFuncListMark(from: caret.line, forward: next, searchAll: EditorCore.searchSettings.searchAll,
+                                             wrapped: &wrapped)
+        if line >= 0 {
+            moveCursorSelecting(EditorPosition(line: line, column: 0))	// 「▼先頭から再検索しました」はステータスバー（Mac 版はまだない）
+            return
+        }
+        Self.alertNotFound(next
+            ? NSLocalizedString("前方(↓) に関数が見つかりません。", comment: "STR_FUCLIST_NEXT_NOT_FOUND")
+            : NSLocalizedString("後方(↑) に関数が見つかりません。", comment: "STR_FUCLIST_PREV_NOT_FOUND"))
+    }
+}
