@@ -160,9 +160,13 @@ final class CustomMenuToolbarTests: XCTestCase {
         XCTAssertTrue(rows(page, "IDC_LIST_FUNC").contains("新規作成"))
         XCTAssertFalse(page.itemTitles("IDC_COMBO_FUNCKIND").contains("特別機能"))
         // アイコン：mytool.bmp（原版 IDB_MYTOOL）
-        XCTAssertGreaterThan(ToolbarIcons.shared.count, 400)
+        XCTAssertEqual(ToolbarIcons.shared.count, 480)	// MAX_TOOLBAR_ICON_COUNT
         let icon = try XCTUnwrap(ToolbarIcons.shared.image(editor.icon(ofToolbarButton: editor.toolbarButtons[0].intValue)))
         XCTAssertEqual(icon.size, NSSize(width: 16, height: 16))
+        // 絵がある（左上の色だけが透明）
+        let opaque = ToolbarIcons.shared.opaquePixelCount(editor.icon(ofToolbarButton: editor.toolbarButtons[0].intValue))
+        XCTAssertGreaterThan(opaque, 20)
+        XCTAssertLessThan(opaque, 256)
         XCTAssertNil(ToolbarIcons.shared.image(-1))
         let cell = try XCTUnwrap(page.list("IDC_LIST_RES")?.cellView?(0, 0) as? NSStackView)
         XCTAssertTrue(cell.views.first is NSImageView)

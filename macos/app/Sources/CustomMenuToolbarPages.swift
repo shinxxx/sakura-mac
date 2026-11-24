@@ -273,9 +273,17 @@ final class ToolbarPage: CommonSettingsPageLogic {
         let icon = editor.flatMap { ToolbarIcons.shared.image($0.icon(ofToolbarButton: number)) }
         let imageView = NSImageView(image: icon ?? NSImage(size: NSSize(width: 16, height: 16)))
         imageView.imageScaling = .scaleNone
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        imageView.setContentCompressionResistancePriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let stack = NSStackView(views: [imageView, label])
         stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.distribution = .fill
         stack.spacing = 4
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 2, bottom: 0, right: 0)
         stack.setAccessibilityElement(false)
         imageView.setAccessibilityIdentifier("ToolbarIcon")
         return stack
@@ -350,11 +358,11 @@ final class ToolbarPage: CommonSettingsPageLogic {
     }
 }
 
-/// ツールバーのアイコン（原版 mytool.bmp：16×16 のアイコンが横に 33 個。左上の点の色が透明。原版 CImageListMgr）
+/// ツールバーのアイコン（原版 mytool.bmp：16×16 のアイコンが横に 32 個（MAX_TOOLBAR_ICON_X）×15 段。左上の点の色が透明。原版 CImageListMgr）
 final class ToolbarIcons {
     static let shared = ToolbarIcons()
     static let size = 16
-    static let columns = 33
+    static let columns = 32	// MAX_TOOLBAR_ICON_X（bmp はもう 1 列広いが、原版も 32 列として使う）
 
     private let bitmap: NSBitmapImageRep?
     private var cache: [Int: NSImage] = [:]
@@ -368,28 +376,46 @@ final class ToolbarIcons {
     /// アイコンの数
     var count: Int {
         guard let bitmap else { return 0 }
-        return (bitmap.pixelsWide / Self.size) * (bitmap.pixelsHigh / Self.size)
+        return min(bitmap.pixelsWide / Self.size, Self.columns) * (bitmap.pixelsHigh / Self.size)
     }
 
     /// この番号のアイコン。無いとき nil
     func image(_ index: Int) -> NSImage? {
-        guard let bitmap, index >= 0, index < count else { return nil }
+        guard let bitmap, index >= 0, index < count, let source = bitmap.cgImage else { return nil }
         if let image = cache[index] { return image }
         let size = Self.size
-        guard let icon = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8,
-                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
-                                          bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
-        let transparent = bitmap.colorAt(x: 0, y: 0)?.usingColorSpace(.deviceRGB)
-        let sx = (index % Self.columns) * size, sy = (index / Self.columns) * size
-        for y in 0..<size {
-            for x in 0..<size {
-                guard let color = bitmap.colorAt(x: sx + x, y: sy + y)?.usingColorSpace(.deviceRGB) else { continue }
-                icon.setColor(color == transparent ? NSColor.clear : color, atX: x, y: y)
-            }
+        // 左上の点の色（透明にする色）。RGBA 8 ビットに描いてから比べる
+        func pixels(_ image: CGImage, width: Int, height: Int) -> (CGContext, UnsafeMutablePointer<UInt8>)? {
+            guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+                  let data = context.data else { return nil }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return (context, data.assumingMemoryBound(to: UInt8.self))
         }
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.addRepresentation(icon)
+        let sx = (index % Self.columns) * size, sy = (index / Self.columns) * size
+        guard let corner = source.cropping(to: CGRect(x: 0, y: 0, width: 1, height: 1)),
+              let (cornerContext, cornerPixel) = pixels(corner, width: 1, height: 1),
+              let cell = source.cropping(to: CGRect(x: sx, y: sy, width: size, height: size)),
+              let (context, data) = pixels(cell, width: size, height: size) else { return nil }
+        // 点の値は context が生きているうちに読む
+        let transparent = withExtendedLifetime(cornerContext) { (cornerPixel[0], cornerPixel[1], cornerPixel[2]) }
+        for i in 0..<(size * size) {
+            let p = data + i * 4
+            if (p[0], p[1], p[2]) == transparent { p[0] = 0; p[1] = 0; p[2] = 0; p[3] = 0 }
+        }
+        guard let result = withExtendedLifetime(context, { context.makeImage() }) else { return nil }
+        let image = NSImage(cgImage: result, size: NSSize(width: size, height: size))
         cache[index] = image
         return image
+    }
+
+    /// 透明でない点の数（テスト用）
+    func opaquePixelCount(_ index: Int) -> Int {
+        guard let cg = image(index)?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let context = CGContext(data: nil, width: Self.size, height: Self.size, bitsPerComponent: 8, bytesPerRow: Self.size * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let data = context.data?.assumingMemoryBound(to: UInt8.self) else { return 0 }
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: Self.size, height: Self.size))
+        return withExtendedLifetime(context) { (0..<(Self.size * Self.size)).filter { data[$0 * 4 + 3] > 0 }.count }
     }
 }

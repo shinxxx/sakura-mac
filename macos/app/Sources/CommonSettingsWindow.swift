@@ -259,7 +259,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             case "check":
                 let button = NSButton(checkboxWithTitle: text, target: self, action: #selector(controlClicked(_:)))
                 setUpButton(button, multiline: text.contains("\n") || control.has("multiline"))
-                button.frame = frame
+                button.frame = widened(frame, for: button, multiline: text.contains("\n") || control.has("multiline"))
                 view.addSubview(button)
                 register(button, control)
             case "radio":
@@ -283,7 +283,9 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 label.font = Self.font
                 if control.has("right") { label.alignment = .right }
                 if control.has("center") { label.alignment = .center }
-                label.frame = frame
+                // 左寄せの 1 行の説明は、Mac の文字が原版より広いとき切れないように広げる（第 41 步）
+                label.frame = control.has("right") || control.has("center") ? frame
+                    : widened(frame, for: label, multiline: text.contains("\n") || frame.height > Self.points(12))
                 view.addSubview(label)
                 register(label, control)
                 if !text.isEmpty { labels[text] = label }
@@ -389,6 +391,14 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         for control in definition.controls where control.id == "IDC_STATIC" && control.has("hidden") {
             if let text = control.text, let label = labels[text] { label.isHidden = true }
         }
+    }
+
+    /// 1 行の文字が枠に入らないときは右に広げる（原版の対話框単位は Windows の文字の幅で、Mac の文字は少し広い）。ページの外には出さない
+    private func widened(_ frame: NSRect, for control: NSControl, multiline: Bool) -> NSRect {
+        guard !multiline else { return frame }
+        var result = frame
+        result.size.width = min(max(frame.width, ceil(control.fittingSize.width)), max(frame.width, view.frame.width - frame.minX))
+        return result
     }
 
     private func setUpButton(_ button: NSButton, multiline: Bool) {
