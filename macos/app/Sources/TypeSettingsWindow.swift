@@ -102,7 +102,10 @@ extension EditorTextView {
         guard let dialog = TypeListDialog(selectedIndex: document.typeIndex, enableTempChange: true) else { return }
         guard TypeSettingsPages.runTypeListDialog(dialog, window), let result = dialog.result else { return }
         if result.temporary {
-            if document.changeTypeTemporarily(result.index) { typeSettingsReloaded() }
+            if document.changeTypeTemporarily(result.index) {
+                typeSettingsReloaded()
+                refreshOutline()	// 第 42 步：タイプが変わった（原版 CEditDoc::OnChangeType → Refresh）
+            }
         } else {
             TypeSettingsWindowController.show(typeIndex: result.index)
         }
