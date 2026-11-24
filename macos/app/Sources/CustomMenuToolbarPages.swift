@@ -269,7 +269,7 @@ final class ToolbarPage: CommonSettingsPageLogic {
     private func cell(_ number: Int) -> NSView {
         let label = NSTextField(labelWithString: self.label(number))
         label.font = PropPage.font
-        label.lineBreakMode = .byTruncatingTail
+        label.lineBreakMode = .byClipping	// 原版の ListBox と同じく省略記号を付けず切る
         let icon = editor.flatMap { ToolbarIcons.shared.image($0.icon(ofToolbarButton: number)) }
         let imageView = NSImageView(image: icon ?? NSImage(size: NSSize(width: 16, height: 16)))
         imageView.imageScaling = .scaleNone
