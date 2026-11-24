@@ -189,8 +189,10 @@ final class PropFlippedView: NSView {
 
 /// 一页（原版 IDD_PROP_* 的对话框）。控件按 ID（IDC_…）找，与原版的 GetDlgItem 相同
 final class PropPage: NSObject, NSTextFieldDelegate {
-    /// 对话框单位 → 点
+    /// 对话框单位 → 点（縦）
     static let scale: CGFloat = 1.6
+    /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）
+    static var scaleX: CGFloat = 1.85
     static let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
 
     let definition: PropDialogs.Page
@@ -217,7 +219,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     init(definition: PropDialogs.Page) {
         self.definition = definition
         view = PropFlippedView(frame: NSRect(x: 0, y: 0,
-                                             width: Self.points(definition.size[0]), height: Self.points(definition.size[1])))
+                                             width: Self.pointsX(definition.size[0]), height: Self.points(definition.size[1])))
         super.init()
         build()
     }
@@ -226,8 +228,13 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         (CGFloat(units) * scale).rounded()
     }
 
+    /// 横の対話框単位 → 点
+    static func pointsX(_ units: Double) -> CGFloat {
+        (CGFloat(units) * scaleX).rounded()
+    }
+
     private static func rect(_ frame: [Double]) -> NSRect {
-        NSRect(x: points(frame[0]), y: points(frame[1]), width: points(frame[2]), height: points(frame[3]))
+        NSRect(x: pointsX(frame[0]), y: points(frame[1]), width: pointsX(frame[2]), height: points(frame[3]))
     }
 
     // MARK: 生成
@@ -277,11 +284,9 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 // Mac のボタンは枠の内側に余白があるので左右に 4 点広げる。ただし隣のボタンと重ならないように（第 41 步）
                 let (left, right) = buttonMargins(frame, id: control.id)
                 button.frame = NSRect(x: frame.minX - left, y: frame.midY - height / 2, width: frame.width + left + right, height: height)
-                // 文字が入らないときは少しだけ小さい字にする（原版の文字は全部見える）
-                var size = NSFont.smallSystemFontSize
-                while button.fittingSize.width > button.frame.width && size > 9 {
-                    size -= 0.5
-                    button.font = NSFont.systemFont(ofSize: size)
+                // 文字が入らないときは空いているほうへ広げる（第 41 步）
+                if button.fittingSize.width > button.frame.width {
+                    button.frame = widened(button.frame, original: frame, needed: ceil(button.fittingSize.width))
                 }
                 view.addSubview(button)
                 register(button, control)
@@ -394,6 +399,17 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             view.addSubview(container)
         }
 
+        // それでも文字が入らないボタン（「(1)...」等）は、左隣の入力欄を少し縮めて場所を作る（第 41 步）
+        for case let button as NSButton in view.subviews where button.bezelStyle == .rounded && button.fittingSize.width > button.frame.width {
+            let shortage = ceil(button.fittingSize.width - button.frame.width)
+            guard let field = view.subviews.compactMap({ $0 as? NSTextField }).first(where: {
+                $0.isEditable && abs($0.frame.midY - button.frame.midY) < 6 && $0.frame.maxX <= button.frame.minX + 6
+                    && button.frame.minX - $0.frame.maxX < 12 && $0.frame.width > shortage * 4 }) else { continue }
+            field.frame.size.width -= shortage
+            button.frame.origin.x -= shortage
+            button.frame.size.width += shortage
+        }
+
         // 上下ボタン（原版は数値の欄の中に描く）に重なった右隣の説明（「ドット」等）は、ボタンの右へずらす（第 41 步）
         for stepper in steppers.values {
             for label in view.subviews.compactMap({ $0 as? NSTextField }) where !label.isEditable && label.frame.intersects(stepper.frame)
@@ -415,23 +431,38 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     /// 1 行の文字が枠に入らないときは右に広げる（原版の対話框単位は Windows の文字の幅で、Mac の文字は少し広い）。ページの外には出さない
     private func widened(_ frame: NSRect, for control: NSControl, multiline: Bool) -> NSRect {
         guard !multiline else { return frame }
+        return widened(frame, original: frame, needed: ceil(control.fittingSize.width))
+    }
+
+    /// frame（original は原版の枠）を needed の幅まで広げる。右は同じ高さの右隣の控件の手前・ページの右端まで。
+    /// それでも足りないときは、左に空きがあれば左へずらす（ほかの控件と重ならない範囲で）
+    private func widened(_ frame: NSRect, original: NSRect, needed: CGFloat) -> NSRect {
+        guard needed > frame.width else { return frame }
         var result = frame
-        let needed = ceil(control.fittingSize.width)
-        // 右の限度：ページの右端と、同じ高さにある右隣の控件の手前
         var limit = view.frame.width
+        var leftLimit: CGFloat = 0
         for other in definition.controls where other.kind != "group" {
             let r = Self.rect(other.frame)
-            if r != frame, r.maxY > frame.minY, r.minY < frame.maxY, r.minX >= frame.maxX - 1 { limit = min(limit, r.minX - 2) }
+            guard r != original, r.maxY > original.minY, r.minY < original.maxY else { continue }
+            if r.minX >= original.maxX - 1 { limit = min(limit, r.minX - 2) }
+            if r.maxX <= original.minX + 1 { leftLimit = max(leftLimit, r.maxX + 2) }
         }
-        result.size.width = min(max(frame.width, needed), max(frame.width, limit - frame.minX))
-        // ページの右端で足りないときは、左に空きがあれば左へずらす（ほかの控件と重ならない範囲で）
+        result.size.width = min(needed, max(frame.width, limit - frame.minX))
         let shortage = needed - result.width
-        if shortage > 0 {
-            let shifted = NSRect(x: max(0, result.minX - shortage), y: result.minY, width: result.width + min(shortage, result.minX), height: result.height)
-            let others = definition.controls.filter { $0.kind != "group" && Self.rect($0.frame) != frame }.map { Self.rect($0.frame) }
-            if !others.contains(where: { $0.intersects(shifted) && !$0.intersects(frame) }) { result = shifted }
+        if shortage > 0 && result.minX > leftLimit {
+            let move = min(shortage, result.minX - leftLimit)
+            result.origin.x -= move
+            result.size.width += move
         }
         return result
+    }
+
+    /// 項目を入れた下拉框が全部の項目を見せられるように広げる（第 41 步）
+    private func fitPopup(_ id: String) {
+        guard let popup = controls[id] as? NSPopUpButton, let control = definition.controls.first(where: { $0.id == id }) else { return }
+        let original = Self.rect(control.frame)
+        let base = NSRect(x: original.minX, y: popup.frame.minY, width: original.width, height: popup.frame.height)
+        popup.frame = widened(base, original: original, needed: ceil(popup.fittingSize.width))
     }
 
     /// ボタンの左右の余白：4 点まで。同じ高さにある隣の控件との間の半分を超えない
@@ -565,6 +596,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         popup.removeAllItems()
         popup.addItems(withTitles: titles)
         if titles.indices.contains(selected) { popup.selectItem(at: selected) }
+        fitPopup(id)
     }
 
     /// Combo_GetCurSel
@@ -603,6 +635,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         if !found, let selectIfMissing, popup.numberOfItems > selectIfMissing {
             popup.selectItem(at: selectIfMissing)
         }
+        fitPopup(id)
         return found
     }
 
@@ -1007,7 +1040,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
         pages = Array(repeating: nil, count: dialogs.pages.count)
         logics = dialogs.pages.map { logic($0.dialog) }
 
-        let pageWidth = PropPage.points(dialogs.pages[0].size[0])
+        let pageWidth = PropPage.pointsX(dialogs.pages[0].size[0])
         let pageHeight = PropPage.points(dialogs.pages[0].size[1])
         let margin: CGFloat = 12, sidebarWidth: CGFloat = 150, buttonsHeight: CGFloat = 32
         let width = margin + sidebarWidth + margin + pageWidth + margin

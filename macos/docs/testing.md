@@ -85,3 +85,4 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 
 - App 的 `KeyBindTests`、`MainMenuSettingsTests`、`CustomMenuToolbarTests` 与共通設定相同，大多用假的设置（节是 `KeyBind`、`MainMenu`、`CustMenu`、`Toolbar`）；`testOKAppliesToCore` 用真的核心库，结束时改回去。
 - 文件的选择、消息换成测试用的（`TypeSettingsPages.chooseImportFile`、`chooseExportFile`、`showMessage`）。详见 [phase3-command-settings.md](phase3-command-settings.md)。
+- 设置窗口的外观：`PropLayoutTests` 确认所有设置页和对话框里没有被截断的文字、字号没有缩小、控件不重叠。

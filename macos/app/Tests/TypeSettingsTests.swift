@@ -72,7 +72,7 @@ final class TypeSettingsTests: XCTestCase {
         for index in 0..<controller.pageCount {
             let definition = controller.dialogs.pages[index]
             let page = controller.page(index)
-            XCTAssertEqual(page.view.frame.size, NSSize(width: PropPage.points(definition.size[0]), height: PropPage.points(definition.size[1])))
+            XCTAssertEqual(page.view.frame.size, NSSize(width: PropPage.pointsX(definition.size[0]), height: PropPage.points(definition.size[1])))
             for control in definition.controls where control.id != "IDC_STATIC" && control.kind != "icon" {
                 let view = try XCTUnwrap(page.control(control.id), "\(definition.name) \(control.id)")
                 if control.kind == "check" || control.kind == "radio" {
