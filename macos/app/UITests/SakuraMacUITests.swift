@@ -712,6 +712,14 @@ final class SakuraMacUITests: XCTestCase {
         item.click()
 
         let window = app.windows.matching(byTitle).firstMatch
+        // 子菜单的项目的点击が菜单の閉じる動きと重なって効かないことがある（XCUITest）：もう一度菜单から選ぶ
+        if !window.waitForExistence(timeout: 5) {
+            app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+            fileMenu.click()
+            recent.hover()
+            XCTAssertTrue(item.waitForExistence(timeout: 3))
+            item.click()
+        }
         XCTAssertTrue(window.waitForExistence(timeout: 10), "从历史打开了")
         // 光标在上次的位置（第 3 行的开头）：输入的字在 line3 前面
         app.typeText("X")
@@ -809,6 +817,69 @@ final class SakuraMacUITests: XCTestCase {
         let window = app.windows.matching(byTitle).firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10), "重启后从历史打开了沙盒外的文件")
         XCTAssertEqual(window.textViews["editor"].value as? String, content)
+    }
+
+    /// 第 42 步：沙盒の外のルールファイル（タイプ別設定の「参照」で選ぶ）は、再起動後もアウトライン解析で読める（設定ファイルの書签）
+    func testSandboxedRuleFileAfterRestart() throws {
+        guard let appPath = ProcessInfo.processInfo.environment["SAKURA_SANDBOX_APP"] else {
+            throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
+        }
+        app.terminate()
+        let appURL = URL(fileURLWithPath: appPath)
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest")
+        try? FileManager.default.removeItem(at: dir)
+        let rule = dir.appendingPathComponent("rule-\(UUID().uuidString.prefix(8)).rul")
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try (Data([0xEF, 0xBB, 0xBF]) + ";Title=RULE\n# /// h\n".data(using: .utf8)!).write(to: rule)
+        } catch {
+            throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: rule) }
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", "rule-\(UUID().uuidString)"]
+
+        // 1. タイプ別設定（基本）> スクリーン：ルールファイル を選ぶ（参照 → 「開く」対話框で路径を入力）
+        let first = XCUIApplication(url: appURL)
+        first.launchArguments = base
+        first.launch()
+        XCTAssertTrue(first.textViews["editor"].waitForExistence(timeout: 10))
+        let settings = first.menuBars.menuBarItems["設定"]
+        settings.click()
+        settings.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'タイプ別設定' AND NOT (title CONTAINS '一覧')")).firstMatch.click()
+        let window = first.windows["TypeSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+        window.staticTexts["TypeSettingsPage_スクリーン"].click()
+        window.radioButtons["IDC_RADIO_OUTLINERULEFILE"].click()
+        window.buttons["IDC_BUTTON_RULEFILE_REF"].click()
+        let panel = openPanel(of: first)
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() { TISSelectInputSource(ascii) }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        panel.typeKey("g", modifierFlags: [.command, .shift])
+        sleep(1)
+        panel.typeText(rule.path + "\n")
+        sleep(1)
+        let openButton = first.buttons.matching(NSPredicate(format: "title IN %@ OR label IN %@", ["開く", "Open"], ["開く", "Open"])).firstMatch
+        if openButton.waitForExistence(timeout: 5) { openButton.click() } else { panel.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: []) }
+        XCTAssertTrue(waitFor { (window.textFields["IDC_EDIT_OUTLINERULEFILE"].value as? String) == rule.path }, "ルールファイルの路径")
+        window.buttons["TypeSettingsOK"].click()
+        first.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10))
+
+        // 2. 再起動して、無題（基本）でアウトライン解析：ルールファイルが読めている
+        app = XCUIApplication(url: appURL)
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        editor.click()
+        editor.typeText("# one\n# two\n")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["アウトライン解析..."].click()
+        let outline = app.dialogs["RULE"]
+        XCTAssertTrue(outline.waitForExistence(timeout: 5), "ルールファイルの Title")
+        XCTAssertTrue(outline.outlines["IDC_TREE_FL_outline"].staticTexts["# one"].exists)
+        XCTAssertTrue(outline.outlines["IDC_TREE_FL_outline"].staticTexts["# two"].exists)
     }
 
     // MARK: - 第 33 步：语法高亮

@@ -4837,7 +4837,16 @@ OutlineResult Document::AnalyzeOutline(OutlineType requested)
 	case OUTLINE_HTML:		cDocOutline.MakeTopicList_html(&cFuncInfoArr, false); break;
 	case OUTLINE_TEX:		cDocOutline.MakeTopicList_tex(&cFuncInfoArr); break;
 	case OUTLINE_BOOKMARK:	cDocOutline.MakeFuncList_BookMark(&cFuncInfoArr); break;
-	case OUTLINE_FILE:		cDocOutline.MakeFuncList_RuleFile(&cFuncInfoArr, sTitleOverride); break;
+	case OUTLINE_FILE:
+		// ルールファイルが Shift_JIS としても読めない（BOM のない UTF-8 等）と原版は CError_TextEncoding を投げたまま
+		// （捕まえる所がない）。Mac 版はルールファイルが読めないときと同じに項目なしにする
+		try {
+			cDocOutline.MakeFuncList_RuleFile(&cFuncInfoArr, sTitleOverride);
+		} catch (...) {
+			cFuncInfoArr.Empty();
+			sTitleOverride.clear();
+		}
+		break;
 	case OUTLINE_PYTHON:	cDocOutline.MakeFuncList_python(&cFuncInfoArr); break;
 	case OUTLINE_ERLANG:	cDocOutline.MakeFuncList_Erlang(&cFuncInfoArr); break;
 	case OUTLINE_XML:		cDocOutline.MakeTopicList_html(&cFuncInfoArr, true); break;

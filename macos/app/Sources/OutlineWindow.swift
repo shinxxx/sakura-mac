@@ -69,7 +69,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         dockSide = OutlineDockSettings.side(typeIndex: view.document.typeIndex)
         page = PropPage(definition: definition)
         let size = page.view.frame.size
-        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
+        let panel = OutlinePanel(contentRect: NSRect(origin: .zero, size: size),
                             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: true)
         panel.isFloatingPanel = true			// 原版：编辑窗口拥有的窗口，总在编辑窗口的上面
         panel.hidesOnDeactivate = Self.hidesOnDeactivate
@@ -81,6 +81,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         panel.contentView = page.view
         super.init(window: panel)
         panel.delegate = self
+        panel.controller = self
         setUpControls()
         if isDocking { setUpDocking() }
         if let owner = view.window {
@@ -995,7 +996,7 @@ extension EditorTextView {
             }
         }
         // 種別は解析で決まったもの（原版 MakeFuncList_C は C/C++ を C か C++ に変える）
-        let result = document.analyzeOutline(type)
+        let result = analyzeOutlineWithAccess(type)
         if let panel = outlinePanel, panel.isOpen {
             panel.setData(result: result, outlineType: result.type)
             panel.show(focus: focus)
@@ -1015,7 +1016,16 @@ extension EditorTextView {
             panel.redraw()	// 描画更新（変更されたカラーの適用）のみ
             return
         }
-        panel.setData(result: document.analyzeOutline(type), outlineType: type)
+        panel.setData(result: analyzeOutlineWithAccess(type), outlineType: type)
+    }
+
+    /// アウトライン解析。ルールファイルは設定で選んだときの書签で読む（沙盒の外のファイル）
+    func analyzeOutlineWithAccess(_ type: OutlineType) -> OutlineResult {
+        guard type == .ruleFile,
+              let path = EditorCore.commonSetting(section: "Types(\(document.typeIndex))", key: "szOutlineRuleFilename") else {
+            return document.analyzeOutline(type)
+        }
+        return BookmarkStore.settingFiles.withAccess(path: path) { document.analyzeOutline(type) }
     }
 
     /// アウトラインからのジャンプ（原版 MYWM_SETCARETPOS、PM_SETCARETPOS_KEEPSELECT）：
@@ -1117,5 +1127,25 @@ final class OutlineRowView: NSTableRowView {
         }
         Self.inverted(back).setFill()
         bounds.fill()
+    }
+}
+
+// MARK: - フローティングの窓口
+
+/// アウトライン解析の窓口：タイトルバーの右クリックでメニュー（原版 OnContextMenu：キャプション上なら DoMenu）
+final class OutlinePanel: NSPanel {
+    weak var controller: OutlineWindowController?
+    /// メニューの表示（単体テストで差し替える）
+    static var presentMenu: (NSMenu, NSEvent, NSView) -> Void = { menu, event, view in
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .rightMouseDown, event.locationInWindow.y >= contentLayoutRect.maxY,
+           let controller, let content = contentView {
+            Self.presentMenu(controller.makeMenu(dropDown: false), event, content)
+            return
+        }
+        super.sendEvent(event)
     }
 }

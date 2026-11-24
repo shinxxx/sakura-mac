@@ -431,6 +431,52 @@ final class OutlineTests: XCTestCase {
         XCTAssertEqual(panel.window?.title, "WZ階層付テキスト")
     }
 
+    /// タイトルバーの右クリックでメニュー（原版 OnContextMenu：キャプション上なら DoMenu）。中の右クリックは普通に
+    func testTitlebarRightClickMenu() throws {
+        try open("a.txt", Self.text)
+        view.showOutline(nil)
+        let panel = try XCTUnwrap(self.panel.window as? OutlinePanel)
+        var shown: [String] = []
+        let saved = OutlinePanel.presentMenu
+        defer { OutlinePanel.presentMenu = saved }
+        OutlinePanel.presentMenu = { menu, _, _ in shown = menu.items.map(\.title) }
+        let title = NSPoint(x: 100, y: panel.contentLayoutRect.maxY + 5)
+        let event = try XCTUnwrap(NSEvent.mouseEvent(with: .rightMouseDown, location: title, modifierFlags: [], timestamp: 0,
+                                                     windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        panel.sendEvent(event)
+        XCTAssertEqual(shown.first, "更新(U)")
+        XCTAssertTrue(shown.contains("ウィンドウの位置(W)"))
+    }
+
+    /// ルールファイル：設定で選んだファイルは書签を残し（重启後も沙盒で読める）、解析はその権限で読む
+    func testRuleFileBookmark() throws {
+        let rule = directory.appendingPathComponent("rule.rul")
+        // ルールファイルは BOM 付きの UTF-8（BOM がないと Shift_JIS）
+        try (Data([0xEF, 0xBB, 0xBF]) + ";Title=規則\n■ /// 見出し\n".data(using: .utf8)!).write(to: rule)
+        let saved = TypeSettingsPages.chooseFile
+        defer { TypeSettingsPages.chooseFile = saved }
+        XCTAssertTrue(BookmarkStore.settingFiles.remember(rule))
+        XCTAssertTrue(BookmarkStore.settingFiles.hasBookmark(forPath: rule.path))
+        // 「最近使ったファイル」の整理では消えない（別の書签）
+        BookmarkStore.shared.pruneToRecentFiles()
+        XCTAssertTrue(BookmarkStore.settingFiles.hasBookmark(forPath: rule.path))
+        var ran = false
+        XCTAssertEqual(BookmarkStore.settingFiles.withAccess(path: rule.path) { ran = true; return 1 }, 1)
+        XCTAssertTrue(ran)
+        // 解析
+        try open("a.txt", Self.text)
+        let section = "Types(\(view.document.typeIndex))"
+        let before = ["nDefaultOutline", "szOutlineRuleFilename"].reduce(into: [String: String]()) {
+            $0[$1] = EditorCore.commonSetting(section: section, key: $1) ?? ""
+        }
+        defer { _ = EditorCore.setCommonSettings(before, section: section) }
+        _ = EditorCore.setCommonSettings(["nDefaultOutline": "12", "szOutlineRuleFilename": rule.path], section: section)
+        _ = view.document.applyTypeSettingChange(view.document.typeIndex)
+        let result = view.analyzeOutlineWithAccess(.ruleFile)
+        XCTAssertEqual(result.title, "規則")
+        XCTAssertEqual(result.items.count, 2)
+    }
+
     func testCommandTable() {
         XCTAssertEqual(CommandTable.selector(for: 30930), #selector(EditorTextView.showOutline(_:)))
         XCTAssertEqual(CommandTable.selector(for: 30931), #selector(EditorTextView.toggleOutline(_:)))
