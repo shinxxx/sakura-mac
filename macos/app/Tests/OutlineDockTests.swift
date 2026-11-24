@@ -166,7 +166,7 @@ final class OutlineDockTests: XCTestCase {
         XCTAssertEqual(container.dock?.side, .left)
         // ドッキングから外へドロップ：フローティングの窓口はドロップした場所に
         let docked = try self.panel
-        let far = NSPoint(x: space.maxX + 300, y: space.midY)
+        let far = NSPoint(x: space.midX + 20, y: space.midY - 20)	// 画面の中（画面の外だと窓口が画面に収められる）
         let float = docked.dropRect(dragStart: start, drop: far, forceFloat: false)
         XCTAssertEqual(float.0, .float)
         docked.drop(side: float.0, rect: float.1)
