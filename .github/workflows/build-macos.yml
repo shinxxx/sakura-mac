@@ -189,11 +189,12 @@ jobs:
           Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
           "Sakura Editor $($rel.tagName) ($($asset.name))"
 
+      # sakura.exe は 32 位：32 位的 Windows PowerShell 运行（读 TreeView・ListView 的结构体的大小相同）
       - name: Run outline analysis
-        shell: powershell
+        shell: cmd
         run: |
-          $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
-          & .\macos\tools\outline\windows-outline.ps1 -SakuraExe $exe -DataDir macos\core\tests\data\outline -OutDir outline-result
+          for /f "delims=" %%i in ('dir /s /b sakura\sakura.exe') do set EXE=%%i
+          %SystemRoot%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File macos\tools\outline\windows-outline.ps1 -SakuraExe "%EXE%" -DataDir macos\core\tests\data\outline -OutDir outline-result
 
       - name: Upload result
         if: always()

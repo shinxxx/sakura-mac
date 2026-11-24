@@ -6,9 +6,11 @@
 # CI 的 outline-windows 用 Windows PowerShell 运行：
 #   1. sakura.exe 先运行一次（宏 Editor.ExitAll）做出 sakura.ini，追加与 Mac 版测试相同的类型
 #      （macos/core/tests/test-mac-outline.cpp 的 SetUp）
-#   2. 每个样本文件：sakura.exe 打开文件并执行宏 Editor.Outline(0)，用 UI Automation 读出
-#      アウトライン解析 对话框的标题、ツリー（展开状态、选着的项目）或リスト（列名、各行），
+#   2. 每个样本文件：sakura.exe 用宏打开文件并执行 Editor.Outline(0)，从对话框读出标题、
+#      ツリー（展开状态、选着的项目）或リスト（列名、各行）（TreeView・ListView 的消息，读 sakura.exe 进程里的内存），
 #      按「コピー」按钮读出剪贴板
+# sakura.exe 是 32 位的，结构体的大小要相同，所以用 32 位的 Windows PowerShell 运行（SysWOW64）。
+# 界面的语言是日文（与 Mac 版相同）：删掉语言 DLL（sakura_lang_*.dll），用内置的日文资源。
 #   3. 写成与 Mac 版测试相同的格式（<输出文件夹>\<样本名>.txt）
 param(
     [Parameter(Mandatory = $true)][string]$SakuraExe,
@@ -16,8 +18,6 @@ param(
     [Parameter(Mandatory = $true)][string]$OutDir
 )
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Windows.Forms
 
 Add-Type -AssemblyName System.Drawing
@@ -39,6 +39,58 @@ public static class OutlineWin32 {
     [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
     // WM_COMMAND（BN_CLICKED）でボタンを押す
     public static void Click(IntPtr dlg, int id) { SendMessage(dlg, 0x0111, (IntPtr)id, GetDlgItem(dlg, id)); }
+
+    // ---- sakura.exe の TreeView・ListView を読む（相手の進程のメモリに構造体を置いて SendMessage） ----
+    [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32.dll")] static extern IntPtr VirtualAllocEx(IntPtr proc, IntPtr addr, int size, uint type, uint protect);
+    [DllImport("kernel32.dll")] static extern bool VirtualFreeEx(IntPtr proc, IntPtr addr, int size, uint type);
+    [DllImport("kernel32.dll")] static extern bool WriteProcessMemory(IntPtr proc, IntPtr addr, byte[] buf, int size, out int written);
+    [DllImport("kernel32.dll")] static extern bool ReadProcessMemory(IntPtr proc, IntPtr addr, byte[] buf, int size, out int read);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+    const int TextOffset = 256, TextChars = 2000, MemSize = 8192;
+    static IntPtr proc, mem;
+    public static void Open(IntPtr hwnd) {
+        uint pid; GetWindowThreadProcessId(hwnd, out pid);
+        proc = OpenProcess(0x0008 | 0x0010 | 0x0020 | 0x0400, false, pid);
+        mem = VirtualAllocEx(proc, IntPtr.Zero, MemSize, 0x1000, 0x04);
+        if (mem == IntPtr.Zero) throw new Exception("VirtualAllocEx failed");
+    }
+    public static void Close() { VirtualFreeEx(proc, mem, 0, 0x8000); CloseHandle(proc); }
+    static void WriteInts(int[] values) {
+        var buf = new byte[values.Length * 4];
+        Buffer.BlockCopy(values, 0, buf, 0, buf.Length);
+        int n; WriteProcessMemory(proc, mem, buf, buf.Length, out n);
+        int m; WriteProcessMemory(proc, mem + TextOffset, new byte[2], 2, out m);
+    }
+    static string ReadText() {
+        var buf = new byte[TextChars * 2]; int n;
+        ReadProcessMemory(proc, mem + TextOffset, buf, buf.Length, out n);
+        var s = Encoding.Unicode.GetString(buf);
+        int z = s.IndexOf('\0'); return z >= 0 ? s.Substring(0, z) : s;
+    }
+    // TreeView：TVM_GETNEXTITEM、TVM_GETITEMW（TVITEMW：mask, hItem, state, stateMask, pszText, cchTextMax, ...）
+    public static IntPtr TreeNext(IntPtr tree, IntPtr item, int code) { return SendMessage(tree, 0x110A, (IntPtr)code, item); }
+    public static int TreeState(IntPtr tree, IntPtr item) { return (int)SendMessage(tree, 0x1127, item, (IntPtr)0xFF); }
+    public static string TreeText(IntPtr tree, IntPtr item) {
+        WriteInts(new int[] { 0x0001 | 0x0010, (int)item, 0, 0, (int)mem + TextOffset, TextChars, 0, 0, 0, 0 });
+        SendMessage(tree, 0x113E, IntPtr.Zero, mem);
+        return ReadText();
+    }
+    // ListView：LVM_GETITEMCOUNT、LVM_GETITEMTEXTW（LVITEMW：mask, iItem, iSubItem, state, stateMask, pszText, cchTextMax, ...）
+    public static int ListCount(IntPtr list) { return (int)SendMessage(list, 0x1004, IntPtr.Zero, IntPtr.Zero); }
+    public static int ListState(IntPtr list, int index) { return (int)SendMessage(list, 0x102C, (IntPtr)index, (IntPtr)0xFF); }
+    public static string ListText(IntPtr list, int index, int sub) {
+        WriteInts(new int[] { 0x0001, index, sub, 0, 0, (int)mem + TextOffset, TextChars, 0, 0, 0, 0, 0, 0, 0, 0 });
+        SendMessage(list, 0x1073, (IntPtr)index, mem);
+        return ReadText();
+    }
+    // ヘッダー：LVM_GETHEADER、HDM_GETITEMCOUNT、HDM_GETITEMW（HDITEMW：mask, cxy, pszText, hbm, cchTextMax, ...）
+    public static string HeaderText(IntPtr list, int index) {
+        IntPtr header = SendMessage(list, 0x101F, IntPtr.Zero, IntPtr.Zero);
+        WriteInts(new int[] { 0x0002, 0, (int)mem + TextOffset, 0, TextChars, 0, 0, 0, 0, 0, 0, 0 });
+        SendMessage(header, 0x120B, (IntPtr)index, mem);
+        return ReadText();
+    }
     public static string ClassOf(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
     public static string TextOf(IntPtr h) { var s = new StringBuilder(1024); GetWindowText(h, s, 1024); return s.ToString(); }
     public static List<IntPtr> TopWindows(uint[] pids) {
@@ -95,6 +147,9 @@ function Write-Macro([string]$name, [string]$body) {
     return $path
 }
 
+# 界面的语言：日文（内置的资源）
+Get-ChildItem (Split-Path $SakuraExe) -Filter 'sakura_lang_*.dll' | ForEach-Object { Write-Host "remove $($_.Name)"; Remove-Item $_.FullName }
+
 # ---- 1. sakura.ini ----
 Stop-Sakura
 $exitMacro = Write-Macro 'exit.js' 'Editor.ExitAll();'
@@ -132,49 +187,18 @@ for ($k = 0; $k -lt $types.Count; $k++) {
 $text = $text.TrimEnd() + "`r`n" + $sb.ToString()
 [IO.File]::WriteAllText($ini, $text, (New-Object System.Text.UTF8Encoding($true)))
 
-# ---- 2. UI Automation ----
-$AE = [System.Windows.Automation.AutomationElement]
-$TS = [System.Windows.Automation.TreeScope]
-$Walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-
-function Find-ById($root, [string]$id) {
-    $cond = New-Object System.Windows.Automation.PropertyCondition($AE::AutomationIdProperty, $id)
-    return $root.FindFirst($TS::Descendants, $cond)
-}
-
-function Get-Children($el) {
-    $list = @()
-    $c = $Walker.GetFirstChild($el)
-    while ($c -ne $null) { $list += $c; $c = $Walker.GetNextSibling($c) }
-    return $list
-}
-
-function Is-Selected($el) {
-    $p = $null
-    if ($el.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) {
-        return $p.Current.IsSelected
-    }
-    return $false
-}
-
-function Dump-Tree($el, [int]$depth, $sb) {
-    foreach ($item in (Get-Children $el)) {
-        if ($item.Current.ControlType -ne [System.Windows.Automation.ControlType]::TreeItem) { continue }
-        $p = $null
-        $state = 'LeafNode'
-        if ($item.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$p)) {
-            $state = [string]$p.Current.ExpandCollapseState
-        }
+# ---- 2. 対話框を読む ----
+function Dump-Tree([IntPtr]$tree, [IntPtr]$item, [int]$depth, $sb) {
+    while ($item -ne [IntPtr]::Zero) {
+        $child = [OutlineWin32]::TreeNext($tree, $item, 4)	# TVGN_CHILD
+        $state = [OutlineWin32]::TreeState($tree, $item)
         $marker = '  '
-        if ($state -eq 'Expanded') { $marker = '- ' } elseif ($state -eq 'Collapsed' -or $state -eq 'PartiallyExpanded') { $marker = '+ ' }
-        $line = (' ' * ($depth * 2)) + $marker + $item.Current.Name
-        if (Is-Selected $item) { $line += ' <' }
+        if ($child -ne [IntPtr]::Zero) { if ($state -band 0x20) { $marker = '- ' } else { $marker = '+ ' } }	# TVIS_EXPANDED
+        $line = (' ' * ($depth * 2)) + $marker + [OutlineWin32]::TreeText($tree, $item)
+        if ($state -band 0x02) { $line += ' <' }	# TVIS_SELECTED
         [void]$sb.Append($line + "`n")
-        if ($state -eq 'Collapsed') {
-            $p.Expand()
-            Start-Sleep -Milliseconds 50
-        }
-        if ($state -ne 'LeafNode') { Dump-Tree $item ($depth + 1) $sb }
+        if ($child -ne [IntPtr]::Zero) { Dump-Tree $tree $child ($depth + 1) $sb }
+        $item = [OutlineWin32]::TreeNext($tree, $item, 1)	# TVGN_NEXT
     }
 }
 
@@ -188,13 +212,13 @@ function Find-Dialog([int]$timeoutSec) {
             foreach ($c in $candidates) {
                 if ([OutlineWin32]::ClassOf($c) -ne '#32770' -or -not [OutlineWin32]::IsWindowVisible($c)) { continue }
                 foreach ($k in [OutlineWin32]::Children($c)) {
-                    if ([OutlineWin32]::GetDlgCtrlID($k) -eq 1149) { return $AE::FromHandle($c) }
+                    if ([OutlineWin32]::GetDlgCtrlID($k) -eq 1149) { return $c }
                 }
             }
         }
         Start-Sleep -Milliseconds 300
     }
-    return $null
+    return [IntPtr]::Zero
 }
 
 $samples = Get-ChildItem $DataDir -File | Where-Object { $_.Extension -notin @('.rul', '.rux') -and $_.Name -ne '.gitattributes' }
@@ -212,7 +236,7 @@ foreach ($sample in $samples) {
     Start-Process $SakuraExe -ArgumentList "-M=`"$outlineMacro`"" | Out-Null
     Write-Host "$(Get-Date -Format HH:mm:ss) open: $($sample.Name)"
     $dlg = Find-Dialog 30
-    if ($dlg -eq $null) {
+    if ($dlg -eq [IntPtr]::Zero) {
         Write-Host "::error::outline dialog not found: $($sample.Name)"
         if (Test-Path $ran) { Write-Host "macro ran: $(Get-Content $ran)" } else { Write-Host 'macro did not finish' }
         Show-Windows
@@ -222,33 +246,28 @@ foreach ($sample in $samples) {
         continue
     }
     Start-Sleep -Milliseconds 500
+    [OutlineWin32]::Open($dlg)
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append('title: ' + $dlg.Current.Name + "`n")
-    $tree = Find-ById $dlg '1137'
-    $list = Find-ById $dlg '1084'
-    if ($tree -ne $null -and -not $tree.Current.IsOffscreen) {
+    [void]$sb.Append('title: ' + [OutlineWin32]::TextOf($dlg) + "`n")
+    $tree = [OutlineWin32]::GetDlgItem($dlg, 1137)
+    $list = [OutlineWin32]::GetDlgItem($dlg, 1084)
+    if ([OutlineWin32]::IsWindowVisible($tree)) {
         [void]$sb.Append("[tree]`n")
-        Dump-Tree $tree 0 $sb
-    } elseif ($list -ne $null) {
+        Dump-Tree $tree ([OutlineWin32]::TreeNext($tree, [IntPtr]::Zero, 0)) 0 $sb	# TVGN_ROOT
+    } elseif ([OutlineWin32]::IsWindowVisible($list)) {
         [void]$sb.Append("[list]`n")
-        $header = $list.FindFirst($TS::Descendants, (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, [System.Windows.Automation.ControlType]::Header)))
-        $titles = @()
-        if ($header -ne $null) { foreach ($h in (Get-Children $header)) { $titles += $h.Current.Name } }
-        while ($titles.Count -lt 4) { $titles += '' }
-        [void]$sb.Append(($titles[0..3] -join "`t") + "`n")
-        foreach ($row in (Get-Children $list)) {
-            if ($row.Current.ControlType -ne [System.Windows.Automation.ControlType]::ListItem) { continue }
-            $cells = @(Get-Children $row | ForEach-Object { $_.Current.Name })
-            if ($cells.Count -lt 4) { $cells = @($row.Current.Name) + $cells; while ($cells.Count -lt 4) { $cells += '' } }
-            $line = ($cells[0..3] -join "`t")
-            if (Is-Selected $row) { $line += ' <' }
+        [void]$sb.Append(((0..3 | ForEach-Object { [OutlineWin32]::HeaderText($list, $_) }) -join "`t") + "`n")
+        for ($i = 0; $i -lt [OutlineWin32]::ListCount($list); $i++) {
+            $line = ((0..3 | ForEach-Object { [OutlineWin32]::ListText($list, $i, $_) }) -join "`t")
+            if ([OutlineWin32]::ListState($list, $i) -band 0x02) { $line += ' <' }	# LVIS_SELECTED
             [void]$sb.Append($line + "`n")
         }
     } else {
         Write-Host "::error::tree/list not found: $($sample.Name)"; $failed += $sample.Name
     }
+    [OutlineWin32]::Close()
     # 「コピー」
-    [OutlineWin32]::Click([IntPtr]$dlg.Current.NativeWindowHandle, 1149)
+    [OutlineWin32]::Click($dlg, 1149)
     Start-Sleep -Milliseconds 500
     $clip = [System.Windows.Forms.Clipboard]::GetText()
     $clip = $clip.Replace("`r`n", "`n").Replace($file, '<FILE>')
