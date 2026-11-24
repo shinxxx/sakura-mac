@@ -35,6 +35,10 @@ public static class OutlineWin32 {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr hwnd, StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dlg, int id);
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+    // WM_COMMAND（BN_CLICKED）でボタンを押す
+    public static void Click(IntPtr dlg, int id) { SendMessage(dlg, 0x0111, (IntPtr)id, GetDlgItem(dlg, id)); }
     public static string ClassOf(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
     public static string TextOf(IntPtr h) { var s = new StringBuilder(1024); GetWindowText(h, s, 1024); return s.ToString(); }
     public static List<IntPtr> TopWindows(uint[] pids) {
@@ -244,8 +248,7 @@ foreach ($sample in $samples) {
         Write-Host "::error::tree/list not found: $($sample.Name)"; $failed += $sample.Name
     }
     # 「コピー」
-    $copy = Find-ById $dlg '1149'
-    $copy.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    [OutlineWin32]::Click([IntPtr]$dlg.Current.NativeWindowHandle, 1149)
     Start-Sleep -Milliseconds 500
     $clip = [System.Windows.Forms.Clipboard]::GetText()
     $clip = $clip.Replace("`r`n", "`n").Replace($file, '<FILE>')
