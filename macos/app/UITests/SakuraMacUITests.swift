@@ -875,6 +875,70 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(normalizedText, "(1) one\n(A) sub\nX(2) two\nend", "3 行目の先頭へジャンプした")
     }
 
+    /// ▼ >「左ドッキング」：編集窓口の左に入る。項目のクリックでジャンプ、キャプションの × で閉じる
+    func testOutlineDocking() {
+        editor.typeText("(1) one\n(A) sub\n(2) two\nend")
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["アウトライン解析..."].click()
+        let panel = app.dialogs["テキスト トピックツリー"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 5))
+        panel.buttons["IDC_BUTTON_MENU"].click()
+        app.menuItems["左ドッキング(L)"].click()
+        let title = app.staticTexts["outlineDockTitle"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "ドッキングした")
+        XCTAssertEqual(title.value as? String, "テキスト トピックツリー")
+        XCTAssertFalse(panel.exists, "フローティングの窓口は閉じた")
+        let tree = app.outlines["IDC_TREE_FL_outline"]
+        tree.staticTexts["(2) two"].click()	// ドッキングはシングルクリックでジャンプ
+        tree.staticTexts["(2) two"].doubleClick()	// ダブルクリックで編集画面へ
+        app.typeText("X")
+        XCTAssertEqual(normalizedText, "(1) one\n(A) sub\nX(2) two\nend")
+        app.buttons["outlineDockClose"].click()
+        XCTAssertFalse(title.exists, "閉じた")
+    }
+
+    /// キャプション・タイトルバーのドラッグでドッキング配置を変える（原版 Track）：右端へ → 右ドッキング、真ん中へ → フローティング、
+    /// フローティングのタイトルバーを左端へ → 左ドッキング
+    func testOutlineDockingByDrag() {
+        editor.typeText("(1) one\n(2) two\n")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["アウトライン解析..."].click()
+        let panel = app.dialogs["テキスト トピックツリー"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 5))
+        panel.buttons["IDC_BUTTON_MENU"].click()
+        app.menuItems["左ドッキング(L)"].click()
+        let window = app.windows.firstMatch
+        let title = app.staticTexts["outlineDockTitle"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertLessThan(title.frame.midX, window.frame.midX, "左")
+        // 右端へ
+        title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .click(forDuration: 0.3, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.5)))
+        XCTAssertTrue(waitFor { title.exists && title.frame.midX > window.frame.midX }, "右にドッキング")
+        // 真ん中へ：フローティング
+        title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .click(forDuration: 0.3, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.4)))
+        XCTAssertTrue(panel.waitForExistence(timeout: 5), "フローティングになった")
+        XCTAssertFalse(title.exists)
+        // フローティングのタイトルバーを左端へ
+        panel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02))
+            .click(forDuration: 0.3, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5)))
+        XCTAssertTrue(waitFor { title.exists && title.frame.midX < window.frame.midX }, "左にドッキング")
+        XCTAssertFalse(panel.exists)
+    }
+
+    private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            usleep(200_000)
+        }
+        return condition()
+    }
+
     /// 「開く」对话框。沙盒里的 App 的对话框由系统的另一个进程（openAndSavePanelService）显示，
     /// 但辅助功能里算 App 的窗口。找不到时返回 App 本身（键盘输入照样进对话框）
     private func openPanel(of app: XCUIApplication) -> XCUIElement {

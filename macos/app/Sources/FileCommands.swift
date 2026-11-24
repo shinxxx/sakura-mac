@@ -75,6 +75,7 @@ extension SakuraDocument {
         fileModificationDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
         view.textChanged()
         view.restoreView(caret: caret, topRow: top, toEnd: false)	// 范围外时 setCaret 收到范围内
+        view.refreshOutline()	// 第 42 步：アウトラインを再解析（原版 CLoadAgent → Refresh）
         contentDidChange()
         if result == .lostSome {
             showLostSomeMessage()
@@ -121,6 +122,7 @@ extension SakuraDocument {
             view.textChanged()
             view.setCaret(EditorPosition(line: 0, column: 0))
             view.scrollRow(toTop: 0)
+            view.refreshOutline()
         }
         contentDidChange()
     }
@@ -153,6 +155,7 @@ extension SakuraDocument {
             } else {
                 view.setCaret(EditorPosition(line: 0, column: 0))
             }
+            view.refreshOutline()
         }
         contentDidChange()
         if result == .lostSome { showLostSomeMessage() }

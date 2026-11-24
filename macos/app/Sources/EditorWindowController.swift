@@ -34,7 +34,8 @@ final class EditorWindowController: NSWindowController {
         scrollView.hasHorizontalScroller = true
         textView = EditorTextView(document: document)
         scrollView.documentView = textView
-        window.contentView = scrollView
+        // 第 42 步：ドッキングしたアウトラインと並べる（OutlineDock.swift）
+        window.contentView = EditorContainerView(editor: scrollView)
         window.initialFirstResponder = textView
         super.init(window: window)
         // 新窗口错开一点，不完全重叠（原版也是层叠显示）

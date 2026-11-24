@@ -360,6 +360,8 @@ final class SakuraDocument: NSDocument {
         if let view = editor.restoredView {
             controller.textView.restoreView(caret: view.caret, topRow: view.viewTopLine, toEnd: view.toEnd)
         }
+        // 第 42 步：ドッキングしたアウトラインを開く（原版 CNormalProcess → CDlgFuncList::Refresh）
+        controller.textView.refreshOutline()
     }
 
     override func showWindows() {

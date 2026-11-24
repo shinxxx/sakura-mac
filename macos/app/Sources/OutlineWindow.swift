@@ -10,7 +10,7 @@ import EditorBridge
 /// 解析和ツリー・リスト的内容在核心库（Document::AnalyzeOutline：原版 Command_FUNCLIST + CDlgFuncList::SetData），
 /// 这里是窗口：布局照原版 IDD_FUNCLIST（Resources/OutlineDialogs.json），与原版相同地能改大小，
 /// ツリー・リスト跟着变大，下面的按钮、复选框留在下边。
-/// 一个编辑窗口一个，非模态（原版 DoModeless）。ドッキング（左・右・上・下）在第 3 个 PR。
+/// 一个编辑窗口一个，非模态（原版 DoModeless）。ドッキング（左・右・上・下）时，对话框的内容放进编辑窗口（OutlineDock.swift）。
 final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     /// App 不是活动的时候隐藏（浮动的面板不盖住别的 App）。单元测试时关掉
     static var hidesOnDeactivate = true
@@ -35,6 +35,23 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     private var curColumn = 1
     /// タイプ別設定の番号（原版 m_nDocType）
     private var typeIndex: Int
+    /// ドッキング配置（原版 m_eDockSide：開いたときの配置）
+    private(set) var dockSide: DockSide
+    /// ドッキングしているときの表示（キャプション、分割バー）
+    var dockView: OutlineDockView?
+    /// ドッキングしている（原版 IsDocking）
+    var isDocking: Bool { dockSide.isDocking }
+    /// 開いている（フローティングは窓口が見えている、ドッキングは編集窓口の中にある）
+    var isOpen: Bool { isDocking ? dockView?.superview != nil : window?.isVisible == true }
+    /// 閉じた後（同じものをまた開かない）
+    private(set) var destroyed = false
+
+    /// 配置だけ変える（原版 ChangeLayout の m_eDockSide = eDockSideNew）
+    func setDockSideWithoutLayout(_ side: DockSide) {
+        dockSide = side
+    }
+    /// 「継承情報を統一」の確認（単体テストで差し替える）。OK なら true
+    static var confirmHandler: ((String) -> Bool)?
 
     static let sortTitles = [
         NSLocalizedString("デフォルト", comment: "STR_DLGFNCLST_SORTTYPE1"),
@@ -49,6 +66,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         self.result = result
         self.outlineType = outlineType
         typeIndex = view.document.typeIndex
+        dockSide = OutlineDockSettings.side(typeIndex: view.document.typeIndex)
         page = PropPage(definition: definition)
         let size = page.view.frame.size
         let panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
@@ -64,6 +82,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         super.init(window: panel)
         panel.delegate = self
         setUpControls()
+        if isDocking { setUpDocking() }
         if let owner = view.window {
             NotificationCenter.default.addObserver(self, selector: #selector(ownerWillClose(_:)),
                                                    name: NSWindow.willCloseNotification, object: owner)
@@ -79,7 +98,11 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         NotificationCenter.default.removeObserver(self)
     }
 
+    /// 編集窓口が閉じる：一緒に閉じる（表示の設定は変えない。原版は編集窓口が先に見えなくなる）
+    private var ownerClosing = false
+
     @objc private func ownerWillClose(_ notification: Notification) {
+        ownerClosing = true
         close()
     }
 
@@ -150,8 +173,16 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         setData()
     }
 
+    /// 今の結果のまま描き直す（色が変わったとき）
+    func redraw() {
+        setData()
+    }
+
     private func setData() {
         window?.title = result.title
+        dockView?.caption.title.stringValue = result.title
+        // 最後に開いたアウトラインの種類（原版 DoModeless・Redraw の m_nDockOutline）
+        OutlineDockSettings.setDockOutline(outlineType.rawValue, typeIndex: typeIndex)
 
         // 共通設定の項目（アウトライン ダイアログを自動的に閉じる 等）
         let autoClose = Self.commonBool("bAutoCloseDlgFuncList")
@@ -162,7 +193,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         // ダイアログを自動的に閉じるならフォーカス移動オプションは関係ない
         page.setEnabled("IDC_CHECK_bFunclistSetFocusOnJump", !autoClose)
         // 空行をどう扱うかのチェックボックスはブックマーク一覧のときだけ表示する
-        page.showEnable("IDC_CHECK_bMarkUpBlankLineEnable", show: result.listType == .bookmark, enable: result.listType == .bookmark)
+        page.showEnable("IDC_CHECK_bMarkUpBlankLineEnable", show: result.listType == .bookmark && !isDocking, enable: result.listType == .bookmark)
         page.control("IDC_BUTTON_SETTING")?.isHidden = true
         page.setEnabled("IDC_BUTTON_COPY", true)
 
@@ -173,6 +204,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         page.label(NSLocalizedString("順序(S)", comment: "IDD_FUNCLIST"))?.isHidden = !showSort
         if showSort { page.select("IDC_COMBO_nSortType", result.sort.rawValue) }
 
+        syncColor()	// 色はツリー・リストを作る前に（作り直すと選択が消える）
         page.control("IDC_TREE_FL")?.isHidden = !result.isTree
         page.control("IDC_LIST_FL")?.isHidden = result.isTree
         if result.isTree {
@@ -187,7 +219,10 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         // 選択状態更新
         let index = result.item(atLayoutLine: curLine, column: curColumn)
         if index >= 0 { setItemSelection(index, allowExpand: true) }
-        if window?.isKeyWindow == true {
+        let host = isDocking ? view?.window : window
+        if host?.isKeyWindow == true, let responder = host?.firstResponder as? NSView, responder.isDescendant(of: page.view) {
+            host?.makeFirstResponder(result.isTree ? treeView : listView)
+        } else if !isDocking, window?.isKeyWindow == true {
             window?.makeFirstResponder(result.isTree ? treeView : listView)
         }
     }
@@ -221,7 +256,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
 
     /// キャレットの移動を通知（原版 NotifyCaretMovement）
     func notifyCaretMovement(line: Int, column: Int) {
-        guard window?.isVisible == true, isUpToDate else { return }
+        guard isOpen, isUpToDate else { return }
         guard curLine != line || curColumn != column else { return }
         curLine = line
         curColumn = column
@@ -245,7 +280,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         case "IDOK":
             jump()
         case "IDCANCEL":
-            close()
+            cancel()
         case "IDC_BUTTON_COPY":
             copyToPasteboard()
         default:
@@ -324,13 +359,23 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         guard item.fileName.isEmpty else { return }
         view.jumpFromOutline(line: item.line - 1, column: item.column - 1)
         guard checkAutoClose else { return }
-        if Self.commonBool("bAutoCloseDlgFuncList") {
+        if isDocking {
+            // 原版 MYWM_SETACTIVEPANE（PostMessage）：ダブルクリックの処理が終わってから編集画面へ
+            if let type = NSApp.currentEvent?.type, type == .leftMouseDown || type == .leftMouseUp {
+                focusEditorAfterClick = true
+            } else {
+                DispatchQueue.main.async { [weak self] in self?.focusEditor() }
+            }
+        } else if Self.commonBool("bAutoCloseDlgFuncList") {
             close()
             focusEditor()
         } else if Self.commonBool("bFunclistSetFocusOnJump") {
             focusEditor()
         }
     }
+
+    /// クリックの処理（ツリー・リストの mouseDown）が終わったら編集画面へ
+    var focusEditorAfterClick = false
 
     func focusEditor() {
         guard let view, let owner = view.window else { return }
@@ -384,37 +429,36 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
             position.submenu = positionMenu
             menu.addItem(position)
         }
-        // ドッキング配置（第 3 个 PR でドッキングを移植するまでは選べない）
-        let sides = [
-            NSLocalizedString("左ドッキング(L)", comment: "STR_DLGFNCLST_MENU_LEFTDOC"),
-            NSLocalizedString("右ドッキング(R)", comment: "STR_DLGFNCLST_MENU_RIGHTDOC"),
-            NSLocalizedString("上ドッキング(T)", comment: "STR_DLGFNCLST_MENU_TOPDOC"),
-            NSLocalizedString("下ドッキング(B)", comment: "STR_DLGFNCLST_MENU_BOTDOC"),
-            NSLocalizedString("フローティング(F)", comment: "STR_DLGFNCLST_MENU_FLOATING"),
-            NSLocalizedString("ドッキング禁止(I)", comment: "STR_DLGFNCLST_MENU_NODOCK"),
+        // ドッキング配置（設定上の配置にチェック）
+        let current = OutlineDockSettings.side(typeIndex: typeIndex)
+        let sides: [(DockSide, String)] = [
+            (.left, NSLocalizedString("左ドッキング(L)", comment: "STR_DLGFNCLST_MENU_LEFTDOC")),
+            (.right, NSLocalizedString("右ドッキング(R)", comment: "STR_DLGFNCLST_MENU_RIGHTDOC")),
+            (.top, NSLocalizedString("上ドッキング(T)", comment: "STR_DLGFNCLST_MENU_TOPDOC")),
+            (.bottom, NSLocalizedString("下ドッキング(B)", comment: "STR_DLGFNCLST_MENU_BOTDOC")),
+            (.float, NSLocalizedString("フローティング(F)", comment: "STR_DLGFNCLST_MENU_FLOATING")),
+            (.undockable, NSLocalizedString("ドッキング禁止(I)", comment: "STR_DLGFNCLST_MENU_NODOCK")),
         ]
-        for (index, title) in sides.enumerated() {
-            let side = item(title, nil)
-            side.isEnabled = false
-            side.state = index == 4 ? .on : .off
-            positionMenu.addItem(side)
+        for (side, title) in sides {
+            let sideItem = item(title, #selector(menuDockSide(_:)))
+            sideItem.tag = side.rawValue
+            sideItem.state = side == current ? .on : .off
+            positionMenu.addItem(sideItem)
         }
         positionMenu.addItem(.separator())
-        let sync = item(NSLocalizedString("ドッキング配置を同期(S)", comment: "STR_DLGFNCLST_MENU_SYNC"), nil)
-        sync.isEnabled = false
+        let sync = item(NSLocalizedString("ドッキング配置を同期(S)", comment: "STR_DLGFNCLST_MENU_SYNC"), #selector(menuSync(_:)))
+        sync.state = OutlineDockSettings.sync ? .on : .off
         positionMenu.addItem(sync)
         positionMenu.addItem(.separator())
-        for title in [NSLocalizedString("ドッキング配置を共通継承(C)", comment: "STR_DLGFNCLST_MENU_INHERIT"),
-                      NSLocalizedString("ドッキング配置をタイプ別継承(Y)", comment: "STR_DLGFNCLST_MENU_TYPE")] {
-            let inherit = item(title, nil)
-            inherit.isEnabled = false
-            positionMenu.addItem(inherit)
-        }
-        positionMenu.items[positionMenu.items.count - 2].state = .on
+        let inheritCommon = item(NSLocalizedString("ドッキング配置を共通継承(C)", comment: "STR_DLGFNCLST_MENU_INHERIT"), #selector(menuInherit(_:)))
+        inheritCommon.tag = 0
+        let inheritType = item(NSLocalizedString("ドッキング配置をタイプ別継承(Y)", comment: "STR_DLGFNCLST_MENU_TYPE"), #selector(menuInherit(_:)))
+        inheritType.tag = 1
+        (OutlineDockSettings.useType ? inheritType : inheritCommon).state = .on
+        positionMenu.addItem(inheritCommon)
+        positionMenu.addItem(inheritType)
         positionMenu.addItem(.separator())
-        let unify = item(NSLocalizedString("継承情報を統一(U)", comment: "STR_DLGFNCLST_MENU_UNIFY"), nil)
-        unify.isEnabled = false
-        positionMenu.addItem(unify)
+        positionMenu.addItem(item(NSLocalizedString("継承情報を統一(U)", comment: "STR_DLGFNCLST_MENU_UNIFY"), #selector(menuUnify(_:))))
         if !dropDown {
             menu.addItem(.separator())
             menu.addItem(item(NSLocalizedString("閉じる(X)", comment: "STR_DLGFNCLST_MENU_CLOSE"), #selector(menuClose(_:))))
@@ -437,7 +481,12 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - 窗口
 
     /// 显示（原版 DoModeless）：「位置と大きさを記憶する」时在上次的位置（编辑窗口的左上为基准），否则在编辑窗口的中央
-    func show() {
+    func show(focus: Bool = true) {
+        if !isOpen && !destroyed { opened() }
+        if isDocking {
+            showDocked(focus: focus)
+            return
+        }
         guard let panel = window else { return }
         if !panel.isVisible, let owner = view?.window {
             let frame = owner.frame
@@ -448,8 +497,12 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
                                                    y: frame.midY + panel.frame.height / 2))
             }
         }
-        panel.makeKeyAndOrderFront(nil)
-        panel.makeFirstResponder(result.isTree ? treeView : listView)
+        if focus {
+            panel.makeKeyAndOrderFront(nil)
+            panel.makeFirstResponder(result.isTree ? treeView : listView)
+        } else {
+            panel.orderFront(nil)
+        }
     }
 
     /// 記憶した位置（共通設定 xOutlineWindowPos 等：编辑窗口左上からの距離と大きさ、点）
@@ -463,6 +516,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
 
     /// 閉じるとき（原版 OnDestroy）：「位置と大きさを記憶する」なら位置と大きさを記憶
     func windowWillClose(_ notification: Notification) {
+        guard !isDocking else { return }
         if Self.commonBool("bRememberOutlineWindowPos"), let panel = window, let owner = view?.window {
             let frame = panel.frame, base = owner.frame
             _ = EditorCore.setCommonSettings([
@@ -472,12 +526,48 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
                 "heightOutlineWindow": String(Int(frame.height.rounded())),
             ], section: "Common")
         }
-        if view?.outlinePanel === self { view?.outlinePanel = nil }
+        destroy()
     }
 
-    /// Esc で閉じる
+    /// 閉じる（原版 DestroyWindow）
+    override func close() {
+        guard !destroyed else { return }
+        if isDocking {
+            dockView?.removeFromSuperview()
+            container?.dock = nil
+            destroy()
+        } else {
+            super.close()
+            destroy()
+        }
+    }
+
+    /// Esc・キャンセル（原版 IDCANCEL）：ドッキングは編集画面へ、フローティングは閉じる
+    func cancel() {
+        if isDocking { focusEditor() } else { close() }
+    }
+
     override func cancelOperation(_ sender: Any?) {
-        close()
+        cancel()
+    }
+
+    /// 開いたとき（原版 OnInitDialog）：表示の設定を ON（ChangeLayout の中は変えない）、同期ならほかの窓口へ通知
+    private func opened() {
+        guard let view, !view.outlineChangingLayout else { return }
+        OutlineDockSettings.setDisplay(true, typeIndex: typeIndex)
+        if OutlineDockSettings.sync { view.notifyOutlineToOthers() }
+    }
+
+    /// 閉じたとき（原版 OnDestroy）：明示的に閉じたときだけ表示の設定を OFF、同期ならほかの窓口へ通知
+    private func destroy() {
+        guard !destroyed else { return }
+        destroyed = true
+        guard let view else { return }
+        if view.outlinePanel === self { view.outlinePanel = nil }
+        if !ownerClosing && view.window?.isVisible == true && !view.outlineChangingLayout {
+            OutlineDockSettings.setDisplay(false, typeIndex: typeIndex)
+            if OutlineDockSettings.sync { view.notifyOutlineToOthers() }
+        }
     }
 }
 
@@ -615,16 +705,19 @@ final class OutlineTreeData: NSObject, NSOutlineViewDataSource, NSOutlineViewDel
     }
 
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        let label = NSTextField(labelWithString: (item as? OutlineTreeItem)?.node.label ?? "")
-        label.font = PropPage.font
-        label.lineBreakMode = .byClipping	// 原版の TreeView は省略記号を付けず切る
-        return label
+        OutlineCell(text: (item as? OutlineTreeItem)?.node.label ?? "", color: (outlineView as? OutlineTreeView)?.textColor)
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+        OutlineRowView(back: (outlineView as? OutlineTreeView)?.textColor == nil ? nil : outlineView.backgroundColor)
     }
 }
 
 /// アウトラインのツリー（原版 IDC_TREE_FL）
 final class OutlineTreeView: NSOutlineView {
     weak var controller: OutlineWindowController?
+    /// 文字の色（ドッキングのときは編集画面の色。nil は標準）
+    var textColor: NSColor?
 
     func setUp(data: OutlineTreeData, controller: OutlineWindowController) {
         self.controller = controller
@@ -684,6 +777,20 @@ final class OutlineTreeView: NSOutlineView {
     @objc private func doubleClicked(_ sender: Any?) {
         guard clickedRow >= 0 else { return }
         controller?.jump()
+    }
+
+    /// シングルクリック（ドッキングのときだけ動作。原版 NM_CLICK）
+    @objc func singleClicked(_ sender: Any?) {
+        guard clickedRow >= 0 else { return }
+        controller?.singleClicked()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        if let controller, controller.focusEditorAfterClick {
+            controller.focusEditorAfterClick = false
+            controller.focusEditor()
+        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -753,10 +860,11 @@ final class OutlineListData: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let column = Int(tableColumn?.identifier.rawValue ?? "0") ?? 0
-        let label = NSTextField(labelWithString: text(row: row, column: column))
-        label.font = PropPage.font
-        label.lineBreakMode = .byClipping
-        return label
+        return OutlineCell(text: text(row: row, column: column), color: (tableView as? OutlineListView)?.textColor)
+    }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        OutlineRowView(back: (tableView as? OutlineListView)?.textColor == nil ? nil : tableView.backgroundColor)
     }
 
     /// 列名のクリック（原版 LVN_COLUMNCLICK）
@@ -769,6 +877,8 @@ final class OutlineListData: NSObject, NSTableViewDataSource, NSTableViewDelegat
 /// アウトラインのリスト（原版 IDC_LIST_FL：LVS_REPORT、1 行選択）
 final class OutlineListView: NSTableView {
     weak var controller: OutlineWindowController?
+    /// 文字の色（ドッキングのときは編集画面の色。nil は標準）
+    var textColor: NSColor?
     private weak var data: OutlineListData?
 
     func setUp(data: OutlineListData, controller: OutlineWindowController) {
@@ -814,6 +924,20 @@ final class OutlineListView: NSTableView {
         controller?.jump()
     }
 
+    /// シングルクリック（ドッキングのときだけ動作。原版 NM_CLICK）
+    @objc func singleClicked(_ sender: Any?) {
+        guard clickedRow >= 0 else { return }
+        controller?.singleClicked()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        if let controller, controller.focusEditorAfterClick {
+            controller.focusEditorAfterClick = false
+            controller.focusEditor()
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
         if outlineKeyDown(event, controller: controller) { return }
         super.keyDown(with: event)
@@ -850,14 +974,14 @@ extension EditorTextView {
     }
 
     /// 原版 Command_FUNCLIST
-    func outlineCommand(action: OutlineAction, type requested: OutlineType) {
+    func outlineCommand(action: OutlineAction, type requested: OutlineType, focus: Bool = true) {
         let type = document.resolveOutlineType(requested)
-        if let panel = outlinePanel, panel.window?.isVisible == true, action != .reload {
+        if let panel = outlinePanel, panel.isOpen, action != .reload {
             switch action {
             case .normal:
                 // 開いているものと種別が同じならActiveにするだけ．異なれば再解析
                 if panel.outlineType == type {
-                    panel.show()
+                    panel.show(focus: focus)
                     return
                 }
             case .toggle:
@@ -872,22 +996,25 @@ extension EditorTextView {
         }
         // 種別は解析で決まったもの（原版 MakeFuncList_C は C/C++ を C か C++ に変える）
         let result = document.analyzeOutline(type)
-        if let panel = outlinePanel, panel.window?.isVisible == true {
+        if let panel = outlinePanel, panel.isOpen {
             panel.setData(result: result, outlineType: result.type)
-            panel.show()
+            panel.show(focus: focus)
         } else {
             guard let panel = OutlineWindowController(view: self, result: result, outlineType: result.type) else { return }
             outlinePanel = panel
             panel.setData(result: result, outlineType: result.type)
-            panel.show()
+            panel.show(focus: focus)
         }
     }
 
     /// タイプ別設定が変わった（原版 PM_CHANGESETTING_TYPE）：アウトラインを開いていれば、解析方法が変わったときは再解析
     func outlineTypeSettingsChanged() {
-        guard let panel = outlinePanel, panel.window?.isVisible == true else { return }
+        guard let panel = outlinePanel, panel.isOpen else { return }
         let type = document.resolveOutlineType(panel.outlineType == .bookmark ? .bookmark : .default)
-        guard type != panel.outlineType else { return }
+        guard type != panel.outlineType else {
+            panel.redraw()	// 描画更新（変更されたカラーの適用）のみ
+            return
+        }
         panel.setData(result: document.analyzeOutline(type), outlineType: type)
     }
 
@@ -922,5 +1049,73 @@ extension EditorTextView {
         Self.alertNotFound(next
             ? NSLocalizedString("前方(↓) に関数が見つかりません。", comment: "STR_FUCLIST_NEXT_NOT_FOUND")
             : NSLocalizedString("後方(↑) に関数が見つかりません。", comment: "STR_FUCLIST_PREV_NOT_FOUND"))
+    }
+}
+
+// MARK: - 項目の表示
+
+/// 一つの項目の文字。色を指定したとき（ドッキング）は、選んだ項目を反転した色で描く（原版 SyncColor の NM_CUSTOMDRAW）
+final class OutlineCell: NSTableCellView {
+    private let color: NSColor?
+
+    init(text: String, color: NSColor?) {
+        self.color = color
+        super.init(frame: .zero)
+        let label = NSTextField(labelWithString: text)
+        label.font = PropPage.font
+        label.lineBreakMode = .byClipping	// 原版の TreeView・ListView は省略記号を付けず切る
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        textField = label
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        updateColor()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { updateColor() }
+    }
+
+    private func updateColor() {
+        guard let color else { return }
+        textField?.textColor = backgroundStyle == .emphasized ? OutlineRowView.inverted(color) : color
+    }
+}
+
+/// 行。色を指定したとき（ドッキング）は、選んだ行の背景を編集画面の背景の反転色で描く
+final class OutlineRowView: NSTableRowView {
+    private let back: NSColor?
+
+    init(back: NSColor?) {
+        self.back = back
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    /// 原版：色 ^ RGB(255, 255, 255)
+    static func inverted(_ color: NSColor) -> NSColor {
+        guard let c = color.usingColorSpace(.sRGB) else { return color }
+        return NSColor(srgbRed: 1 - c.redComponent, green: 1 - c.greenComponent, blue: 1 - c.blueComponent, alpha: 1)
+    }
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard let back else {
+            super.drawSelection(in: dirtyRect)
+            return
+        }
+        Self.inverted(back).setFill()
+        bounds.fill()
     }
 }

@@ -161,6 +161,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     var findPanel: FindPanelController?
     /// アウトライン解析（第 42 步。原版 CEditWnd::m_cDlgFuncList）
     var outlinePanel: OutlineWindowController?
+    /// アウトラインの配置を変えている途中（原版 m_bInChangeLayout：開く・閉じるで表示の設定を変えない）
+    var outlineChangingLayout = false
     var replacePanel: ReplacePanelController?
 
     /// 光标的闪烁
