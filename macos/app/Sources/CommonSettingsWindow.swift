@@ -192,7 +192,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     /// 对话框单位 → 点（縦）
     static let scale: CGFloat = 1.6
     /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）
-    static var scaleX: CGFloat = 1.85
+    static var scaleX: CGFloat = 1.95
     static let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
 
     let definition: PropDialogs.Page
@@ -337,6 +337,10 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 // 原版的 Spin 跟在前一个数值框的右边（UDS_AUTOBUDDY | UDS_ALIGNRIGHT）
                 guard let edit = lastEdit else { continue }
                 let buddyID = edit.0, buddy = edit.1
+                // 分组框の枠線・ページの端からはみ出すときは、数値欄を縮めて中に収める（第 41 步）
+                let edge = (enclosingGroup(buddy.frame).map { $0.maxX - Self.groupMargin } ?? view.frame.width)
+                let overflow = buddy.frame.maxX + 1 + 15 - edge
+                if overflow > 0 && buddy.frame.width - overflow >= 24 { buddy.frame.size.width -= overflow }
                 let stepper = NSStepper(frame: NSRect(x: buddy.frame.maxX + 1, y: buddy.frame.minY - 2, width: 15, height: buddy.frame.height + 4))
                 stepper.controlSize = .small
                 stepper.valueWraps = false
@@ -417,6 +421,22 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             button.frame.size.width += shortage
         }
 
+        // 横に並んだボタンの間を 4 点以上あける（余白のあるほうを縮める）（第 41 步）
+        let pushButtons = view.subviews.compactMap { $0 as? NSButton }.filter { $0.bezelStyle == .rounded }.sorted { $0.frame.minX < $1.frame.minX }
+        for (i, left) in pushButtons.enumerated() {
+            for right in pushButtons[(i + 1)...] where abs(left.frame.midY - right.frame.midY) < 6 && right.frame.minX >= left.frame.minX {
+                let deficit = 4 - (right.frame.minX - left.frame.maxX)
+                guard deficit > 0, right.frame.minX - left.frame.maxX < 20 else { continue }
+                let rightSlack = right.frame.width - ceil(right.fittingSize.width)
+                let leftSlack = left.frame.width - ceil(left.fittingSize.width)
+                let fromRight = min(deficit, max(0, rightSlack))
+                right.frame.origin.x += fromRight
+                right.frame.size.width -= fromRight
+                let rest = deficit - fromRight
+                if rest > 0 { left.frame.size.width -= min(rest, max(0, leftSlack)) }
+            }
+        }
+
         // 上下ボタン（原版は数値の欄の中に描く）に重なった右隣の説明（「ドット」等）は、ボタンの右へずらす（第 41 步）
         for stepper in steppers.values {
             for label in view.subviews.compactMap({ $0 as? NSTextField }) where !label.isEditable && label.frame.intersects(stepper.frame)
@@ -448,11 +468,15 @@ final class PropPage: NSObject, NSTextFieldDelegate {
         var result = frame
         var limit = view.frame.width
         var leftLimit: CGFloat = 0
+        if let group = enclosingGroup(original) {
+            limit = group.maxX - Self.groupMargin
+            leftLimit = group.minX + Self.groupMargin
+        }
         for other in definition.controls where other.kind != "group" {
             let r = Self.rect(other.frame)
             guard r != original, r.maxY > original.minY, r.minY < original.maxY else { continue }
-            if r.minX >= original.maxX - 1 { limit = min(limit, r.minX - 2) }
-            if r.maxX <= original.minX + 1 { leftLimit = max(leftLimit, r.maxX + 2) }
+            if r.minX >= original.maxX - 1 { limit = min(limit, r.minX - 4) }
+            if r.maxX <= original.minX + 1 { leftLimit = max(leftLimit, r.maxX + 4) }
         }
         result.size.width = min(needed, max(frame.width, limit - frame.minX))
         let shortage = needed - result.width
@@ -473,13 +497,28 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     }
 
     /// ボタンの左右の余白：4 点まで。同じ高さにある隣の控件との間の半分を超えない
+    /// 分组框の枠線と中の控件の間（点）
+    static let groupMargin: CGFloat = 6
+
+    /// この枠（原版の位置）を中に含む一番小さい分组框
+    private func enclosingGroup(_ original: NSRect) -> NSRect? {
+        definition.controls.filter { $0.kind == "group" }.map { Self.rect($0.frame) }
+            .filter { $0.contains(original.insetBy(dx: 1, dy: 1)) }
+            .min { $0.width * $0.height < $1.width * $1.height }
+    }
+
     private func buttonMargins(_ frame: NSRect, id: String) -> (CGFloat, CGFloat) {
         var left: CGFloat = 4, right: CGFloat = 4
+        if let group = enclosingGroup(frame) {
+            left = min(left, max(0, frame.minX - (group.minX + Self.groupMargin)))
+            right = min(right, max(0, group.maxX - Self.groupMargin - frame.maxX))
+        }
         for other in definition.controls where other.id != id && other.kind != "group" {
             let r = Self.rect(other.frame)
             guard r.maxY > frame.minY, r.minY < frame.maxY else { continue }
-            if r.maxX <= frame.minX { left = min(left, max(0, (frame.minX - r.maxX) / 2)) }
-            if r.minX >= frame.maxX { right = min(right, max(0, (r.minX - frame.maxX) / 2)) }
+            // 隣との間は 4 点以上残す
+            if r.maxX <= frame.minX { left = min(left, max(0, (frame.minX - r.maxX - 4) / 2)) }
+            if r.minX >= frame.maxX { right = min(right, max(0, (r.minX - frame.maxX - 4) / 2)) }
         }
         return (left, right)
     }

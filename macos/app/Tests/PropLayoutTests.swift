@@ -63,8 +63,42 @@ final class PropLayoutTests: XCTestCase {
                 }
             }
         }
+        // 横に並んだボタンの間は 3 点以上（くっついて 1 つのボタンに見えないように）
+        let buttons = controls.filter { $0.kind == "button" }.compactMap { c -> (String, NSRect)? in
+            guard let v = page.control(c.id), !v.isHidden else { return nil }
+            return (c.id, v.frame)
+        }
+        for (i, a) in buttons.enumerated() {
+            for b in buttons[(i + 1)...] where a.1.maxY > b.1.minY + 4 && a.1.minY < b.1.maxY - 4 {
+                let gap = a.1.minX < b.1.minX ? b.1.minX - a.1.maxX : a.1.minX - b.1.maxX
+                if gap < 3 { result.append("ボタンの間 \(a.0) \(b.0) \(gap)") }
+            }
+        }
+        // 分组框の中の控件は枠線から離す（Mac の分组框は角が丸く、線に触れると窮屈に見える）。ページの外にも出さない
+        let groups = page.definition.controls.filter { $0.kind == "group" }.map(original)
+        // 上下ボタン（spin）は前の数値欄に付く：数値欄の原版の位置で分组框を決める
+        var edgeControls = controls.map { ($0, $0) }
+        var lastEdit: PropDialogs.Control?
+        for c in page.definition.controls {
+            if c.kind == "edit" { lastEdit = c }
+            if c.kind == "spin", c.id != "IDC_STATIC", let edit = lastEdit { edgeControls.append((c, edit)) }
+        }
+        for (c, placed) in edgeControls {
+            guard let v = page.control(c.id), !v.isHidden else { continue }
+            let frame = v.superview === page.view ? v.frame : v.convert(v.bounds, to: page.view)
+            let o = original(placed)
+            if frame.minX < 0 || frame.maxX > page.view.frame.width { result.append("ページの外 \(c.id)") }
+            // 原版で中にある一番小さい分组框
+            guard let group = groups.filter({ $0.contains(o.insetBy(dx: 1, dy: 1)) }).min(by: { $0.width * $0.height < $1.width * $1.height }) else { continue }
+            if frame.maxX > group.maxX - Self.groupMargin || frame.minX < group.minX + Self.groupMargin {
+                result.append("枠線に近い \(c.id) \(frame.minX)-\(frame.maxX) 枠 \(group.minX)-\(group.maxX)")
+            }
+        }
         return result
     }
+
+    /// 分组框の枠線と中の控件の間（点）
+    static let groupMargin: CGFloat = 4
 
     func testCommonSettingsPagesHaveNoTruncatedText() throws {
         let controller = try XCTUnwrap(CommonSettingsWindowController(store: store))
