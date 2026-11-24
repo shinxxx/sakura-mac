@@ -1,0 +1,13 @@
+title: 正規表現置換
+[tree]
++ クラス Alpha <
+    関数 one
+    関数 two
++ クラス Beta
+    関数 three
+[clip]
+ クラス Alpha
+   関数 one
+   関数 two
+ クラス Beta
+   関数 three

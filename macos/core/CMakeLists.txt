@@ -277,9 +277,11 @@ endif()
 # ---------------------------------------------------------------------------
 # 核心库的对外接口（第 22 步）。界面层只使用 include/sakura_core/SakuraCore.h
 # ---------------------------------------------------------------------------
-add_library(sakura_core_api STATIC "${CMAKE_CURRENT_SOURCE_DIR}/api/SakuraCore.cpp")
+add_library(sakura_core_api STATIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/SakuraCore.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/OutlineView.cpp")   # 第 42 步：アウトライン解析的结果（原版 CDlgFuncList 的数据部分）
 target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(sakura_core_api PRIVATE sakura_core)
+target_link_libraries(sakura_core_api PRIVATE sakura_core "-framework CoreFoundation")   # 第 42 步：アウトライン的アルファベット順（lstrcmpi 的代替）
 add_dependencies(sakura_core_api sakura_funccode)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(sakura_core_api PRIVATE -Wno-everything)   # 原版的头文件有大量警告

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML のアウトライン解析のサンプル -->
+<root>
+  <item id="1">
+    <name>first</name>
+    <value/>
+  </item>
+  <item id="2"><name>second</name></item>
+  <ns:element xmlns:ns="urn:x">
+    <ns:child />
+  </ns:element>
+  <![CDATA[<notElement>]]>
+  <日本語>テキスト</日本語>
+</root>

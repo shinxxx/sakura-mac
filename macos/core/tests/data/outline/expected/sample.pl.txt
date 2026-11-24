@@ -1,0 +1,12 @@
+title: Perl 関数一覧
+[list]
+行 *	桁	関数名	
+5	1	new	 <
+10	1	method_one	
+12	1	indented_sub	
+20	1	main_func	
+[clip]
+<FILE>(5,1): new
+<FILE>(10,1): method_one
+<FILE>(12,1): indented_sub
+<FILE>(20,1): main_func

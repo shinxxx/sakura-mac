@@ -1,0 +1,21 @@
+title: Python メソッドツリー
+[tree]
++ Animal クラス <
+    __init__
+  + speak
+      inner
+    Meta クラス
+  decorated
+  名称未定
++ Dog クラス
+    speak
+[clip]
+<FILE>(5,1):  Animal クラス
+<FILE>(10,1):    __init__
+<FILE>(13,1):    speak
+<FILE>(14,1):      inner
+<FILE>(18,1):    Meta クラス
+<FILE>(27,1):  decorated
+<FILE>(32,1):  名称未定
+<FILE>(36,1):  Dog クラス
+<FILE>(37,1):    speak

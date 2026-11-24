@@ -1,0 +1,5 @@
+﻿正規表現モードのルールファイル
+;Mode=RegexReplace
+;Title=正規表現置換
+^function\s+(\w+) /// 関数 $1 /// 関数
+^class\s+(\w+) /// クラス $1 /// クラス

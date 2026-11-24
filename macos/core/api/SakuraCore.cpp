@@ -42,6 +42,11 @@
 #include "view/colors/CColorStrategy.h"
 #include "env/CRegexKeyword.h"
 #include "../src/color_support.h"
+#include "OutlineView.h"
+#include "doc/CDocOutline.h"
+#include "docplus/CFuncListManager.h"
+#include "outline/CFuncInfo.h"
+#include "outline/CFuncInfoArr.h"
 #include "mem/CMemoryIterator.h"
 #include "config/app_constants.h"
 #include "env/CDocTypeManager.h"
@@ -4799,6 +4804,113 @@ std::optional<std::int32_t> Document::WrapWindowWidthColumns(std::int32_t width)
 		return nType;		// 9) a) 最大値!=設定値 : 設定値
 	}
 	return nWindow;			// b) c) ウィンドウ幅
+}
+
+// ----- アウトライン解析（第 42 步） -----
+
+OutlineResult Document::AnalyzeOutline(OutlineType requested)
+{
+	auto& d = *m_impl;
+	const Text& path = d.info.path;
+	CFuncInfoArr cFuncInfoArr;
+	sakura::wstring sTitleOverride;	// ルールファイルによるダイアログタイトル上書き
+
+	// 以下与 Command_FUNCLIST 相同
+	EOutlineType nOutlineType = EOutlineType(ResolveOutlineType(requested));
+	COutlineDocRef docRef{ d.lines, d.layout, { d.typeConfig }, { path.c_str() }, { d.newLineEol } };
+	CDocOutline cDocOutline(&docRef);
+	int nListType = nOutlineType;
+	switch (nOutlineType) {
+	case OUTLINE_C:			// C/C++ は MakeFuncList_C
+	case OUTLINE_C_CPP:
+	case OUTLINE_CPP:
+		cDocOutline.MakeFuncList_C(&cFuncInfoArr, nOutlineType, path.c_str());
+		nListType = nOutlineType; // 変更された可能性あり
+		break;
+	case OUTLINE_PLSQL:		cDocOutline.MakeFuncList_PLSQL(&cFuncInfoArr); break;
+	case OUTLINE_JAVA:		cDocOutline.MakeFuncList_Java(&cFuncInfoArr); break;
+	case OUTLINE_COBOL:		cDocOutline.MakeTopicList_cobol(&cFuncInfoArr); break;
+	case OUTLINE_ASM:		cDocOutline.MakeTopicList_asm(&cFuncInfoArr); break;
+	case OUTLINE_PERL:		cDocOutline.MakeFuncList_Perl(&cFuncInfoArr); break;
+	case OUTLINE_VB:		cDocOutline.MakeFuncList_VisualBasic(&cFuncInfoArr); break;
+	case OUTLINE_WZTXT:		cDocOutline.MakeTopicList_wztxt(&cFuncInfoArr); break;
+	case OUTLINE_HTML:		cDocOutline.MakeTopicList_html(&cFuncInfoArr, false); break;
+	case OUTLINE_TEX:		cDocOutline.MakeTopicList_tex(&cFuncInfoArr); break;
+	case OUTLINE_BOOKMARK:	cDocOutline.MakeFuncList_BookMark(&cFuncInfoArr); break;
+	case OUTLINE_FILE:		cDocOutline.MakeFuncList_RuleFile(&cFuncInfoArr, sTitleOverride); break;
+	case OUTLINE_PYTHON:	cDocOutline.MakeFuncList_python(&cFuncInfoArr); break;
+	case OUTLINE_ERLANG:	cDocOutline.MakeFuncList_Erlang(&cFuncInfoArr); break;
+	case OUTLINE_XML:		cDocOutline.MakeTopicList_html(&cFuncInfoArr, true); break;
+	case OUTLINE_FILETREE:	/* 特に何もしない */ break;
+	case OUTLINE_TEXT:
+	default:
+		// プラグインのアウトライン解析は Mac 版にはない（DLL プラグインは偏离项 9）
+		cDocOutline.MakeTopicList_txt(&cFuncInfoArr);
+		break;
+	}
+	/* 解析対象ファイル名 */
+	cFuncInfoArr.m_szFilePath = path.c_str();
+
+	// 関数リストマーク（CDlgFuncList::SetDocLineFuncList）
+	if (nOutlineType != OUTLINE_BOOKMARK && nOutlineType != OUTLINE_FILETREE) {
+		CFuncListManager().ResetAllFucListMark(&d.lines, false);
+		for (const CFuncInfo* pcFuncInfo : cFuncInfoArr) {
+			if (0 < pcFuncInfo->m_nFuncLineCRLF) {
+				if (CDocLine* pcDocLine = d.lines.GetLine(pcFuncInfo->m_nFuncLineCRLF - 1)) {
+					CFuncListManager().SetLineFuncList(pcDocLine, true);
+				}
+			}
+		}
+	}
+
+	// ソートの設定は共通設定の今のタイプ別設定（CDlgFuncList の m_type）
+	auto type = std::make_unique<STypeConfig>();
+	if (!CDocTypeManager().GetTypeConfig(CTypeConfig(d.info.typeIndex), *type)) {
+		*type = d.typeConfig;
+	}
+	return BuildOutlineView(cFuncInfoArr, nOutlineType, nListType, Text(sTitleOverride.c_str()),
+		d.typeConfig.m_bLineNumIsCRLF, type->m_nOutlineSortType, type->m_nOutlineSortCol, type->m_bOutlineSortDesc);
+}
+
+OutlineType Document::ResolveOutlineType(OutlineType requested) const
+{
+	EOutlineType nOutlineType = EOutlineType(requested);
+	if (nOutlineType == OUTLINE_DEFAULT) {
+		/* タイプ別に設定されたアウトライン解析方法 */
+		nOutlineType = m_impl->typeConfig.m_eDefaultOutline;
+		// C/C++はファイル名(拡張子)により追加判定する
+		if (nOutlineType == OUTLINE_C_CPP) {
+			nOutlineType = GetCLangOutlineType(m_impl->info.path.c_str());
+		}
+	}
+	return OutlineType(nOutlineType);
+}
+
+std::int32_t Document::FindFuncListMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped) const
+{
+	// 原版 Command_FUNCLIST_NEXT / Command_FUNCLIST_PREV
+	const auto& d = *m_impl;
+	const int nYOld = line;
+	CLogicInt y(line);
+	for (int n = 0; n < 2; n++) {
+		CLogicInt found(0);
+		if (CFuncListManager().SearchFuncListMark(&d.lines, y, forward ? SEARCH_FORWARD : SEARCH_BACKWARD, &found)) {
+			if (pWrapped) *pWrapped = forward ? (nYOld >= found) : (nYOld <= found);
+			return found;
+		}
+		if (!searchAll) {
+			break;
+		}
+		y = forward ? CLogicInt(-1) : d.lines.GetLineCount();
+	}
+	if (pWrapped) *pWrapped = false;
+	return -1;
+}
+
+bool Document::HasFuncListMark(std::int32_t line) const
+{
+	const CDocLine* pcDocLine = m_impl->lines.GetLine(CLogicInt(line));
+	return pcDocLine && CFuncListManager().GetLineFuncList(pcDocLine);
 }
 
 // ----- フォントサイズ（第 34 步） -----

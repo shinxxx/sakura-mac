@@ -163,6 +163,60 @@ jobs:
           if (-not ($all -match 'large: done') -or -not ($all -match 'long: done')) { throw 'benchmark did not finish' }
           if ($all -match 'error:') { throw 'benchmark macro reported an error' }
 
+  # 第 42 步：Windows 版（官方发布的 sakura.exe）的アウトライン解析结果。打开 Mac 版测试的样本文件
+  # （macos/core/tests/data/outline），用 UI Automation 读出对话框的ツリー・リスト和「コピー」的文字，
+  # 与 Mac 版测试比较的 expected 文件相同（macos/tools/outline/windows-outline.ps1）
+  outline-windows:
+    needs: check-encoding
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download Sakura Editor (official release)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+          "Sakura Editor $($rel.tagName) ($($asset.name))"
+
+      # sakura.exe は 32 位：32 位的 Windows PowerShell 运行（读 TreeView・ListView 的结构体的大小相同）
+      - name: Run outline analysis
+        shell: cmd
+        run: |
+          for /f "delims=" %%i in ('dir /s /b sakura\sakura.exe') do set EXE=%%i
+          %SystemRoot%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File macos\tools\outline\windows-outline.ps1 -SakuraExe "%EXE%" -DataDir macos\core\tests\data\outline -OutDir outline-result
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: outline-windows
+          path: |
+            outline-result/*.txt
+            outline-result/*.png
+
+      - name: Compare with expected
+        shell: pwsh
+        run: |
+          $ng = 0
+          foreach ($f in Get-ChildItem macos/core/tests/data/outline/expected -Filter *.txt) {
+            $actual = Join-Path outline-result $f.Name
+            if (-not (Test-Path $actual)) { Write-Host "::error::no result: $($f.Name)"; $ng = 1; continue }
+            git diff --no-index --exit-code -- $f.FullName $actual
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::differs from Windows: $($f.Name)"; $ng = 1 }
+          }
+          exit $ng
+
   wchar16-test-windows:
     needs: check-encoding
     runs-on: windows-latest

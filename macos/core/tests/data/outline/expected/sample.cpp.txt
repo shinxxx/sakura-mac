@@ -1,0 +1,64 @@
+title: C++ メソッドツリー
+[tree]
+- outer 名前空間
+    定義位置 <
+  + inner 名前空間
+      定義位置
+    + Shape クラス
+        Shape(宣言)
+        ~Shape(宣言)
+        Area(宣言)
+        Count
+        operator=(宣言)
+        operator bool
+        Point 構造体
+        Kind 列挙体
+        Shape
+        ~Shape
+        operator=
+      Max
+      Split
+  + Pair 構造体
+      Swap(宣言)
+      Swap
+    Value 共用体
+- グローバル
+    helper(宣言)
+    c_api(宣言)
+    helper
+    日本語関数
+    main
+- Outer クラス
+  + Nested クラス
+      Method
+      Method2
+[clip]
+<FILE>(5,1): outer::定義位置
+<FILE>(6,1): outer::inner::定義位置
+<FILE>(8,1): outer::inner::Shape
+<FILE>(10,1): outer::inner::Shape::Shape(宣言)
+<FILE>(11,1): outer::inner::Shape::~Shape(宣言)
+<FILE>(12,1): outer::inner::Shape::Area(宣言)
+<FILE>(13,1): outer::inner::Shape::Count
+<FILE>(14,1): outer::inner::Shape::operator=(宣言)
+<FILE>(15,1): outer::inner::Shape::operator bool
+<FILE>(18,1): outer::inner::Shape::Point
+<FILE>(19,1): outer::inner::Shape::Kind
+<FILE>(22,1): outer::inner::Shape::Shape
+<FILE>(27,1): outer::inner::Shape::~Shape
+<FILE>(31,1): outer::inner::Shape::operator=
+<FILE>(38,1): outer::inner::Max
+<FILE>(42,1): outer::Pair
+<FILE>(44,1): outer::Pair::Swap(宣言)
+<FILE>(47,1): outer::Pair::Swap
+<FILE>(52,1): outer::Value
+<FILE>(61,1): helper(宣言)
+<FILE>(62,1): c_api(宣言)
+<FILE>(64,1): helper
+<FILE>(70,1): outer::inner::Split
+<FILE>(75,1): Outer
+<FILE>(76,1): Outer::Nested
+<FILE>(77,1): Outer::Nested::Method
+<FILE>(81,1): Outer::Nested::Method2
+<FILE>(83,1): 日本語関数
+<FILE>(88,1): main

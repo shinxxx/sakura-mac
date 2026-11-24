@@ -13,6 +13,7 @@
 #include "sakura_platform_hooks.h"
 #include "CSelectLang.h"
 #include "util/MessageBoxF.h"
+#include "sakura_rc.h"
 
 #include <algorithm>
 #include <atomic>
@@ -108,6 +109,17 @@ int MessageBoxS(
 	const sakura::wstring caption = optCaption.value_or(LTEXT("Sakura Editor"));
 	return sakura::platform::ShowMessageBox(text.c_str(), caption.c_str(), uType);
 }
+
+namespace basis {
+
+//! 作者に教えて欲しいエラーのタイトル（原版 MessageBoxF.cpp。第 42 步：Erlang のアウトライン解析が使う）
+sakura::wstring GetBugReportCaption()
+{
+	// L"sakura: 作者に教えて欲しいエラー"
+	return sakura::wstring(LS(STR_ERR_DLGDOCLMN1));
+}
+
+} // namespace basis
 
 //! 原版代码里的 ::MessageBox（MessageBoxF.h 把它换成 Wrap_MessageBox）。与原版相同：先复制文字，标题省略时用默认标题
 int Wrap_MessageBox(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)

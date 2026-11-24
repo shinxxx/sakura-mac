@@ -1,0 +1,16 @@
+title: C++ メソッドツリー
+[tree]
+- Widget クラス <
+    Widget(宣言)
+    Draw(宣言)
+    Width
+- グローバル
+    free_function(宣言)
+    inline_function
+[clip]
+<FILE>(5,1): Widget
+<FILE>(7,1): Widget::Widget(宣言)
+<FILE>(8,1): Widget::Draw(宣言)
+<FILE>(9,1): Widget::Width
+<FILE>(14,1): free_function(宣言)
+<FILE>(16,1): inline_function

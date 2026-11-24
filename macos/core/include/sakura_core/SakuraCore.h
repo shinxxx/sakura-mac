@@ -1056,6 +1056,118 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// アウトライン解析（第 42 步。原版 Command_FUNCLIST、CDocOutline、CDlgFuncList 的数据部分）
+// ---------------------------------------------------------------------------
+
+//! アウトライン解析方法（数值与原版的 EOutlineType 相同）
+enum class OutlineType : std::int32_t {
+	Default = -1,		//!< 类型别设置的「アウトライン解析方法」
+	C = 0,
+	CCpp = 1,			//!< C/C++（按扩展名决定 C 或 C++）
+	PlSql = 2,
+	Text = 3,
+	Java = 4,
+	Cobol = 5,
+	Asm = 6,
+	Perl = 7,
+	VisualBasic = 8,
+	WzText = 9,			//!< WZ階層付テキスト
+	Html = 10,
+	Tex = 11,
+	RuleFile = 12,		//!< ルールファイル
+	Python = 13,
+	Erlang = 14,
+	Xml = 15,
+	Cpp = 16,
+	Bookmark = 18,		//!< ブックマークの一覧
+	FileTree = 20,		//!< ファイルツリー
+	Tree = 100,			//!< 汎用ツリー（プラグイン）
+	TreeTagJump = 101,	//!< 汎用ツリー(タグジャンプ付き)
+	ClassTree = 200,	//!< 汎用クラスツリー
+	List = 300,			//!< 汎用リスト
+};
+
+//! ツリーの順序（原版的「順序」：SORTTYPE_DEFAULT 等。数值相同）
+enum class OutlineSort : std::int32_t {
+	Default = 0,		//!< デフォルト
+	DefaultDesc = 1,	//!< デフォルト(降順)
+	AtoZ = 2,			//!< アルファベット順
+	ZtoA = 3,			//!< アルファベット(降順)
+};
+
+//! 解析结果的一项（原版 CFuncInfo）
+struct OutlineItem {
+	std::int32_t line = 0;			//!< 逻辑行（1 开始。原版 m_nFuncLineCRLF）
+	std::int32_t column = 0;		//!< 逻辑桁（1 开始。原版 m_nFuncColCRLF）
+	std::int32_t layoutLine = 0;	//!< 排版行（1 开始。原版 m_nFuncLineLAYOUT）
+	std::int32_t layoutColumn = 0;	//!< 排版桁（1 开始）
+	Text name;						//!< 原版 m_cmemFuncName
+	Text fileName;					//!< 别的文件的项目（原版 m_cmemFileName。没有时空）
+	std::int32_t info = 0;			//!< 原版 m_nInfo（FL_OBJ_FUNCTION 等）
+	std::int32_t depth = 0;			//!< 原版 m_nDepth
+};
+
+//! ツリーの一つの項目（原版 CDlgFuncList 在 TreeView 里加的项目）
+struct OutlineNode {
+	Text label;
+	std::int32_t item = -1;		//!< items 的下标。クラス名、グローバル 等的项目是 -1
+	std::int32_t order = 0;		//!< 加入的顺序（原版的 lParam。「デフォルト」的顺序）
+	bool expanded = false;		//!< 打开窗口时展开着（原版：Java/C++ 等的第一层）
+	std::vector<OutlineNode> children;
+};
+
+//! リストの一行（原版 CDlgFuncList 的 ListView 的一行）
+struct OutlineRow {
+	std::int32_t item = 0;		//!< items 的下标
+	std::int32_t line = 0;		//!< 「行」（タイプ別設定「行番号の表示」：改行単位 / 折り返し単位）
+	std::int32_t column = 0;	//!< 「桁」
+	Text name;					//!< 「関数名」
+	Text remark;				//!< 第 4 列（「関数」「宣言」等）
+};
+
+//! アウトライン解析的结果（原版 Command_FUNCLIST 的解析 + CDlgFuncList::SetData）
+struct OutlineResult {
+	OutlineType type = OutlineType::Text;		//!< 实际用的解析方法（C/C++ 时是 C 或 Cpp）
+	OutlineType listType = OutlineType::Text;	//!< 一覧的形式（原版 m_nListType）
+	Text title;									//!< 窗口标题（原版 SetWindowText）
+	Text filePath;								//!< 解析的文件（原版 m_szFilePath。新文件时空）
+	bool isTree = true;							//!< ツリー（false 是リスト）
+	std::vector<OutlineItem> items;
+	std::vector<OutlineNode> tree;				//!< ツリー时
+	std::vector<OutlineRow> rows;				//!< リスト时（已经按「行」等排好）
+	Text columnTitles[4];						//!< リスト的列名（排序的列后面有「 *」）
+	Text clipText;								//!< 「コピー」的文字（原版 m_cmemClipText）
+	OutlineSort sort = OutlineSort::Default;	//!< ツリー的顺序（タイプ別設定 nOutlineSortType）
+	std::int32_t sortColumn = 0;				//!< リスト的排序列（nOutlineSortCol）
+	bool sortDescending = false;				//!< リスト的降順（bOutlineSortDesc）
+	bool lineNumIsCRLF = true;					//!< 行番号は改行単位（タイプ別設定 bLineNumIsCRLF）
+};
+
+/*!
+	ツリーの順序を変える（原版 CDlgFuncList::SortTree：所有层次。アルファベット順 是不区分大小写的比较，
+	相同时按加入的顺序）。result.sort 也改。
+*/
+void SortOutlineTree(OutlineResult& result, OutlineSort sort);
+
+/*!
+	リストを並べ替える（原版 SortListView：0「行」、1「桁」、2「関数名」、3 第 4 列）。
+	列名（columnTitles）也改，result.sortColumn、sortDescending 也改。
+*/
+void SortOutlineRows(OutlineResult& result, std::int32_t column, bool descending);
+
+/*!
+	光标所在的项目（原版 CDlgFuncList::GetFuncInfoIndex）：光标之前最后一个项目，
+	光标在第一个项目之前时是第一个项目。没有项目时 -1。
+	@param layoutLine, layoutColumn 光标的排版位置（1 开始）
+*/
+std::int32_t OutlineItemAt(const OutlineResult& result, std::int32_t layoutLine, std::int32_t layoutColumn);
+
+/*!
+	ツリー里这个项目的位置：从根开始的下标（tree[p0].children[p1]…）。没有时空。
+*/
+std::vector<std::int32_t> OutlineNodePath(const OutlineResult& result, std::int32_t item);
+
+// ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------
 
@@ -1507,6 +1619,33 @@ public:
 		@return 之后的光标
 	*/
 	Position DeleteLayoutLine(std::int32_t layoutLine, std::int32_t x);
+
+	// ----- アウトライン解析（第 42 步） -----
+
+	/*!
+		アウトライン解析（原版 Command_FUNCLIST 的解析部分和 CDlgFuncList::SetData 的数据）。
+		type 是 Default 时用类型别设置的解析方法。ツリー的顺序、リスト的排序按类型别设置。
+		同时设置関数リストマーク（原版 SetDocLineFuncList：ブックマーク、ファイルツリー 以外）。
+		ルールファイル 是类型别设置的文件（相对路径从 sakura.ini 的文件夹）。
+	*/
+	OutlineResult AnalyzeOutline(OutlineType type = OutlineType::Default);
+
+	/*!
+		解析方法（原版 Command_FUNCLIST 的开头）：Default 时是类型别设置的方法，C/C++ 时按扩展名是 C 或 Cpp
+		（扩展名不是 .c、.cpp 等时 CCpp 不变）。已经打开的アウトライン解析 是不是同じ种类，按它判断
+	*/
+	OutlineType ResolveOutlineType(OutlineType type) const;
+
+	/*!
+		次の関数リストマークへ／前の関数リストマークへ（原版 Command_FUNCLIST_NEXT/PREV）的目标行。
+		从 line 的下一行（前の 时上一行）找有関数リストマーク的逻辑行。
+		searchAll（共通設定「先頭（末尾）から再検索する」）时到了末尾（开头）再从开头（末尾）找。
+		找不到时 -1。@param[out] pWrapped 绕回去了（原版「▼末尾から先頭へ移動しました」等的消息）
+	*/
+	std::int32_t FindFuncListMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped = nullptr) const;
+
+	//! この行に関数リストマークがあるか
+	bool HasFuncListMark(std::int32_t line) const;
 
 private:
 	Document();
