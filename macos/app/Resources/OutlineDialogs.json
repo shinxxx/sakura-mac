@@ -1,0 +1,19 @@
+{"source": "sakura_core/sakura_rc.rc", "pages": [
+], "dialogs": [
+ {"name": "x", "dialog": "IDD_FUNCLIST", "size": [240, 289], "controls": [
+  {"id": "IDC_TREE_FL", "kind": "tree", "frame": [0, 20, 234, 232], "text": "Tree1"},
+  {"id": "IDC_LIST_FL", "kind": "listview", "frame": [0, 0, 234, 252], "text": "List1"},
+  {"id": "IDC_BUTTON_MENU", "kind": "button", "frame": [1, 255, 10, 14], "text": "▼"},
+  {"id": "IDC_BUTTON_WINSIZE", "kind": "check", "frame": [12, 255, 10, 14], "text": "■", "flags": ["pushlike"]},
+  {"id": "IDC_BUTTON_COPY", "kind": "button", "frame": [24, 255, 50, 14], "text": "コピー(C)", "flags": ["disabled"]},
+  {"id": "IDOK", "kind": "button", "frame": [76, 255, 50, 14], "text": "ジャンプ(J)"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [128, 255, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [180, 255, 50, 14], "text": "ヘルプ(H)"},
+  {"id": "IDC_CHECK_bAutoCloseDlgFuncList", "kind": "check", "frame": [5, 271, 75, 10], "text": "自動的に閉じる(D)"},
+  {"id": "IDC_CHECK_bFunclistSetFocusOnJump", "kind": "check", "frame": [82, 271, 77, 10], "text": "フォーカスを移す(F)"},
+  {"id": "IDC_CHECK_bMarkUpBlankLineEnable", "kind": "check", "frame": [160, 271, 76, 10], "text": "空行を無視する(B)"},
+  {"id": "IDC_STATIC_nSortType", "kind": "label", "frame": [3, 6, 28, 10], "text": "順序(S)"},
+  {"id": "IDC_BUTTON_SETTING", "kind": "button", "frame": [3, 3, 35, 14], "text": "設定(S)"},
+  {"id": "IDC_COMBO_nSortType", "kind": "combo", "frame": [34, 3, 94, 65], "flags": ["dropdownlist"]}
+ ]}
+]}

@@ -125,6 +125,10 @@ targets:
       - path: Sources/CustomMenuToolbarPages.swift
       - path: Resources/mytool.bmp	# ツールバーのアイコン（原版 IDB_MYTOOL。src/main/resources/images へのリンク）
         buildPhase: resources
+      # 第 42 步：アウトライン解析
+      - path: Sources/OutlineWindow.swift
+      - path: Resources/OutlineDialogs.json
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

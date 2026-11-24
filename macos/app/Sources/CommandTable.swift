@@ -83,6 +83,11 @@ enum CommandTable {
         30905: #selector(EditorTextView.toggleSearchMark(_:)),		// F_SEARCH_CLEARMARK
         30909: #selector(EditorTextView.jumpToSearchStart(_:)),		// F_JUMP_SRCHSTARTPOS
         30920: #selector(EditorTextView.showJumpDialog(_:)),		// F_JUMP_DIALOG
+        // 第 42 步：アウトライン解析（OutlineWindow.swift）
+        30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
+        30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)
+        30988: #selector(EditorTextView.funcListNext(_:)),			// F_FUNCLIST_NEXT 次の関数リストマークへ
+        30989: #selector(EditorTextView.funcListPrev(_:)),			// F_FUNCLIST_PREV 前の関数リストマークへ
 
         // 設定（第 27、28 步）
         31120: #selector(EditorTextView.showFontPanel(_:)),			// F_FONT フォント設定
