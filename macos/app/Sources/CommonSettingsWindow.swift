@@ -274,7 +274,15 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 button.font = Self.font
                 // Mac 的按钮比 Windows 高：上下居中
                 let height = max(frame.height, 22)
-                button.frame = NSRect(x: frame.minX - 4, y: frame.midY - height / 2, width: frame.width + 8, height: height)
+                // Mac のボタンは枠の内側に余白があるので左右に 4 点広げる。ただし隣のボタンと重ならないように（第 41 步）
+                let (left, right) = buttonMargins(frame, id: control.id)
+                button.frame = NSRect(x: frame.minX - left, y: frame.midY - height / 2, width: frame.width + left + right, height: height)
+                // 文字が入らないときは少しだけ小さい字にする（原版の文字は全部見える）
+                var size = NSFont.smallSystemFontSize
+                while button.fittingSize.width > button.frame.width && size > 9 {
+                    size -= 0.5
+                    button.font = NSFont.systemFont(ofSize: size)
+                }
                 view.addSubview(button)
                 register(button, control)
             case "label":
@@ -337,6 +345,8 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 scroll.borderType = .bezelBorder
                 scroll.hasVerticalScroller = true
                 let tree = PropTree()
+                tree.outline.tableColumns.first?.width = frame.width - 4	// 列は枠の幅いっぱい
+                tree.outline.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
                 tree.onSelect = { [weak self] in self?.onChange?(control.id) }
                 trees[control.id] = tree
                 scroll.documentView = tree.outline
@@ -348,6 +358,7 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 scroll.borderType = .bezelBorder
                 scroll.hasVerticalScroller = true
                 let list = PropList(header: control.kind == "listview")
+                if control.kind == "list" { list.table.tableColumns.first?.width = frame.width - 4 }	// ListBox の列は枠の幅いっぱい
                 list.onSelect = { [weak self] in self?.onChange?(control.id) }
                 lists[control.id] = list
                 scroll.documentView = list.table
@@ -383,6 +394,14 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             view.addSubview(container)
         }
 
+        // 上下ボタン（原版は数値の欄の中に描く）に重なった右隣の説明（「ドット」等）は、ボタンの右へずらす（第 41 步）
+        for stepper in steppers.values {
+            for label in view.subviews.compactMap({ $0 as? NSTextField }) where !label.isEditable && label.frame.intersects(stepper.frame)
+                && label.frame.minX > stepper.frame.minX - 8 {
+                label.frame.origin.x = stepper.frame.maxX + 2
+            }
+        }
+
         // 模板里的初始状态
         for control in definition.controls where control.id != "IDC_STATIC" {
             if control.has("hidden") { controls[control.id]?.isHidden = true }
@@ -397,8 +416,34 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     private func widened(_ frame: NSRect, for control: NSControl, multiline: Bool) -> NSRect {
         guard !multiline else { return frame }
         var result = frame
-        result.size.width = min(max(frame.width, ceil(control.fittingSize.width)), max(frame.width, view.frame.width - frame.minX))
+        let needed = ceil(control.fittingSize.width)
+        // 右の限度：ページの右端と、同じ高さにある右隣の控件の手前
+        var limit = view.frame.width
+        for other in definition.controls where other.kind != "group" {
+            let r = Self.rect(other.frame)
+            if r != frame, r.maxY > frame.minY, r.minY < frame.maxY, r.minX >= frame.maxX - 1 { limit = min(limit, r.minX - 2) }
+        }
+        result.size.width = min(max(frame.width, needed), max(frame.width, limit - frame.minX))
+        // ページの右端で足りないときは、左に空きがあれば左へずらす（ほかの控件と重ならない範囲で）
+        let shortage = needed - result.width
+        if shortage > 0 {
+            let shifted = NSRect(x: max(0, result.minX - shortage), y: result.minY, width: result.width + min(shortage, result.minX), height: result.height)
+            let others = definition.controls.filter { $0.kind != "group" && Self.rect($0.frame) != frame }.map { Self.rect($0.frame) }
+            if !others.contains(where: { $0.intersects(shifted) && !$0.intersects(frame) }) { result = shifted }
+        }
         return result
+    }
+
+    /// ボタンの左右の余白：4 点まで。同じ高さにある隣の控件との間の半分を超えない
+    private func buttonMargins(_ frame: NSRect, id: String) -> (CGFloat, CGFloat) {
+        var left: CGFloat = 4, right: CGFloat = 4
+        for other in definition.controls where other.id != id && other.kind != "group" {
+            let r = Self.rect(other.frame)
+            guard r.maxY > frame.minY, r.minY < frame.maxY else { continue }
+            if r.maxX <= frame.minX { left = min(left, max(0, (frame.minX - r.maxX) / 2)) }
+            if r.minX >= frame.maxX { right = min(right, max(0, (r.minX - frame.maxX) / 2)) }
+        }
+        return (left, right)
     }
 
     private func setUpButton(_ button: NSButton, multiline: Bool) {
@@ -750,7 +795,7 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         let text = rows.indices.contains(row) && rows[row].indices.contains(column) ? rows[row][column] : ""
         let label = NSTextField(labelWithString: text)
         label.font = PropPage.font
-        label.lineBreakMode = .byTruncatingTail
+        label.lineBreakMode = .byClipping	// 原版の ListBox・TreeView は省略記号を付けず切る
         return label
     }
 
@@ -885,7 +930,7 @@ final class PropTree: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         let label = NSTextField(labelWithString: (item as? PropTreeNode)?.title ?? "")
         label.font = PropPage.font
-        label.lineBreakMode = .byTruncatingTail
+        label.lineBreakMode = .byClipping	// 原版の ListBox・TreeView は省略記号を付けず切る
         return label
     }
 
