@@ -10,8 +10,8 @@ import EditorBridge
 /// 值是 sakura.ini 的「节/项目」（原版 CShareData_IO 的名字）。GetData 里的范围限制也照原版。
 /// 这一步移植的页：全般、ウィンドウ（位置と大きさの設定 も）、タブバー、ステータスバー、編集、ファイル、
 /// ファイル名表示（置換リスト も）、バックアップ、書式、検索、支援（タブバー・支援 的フォント も）。
-/// 強調キーワード は第 40 步（KeywordSettingsPage.swift）、キー割り当て・メインメニュー は第 41 步（KeyBindPage.swift、MainMenuPage.swift）。
-/// 以后的步骤：ツールバー・カスタムメニュー（第 41 步）、
+/// 強調キーワード は第 40 步（KeywordSettingsPage.swift）、キー割り当て・メインメニュー・ツールバー・カスタムメニュー は第 41 步
+/// （KeyBindPage.swift、MainMenuPage.swift、CustomMenuToolbarPages.swift）。以后的步骤：
 /// マクロ（第 45 步）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
 protocol CommonSettingsPageLogic {
     /// 数值框的范围（原版 SetUpDownRange）
@@ -62,6 +62,8 @@ enum CommonSettingsPages {
         case "IDD_PROP_KEYWORD": return KeywordSettingsPage()	// 第 40 步
         case "IDD_PROP_KEYBIND": return KeyBindPage()			// 第 41 步
         case "IDD_PROP_MAINMENU": return MainMenuPage()		// 第 41 步
+        case "IDD_PROP_CUSTMENU": return CustomMenuPage()		// 第 41 步
+        case "IDD_PROP_TOOLBAR": return ToolbarPage()			// 第 41 步
         default: return nil
         }
     }

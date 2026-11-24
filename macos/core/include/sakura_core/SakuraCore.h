@@ -98,7 +98,7 @@ Text SettingsBackupPath();
 	共通設定的一项的值。节和项目与 sakura.ini 相同（例："Common" / "bIsFreeCursorMode"）。
 	值是 sakura.ini 里的写法（数值是十进制，字符串原样）。
 	能用的节：Common、Nickname（ファイル名表示）、Statusbar（ステータスバー）、
-	Types(N)（タイプ別設定 的第 N 个，0 是「基本」。第 40 步）、KeyWords（第 40 步）、KeyBind・MainMenu（第 41 步）。没有这一项时是空的 optional。
+	Types(N)（タイプ別設定 的第 N 个，0 是「基本」。第 40 步）、KeyWords（第 40 步）、KeyBind・MainMenu・CustMenu・Toolbar（第 41 步）。没有这一项时是空的 optional。
 */
 std::optional<Text> GetCommonSetting(const Text& section, const Text& key);
 
@@ -1001,8 +1001,50 @@ public:
 	bool ImportMainMenu(const Text& path, Text& message);
 	bool ExportMainMenu(const Text& path, Text& message);
 
+	// ----- カスタムメニュー（原版 CPropCustmenu。第 41 步第 3 个 PR）-----
+	//! カスタムメニュー的一项：功能（0 是区切線）和アクセスキー（ASCII 1 个字，没有时是 0）
+	struct CustomMenuItem {
+		FunctionCode code = 0;
+		char16_t accessKey = 0;
+	};
+	//! カスタムメニュー的个数（MAX_CUSTOM_MENU：0 是右クリックメニュー，最后是タブメニュー）和一个的项目数的上限
+	std::int32_t CustomMenuCount() const;
+	std::int32_t MaxCustomMenuItems() const;
+	//! 显示的名字（原版 Custmenu2Name：没有设置名字时「右クリックメニュー」「カスタムメニュー1」等）和设置的名字
+	Text CustomMenuDisplayName(std::int32_t menu) const;
+	Text CustomMenuName(std::int32_t menu) const;
+	void SetCustomMenuName(std::int32_t menu, const Text& name);
+	bool CustomMenuIsSubmenu(std::int32_t menu) const;
+	void SetCustomMenuIsSubmenu(std::int32_t menu, bool on);
+	std::vector<CustomMenuItem> CustomMenuItems(std::int32_t menu) const;
+	//! 换掉这个菜单的项目（多于上限的不要）
+	void SetCustomMenuItems(std::int32_t menu, const std::vector<CustomMenuItem>& items);
+	//! カスタムメニュー的インポート・エクスポート（*.mnu，原版 CImpExpCustMenu）
+	bool ImportCustomMenu(const Text& path, Text& message);
+	bool ExportCustomMenu(const Text& path, Text& message);
+
+	// ----- ツールバー（原版 CPropToolBar。第 41 步第 3 个 PR）-----
+	//! ツールバーボタンの種類（原版 TBBUTTON の fsStyle と idCommand）
+	enum class ToolbarButtonKind : std::uint8_t { Button, Separator, Wrap, Unknown };
+	//! ボタン番号（sakura.ini の nTBB[nnn]）のボタン
+	struct ToolbarButtonInfo {
+		ToolbarButtonKind kind = ToolbarButtonKind::Unknown;
+		FunctionCode code = 0;
+		std::int32_t icon = -1;	//!< mytool.bmp のアイコン番号（16×16，横 33 個）
+	};
+	//! 复制里的ツールバー的ボタン番号（原版 m_nToolBarButtonIdxArr）
+	std::vector<std::int32_t> ToolbarButtons() const;
+	bool ToolbarIsFlat() const;
+	void SetToolbar(const std::vector<std::int32_t>& buttons, bool flat);
+	ToolbarButtonInfo ToolbarButton(std::int32_t number) const;
+	//! この機能のボタン番号（原版 FindToolbarNoFromCommandId）。ボタンが無い機能は -1
+	std::int32_t ToolbarButtonNumber(FunctionCode code) const;
+	//! 区切・折返のボタン番号（TOOLBAR_BUTTON_F_SEPARATOR、TOOLBAR_BUTTON_F_TOOLBARWRAP）
+	std::int32_t ToolbarSeparatorNumber() const;
+	std::int32_t ToolbarWrapNumber() const;
+
 	/*!
-		sakura.ini 的这一节的值（项目, 值）。能用的节：KeyBind、MainMenu。
+		sakura.ini 的这一节的值（项目, 值）。能用的节：KeyBind、MainMenu、CustMenu、Toolbar。
 		写法与原版保存 sakura.ini 时相同。
 	*/
 	std::vector<std::pair<Text, Text>> IniValues(const Text& section) const;

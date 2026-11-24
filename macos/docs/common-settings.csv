@@ -61,20 +61,20 @@
 メインメニュー,IDC_BUTTON_CHECK,PUSHBUTTON,検査(T),,,○
 メインメニュー,IDC_BUTTON_CLEAR,PUSHBUTTON,クリア(C),,MainMenu/MM[nnn],○
 メインメニュー,IDC_BUTTON_INITIALIZE,PUSHBUTTON,初期設定(E),,MainMenu/MM[nnn],○
-ツールバー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
-ツールバー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
-ツールバー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
-ツールバー,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
-ツールバー,IDC_CHECK_TOOLBARISFLAT,AUTOCHECKBOX,フラットなボタン(L),m_sToolBar.m_bToolBarIsFlat,,第 41 步
-ツールバー,IDC_LABEL_TOOLBAR,LTEXT,ツールバー(T),,,第 41 步
-ツールバー,IDC_LIST_RES,LISTBOX,ツールバー(T),,,第 41 步
-ツールバー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,,第 41 步
-ツールバー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,,第 41 步
-ツールバー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,,第 41 步
-ツールバー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,,第 41 步
-ツールバー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,,第 41 步
-ツールバー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
-ツールバー,IDC_BUTTON_INSERTWRAP,PUSHBUTTON,折返(W),,,第 41 步
+ツールバー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,
+ツールバー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,○
+ツールバー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,
+ツールバー,IDC_LIST_FUNC,LISTBOX,機能(F),,,○
+ツールバー,IDC_CHECK_TOOLBARISFLAT,AUTOCHECKBOX,フラットなボタン(L),m_sToolBar.m_bToolBarIsFlat,Toolbar/bToolBarIsFlat,○
+ツールバー,IDC_LABEL_TOOLBAR,LTEXT,ツールバー(T),,,
+ツールバー,IDC_LIST_RES,LISTBOX,ツールバー(T),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
+ツールバー,IDC_BUTTON_INSERTWRAP,PUSHBUTTON,折返(W),,"Toolbar/nToolBarButtonNum, nTBB[nnn]",○
 タブバー,IDC_CHECK_DispTabWnd,AUTOCHECKBOX,タブバーを表示する(D),m_sTabBar.m_bDispTabWnd,Common/bDispTabWnd,○
 タブバー,IDC_CHECK_DispTabWndMultiWin,AUTOCHECKBOX,ウィンドウをまとめてグループ化する(B),m_sTabBar.m_bDispTabWndMultiWin,Common/bDispTabWndMultiWin,○
 タブバー,IDC_CHECK_RetainEmptyWindow,AUTOCHECKBOX,最後のファイルを閉じたとき(無題)文書を残す(R),m_sTabBar.m_bTab_RetainEmptyWin,Common/bTab_RetainEmptyWin,○
@@ -222,27 +222,27 @@
 キー割り当て,IDC_EDIT_KEYSFUNC,EDITTEXT,キーに割り当てられている機能,,,○
 キー割り当て,IDC_BUTTON_ASSIGN,PUSHBUTTON,割当(B),,KeyBind/KeyBind[nnn],○
 キー割り当て,IDC_BUTTON_RELEASE,PUSHBUTTON,解除(R),,KeyBind/KeyBind[nnn],○
-カスタムメニュー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,第 41 步
-カスタムメニュー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,第 41 步
-カスタムメニュー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,第 41 步
-カスタムメニュー,IDC_LIST_FUNC,LISTBOX,機能(F),,,第 41 步
-カスタムメニュー,IDC_LABEL_MENUCHOICE,RTEXT,選択(C),,,第 41 步
-カスタムメニュー,IDC_COMBO_MENU,COMBOBOX,選択(C),,,第 41 步
-カスタムメニュー,IDC_LABEL_MENUNAME,LTEXT,メニュー名(N),,,第 41 步
-カスタムメニュー,IDC_EDIT_MENUNAME,EDITTEXT,メニュー名(N),m_sCustomMenu.m_szCustMenuNameArr,,第 41 步
-カスタムメニュー,IDC_BUTTON_MENUNAME,PUSHBUTTON,設定(R),,,第 41 步
-カスタムメニュー,IDC_LABEL_MENU,LTEXT,メニュー(M),,,第 41 步
-カスタムメニュー,IDC_LIST_RES,LISTBOX,メニュー(M),,,第 41 步
-カスタムメニュー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,,第 41 步
-カスタムメニュー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,,第 41 步
-カスタムメニュー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,,第 41 步
-カスタムメニュー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,,第 41 步
-カスタムメニュー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,,第 41 步
-カスタムメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,,第 41 步
-カスタムメニュー,IDC_LABEL_MENUKEYCHANGE,LTEXT,↑ダブルクリックでアクセスキー設定可,,,第 41 步
-カスタムメニュー,IDC_CHECK_SUBMENU,AUTOCHECKBOX,サブメニューとして表示(S),m_sCustomMenu.m_bCustMenuPopupArr,,第 41 步
-カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,CustMenu/…（*.mnu）,第 41 步
-カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,（*.mnu）,第 41 步
+カスタムメニュー,IDC_LABEL_MENUFUNCKIND,RTEXT,種別(K),,,
+カスタムメニュー,IDC_COMBO_FUNCKIND,COMBOBOX,種別(K),,,○
+カスタムメニュー,IDC_LABEL_MENUFUNC,LTEXT,機能(F),,,
+カスタムメニュー,IDC_LIST_FUNC,LISTBOX,機能(F),,,○
+カスタムメニュー,IDC_LABEL_MENUCHOICE,RTEXT,選択(C),,,
+カスタムメニュー,IDC_COMBO_MENU,COMBOBOX,選択(C),,,○
+カスタムメニュー,IDC_LABEL_MENUNAME,LTEXT,メニュー名(N),,,
+カスタムメニュー,IDC_EDIT_MENUNAME,EDITTEXT,メニュー名(N),m_sCustomMenu.m_szCustMenuNameArr,CustMenu/szCMN[nn],○
+カスタムメニュー,IDC_BUTTON_MENUNAME,PUSHBUTTON,設定(R),,CustMenu/szCMN[nn],○
+カスタムメニュー,IDC_LABEL_MENU,LTEXT,メニュー(M),,,
+カスタムメニュー,IDC_LIST_RES,LISTBOX,メニュー(M),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_DELETE,PUSHBUTTON,削除(D),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_INSERTSEPARATOR,PUSHBUTTON,---(S),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_INSERT,PUSHBUTTON,→(A),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_ADD,PUSHBUTTON,>>(B),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_UP,PUSHBUTTON,↑(U),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_BUTTON_DOWN,PUSHBUTTON,↓(O),,"CustMenu/nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]",○
+カスタムメニュー,IDC_LABEL_MENUKEYCHANGE,LTEXT,↑ダブルクリックでアクセスキー設定可,,,
+カスタムメニュー,IDC_CHECK_SUBMENU,AUTOCHECKBOX,サブメニューとして表示(S),m_sCustomMenu.m_bCustMenuPopupArr,CustMenu/bCMPOP[nn],○
+カスタムメニュー,IDC_BUTTON_IMPORT,PUSHBUTTON,インポート(I)...,,"CustMenu/szCMN[nn], bCMPOP[nn], nCMIN[nn], nCMIF[nn][nn], nCMIK[nn][nn]（*.mnu）",○
+カスタムメニュー,IDC_BUTTON_EXPORT,PUSHBUTTON,エクスポート(X)...,,（*.mnu）,○
 強調キーワード,IDC_COMBO_SET,COMBOBOX,セット名(N),,"KeyWords/nCurrentKeyWordSetIdx, nKeyWordSetNum, szSN[nn]",○
 強調キーワード,IDC_BUTTON_ADDSET,PUSHBUTTON,セット追加(M)...,m_sSpecialKeyword.m_CKeyWordSetMgr,"KeyWords/nKeyWordSetNum, szSN[nn]",○
 強調キーワード,IDC_BUTTON_DELSET,PUSHBUTTON,セット削除(R)...,,"KeyWords/…、Types(N)/nInts, nKeywordSelect3～10",○

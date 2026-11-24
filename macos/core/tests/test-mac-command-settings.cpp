@@ -341,3 +341,113 @@ TEST_F(MacCommandSettingsTest, MainMenuInitializeImportExport)
 	EXPECT_FALSE(message.empty());
 	EXPECT_EQ(2u, editor->MainMenuEntries().size());
 }
+
+// ----- カスタムメニュー・ツールバー（第 3 个 PR）-----
+
+//! カスタムメニュー：名前（未設定は「右クリックメニュー」「カスタムメニュー1」…）、項目、サブメニュー。写回、保存、再起動
+TEST_F(MacCommandSettingsTest, CustomMenu)
+{
+	auto editor = CommandSettingsEditor::Create();
+	ASSERT_TRUE(editor);
+	EXPECT_EQ(25, editor->CustomMenuCount());
+	EXPECT_EQ(48, editor->MaxCustomMenuItems());
+	EXPECT_EQ(u"右クリックメニュー", editor->CustomMenuDisplayName(0));
+	EXPECT_EQ(u"メニュー1", editor->CustomMenuDisplayName(1));
+	EXPECT_EQ(u"タブメニュー", editor->CustomMenuDisplayName(24));
+	EXPECT_EQ(u"", editor->CustomMenuName(1));
+	EXPECT_FALSE(editor->CustomMenuItems(0).empty());	// 右クリックメニューの初期値
+
+	editor->SetCustomMenuName(1, u"マイメニュー");
+	editor->SetCustomMenuIsSubmenu(1, true);
+	editor->SetCustomMenuItems(1, { { kFileNew, u'N' }, { 0, 0 }, { kCopy, u'C' } });
+	EXPECT_EQ(u"マイメニュー", editor->CustomMenuDisplayName(1));
+	// 名前の変更はキー割り当ての「機能」にも出る（同じ複製）
+	EXPECT_EQ(u"マイメニュー", editor->FunctionName(31501));	// F_CUSTMENU_1
+	const auto items = editor->CustomMenuItems(1);
+	ASSERT_EQ(3u, items.size());
+	EXPECT_EQ(u'N', items[0].accessKey);
+	EXPECT_EQ(0, items[1].code);
+	// 長い名前は MAX_CUSTOM_MENU_NAME_LEN - 1 文字まで（原版 DlgItem_GetText）
+	editor->SetCustomMenuName(2, Text(40, u'あ'));
+	EXPECT_EQ(31u, editor->CustomMenuName(2).size());
+	editor->SetCustomMenuName(2, u"");
+
+	ASSERT_TRUE(SetCommonSettings(u"CustMenu", editor->IniValues(u"CustMenu")));
+	ASSERT_TRUE(SaveSettings());
+	Shutdown(false);
+	ASSERT_TRUE(Startup());
+	auto reloaded = CommandSettingsEditor::Create();
+	EXPECT_EQ(u"マイメニュー", reloaded->CustomMenuName(1));
+	EXPECT_TRUE(reloaded->CustomMenuIsSubmenu(1));
+	const auto again = reloaded->CustomMenuItems(1);
+	ASSERT_EQ(3u, again.size());
+	EXPECT_EQ(kFileNew, again[0].code);
+	EXPECT_EQ(u'N', again[0].accessKey);
+	EXPECT_EQ(kCopy, again[2].code);
+	EXPECT_EQ(u'C', again[2].accessKey);
+
+	// 項目を減らす：減った項目は空の値
+	reloaded->SetCustomMenuItems(1, { { kCopy, 0 } });
+	const auto values = reloaded->IniValues(u"CustMenu");
+	auto it = std::find_if(values.begin(), values.end(), [](const auto& v) { return v.first == u"nCMIF[01][02]"; });
+	ASSERT_NE(values.end(), it);
+	EXPECT_EQ(u"", it->second);
+	ASSERT_TRUE(SetCommonSettings(u"CustMenu", values));
+	EXPECT_EQ(1u, CommandSettingsEditor::Create()->CustomMenuItems(1).size());
+}
+
+//! カスタムメニューのインポート・エクスポート（*.mnu）
+TEST_F(MacCommandSettingsTest, CustomMenuImportExport)
+{
+	auto editor = CommandSettingsEditor::Create();
+	editor->SetCustomMenuName(3, u"Export");
+	editor->SetCustomMenuItems(3, { { kSelectAll, u'A' } });
+	const auto path = TempFile("menu.mnu");
+	Text message;
+	ASSERT_TRUE(editor->ExportCustomMenu(Text(path.u16string()), message));
+	auto other = CommandSettingsEditor::Create();
+	ASSERT_TRUE(other->ImportCustomMenu(Text(path.u16string()), message));
+	EXPECT_EQ(u"Export", other->CustomMenuName(3));
+	ASSERT_EQ(1u, other->CustomMenuItems(3).size());
+	EXPECT_EQ(kSelectAll, other->CustomMenuItems(3)[0].code);
+	{
+		std::ofstream out(TempFile("bad.mnu"));
+		out << "[CustMenu]\n";
+	}
+	EXPECT_FALSE(other->ImportCustomMenu(Text(TempFile("bad.mnu").u16string()), message));
+	EXPECT_FALSE(message.empty());
+}
+
+//! ツールバー：ボタン番号、ボタンの機能とアイコン、区切・折返、写回
+TEST_F(MacCommandSettingsTest, Toolbar)
+{
+	auto editor = CommandSettingsEditor::Create();
+	ASSERT_TRUE(editor);
+	const auto buttons = editor->ToolbarButtons();
+	ASSERT_FALSE(buttons.empty());
+	const auto first = editor->ToolbarButton(buttons.front());
+	EXPECT_EQ(CommandSettingsEditor::ToolbarButtonKind::Button, first.kind);
+	EXPECT_EQ(kFileNew, first.code);	// 原版の初期値の先頭は 新規作成
+	EXPECT_GE(first.icon, 0);
+	EXPECT_EQ(CommandSettingsEditor::ToolbarButtonKind::Separator, editor->ToolbarButton(editor->ToolbarSeparatorNumber()).kind);
+	EXPECT_EQ(CommandSettingsEditor::ToolbarButtonKind::Wrap, editor->ToolbarButton(editor->ToolbarWrapNumber()).kind);
+	EXPECT_EQ(CommandSettingsEditor::ToolbarButtonKind::Unknown, editor->ToolbarButton(100000).kind);
+	const int copyButton = editor->ToolbarButtonNumber(kCopy);
+	ASSERT_GE(copyButton, 0);
+	EXPECT_EQ(kCopy, editor->ToolbarButton(copyButton).code);
+	EXPECT_EQ(-1, editor->ToolbarButtonNumber(99999));	// ボタンが無い機能
+
+	editor->SetToolbar({ copyButton, editor->ToolbarSeparatorNumber(), editor->ToolbarWrapNumber() }, true);
+	const auto values = editor->IniValues(u"Toolbar");
+	auto value = [&](const Text& key) {
+		auto it = std::find_if(values.begin(), values.end(), [&](const auto& v) { return v.first == key; });
+		return it == values.end() ? Text(u"<none>") : it->second;
+	};
+	EXPECT_EQ(u"3", value(u"nToolBarButtonNum"));
+	EXPECT_EQ(u"1", value(u"bToolBarIsFlat"));
+	EXPECT_EQ(u"", value(u"nTBB[003]"));	// 減った項目
+	ASSERT_TRUE(SetCommonSettings(u"Toolbar", values));
+	auto reloaded = CommandSettingsEditor::Create();
+	EXPECT_EQ((std::vector<std::int32_t>{ copyButton, 0, 384 }), reloaded->ToolbarButtons());
+	EXPECT_TRUE(reloaded->ToolbarIsFlat());
+}

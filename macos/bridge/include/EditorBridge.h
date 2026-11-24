@@ -739,7 +739,35 @@ NS_SWIFT_NAME(EditorCommandSettingsEditor)
 @property (readonly, copy) NSArray<NSString *> *specialFunctionNames;
 - (BOOL)importMainMenuFromPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importMainMenu(path:message:));
 - (BOOL)exportMainMenuToPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportMainMenu(path:message:));
-//! 这一节的值（项目 → 值）。节：KeyBind、MainMenu
+// ----- カスタムメニュー -----
+@property (readonly) NSInteger customMenuCount;
+@property (readonly) NSInteger maxCustomMenuItems;
+- (NSString *)displayNameOfCustomMenu:(NSInteger)menu NS_SWIFT_NAME(displayName(ofCustomMenu:));
+- (NSString *)nameOfCustomMenu:(NSInteger)menu NS_SWIFT_NAME(name(ofCustomMenu:));
+- (void)setName:(NSString *)name ofCustomMenu:(NSInteger)menu NS_SWIFT_NAME(setName(_:ofCustomMenu:));
+- (BOOL)customMenuIsSubmenu:(NSInteger)menu NS_SWIFT_NAME(customMenuIsSubmenu(_:));
+- (void)setCustomMenu:(NSInteger)menu isSubmenu:(BOOL)on NS_SWIFT_NAME(setCustomMenu(_:isSubmenu:));
+//! 项目的功能（0 是区切線）和アクセスキー（没有时是空字符串）
+- (NSArray<NSNumber *> *)codesOfCustomMenu:(NSInteger)menu NS_SWIFT_NAME(codes(ofCustomMenu:));
+- (NSArray<NSString *> *)accessKeysOfCustomMenu:(NSInteger)menu NS_SWIFT_NAME(accessKeys(ofCustomMenu:));
+- (void)setCustomMenu:(NSInteger)menu codes:(NSArray<NSNumber *> *)codes accessKeys:(NSArray<NSString *> *)keys NS_SWIFT_NAME(setCustomMenu(_:codes:accessKeys:));
+- (BOOL)importCustomMenuFromPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(importCustomMenu(path:message:));
+- (BOOL)exportCustomMenuToPath:(NSString *)path message:(NSString *_Nullable *_Nullable)message NS_SWIFT_NAME(exportCustomMenu(path:message:));
+// ----- ツールバー -----
+//! ボタン番号
+@property (readonly, copy) NSArray<NSNumber *> *toolbarButtons;
+@property (readonly) BOOL toolbarIsFlat;
+- (void)setToolbarButtons:(NSArray<NSNumber *> *)buttons flat:(BOOL)flat NS_SWIFT_NAME(setToolbar(_:flat:));
+//! ボタンの種類：0 ボタン、1 区切、2 折返、3 不明
+- (NSInteger)kindOfToolbarButton:(NSInteger)number NS_SWIFT_NAME(kind(ofToolbarButton:));
+- (NSInteger)functionOfToolbarButton:(NSInteger)number NS_SWIFT_NAME(function(ofToolbarButton:));
+//! mytool.bmp のアイコン番号（無いとき -1）
+- (NSInteger)iconOfToolbarButton:(NSInteger)number NS_SWIFT_NAME(icon(ofToolbarButton:));
+//! この機能のボタン番号。ボタンが無いとき -1
+- (NSInteger)toolbarButtonForFunction:(NSInteger)code NS_SWIFT_NAME(toolbarButton(forFunction:));
+@property (readonly) NSInteger toolbarSeparatorButton;
+@property (readonly) NSInteger toolbarWrapButton;
+//! 这一节的值（项目 → 值）。节：KeyBind、MainMenu、CustMenu、Toolbar
 - (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section NS_SWIFT_NAME(iniValues(section:));
 @end
 
