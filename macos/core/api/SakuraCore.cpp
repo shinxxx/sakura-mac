@@ -4816,15 +4816,7 @@ OutlineResult Document::AnalyzeOutline(OutlineType requested)
 	sakura::wstring sTitleOverride;	// ルールファイルによるダイアログタイトル上書き
 
 	// 以下与 Command_FUNCLIST 相同
-	EOutlineType nOutlineType = EOutlineType(requested);
-	if (nOutlineType == OUTLINE_DEFAULT) {
-		/* タイプ別に設定されたアウトライン解析方法 */
-		nOutlineType = d.typeConfig.m_eDefaultOutline;
-		// C/C++はファイル名(拡張子)により追加判定する
-		if (nOutlineType == OUTLINE_C_CPP) {
-			nOutlineType = GetCLangOutlineType(path.c_str());
-		}
-	}
+	EOutlineType nOutlineType = EOutlineType(ResolveOutlineType(requested));
 	COutlineDocRef docRef{ d.lines, d.layout, { d.typeConfig }, { path.c_str() }, { d.newLineEol } };
 	CDocOutline cDocOutline(&docRef);
 	int nListType = nOutlineType;
@@ -4878,6 +4870,20 @@ OutlineResult Document::AnalyzeOutline(OutlineType requested)
 	}
 	return BuildOutlineView(cFuncInfoArr, nOutlineType, nListType, Text(sTitleOverride.c_str()),
 		d.typeConfig.m_bLineNumIsCRLF, type->m_nOutlineSortType, type->m_nOutlineSortCol, type->m_bOutlineSortDesc);
+}
+
+OutlineType Document::ResolveOutlineType(OutlineType requested) const
+{
+	EOutlineType nOutlineType = EOutlineType(requested);
+	if (nOutlineType == OUTLINE_DEFAULT) {
+		/* タイプ別に設定されたアウトライン解析方法 */
+		nOutlineType = m_impl->typeConfig.m_eDefaultOutline;
+		// C/C++はファイル名(拡張子)により追加判定する
+		if (nOutlineType == OUTLINE_C_CPP) {
+			nOutlineType = GetCLangOutlineType(m_impl->info.path.c_str());
+		}
+	}
+	return OutlineType(nOutlineType);
 }
 
 std::int32_t Document::FindFuncListMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped) const

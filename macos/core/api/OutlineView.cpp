@@ -398,14 +398,15 @@ void SetList(const CFuncInfoArr& arr, bool vb, bool lineNumIsCRLF, OutlineResult
 
 /*!
 	lstrcmpi の代わり（Windows の単語の並べ替え：大文字小文字を区別しない言語的な比較。
-	ハイフンとアポストロフィは他が同じときだけ比べる）。CoreFoundation の照合で近似する
+	ハイフンとアポストロフィは他が同じときだけ比べる）。CoreFoundation の照合（英語）で近似する
 */
 int CompareTextIgnoreCase(const Text& a, const Text& b)
 {
 	auto compare = [](const Text& x, const Text& y) {
 		CFStringRef sx = CFStringCreateWithCharacters(nullptr, reinterpret_cast<const UniChar*>(x.data()), CFIndex(x.size()));
 		CFStringRef sy = CFStringCreateWithCharacters(nullptr, reinterpret_cast<const UniChar*>(y.data()), CFIndex(y.size()));
-		CFLocaleRef locale = CFLocaleCopyCurrent();
+		// ユーザーの言語によらない照合（英語：Windows と同じく、ラテン文字・かな・漢字の順）
+		CFLocaleRef locale = CFLocaleCreate(nullptr, CFSTR("en"));
 		const CFComparisonResult r = CFStringCompareWithOptionsAndLocale(sx, sy, CFRangeMake(0, CFStringGetLength(sx)),
 			kCFCompareCaseInsensitive | kCFCompareLocalized, locale);
 		CFRelease(locale);

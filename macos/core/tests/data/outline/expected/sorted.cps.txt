@@ -1,9 +1,11 @@
 title: C++ メソッドツリー
 [tree]
+- Outer クラス
+  + Nested クラス
+      Method
+      Method2
 - outer 名前空間
-    定義位置 <
   + inner 名前空間
-      定義位置
       Max
     + Shape クラス
         ~Shape
@@ -18,20 +20,18 @@ title: C++ メソッドツリー
         Shape
         Shape(宣言)
       Split
+      定義位置
   + Pair 構造体
       Swap
       Swap(宣言)
     Value 共用体
-- Outer クラス
-  + Nested クラス
-      Method
-      Method2
+    定義位置 <
 - グローバル
-    日本語関数
     c_api(宣言)
     helper
     helper(宣言)
     main
+    日本語関数
 [clip]
 <FILE>(5,1): outer::定義位置
 <FILE>(6,1): outer::inner::定義位置

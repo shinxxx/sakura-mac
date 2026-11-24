@@ -1631,6 +1631,12 @@ public:
 	OutlineResult AnalyzeOutline(OutlineType type = OutlineType::Default);
 
 	/*!
+		解析方法（原版 Command_FUNCLIST 的开头）：Default 时是类型别设置的方法，C/C++ 时按扩展名是 C 或 Cpp
+		（扩展名不是 .c、.cpp 等时 CCpp 不变）。已经打开的アウトライン解析 是不是同じ种类，按它判断
+	*/
+	OutlineType ResolveOutlineType(OutlineType type) const;
+
+	/*!
 		次の関数リストマークへ／前の関数リストマークへ（原版 Command_FUNCLIST_NEXT/PREV）的目标行。
 		从 line 的下一行（前の 时上一行）找有関数リストマーク的逻辑行。
 		searchAll（共通設定「先頭（末尾）から再検索する」）时到了末尾（开头）再从开头（末尾）找。

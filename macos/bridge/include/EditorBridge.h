@@ -771,6 +771,113 @@ NS_SWIFT_NAME(EditorCommandSettingsEditor)
 - (NSDictionary<NSString *, NSString *> *)iniValuesOfSection:(NSString *)section NS_SWIFT_NAME(iniValues(section:));
 @end
 
+// ---------------------------------------------------------------------------
+// アウトライン解析（第 42 步。sakura::core::OutlineResult 等）
+// ---------------------------------------------------------------------------
+
+//! アウトライン解析方法（数值与原版的 EOutlineType 相同）
+typedef NS_ENUM(NSInteger, ECOutlineType) {
+	ECOutlineTypeDefault NS_SWIFT_NAME(default) = -1,	//!< 类型别设置的方法
+	ECOutlineTypeC NS_SWIFT_NAME(c) = 0,
+	ECOutlineTypeCCpp NS_SWIFT_NAME(cCpp) = 1,
+	ECOutlineTypePlSql NS_SWIFT_NAME(plSql) = 2,
+	ECOutlineTypeText NS_SWIFT_NAME(text) = 3,
+	ECOutlineTypeJava NS_SWIFT_NAME(java) = 4,
+	ECOutlineTypeCobol NS_SWIFT_NAME(cobol) = 5,
+	ECOutlineTypeAsm NS_SWIFT_NAME(asm) = 6,
+	ECOutlineTypePerl NS_SWIFT_NAME(perl) = 7,
+	ECOutlineTypeVisualBasic NS_SWIFT_NAME(visualBasic) = 8,
+	ECOutlineTypeWzText NS_SWIFT_NAME(wzText) = 9,
+	ECOutlineTypeHtml NS_SWIFT_NAME(html) = 10,
+	ECOutlineTypeTex NS_SWIFT_NAME(tex) = 11,
+	ECOutlineTypeRuleFile NS_SWIFT_NAME(ruleFile) = 12,
+	ECOutlineTypePython NS_SWIFT_NAME(python) = 13,
+	ECOutlineTypeErlang NS_SWIFT_NAME(erlang) = 14,
+	ECOutlineTypeXml NS_SWIFT_NAME(xml) = 15,
+	ECOutlineTypeCpp NS_SWIFT_NAME(cpp) = 16,
+	ECOutlineTypeBookmark NS_SWIFT_NAME(bookmark) = 18,
+	ECOutlineTypeFileTree NS_SWIFT_NAME(fileTree) = 20,
+	ECOutlineTypeTree NS_SWIFT_NAME(tree) = 100,
+	ECOutlineTypeTreeTagJump NS_SWIFT_NAME(treeTagJump) = 101,
+	ECOutlineTypeClassTree NS_SWIFT_NAME(classTree) = 200,
+	ECOutlineTypeList NS_SWIFT_NAME(list) = 300,
+} NS_SWIFT_NAME(OutlineType);
+
+//! ツリーの「順序」（数值与原版的 SORTTYPE_DEFAULT 等相同）
+typedef NS_ENUM(NSInteger, ECOutlineSort) {
+	ECOutlineSortDefault NS_SWIFT_NAME(default) = 0,
+	ECOutlineSortDefaultDesc NS_SWIFT_NAME(defaultDesc) = 1,
+	ECOutlineSortAtoZ NS_SWIFT_NAME(aToZ) = 2,
+	ECOutlineSortZtoA NS_SWIFT_NAME(zToA) = 3,
+} NS_SWIFT_NAME(OutlineSort);
+
+//! 解析结果的一项（原版 CFuncInfo）。行・桁从 1 开始
+NS_SWIFT_NAME(OutlineItem)
+@interface ECOutlineItem : NSObject
+@property (readonly) NSInteger line;			//!< 逻辑行（1 开始）
+@property (readonly) NSInteger column;			//!< 逻辑桁（1 开始）
+@property (readonly) NSInteger layoutLine;		//!< 排版行（1 开始）
+@property (readonly) NSInteger layoutColumn;	//!< 排版横向位置 + 1
+@property (readonly, copy) NSString *name;
+@property (readonly, copy) NSString *fileName;	//!< 别的文件的项目（没有时空）
+@property (readonly) NSInteger info;
+@property (readonly) NSInteger depth;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! ツリーの一つの項目
+NS_SWIFT_NAME(OutlineNode)
+@interface ECOutlineNode : NSObject
+@property (readonly, copy) NSString *label;
+@property (readonly) NSInteger item;			//!< items 的下标。クラス名等的项目是 -1
+@property (readonly) NSInteger order;			//!< 加入的顺序（「デフォルト」的顺序）
+@property (readonly) BOOL expanded;				//!< 打开窗口时展开着
+@property (readonly, copy) NSArray<ECOutlineNode *> *children;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! リストの一行
+NS_SWIFT_NAME(OutlineRow)
+@interface ECOutlineRow : NSObject
+@property (readonly) NSInteger item;			//!< items 的下标
+@property (readonly) NSInteger line;			//!< 「行」
+@property (readonly) NSInteger column;			//!< 「桁」
+@property (readonly, copy) NSString *name;		//!< 「関数名」
+@property (readonly, copy) NSString *remark;	//!< 第 4 列
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	アウトライン解析的结果（sakura::core::OutlineResult：原版 Command_FUNCLIST + CDlgFuncList::SetData）。
+	並べ替えるとツリー・リストが変わる
+*/
+NS_SWIFT_NAME(OutlineResult)
+@interface ECOutlineResult : NSObject
+@property (readonly) ECOutlineType type;		//!< 实际用的解析方法
+@property (readonly) ECOutlineType listType;	//!< 一覧的形式
+@property (readonly, copy) NSString *title;		//!< 窗口标题
+@property (readonly, copy) NSString *filePath;	//!< 解析的文件（新文件时空）
+@property (readonly) BOOL isTree;
+@property (readonly, copy) NSArray<ECOutlineItem *> *items;
+@property (readonly, copy) NSArray<ECOutlineNode *> *tree;
+@property (readonly, copy) NSArray<ECOutlineRow *> *rows;
+@property (readonly, copy) NSArray<NSString *> *columnTitles;	//!< リスト的列名 4 个（排序的列后面有「 *」）
+@property (readonly, copy) NSString *clipText;	//!< 「コピー」的文字
+@property (readonly) ECOutlineSort sort;
+@property (readonly) NSInteger sortColumn;
+@property (readonly) BOOL sortDescending;
+@property (readonly) BOOL lineNumIsCRLF;		//!< 行番号は改行単位
+- (instancetype)init NS_UNAVAILABLE;
+//! ツリーの順序を変える（原版 SortTree）
+- (void)sortTree:(ECOutlineSort)sort NS_SWIFT_NAME(sortTree(_:));
+//! リストを並べ替える（原版 SortListView：0 行、1 桁、2 関数名、3 第 4 列）
+- (void)sortRowsByColumn:(NSInteger)column descending:(BOOL)descending NS_SWIFT_NAME(sortRows(column:descending:));
+//! 光标所在的项目（原版 GetFuncInfoIndex）。layoutLine・layoutColumn 是光标的排版位置 + 1。没有时 -1
+- (NSInteger)itemAtLayoutLine:(NSInteger)layoutLine column:(NSInteger)layoutColumn NS_SWIFT_NAME(item(atLayoutLine:column:));
+//! ツリー里这个项目的位置（从根开始的下标）。没有时空
+- (NSArray<NSNumber *> *)nodePathForItem:(NSInteger)item NS_SWIFT_NAME(nodePath(forItem:));
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -991,6 +1098,21 @@ NS_SWIFT_NAME(EditorDocument)
 - (NSString *)convertEolToNewLine:(NSString *)text NS_SWIFT_NAME(convertEolToNewLine(_:));
 //! 删除一个排版行。返回之后的光标
 - (ECPosition)deleteLayoutLine:(NSInteger)line x:(NSInteger)x NS_SWIFT_NAME(deleteLayoutLine(_:x:));
+
+// ----- アウトライン解析（第 42 步） -----
+
+//! アウトライン解析（ECOutlineTypeDefault 时用类型别设置的方法）。同时设置関数リストマーク
+- (ECOutlineResult *)analyzeOutline:(ECOutlineType)type NS_SWIFT_NAME(analyzeOutline(_:));
+//! 解析方法（Default 时是类型别设置的方法，C/C++ 时按扩展名）
+- (ECOutlineType)resolveOutlineType:(ECOutlineType)type NS_SWIFT_NAME(resolveOutlineType(_:));
+/*!
+	次の関数リストマークへ／前の関数リストマークへ 的目标行（逻辑行）。找不到时 -1。
+	searchAll 是共通設定「先頭（末尾）から再検索する」。wrapped：绕回去了
+*/
+- (NSInteger)findFuncListMarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll
+	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findFuncListMark(from:forward:searchAll:wrapped:));
+//! この行に関数リストマークがあるか
+- (BOOL)hasFuncListMark:(NSInteger)line NS_SWIFT_NAME(hasFuncListMark(_:));
 
 @end
 

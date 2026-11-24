@@ -1218,6 +1218,140 @@ core::LayoutPosition ToCore(ECLayoutPosition p)
 
 @end
 
+// ---------------------------------------------------------------------------
+// アウトライン解析（第 42 步）
+// ---------------------------------------------------------------------------
+
+static_assert(ECOutlineTypeDefault == static_cast<NSInteger>(core::OutlineType::Default));
+static_assert(ECOutlineTypeCpp == static_cast<NSInteger>(core::OutlineType::Cpp));
+static_assert(ECOutlineTypeBookmark == static_cast<NSInteger>(core::OutlineType::Bookmark));
+static_assert(ECOutlineTypeList == static_cast<NSInteger>(core::OutlineType::List));
+static_assert(ECOutlineSortZtoA == static_cast<NSInteger>(core::OutlineSort::ZtoA));
+
+@implementation ECOutlineItem
+
+- (instancetype)initWithItem:(const core::OutlineItem&)item
+{
+	self = [super init];
+	if (self) {
+		_line = item.line;
+		_column = item.column;
+		_layoutLine = item.layoutLine;
+		_layoutColumn = item.layoutColumn;
+		_name = ToNSString(item.name);
+		_fileName = ToNSString(item.fileName);
+		_info = item.info;
+		_depth = item.depth;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECOutlineNode
+
+- (instancetype)initWithNode:(const core::OutlineNode&)node
+{
+	self = [super init];
+	if (self) {
+		_label = ToNSString(node.label);
+		_item = node.item;
+		_order = node.order;
+		_expanded = node.expanded ? YES : NO;
+		NSMutableArray<ECOutlineNode *> *children = [NSMutableArray arrayWithCapacity:node.children.size()];
+		for (const auto& child : node.children) [children addObject:[[ECOutlineNode alloc] initWithNode:child]];
+		_children = children;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECOutlineRow
+
+- (instancetype)initWithRow:(const core::OutlineRow&)row
+{
+	self = [super init];
+	if (self) {
+		_item = row.item;
+		_line = row.line;
+		_column = row.column;
+		_name = ToNSString(row.name);
+		_remark = ToNSString(row.remark);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECOutlineResult {
+	core::OutlineResult _result;
+}
+
+- (instancetype)initWithResult:(core::OutlineResult)result
+{
+	self = [super init];
+	if (self) {
+		_result = std::move(result);
+		NSMutableArray<ECOutlineItem *> *items = [NSMutableArray arrayWithCapacity:_result.items.size()];
+		for (const auto& item : _result.items) [items addObject:[[ECOutlineItem alloc] initWithItem:item]];
+		_items = items;
+		[self update];
+	}
+	return self;
+}
+
+//! 并べ替えた後のツリー・リスト
+- (void)update
+{
+	NSMutableArray<ECOutlineNode *> *tree = [NSMutableArray arrayWithCapacity:_result.tree.size()];
+	for (const auto& node : _result.tree) [tree addObject:[[ECOutlineNode alloc] initWithNode:node]];
+	_tree = tree;
+	NSMutableArray<ECOutlineRow *> *rows = [NSMutableArray arrayWithCapacity:_result.rows.size()];
+	for (const auto& row : _result.rows) [rows addObject:[[ECOutlineRow alloc] initWithRow:row]];
+	_rows = rows;
+	_columnTitles = @[ ToNSString(_result.columnTitles[0]), ToNSString(_result.columnTitles[1]),
+					   ToNSString(_result.columnTitles[2]), ToNSString(_result.columnTitles[3]) ];
+}
+
+- (ECOutlineType)type { return static_cast<ECOutlineType>(_result.type); }
+- (ECOutlineType)listType { return static_cast<ECOutlineType>(_result.listType); }
+- (NSString *)title { return ToNSString(_result.title); }
+- (NSString *)filePath { return ToNSString(_result.filePath); }
+- (BOOL)isTree { return _result.isTree ? YES : NO; }
+- (NSString *)clipText { return ToNSString(_result.clipText); }
+- (ECOutlineSort)sort { return static_cast<ECOutlineSort>(_result.sort); }
+- (NSInteger)sortColumn { return _result.sortColumn; }
+- (BOOL)sortDescending { return _result.sortDescending ? YES : NO; }
+- (BOOL)lineNumIsCRLF { return _result.lineNumIsCRLF ? YES : NO; }
+
+- (void)sortTree:(ECOutlineSort)sort
+{
+	if (sort < ECOutlineSortDefault || ECOutlineSortZtoA < sort) return;
+	core::SortOutlineTree(_result, static_cast<core::OutlineSort>(sort));
+	[self update];
+}
+
+- (void)sortRowsByColumn:(NSInteger)column descending:(BOOL)descending
+{
+	core::SortOutlineRows(_result, ClampInt32(column), descending == YES);
+	[self update];
+}
+
+- (NSInteger)itemAtLayoutLine:(NSInteger)layoutLine column:(NSInteger)layoutColumn
+{
+	return core::OutlineItemAt(_result, ClampInt32(layoutLine), ClampInt32(layoutColumn));
+}
+
+- (NSArray<NSNumber *> *)nodePathForItem:(NSInteger)item
+{
+	NSMutableArray<NSNumber *> *path = [NSMutableArray array];
+	for (std::int32_t i : core::OutlineNodePath(_result, ClampInt32(item))) [path addObject:@(i)];
+	return path;
+}
+
+@end
+
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
 }
@@ -1701,5 +1835,27 @@ static ECSearchResult *InvalidViewResult()
 - (NSString *)autoIndentTextAt:(ECPosition)caret { return ToNSString(_doc->AutoIndentText(ToCore(caret))); }
 - (NSString *)convertEolToNewLine:(NSString *)text { return ToNSString(_doc->ConvertEolToNewLine(ToText(text))); }
 - (ECPosition)deleteLayoutLine:(NSInteger)line x:(NSInteger)x { return FromCore(_doc->DeleteLayoutLine(ClampInt32(line), ClampInt32(x))); }
+
+// ----- アウトライン解析（第 42 步） -----
+
+- (ECOutlineResult *)analyzeOutline:(ECOutlineType)type
+{
+	return [[ECOutlineResult alloc] initWithResult:_doc->AnalyzeOutline(static_cast<core::OutlineType>(ClampInt32(type)))];
+}
+
+- (ECOutlineType)resolveOutlineType:(ECOutlineType)type
+{
+	return static_cast<ECOutlineType>(_doc->ResolveOutlineType(static_cast<core::OutlineType>(ClampInt32(type))));
+}
+
+- (NSInteger)findFuncListMarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll wrapped:(nullable BOOL *)wrapped
+{
+	bool w = false;
+	const std::int32_t found = _doc->FindFuncListMark(ClampInt32(line), forward == YES, searchAll == YES, &w);
+	if (wrapped) *wrapped = w ? YES : NO;
+	return found;
+}
+
+- (BOOL)hasFuncListMark:(NSInteger)line { return _doc->HasFuncListMark(ClampInt32(line)) ? YES : NO; }
 
 @end

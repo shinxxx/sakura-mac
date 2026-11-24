@@ -20,6 +20,58 @@ Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Windows.Forms
 
+Add-Type -AssemblyName System.Drawing
+Add-Type @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class OutlineWin32 {
+    delegate bool EnumProc(IntPtr hwnd, IntPtr lParam);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr lParam);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, EnumProc proc, IntPtr lParam);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hwnd, StringBuilder s, int n);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr hwnd, StringBuilder s, int n);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hwnd);
+    public static string ClassOf(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
+    public static string TextOf(IntPtr h) { var s = new StringBuilder(1024); GetWindowText(h, s, 1024); return s.ToString(); }
+    public static List<IntPtr> TopWindows(uint[] pids) {
+        var list = new List<IntPtr>();
+        EnumWindows((h, l) => { uint pid; GetWindowThreadProcessId(h, out pid); if (Array.IndexOf(pids, pid) >= 0) list.Add(h); return true; }, IntPtr.Zero);
+        return list;
+    }
+    public static List<IntPtr> Children(IntPtr parent) {
+        var list = new List<IntPtr>();
+        EnumChildWindows(parent, (h, l) => { list.Add(h); return true; }, IntPtr.Zero);
+        return list;
+    }
+}
+"@
+
+function Save-Screen([string]$name) {
+    try {
+        $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+        $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+        $bmp.Save((Join-Path $OutDir "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $g.Dispose(); $bmp.Dispose()
+    } catch { Write-Host "screenshot failed: $_" }
+}
+
+function Show-Windows {
+    $pids = [uint32[]]@(Get-Process sakura -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+    Write-Host "sakura processes: $($pids -join ', ')"
+    foreach ($h in [OutlineWin32]::TopWindows($pids)) {
+        Write-Host ("  window {0} class={1} visible={2} text={3}" -f $h, [OutlineWin32]::ClassOf($h), [OutlineWin32]::IsWindowVisible($h), [OutlineWin32]::TextOf($h))
+        foreach ($c in [OutlineWin32]::Children($h)) {
+            Write-Host ("    child id={0} class={1} visible={2} text={3}" -f [OutlineWin32]::GetDlgCtrlID($c), [OutlineWin32]::ClassOf($c), [OutlineWin32]::IsWindowVisible($c), [OutlineWin32]::TextOf($c))
+        }
+    }
+}
+
 $SakuraExe = (Resolve-Path $SakuraExe).Path
 $DataDir = (Resolve-Path $DataDir).Path
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -122,15 +174,17 @@ function Dump-Tree($el, [int]$depth, $sb) {
     }
 }
 
+# アウトライン解析 対話框（#32770 で、子に「コピー」ボタン 1149 があるもの。フローティングでもドッキングでも）
 function Find-Dialog([int]$timeoutSec) {
     $deadline = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $deadline) {
-        foreach ($proc in (Get-Process sakura -ErrorAction SilentlyContinue)) {
-            $cond = New-Object System.Windows.Automation.PropertyCondition($AE::ProcessIdProperty, $proc.Id)
-            foreach ($win in $AE::RootElement.FindAll($TS::Children, $cond)) {
-                if ($win.Current.ClassName -eq '#32770') {
-                    $copy = Find-ById $win '1149'
-                    if ($copy -ne $null -and $copy.Current.IsEnabled) { return $win }
+        $pids = [uint32[]]@(Get-Process sakura -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+        foreach ($h in [OutlineWin32]::TopWindows($pids)) {
+            $candidates = @($h) + @([OutlineWin32]::Children($h))
+            foreach ($c in $candidates) {
+                if ([OutlineWin32]::ClassOf($c) -ne '#32770' -or -not [OutlineWin32]::IsWindowVisible($c)) { continue }
+                foreach ($k in [OutlineWin32]::Children($c)) {
+                    if ([OutlineWin32]::GetDlgCtrlID($k) -eq 1149) { return $AE::FromHandle($c) }
                 }
             }
         }
@@ -139,16 +193,30 @@ function Find-Dialog([int]$timeoutSec) {
     return $null
 }
 
-$outlineMacro = Write-Macro 'outline.js' 'Editor.Outline(0);'
 $samples = Get-ChildItem $DataDir -File | Where-Object { $_.Extension -notin @('.rul', '.rux') -and $_.Name -ne '.gitattributes' }
 $failed = @()
 foreach ($sample in $samples) {
     Stop-Sakura
     [System.Windows.Forms.Clipboard]::Clear()
     $file = $sample.FullName
-    Start-Process $SakuraExe -ArgumentList "-M=`"$outlineMacro`" `"$file`"" | Out-Null
-    $dlg = Find-Dialog 60
-    if ($dlg -eq $null) { Write-Host "::error::outline dialog not found: $($sample.Name)"; $failed += $sample.Name; continue }
+    # 性能测试（perf-windows）と同じく、マクロでファイルを開いてからアウトライン解析を実行する
+    $ran = Join-Path $work 'ran.txt'
+    Remove-Item $ran -ErrorAction SilentlyContinue
+    $js = 'Editor.FileOpen("' + $file.Replace('\', '\\') + '"); Editor.Outline(0);' +
+        ' var fso = new ActiveXObject("Scripting.FileSystemObject"); var f = fso.CreateTextFile("' + $ran.Replace('\', '\\') + '", true); f.WriteLine(Editor.GetFilename()); f.Close();'
+    $outlineMacro = Write-Macro 'outline.js' $js
+    Start-Process $SakuraExe -ArgumentList "-M=`"$outlineMacro`"" | Out-Null
+    Write-Host "$(Get-Date -Format HH:mm:ss) open: $($sample.Name)"
+    $dlg = Find-Dialog 30
+    if ($dlg -eq $null) {
+        Write-Host "::error::outline dialog not found: $($sample.Name)"
+        if (Test-Path $ran) { Write-Host "macro ran: $(Get-Content $ran)" } else { Write-Host 'macro did not finish' }
+        Show-Windows
+        Save-Screen ('notfound-' + $sample.Name)
+        $failed += $sample.Name
+        if ($failed.Count -ge 3) { break }
+        continue
+    }
     Start-Sleep -Milliseconds 500
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.Append('title: ' + $dlg.Current.Name + "`n")
