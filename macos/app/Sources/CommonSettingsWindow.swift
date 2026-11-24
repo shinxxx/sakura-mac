@@ -267,6 +267,10 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 let button = NSButton(checkboxWithTitle: text, target: self, action: #selector(controlClicked(_:)))
                 setUpButton(button, multiline: text.contains("\n") || control.has("multiline"))
                 button.frame = widened(frame, for: button, multiline: text.contains("\n") || control.has("multiline"))
+                // Mac のチェックボックスは文字のない所をクリックしても変わらないので、1 行のものは文字の幅にする
+                if !text.contains("\n") && !control.has("multiline") {
+                    button.frame.size.width = min(button.frame.width, ceil(button.fittingSize.width) + 2)
+                }
                 view.addSubview(button)
                 register(button, control)
             case "radio":
@@ -394,6 +398,9 @@ final class PropPage: NSObject, NSTextFieldDelegate {
             let container = PropFlippedView(frame: union)
             for (button, frame) in radios {
                 button.frame = frame.offsetBy(dx: -union.minX, dy: -union.minY)
+                if !button.title.contains("\n") && button.cell?.wraps != true {	// 文字の幅に（チェックボックスと同じ）
+                    button.frame.size.width = min(button.frame.width, ceil(button.fittingSize.width) + 2)
+                }
                 container.addSubview(button)
             }
             view.addSubview(container)

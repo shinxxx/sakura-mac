@@ -91,8 +91,11 @@ final class CommonSettingsTests: XCTestCase {
         }
         let general = controller.page(0)
         XCTAssertEqual((general.control("IDC_CHECK_FREECARET") as? NSButton)?.title, "フリーカーソル(F)")
-        XCTAssertEqual(general.control("IDC_CHECK_FREECARET")?.frame,
-                       NSRect(x: PropPage.pointsX(8), y: PropPage.points(16), width: PropPage.pointsX(120), height: PropPage.points(10)))
+        // 位置は原版の対話框単位から。幅は文字の幅（原版の枠まで）
+        let freeCaret = try XCTUnwrap(general.control("IDC_CHECK_FREECARET")?.frame)
+        XCTAssertEqual(freeCaret.origin, NSPoint(x: PropPage.pointsX(8), y: PropPage.points(16)))
+        XCTAssertEqual(freeCaret.height, PropPage.points(10))
+        XCTAssertLessThanOrEqual(freeCaret.width, PropPage.pointsX(120))
     }
 
     /// 設定 > 共通設定 的各功能打开那一页（原版 F_OPTION_*）
