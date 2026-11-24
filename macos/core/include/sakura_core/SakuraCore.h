@@ -98,7 +98,7 @@ Text SettingsBackupPath();
 	共通設定的一项的值。节和项目与 sakura.ini 相同（例："Common" / "bIsFreeCursorMode"）。
 	值是 sakura.ini 里的写法（数值是十进制，字符串原样）。
 	能用的节：Common、Nickname（ファイル名表示）、Statusbar（ステータスバー）、
-	Types(N)（タイプ別設定 的第 N 个，0 是「基本」。第 40 步）。没有这一项时是空的 optional。
+	Types(N)（タイプ別設定 的第 N 个，0 是「基本」。第 40 步）、KeyWords（第 40 步）、KeyBind・MainMenu（第 41 步）。没有这一项时是空的 optional。
 */
 std::optional<Text> GetCommonSetting(const Text& section, const Text& key);
 
@@ -975,8 +975,34 @@ public:
 	bool ImportKeyBind(const Text& path, Text& message);
 	bool ExportKeyBind(const Text& path, Text& message);
 
+	// ----- メインメニュー（原版 CPropMainMenu。第 41 步第 2 个 PR）-----
+	//! 菜单的一项（原版 SMainMenuWork + 层次）
+	struct MainMenuEntry {
+		std::int32_t level = 0;	//!< 0 是菜单栏
+		bool isNode = false;	//!< 子菜单（功能编号不是 F_NODE 的子菜单也是）
+		FunctionCode code = 0;	//!< 功能编号（F_NODE 0、F_SEPARATOR 1、特別機能、命令）
+		Text name;				//!< 显示的名字（原版 SetData：命令是功能名，区切線是「――」，子菜单是设置的名字）
+		Text accessKey;			//!< アクセスキー（0 或 1 个字）
+	};
+	//! 复制里的メインメニュー（原版 SetData）
+	std::vector<MainMenuEntry> MainMenuEntries() const;
+	bool MainMenuKeyParentheses() const;
 	/*!
-		sakura.ini 的这一节的值（项目, 值）。能用的节：KeyBind。
+		页的内容写进复制（原版 GetData）：每一项的种类按功能编号决定，菜单栏的项目最多 MAX_MAINMENU_TOP 个，
+		没有「共通設定」时加在最后（原版的 auto_add）。全部写进去时 true
+	*/
+	bool SetMainMenu(const std::vector<MainMenuEntry>& entries, bool keyParentheses);
+	//! 初期設定：内置的 MainMenu.ini（原版 IDR_MENU1）
+	void InitializeMainMenu();
+	//! 「特別機能」的分类名和功能（原版 STR_SPECIAL_FUNC、nsFuncCode::pnFuncList_Special）
+	Text SpecialFunctionCategory() const;
+	std::vector<FunctionInfo> SpecialFunctions() const;
+	//! メインメニュー的インポート・エクスポート（*.ini，原版 CImpExpMainMenu）
+	bool ImportMainMenu(const Text& path, Text& message);
+	bool ExportMainMenu(const Text& path, Text& message);
+
+	/*!
+		sakura.ini 的这一节的值（项目, 值）。能用的节：KeyBind、MainMenu。
 		写法与原版保存 sakura.ini 时相同。
 	*/
 	std::vector<std::pair<Text, Text>> IniValues(const Text& section) const;

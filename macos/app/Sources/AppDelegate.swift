@@ -18,6 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EditorCore.useCoreTextMeasurement()
         EditorCore.setLayoutFont(name: EditorTextView.fontName, size: EditorTextView.fontSize)
         NSApp.mainMenu = MainMenuBuilder.build()
+        // 共通設定 > メインメニュー を OK したら菜单栏を作り直す（第 41 步）
+        NotificationCenter.default.addObserver(forName: MainMenuBuilder.mainMenuDidChangeNotification, object: nil, queue: .main) { _ in
+            NSApp.mainMenu = MainMenuBuilder.build()
+        }
         UITesting.prepareSettingsImport()
     }
 

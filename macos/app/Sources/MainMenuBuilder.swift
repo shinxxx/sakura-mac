@@ -61,6 +61,8 @@ enum MainMenuBuilder {
 
     /// 共通設定 > キー割り当て を OK した（第 41 步）：菜单的快捷键按新的分配
     static let keyBindingsDidChangeNotification = Notification.Name("SakuraKeyBindingsDidChange")
+    /// 共通設定 > メインメニュー を OK した（第 41 步）：菜单栏を作り直す（AppDelegate）
+    static let mainMenuDidChangeNotification = Notification.Name("SakuraMainMenuDidChange")
 
     /// 原版的顶层菜单、子菜单的功能编号（Funccode_x.hsrc 的 F_*_TOPMENU 等）
     enum MenuCode {

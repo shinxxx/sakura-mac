@@ -217,3 +217,127 @@ TEST_F(MacCommandSettingsTest, EditorIsACopy)
 	EXPECT_EQ(kSelectAll, FunctionForKey(kF12, 0));
 	EXPECT_NE(kSelectAll, editor->KeyFunction(f12, 0));
 }
+
+// ----- メインメニュー（第 2 个 PR）-----
+
+namespace {
+constexpr FunctionCode kOption = 31112;			// F_OPTION
+constexpr FunctionCode kFileTopMenu = 34052;	// F_FILE_TOPMENU
+constexpr FunctionCode kSeparator = 1;			// F_SEPARATOR
+constexpr FunctionCode kRecentFiles = 29002;	// F_FILE_USED_RECENTLY（特別機能）
+}
+
+//! 原版 SetData：命令は機能名、区切線、特別機能、子菜单（リソースの名前）
+TEST_F(MacCommandSettingsTest, MainMenuEntries)
+{
+	auto editor = CommandSettingsEditor::Create();
+	ASSERT_TRUE(editor);
+	const auto entries = editor->MainMenuEntries();
+	ASSERT_FALSE(entries.empty());
+	EXPECT_EQ(0, entries.front().level);
+	EXPECT_TRUE(entries.front().isNode);
+	EXPECT_EQ(kFileTopMenu, entries.front().code);
+	EXPECT_EQ(u"ファイル", entries.front().name);
+	EXPECT_EQ(u"F", entries.front().accessKey);
+	EXPECT_EQ(1, entries[1].level);
+	EXPECT_EQ(u"新規作成", entries[1].name);
+	EXPECT_NE(entries.end(), std::find_if(entries.begin(), entries.end(), [](const auto& e) { return e.code == kSeparator && e.name == u"――――――――――"; }));
+	EXPECT_NE(entries.end(), std::find_if(entries.begin(), entries.end(), [](const auto& e) { return e.code == kRecentFiles && !e.isNode; }));
+
+	EXPECT_EQ(u"特別機能", editor->SpecialFunctionCategory());
+	const auto special = editor->SpecialFunctions();
+	EXPECT_NE(special.end(), std::find_if(special.begin(), special.end(), [](const auto& f) { return f.code == kRecentFiles; }));
+}
+
+//! 原版 GetData：種類は機能番号で決まる。「共通設定」が無いと最後に追加。写回后 MainMenu() も変わる
+TEST_F(MacCommandSettingsTest, SetMainMenuAndApply)
+{
+	auto editor = CommandSettingsEditor::Create();
+	ASSERT_TRUE(editor);
+	const auto before = MainMenu().size();
+	using E = CommandSettingsEditor::MainMenuEntry;
+	std::vector<E> entries = {
+		{ 0, true, 0, u"A&B", u"A" },			// F_NODE：名前を書く（& は && に）
+		{ 1, false, kFileNew, u"", u"N" },
+		{ 1, false, kSeparator, u"", u"" },
+		{ 1, false, kRecentFiles, u"", u"R" },
+		{ 0, true, kFileTopMenu, u"", u"F" },	// リソースの名前の子菜单
+	};
+	ASSERT_TRUE(editor->SetMainMenu(entries, true));
+	const auto result = editor->MainMenuEntries();
+	ASSERT_EQ(7u, result.size());	// auto_add と 共通設定
+	EXPECT_EQ(u"A&B", result[0].name);
+	EXPECT_EQ(u"新規作成", result[1].name);
+	EXPECT_EQ(kSeparator, result[2].code);
+	EXPECT_EQ(u"ファイル", result[4].name);
+	EXPECT_EQ(u"auto_add", result[5].name);
+	EXPECT_EQ(0, result[5].level);
+	EXPECT_EQ(kOption, result[6].code);
+	EXPECT_EQ(1, result[6].level);
+	EXPECT_TRUE(editor->MainMenuKeyParentheses());
+
+	const auto values = editor->IniValues(u"MainMenu");
+	auto value = [&](const Text& key) {
+		auto it = std::find_if(values.begin(), values.end(), [&](const auto& v) { return v.first == key; });
+		return it == values.end() ? Text(u"<none>") : it->second;
+	};
+	EXPECT_EQ(u"7", value(u"nMainMenuNum"));
+	EXPECT_EQ(u"1", value(u"bKeyParentheses"));
+	EXPECT_EQ(u"0,0,0,A,A&&B", value(u"MM[000]"));
+	EXPECT_EQ(u"1,1,30101,N,", value(u"MM[001]"));
+	EXPECT_EQ(u"", value(u"MM[007]"));	// 減った項目
+	EXPECT_EQ(MainMenu().size(), before);	// まだ変わらない
+
+	ASSERT_TRUE(SetCommonSettings(u"MainMenu", values));
+	const auto menu = MainMenu();
+	ASSERT_EQ(7u, menu.size());
+	EXPECT_EQ(u"A&&B", menu[0].name);
+	EXPECT_EQ(kFileNew, menu[1].code);
+	EXPECT_EQ(MenuItemType::Special, menu[3].type);
+	EXPECT_EQ(kOption, menu[6].code);
+
+	// 保存、重新启动
+	ASSERT_TRUE(SaveSettings());
+	Shutdown(false);
+	ASSERT_TRUE(Startup());
+	EXPECT_EQ(7u, MainMenu().size());
+}
+
+//! 菜单栏の項目は MAX_MAINMENU_TOP（20）まで：あふれた項目は下位項目ごと入れない
+TEST_F(MacCommandSettingsTest, SetMainMenuTopLimit)
+{
+	auto editor = CommandSettingsEditor::Create();
+	std::vector<CommandSettingsEditor::MainMenuEntry> entries;
+	for (int i = 0; i < 22; ++i) {
+		entries.push_back({ 0, true, 0, u"M", u"" });
+		entries.push_back({ 1, false, kOption, u"", u"" });
+	}
+	ASSERT_TRUE(editor->SetMainMenu(entries, false));
+	EXPECT_EQ(40u, editor->MainMenuEntries().size());
+}
+
+//! 初期設定（内置的 MainMenu.ini）、インポート・エクスポート（*.ini）
+TEST_F(MacCommandSettingsTest, MainMenuInitializeImportExport)
+{
+	auto editor = CommandSettingsEditor::Create();
+	const auto original = editor->MainMenuEntries();
+	ASSERT_TRUE(editor->SetMainMenu({ { 0, true, 0, u"X", u"X" }, { 1, false, kOption, u"", u"O" } }, false));
+	EXPECT_EQ(2u, editor->MainMenuEntries().size());
+	const auto path = TempFile("menu.ini");
+	Text message;
+	ASSERT_TRUE(editor->ExportMainMenu(Text(path.u16string()), message));
+	editor->InitializeMainMenu();
+	ASSERT_EQ(original.size(), editor->MainMenuEntries().size());
+	EXPECT_EQ(original.front().name, editor->MainMenuEntries().front().name);
+	ASSERT_TRUE(editor->ImportMainMenu(Text(path.u16string()), message));
+	ASSERT_EQ(2u, editor->MainMenuEntries().size());
+	EXPECT_EQ(u"X", editor->MainMenuEntries().front().name);
+	// 原版のヘッダーが無いファイル
+	{
+		std::ofstream out(TempFile("bad.ini"));
+		out << "[MainMenu]\nnMainMenuNum=1\n";
+	}
+	EXPECT_FALSE(editor->ImportMainMenu(Text(TempFile("bad.ini").u16string()), message));
+	EXPECT_FALSE(message.empty());
+	EXPECT_EQ(2u, editor->MainMenuEntries().size());
+}

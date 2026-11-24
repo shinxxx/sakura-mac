@@ -204,6 +204,8 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     private var unavailable: Set<String> = []
     /// 列表（原版 ListBox、ListView）
     private var lists: [String: PropList] = [:]
+    /// ツリー（原版 TreeView。第 41 步）
+    private var trees: [String: PropTree] = [:]
     /// 负数也可以的数值框（上下按钮的范围的下限是负数）
     private var signedFields: Set<String> = []
 
@@ -327,7 +329,19 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 steppers[buddyID] = stepper
                 stepperBuddies[ObjectIdentifier(stepper)] = buddyID
                 if control.id != "IDC_STATIC" { controls[control.id] = stepper }
-            case "list", "listview", "tree":
+            case "tree":
+                // 原版 SysTreeView32（共通設定 > メインメニュー，第 41 步）
+                let scroll = NSScrollView(frame: frame)
+                scroll.borderType = .bezelBorder
+                scroll.hasVerticalScroller = true
+                let tree = PropTree()
+                tree.onSelect = { [weak self] in self?.onChange?(control.id) }
+                trees[control.id] = tree
+                scroll.documentView = tree.outline
+                view.addSubview(scroll)
+                register(scroll, control)
+                tree.outline.setAccessibilityIdentifier(control.id + "_outline")
+            case "list", "listview":
                 let scroll = NSScrollView(frame: frame)
                 scroll.borderType = .bezelBorder
                 scroll.hasVerticalScroller = true
@@ -482,6 +496,10 @@ final class PropPage: NSObject, NSTextFieldDelegate {
     }
 
     /// 列表（原版 ListView 的 LVS_REPORT。测试也用）
+    func tree(_ id: String) -> PropTree? {
+        trees[id]
+    }
+
     func list(_ id: String) -> PropList? {
         lists[id]
     }
@@ -728,6 +746,168 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         if notifying { onSelect?() }
+    }
+}
+
+/// ツリーの一項目（原版 TreeView の HTREEITEM）
+class PropTreeNode {
+    var title: String
+    /// 下位項目を持てる（原版 cChildren：子菜单は空でも開ける）
+    var canHaveChildren: Bool
+    var children: [PropTreeNode] = []
+    weak var parent: PropTreeNode?
+
+    init(title: String, canHaveChildren: Bool) {
+        self.title = title
+        self.canHaveChildren = canHaveChildren
+    }
+
+    /// 同じ階層の兄弟（親が無いときはツリーの最上位）
+    func siblings(in tree: PropTree) -> [PropTreeNode] {
+        parent?.children ?? tree.roots
+    }
+}
+
+/// ツリー（原版 SysTreeView32。共通設定 > メインメニュー，第 41 步）
+final class PropTree: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+    let outline = PropOutlineView()
+    var roots: [PropTreeNode] = []
+    /// 選択が変わった（原版 TVN_SELCHANGED）
+    var onSelect: (() -> Void)?
+    /// ダブルクリック（原版 NM_DBLCLK）
+    var onDoubleClick: ((PropTreeNode) -> Void)?
+    private var notifying = true
+
+    override init() {
+        super.init()
+        outline.headerView = nil
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0"))
+        outline.addTableColumn(column)
+        outline.outlineTableColumn = column
+        outline.rowHeight = 17
+        outline.allowsMultipleSelection = false
+        outline.allowsEmptySelection = true
+        outline.dataSource = self
+        outline.delegate = self
+        outline.target = self
+        outline.doubleAction = #selector(doubleClicked(_:))
+    }
+
+    @objc private func doubleClicked(_ sender: Any?) {
+        guard let node = outline.item(atRow: outline.clickedRow) as? PropTreeNode else { return }
+        onDoubleClick?(node)
+    }
+
+    /// 全部を描き直す（選択はそのまま、通知しない）
+    func reload() {
+        let selected = selectedNode
+        notifying = false
+        outline.reloadData()
+        if let selected { select(selected, notify: false) }
+        notifying = true
+    }
+
+    /// 一項目の表示を更新
+    func reloadNode(_ node: PropTreeNode) {
+        outline.reloadItem(node, reloadChildren: false)
+    }
+
+    var selectedNode: PropTreeNode? {
+        outline.item(atRow: outline.selectedRow) as? PropTreeNode
+    }
+
+    /// この項目を選ぶ（親を開く）。nil は選択を外す
+    func select(_ node: PropTreeNode?, notify: Bool = true) {
+        let saved = notifying
+        notifying = notify
+        defer { notifying = saved }
+        guard let node else {
+            outline.deselectAll(nil)
+            return
+        }
+        var ancestors: [PropTreeNode] = []
+        var parent = node.parent
+        while let p = parent {
+            ancestors.insert(p, at: 0)
+            parent = p.parent
+        }
+        for ancestor in ancestors { outline.expandItem(ancestor) }
+        let row = outline.row(forItem: node)
+        guard row >= 0 else { return }
+        outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        outline.scrollRowToVisible(row)
+    }
+
+    func expand(_ node: PropTreeNode) {
+        outline.expandItem(node)
+    }
+
+    /// 全開・全閉（原版 TreeView_ExpandAll）
+    func expandAll(_ expand: Bool) {
+        if expand {
+            outline.expandItem(nil, expandChildren: true)
+        } else {
+            outline.collapseItem(nil, collapseChildren: true)
+        }
+    }
+
+    func isExpanded(_ node: PropTreeNode) -> Bool {
+        outline.isItemExpanded(node)
+    }
+
+    /// 見えている項目の題名（テスト用）
+    var visibleTitles: [String] {
+        (0..<outline.numberOfRows).compactMap { (outline.item(atRow: $0) as? PropTreeNode)?.title }
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        (item as? PropTreeNode)?.children.count ?? roots.count
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        (item as? PropTreeNode)?.children[index] ?? roots[index]
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+        (item as? PropTreeNode)?.canHaveChildren ?? false
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+        let label = NSTextField(labelWithString: (item as? PropTreeNode)?.title ?? "")
+        label.font = PropPage.font
+        label.lineBreakMode = .byTruncatingTail
+        return label
+    }
+
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        if notifying { onSelect?() }
+    }
+}
+
+/// キー入力も通知するツリー（原版 CPropMainMenu::TreeViewProc の WM_KEYDOWN）
+final class PropOutlineView: NSOutlineView {
+    /// 文字キー（アクセスキーの設定）。処理したら true
+    var onCharacter: ((String) -> Bool)?
+    /// Delete・BackSpace（削除）
+    var onDelete: (() -> Void)?
+    /// F2（名前の編集）
+    var onRename: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection([.command, .control, .option])
+        if flags.isEmpty, let chars = event.charactersIgnoringModifiers, let scalar = chars.unicodeScalars.first {
+            switch Int(scalar.value) {
+            case NSDeleteCharacter, NSBackspaceCharacter, NSDeleteFunctionKey:
+                onDelete?()
+                return
+            case NSF2FunctionKey:
+                onRename?()
+                return
+            default:
+                if scalar.value > 0x20 && scalar.value < 0xF700, let onCharacter, onCharacter(String(scalar).uppercased()) { return }
+            }
+        }
+        super.keyDown(with: event)
     }
 }
 
@@ -1033,6 +1213,10 @@ final class CommonSettingsWindowController: PropSheetWindowController {
         if values.appliedSections.contains("KeyBind") {
             KeyCommands.reloadBindings()
             NotificationCenter.default.post(name: MainMenuBuilder.keyBindingsDidChangeNotification, object: nil)
+        }
+        // メインメニュー が変わった：菜单栏を作り直す（第 41 步）
+        if values.appliedSections.contains("MainMenu") {
+            NotificationCenter.default.post(name: MainMenuBuilder.mainMenuDidChangeNotification, object: nil)
         }
         // 強調キーワード（とそれを使うタイプ別設定）が変わった：全部の文書を新しい設定で（原版 F_REDRAW）
         if values.appliedSections.contains(where: { $0 == "KeyWords" || $0.hasPrefix("Types(") }) {
