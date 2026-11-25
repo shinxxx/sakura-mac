@@ -22,6 +22,6 @@
 {DIR}/日本語.txt  [UTF-8]
 {DIR}/obj/f.txt  [UTF-8]
 {DIR}/Sub/d.txt  [UTF-8]
-{DIR}/Sub/x.bak  [UTF-8]
+{DIR}/Sub/x.dat  [UTF-8]
 {DIR}/Sub/deep/e.txt  [UTF-8]
 16 個が検索されました。

@@ -1277,6 +1277,76 @@ private:
 //! Grep 的结果的文档用的タイプ別設定的番号（原版：扩展名 "grepout" 的类型。没有时是 0「基本」）
 std::int32_t GrepOutputTypeIndex();
 
+// ----- Grep 对话框（第 43 步。原版 CDlgGrep 的数据部分）-----
+
+//! Grep 对话框的历史（sakura.ini 的 [Grep]。新的在前）
+enum class GrepHistory {
+	File,			//!< 対象ファイル（GREPFILE）
+	Folder,			//!< 検索場所（GREPFOLDER）
+	ExcludeFile,	//!< 除外ファイル（GREPEXCLUDEFILE）
+	ExcludeFolder,	//!< 除外フォルダー（GREPEXCLUDEFOLDER）
+};
+std::vector<Text> GrepHistoryItems(GrepHistory kind);
+//! 登记到历史（原版 CSearchKeywordManager::AddToGrepFileArr 等）
+void AddGrepHistory(GrepHistory kind, const Text& text);
+
+//! 打开 Grep 对话框时的初始值（原版 CDlgGrep::DoModal）
+struct GrepDialogDefaults {
+	Text file;				//!< 历史的第一个
+	Text folder;			//!< 历史的第一个
+	Text excludeFile;		//!< 历史的第一个。历史是空的时候是原版的默认值（*.msi;*.exe;…），也加到历史里
+	Text excludeFolder;		//!< 历史的第一个。历史是空的时候是 .git;.svn;.vs，也加到历史里
+};
+GrepDialogDefaults GetGrepDialogDefaults();
+
+/*!
+	除外ファイル・除外フォルダー 用 ! 和 # 加到対象ファイル 的后面（原版 CDlgGrep::GetPackedGFileString）。
+	不重新加引号，原样加在后面（例："a,b" → ;#"a,b"）
+*/
+Text PackGrepFiles(const Text& file, const Text& excludeFile, const Text& excludeFolder);
+
+//! 検索場所 分成文件夹（原版 CGrepAgent::CreateFolders：; 分隔，去掉 "，相对路径从 baseFolder）
+std::vector<Text> SplitGrepFolders(const Text& folders, const Text& baseFolder);
+
+//! 文件夹连成 検索場所（含 ; 的用 " 括起来。原版 CDlgGrep::GetData）
+Text JoinGrepFolders(const std::vector<Text>& folders);
+
+//! 「上階層へ」（原版 IDC_BUTTON_FOLDER_UP）：最后一个文件夹往上一层。不能往上时 nullopt
+std::optional<Text> GrepFoldersUp(const Text& folders, const Text& baseFolder);
+
+//! Grep 对话框的「OK」的检查（原版 CDlgGrep::GetData 的检查部分）
+struct GrepDialogCheck {
+	Text error;				//!< 消息（原版的 WarningMessage・ErrorMessage）。空：没有错误
+	Text file;				//!< 対象ファイル（空的时候是 *.*）
+	Text folders;			//!< 検索場所（绝对路径，; 分隔。「編集中のテキストから検索」时是空）
+};
+/*!
+	@param fromThisText 「編集中のテキストから検索」（这时 file 是 GrepSourceToken）
+	@param baseFolder 相对路径的起点（原版是当前文件夹）
+	文件夹必须能访问（沙盒的授权由界面层先做）。正规表现的检查（RegexpSyntaxError）和历史的登记由界面层做。
+*/
+GrepDialogCheck CheckGrepDialog(const Text& file, const Text& excludeFile, const Text& excludeFolder,
+								const Text& folders, const Text& baseFolder, bool fromThisText);
+
+class Document;
+
+// ----- タグジャンプ（第 43 步。原版 CViewCommander::Command_TagJumpNoMessage 中 Grep 的结果、エラーメッセージ 的部分）-----
+
+//! タグジャンプ 的目标
+struct TagJumpTarget {
+	Text path;							//!< 文件的路径（「編集中のテキストから検索」的结果时是空）
+	std::optional<std::uint64_t> sourceId;	//!< 「編集中のテキストから検索」的结果：文档的番号（:HWND:[番号]）
+	std::int32_t line = 0;				//!< 行（1 开始。0：没有指定）
+	std::int32_t column = 0;			//!< 桁（1 开始。0：没有指定）
+};
+
+/*!
+	逻辑行 line 的タグジャンプ（原版 Command_TagJumpNoMessage）：Grep 的结果的各种形式（ノーマル、ファイル毎、ベースフォルダー、フォルダー毎、
+	:HWND:）往上找文件名，或者「ファイル名(行,桁)」形式的消息（Borland 形式）。文件存在才是目标。
+	tags 文件的タグジャンプ（ダイレクトタグジャンプ）是第 44 步。没有目标时 nullopt。
+*/
+std::optional<TagJumpTarget> FindTagJump(const Document& document, std::int32_t line);
+
 // ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------

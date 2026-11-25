@@ -29,7 +29,7 @@ FILES = {
     "empty.txt": b"",
     "Sub/d.txt": b"HIT d\r\n",
     "Sub/deep/e.txt": b"e HIT\r\n",
-    "Sub/x.bak": b"HIT bak\r\n",
+    "Sub/x.dat": b"HIT dat\r\n",
     "obj/f.txt": b"HIT f\r\n",
 }
 

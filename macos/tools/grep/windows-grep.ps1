@@ -8,6 +8,7 @@
 #      用 sakura.exe -GREPMODE -GKEY -GFILE -GFOLDER -GOPT=…XU（结果写到标准输出）-CODE=4（结果的文档是 UTF-8）执行 Grep。
 #   2. 与 Mac 版的测试（test-mac-grep.cpp 的 GrepWindowsComparison）相同地整理：文件夹的绝对路径 → {DIR}，
 #      路径的 \ → /，正規表現ライブラリ的版本（到行末）→ {VERSION}；Grep置換 时在后面加上置換后的全部文件的内容（16 进）。
+#   （界面的语言用日文：删掉语言 DLL）
 #   3. 写出 <OutDir>\<名字>.txt（UTF-8），与 Mac 版的 expected 比较。
 param(
 	[Parameter(Mandatory = $true)][string]$SakuraExe,
@@ -46,6 +47,8 @@ function Dump-Tree([string]$root) {
 }
 
 Stop-Sakura
+# 界面的语言是日文（与 Mac 版相同，结果的标题是日文）：删掉语言 DLL（sakura_lang_*.dll），用内置的日文资源
+Get-ChildItem (Split-Path $SakuraExe) -Filter 'sakura_lang_*.dll' | ForEach-Object { Write-Host "remove $($_.Name)"; Remove-Item $_.FullName }
 $ng = 0
 foreach ($line in [IO.File]::ReadAllLines((Join-Path $DataDir 'cases.txt'), $utf8)) {
 	if ($line -eq '' -or $line.StartsWith('#')) { continue }

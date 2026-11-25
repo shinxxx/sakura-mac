@@ -28,6 +28,7 @@
 #include "charset/CCodeBase.h"
 #include "charset/CCodeFactory.h"
 #include "env/CDocTypeManager.h"
+#include "grep/CGrepEnumKeys.h"
 #include "mem/CMemory.h"
 #include "mem/CNativeW.h"
 #include "types/CType.h"
@@ -41,6 +42,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <map>
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -2252,5 +2254,243 @@ TEST_P(GrepWindowsComparison, SameAsWindows)
 
 INSTANTIATE_TEST_SUITE_P(Cases, GrepWindowsComparison, ::testing::ValuesIn(GrepWindowsComparison::Cases()),
 	[](const ::testing::TestParamInfo<std::vector<Text>>& info) { return sakura::u16::to_utf8(std::u16string_view(info.param[0])); });
+
+} // namespace grep_test
+
+// ---------------------------------------------------------------------------
+// Grep ダイアログの部品（原版 CDlgGrep の GetData・GetPackedGFileString 等。第 43 步の第 2 个 PR）
+// ---------------------------------------------------------------------------
+namespace grep_test {
+
+struct GrepDialogDataTest : public GrepTestSuite {
+	TempFolder folder;
+};
+
+//! 除外フォルダー(#)が先、除外ファイル(!)が後ろに連結される（原版 CDlgGrepTest.MakeGrepInfo_PacksExcludePatterns）
+TEST_F(GrepDialogDataTest, PacksExcludePatterns)
+{
+	EXPECT_THAT(PackGrepFiles(u"*.cpp", u"*.bak", u"obj"), Eq(u"*.cpp;#obj;!*.bak"));
+	EXPECT_THAT(PackGrepFiles(u"*.cpp", u"*.bak;*.tmp", u"obj bin"), Eq(u"*.cpp;#obj;#bin;!*.bak;!*.tmp"));
+	EXPECT_THAT(PackGrepFiles(u"*.cpp", u"", u""), Eq(u"*.cpp"));
+}
+
+//! 引用符で囲んだカンマ入りの除外パターンが分割されずに pack されること（原版 MakeGrepInfo_PacksExcludePatternsWithComma、#2677）
+TEST_F(GrepDialogDataTest, PacksExcludePatternsWithComma)
+{
+	const auto packed = PackGrepFiles(u"*.*", u"\"a,b.txt\"", u"\"obj,old\"");
+	EXPECT_THAT(packed, Eq(u"*.*;#\"obj,old\";!\"a,b.txt\""));
+	CGrepEnumKeys keys;
+	EXPECT_THAT(keys.SetFileKeys(packed.c_str()), Eq(0));
+	EXPECT_THAT(std::vector<Text>(keys.m_vecExceptFileKeys.cbegin(), keys.m_vecExceptFileKeys.cend()), Eq(std::vector<Text>{ u"a,b.txt" }));
+	EXPECT_THAT(std::vector<Text>(keys.m_vecExceptFolderKeys.cbegin(), keys.m_vecExceptFolderKeys.cend()), Eq(std::vector<Text>{ u"obj,old" }));
+}
+
+//! 空白入りの除外パターンは、引用符が接頭辞の後ろに付いた形で pack されること（原版 MakeGrepInfo_PacksExcludePatternsWithSpace）
+TEST_F(GrepDialogDataTest, PacksExcludePatternsWithSpace)
+{
+	EXPECT_THAT(PackGrepFiles(u"*.cpp", u"\"a b.txt\"", u"\"x y\""), Eq(u"*.cpp;#\"x y\";!\"a b.txt\""));
+}
+
+//! 検索場所: ; で分け、引用符を取り、相対パスは基準のフォルダーから。連結では ; を含む名前を引用符で囲む
+TEST_F(GrepDialogDataTest, SplitAndJoinFolders)
+{
+	EXPECT_THAT(SplitGrepFolders(u"/a/b;\"/c;d\";sub/x;../y", u"/base/dir"),
+		::testing::ElementsAre(u"/a/b", u"/c;d", u"/base/dir/sub/x", u"/base/y"));
+	EXPECT_THAT(JoinGrepFolders({ u"/a/b", u"/c;d" }), Eq(u"/a/b;\"/c;d\""));
+	EXPECT_THAT(SplitGrepFolders(u"", u"/base"), IsEmpty());
+}
+
+//! 上階層へ: 最後のフォルダーを 1 つ上にする。ルートはそれ以上上がらない（原版 IDC_BUTTON_FOLDER_UP・CDialog::DirectoryUp）
+TEST_F(GrepDialogDataTest, FoldersUp)
+{
+	EXPECT_THAT(GrepFoldersUp(u"/a/b;/c/d/e", u"/"), Eq(std::optional<Text>(u"/a/b;/c/d")));
+	EXPECT_THAT(GrepFoldersUp(u"/a/", u"/"), Eq(std::optional<Text>(u"/")));
+	EXPECT_THAT(GrepFoldersUp(u"/", u"/"), Eq(std::nullopt));
+	EXPECT_THAT(GrepFoldersUp(u"", u"/"), Eq(std::nullopt));
+	EXPECT_THAT(GrepFoldersUp(u"/x;\"/c;d/e\"", u"/"), Eq(std::optional<Text>(u"/x;\"/c;d\"")));
+}
+
+//! OK のときの確かめ（原版 CDlgGrep::GetData）：エラーの順番と文言は原版と同じ
+TEST_F(GrepDialogDataTest, Check)
+{
+	folder.AddFolder(u"sub");
+	const auto base = folder.PathText();
+	// :HWND: は入力できない
+	EXPECT_THAT(CheckGrepDialog(u":HWND:12", u"", u"", base, base, false).error, Eq(Text(LS(STR_DLGGREP_THISDOC_ERROR))));
+	// 引用符の閉じ忘れ
+	EXPECT_THAT(CheckGrepDialog(u"\"a", u"", u"", base, base, false).error, Eq(Text(LS(STR_DLGGREP_QUOTE_ERROR))));
+	EXPECT_THAT(CheckGrepDialog(u"*.c", u"\"a", u"", base, base, false).error, Eq(Text(LS(STR_DLGGREP_QUOTE_ERROR))));
+	EXPECT_THAT(CheckGrepDialog(u"*.c", u"", u"\"a", base, base, false).error, Eq(Text(LS(STR_DLGGREP_QUOTE_ERROR))));
+	// フォルダー部分のワイルドカード、フルパス
+	EXPECT_THAT(CheckGrepDialog(u"*/a.c", u"", u"", base, base, false).error, Eq(Text(LS(STR_DLGGREP2))));
+	EXPECT_THAT(CheckGrepDialog(u"/x/*.c", u"", u"", base, base, false).error, Eq(Text(LS(STR_DLGGREP3))));
+	// フォルダーが空・無い
+	EXPECT_THAT(CheckGrepDialog(u"*.c", u"", u"", u"", base, false).error, Eq(Text(LS(STR_DLGGREP4))));
+	EXPECT_THAT(CheckGrepDialog(u"*.c", u"", u"", base + u";" + folder.PathOf(u"none"), base, false).error, Eq(Text(LS(STR_DLGGREP5))));
+	// 正しいとき：ファイルが空なら *.*、相対パスは基準から、末尾の / は取る
+	const auto ok = CheckGrepDialog(u"", u"", u"", u"sub/;" + base, base, false);
+	EXPECT_THAT(ok.error, IsEmpty());
+	EXPECT_THAT(ok.file, Eq(u"*.*"));
+	EXPECT_THAT(ok.folders, Eq(folder.PathOf(u"sub") + u";" + base));
+	// 編集中のテキストから検索：フォルダーは確かめず空
+	const auto thisText = CheckGrepDialog(GrepSourceToken(5), u"", u"", Text(LS(STR_DLGGREP_THISDOC)), base, true);
+	EXPECT_THAT(thisText.error, IsEmpty());
+	EXPECT_THAT(thisText.folders, IsEmpty());
+	// 長すぎる
+	Text longName(200, u'x');
+	folder.AddFolder(longName);
+	folder.AddFolder(longName + u"/" + longName);
+	const Text longPath = folder.PathOf(longName + u"/" + longName);
+	EXPECT_THAT(CheckGrepDialog(u"*.c", u"", u"", longPath + u";" + longPath, base, false).error, Eq(Text(LS(STR_DLGGREP6))));
+}
+
+//! 履歴と初期値（原版 CDlgGrep::DoModal：除外の履歴が空なら初期値を入れ、履歴にも残す）
+TEST_F(GrepDialogDataTest, HistoryAndDefaults)
+{
+	const auto defaults = GetGrepDialogDefaults();
+	EXPECT_THAT(defaults.excludeFile, Eq(u"*.msi;*.exe;*.obj;*.pdb;*.ilk;*.res;*.pch;*.iobj;*.ipdb"));
+	EXPECT_THAT(defaults.excludeFolder, Eq(u".git;.svn;.vs"));
+	EXPECT_THAT(GrepHistoryItems(GrepHistory::ExcludeFolder), ::testing::Contains(Text(u".git;.svn;.vs")));
+	AddGrepHistory(GrepHistory::File, u"*.cpp");
+	AddGrepHistory(GrepHistory::File, u"*.h");
+	AddGrepHistory(GrepHistory::Folder, u"/work");
+	AddGrepHistory(GrepHistory::ExcludeFile, u"*.bak");
+	AddGrepHistory(GrepHistory::ExcludeFolder, u"obj");
+	EXPECT_THAT(GrepHistoryItems(GrepHistory::File).front(), Eq(u"*.h"));
+	EXPECT_THAT(GrepHistoryItems(GrepHistory::File)[1], Eq(u"*.cpp"));
+	const auto next = GetGrepDialogDefaults();
+	EXPECT_THAT(next.file, Eq(u"*.h"));
+	EXPECT_THAT(next.folder, Eq(u"/work"));
+	EXPECT_THAT(next.excludeFile, Eq(u"*.bak"));
+	EXPECT_THAT(next.excludeFolder, Eq(u"obj"));
+}
+
+// ---------------------------------------------------------------------------
+// タグジャンプ（原版 Command_TagJumpNoMessage）
+// ---------------------------------------------------------------------------
+
+/*!
+	Grep の結果のすべての形式で、結果の行からタグジャンプすると、そのファイルのその位置に飛ぶ。
+	実際の Grep の結果を文書に入れて、結果の行ごとに確かめる。
+*/
+struct TagJumpTest : public GrepCommandLineTest {
+	//! 結果の文書の、行の中身 → 飛び先
+	std::vector<std::pair<Text, std::optional<TagJumpTarget>>> JumpsOf(const Text& text)
+	{
+		auto doc = Document::Create();
+		doc->Insert(Position{}, text);
+		std::vector<std::pair<Text, std::optional<TagJumpTarget>>> result;
+		for (int line = 0; line < doc->LineCount(); ++line) {
+			result.emplace_back(doc->GetLine(line), FindTagJump(*doc, line));
+		}
+		return result;
+	}
+};
+
+TEST_F(TagJumpTest, AllOutputStyles)
+{
+	folder.AddFile(u"a.txt", "x\r\nalpha HIT\r\n");
+	folder.AddFile(u"sub/b.txt", "HIT b\r\n");
+	folder.AddFile(u"sub/deep/c.txt", "c\r\nc\r\n  HIT\r\n");
+	const std::map<Text, std::pair<int, int>> expected{
+		{ folder.PathOf(u"a.txt"), { 2, 7 } },
+		{ folder.PathOf(u"sub/b.txt"), { 1, 1 } },
+		{ folder.PathOf(u"sub/deep/c.txt"), { 3, 3 } },
+	};
+	for (const auto opt : { u"S1", u"S2", u"S1B", u"S2B", u"S1D", u"S2D", u"S1BD", u"S2BD", u"S1K", u"S2BDK", u"S1BK", u"S1P", u"S2BDP" }) {
+		ResetDocument();
+		ASSERT_THAT(Grep(u"HIT", u"*.txt", opt), Eq(3u));
+		int jumps = 0;
+		for (const auto& [line, target] : JumpsOf(GetDocumentText())) {
+			const bool resultLine = line.starts_with(u"・") || (line.starts_with(u"/") && (line.find(u"): ") != Text::npos || line.find(u"]: ") != Text::npos));
+			if (!resultLine) continue;
+			SCOPED_TRACE(U8(Text(opt) + u": " + line));
+			ASSERT_TRUE(target.has_value());
+			const auto it = expected.find(target->path);
+			ASSERT_THAT(it != expected.end(), IsTrue()) << U8(target->path);
+			EXPECT_THAT(target->line, Eq(it->second.first));
+			EXPECT_THAT(target->column, Eq(it->second.second));
+			++jumps;
+		}
+		EXPECT_THAT(jumps, Eq(3)) << U8(opt);
+	}
+}
+
+//! ファイル名の一覧(検索キーが空)・ファイル毎の見出しの行からも、そのファイルに飛ぶ（行と桁は指定なし）
+TEST_F(TagJumpTest, FileListAndHeaders)
+{
+	folder.AddFile(u"a.txt", "x\r\n");
+	Grep(u"", u"*.txt", u"1");
+	const auto jumps = JumpsOf(GetDocumentText());
+	const auto it = std::ranges::find_if(jumps, [&](const auto& j) { return j.first.starts_with(folder.PathOf(u"a.txt")); });
+	ASSERT_THAT(it != jumps.end(), IsTrue());
+	ASSERT_TRUE(it->second.has_value());
+	EXPECT_THAT(it->second->path, Eq(folder.PathOf(u"a.txt")));
+	EXPECT_THAT(it->second->line, Eq(0));
+
+	ResetDocument();
+	folder.AddFile(u"b.txt", "HIT\r\n");
+	Grep(u"HIT", u"b.txt", u"2");
+	const auto jumps2 = JumpsOf(GetDocumentText());
+	const auto header = std::ranges::find_if(jumps2, [](const auto& j) { return j.first.starts_with(u"■\""); });
+	ASSERT_THAT(header != jumps2.end(), IsTrue());
+	ASSERT_TRUE(header->second.has_value());
+	EXPECT_THAT(header->second->path, Eq(folder.PathOf(u"b.txt")));
+}
+
+//! 見出し・件数の行、存在しないファイルの行は飛び先なし
+TEST_F(TagJumpTest, NoTarget)
+{
+	folder.AddFile(u"a.txt", "HIT\r\n");
+	Grep(u"HIT", u"a.txt", u"1");
+	for (const auto& [line, target] : JumpsOf(GetDocumentText())) {
+		if (line.starts_with(u"/")) continue;
+		EXPECT_FALSE(target.has_value()) << U8(line);
+	}
+	const auto none = JumpsOf(folder.PathOf(u"none.txt") + u"(1,1): x\r\n");
+	EXPECT_FALSE(none[0].second.has_value());
+}
+
+//! 「ファイル名(行,桁)」のメッセージ（Borland 形式）・行の途中のパスからも飛ぶ
+TEST_F(TagJumpTest, MessageFormat)
+{
+	folder.AddFile(u"m.c", "int x;\r\n");
+	const auto jumps = JumpsOf(u"error: " + folder.PathOf(u"m.c") + u"(12,5): syntax\r\n");
+	ASSERT_TRUE(jumps[0].second.has_value());
+	EXPECT_THAT(jumps[0].second->path, Eq(folder.PathOf(u"m.c")));
+	EXPECT_THAT(jumps[0].second->line, Eq(12));
+	EXPECT_THAT(jumps[0].second->column, Eq(5));
+}
+
+//! 編集中のテキストから検索の結果: :HWND:[番号] の文書に飛ぶ
+TEST_F(TagJumpTest, SourceDocument)
+{
+	GrepSourceText source;
+	source.id = 0xabc;
+	source.windowLabel = u"(無題)1";
+	source.lines = { u"x\r\n", u"y HIT\r\n" };
+	RunGrep(MakeOptions(u"HIT", GrepSourceToken(source.id), u"", u"1"), { source });
+	const auto jumps = JumpsOf(GetDocumentText());
+	const auto it = std::ranges::find_if(jumps, [](const auto& j) { return j.first.starts_with(u":HWND:["); });
+	ASSERT_THAT(it != jumps.end(), IsTrue());
+	ASSERT_TRUE(it->second.has_value());
+	EXPECT_THAT(it->second->sourceId, Eq(std::optional<std::uint64_t>(0xabc)));
+	EXPECT_THAT(it->second->path, IsEmpty());
+	EXPECT_THAT(it->second->line, Eq(2));
+	EXPECT_THAT(it->second->column, Eq(3));
+
+	// ファイル毎・フォルダー毎の形式も
+	ResetDocument();
+	RunGrep(MakeOptions(u"HIT", GrepSourceToken(source.id), u"", u"2"), { source });
+	int found = 0;
+	for (const auto& [line, target] : JumpsOf(GetDocumentText())) {
+		if (!line.starts_with(u"・")) continue;
+		ASSERT_TRUE(target.has_value()) << U8(line);
+		EXPECT_THAT(target->sourceId, Eq(std::optional<std::uint64_t>(0xabc)));
+		EXPECT_THAT(target->line, Eq(2));
+		++found;
+	}
+	EXPECT_THAT(found, Eq(1));
+}
 
 } // namespace grep_test
