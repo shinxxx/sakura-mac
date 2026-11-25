@@ -188,7 +188,7 @@ final class PropFlippedView: NSView {
 // MARK: - 一页
 
 /// 一页（原版 IDD_PROP_* 的对话框）。控件按 ID（IDC_…）找，与原版的 GetDlgItem 相同
-final class PropPage: NSObject, NSTextFieldDelegate {
+final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     /// 对话框单位 → 点（縦）
     static let scale: CGFloat = 1.6
     /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）
@@ -324,6 +324,19 @@ final class PropPage: NSObject, NSTextFieldDelegate {
                 view.addSubview(field)
                 register(field, control)
                 lastEdit = (control.id, field)
+            case "combo" where !control.has("dropdownlist"):
+                // 原版 CBS_DROPDOWN：入力できるコンボボックス（Grep ダイアログの条件・フォルダー 等。第 43 步）
+                let box = NSComboBox(frame: NSRect(x: frame.minX, y: frame.minY - 1, width: frame.width, height: 22))
+                box.controlSize = .small
+                box.font = Self.font
+                box.completes = false
+                box.usesDataSource = false
+                box.numberOfVisibleItems = 15
+                box.delegate = self
+                box.target = self
+                box.action = #selector(controlClicked(_:))
+                view.addSubview(box)
+                register(box, control)
             case "combo":
                 let popup = NSPopUpButton(frame: NSRect(x: frame.minX, y: frame.minY - 1, width: frame.width, height: 22),
                                           pullsDown: false)
@@ -638,6 +651,11 @@ final class PropPage: NSObject, NSTextFieldDelegate {
 
     /// Combo_ResetContent、Combo_InsertString、Combo_SetCurSel
     func setItems(_ id: String, _ titles: [String], selected: Int) {
+        if let box = controls[id] as? NSComboBox {	// 入力できるコンボボックス：一覧だけ入れ替える（文字はそのまま。第 43 步）
+            box.removeAllItems()
+            box.addItems(withObjectValues: titles)
+            return
+        }
         guard let popup = controls[id] as? NSPopUpButton else { return }
         popup.removeAllItems()
         popup.addItems(withTitles: titles)

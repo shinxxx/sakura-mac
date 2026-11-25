@@ -130,6 +130,15 @@ targets:
       - path: Sources/OutlineDock.swift
       - path: Resources/OutlineDialogs.json
         buildPhase: resources
+      # 第 43 步：Grep・Grep置換・タグジャンプ
+      - path: Sources/GrepDialog.swift
+      - path: Sources/GrepRunner.swift
+      - path: Sources/TagJump.swift
+      - path: Resources/GrepDialogs.json
+        buildPhase: resources
+      - path: ../core/tests/data/grep/tree
+        type: folder
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

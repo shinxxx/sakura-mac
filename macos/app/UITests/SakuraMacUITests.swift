@@ -1001,6 +1001,122 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertFalse(panel.exists)
     }
 
+    // MARK: - 第 43 步：Grep・タグジャンプ
+
+    /// Grep の見本のフォルダー（テストプログラムの容器の中。App から見ると沙盒の外）
+    private func makeGrepFolder() throws -> URL {
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest/grep-\(UUID().uuidString.prefix(8))")
+        do {
+            try FileManager.default.createDirectory(at: dir.appendingPathComponent("sub"), withIntermediateDirectories: true)
+            try "alpha HIT\nnone\n".write(to: dir.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+            try "x\nHIT b\n".write(to: dir.appendingPathComponent("sub/b.txt"), atomically: true, encoding: .utf8)
+        } catch {
+            throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
+        }
+        return dir
+    }
+
+    /// 検索 > Grep… の対話框に入れて「検索」
+    private func grep(in app: XCUIApplication, key: String, folder: String) {
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'Grep' AND NOT (title CONTAINS '置換')")).firstMatch.click()
+        let dialog = app.dialogs["Grep"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5), "Grep の対話框")
+        // 対話框の入力欄は英字の入力にする（编辑区以外は入力法の影響を受ける）
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() { TISSelectInputSource(ascii) }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        for (id, value) in [("IDC_COMBO_TEXT", key), ("IDC_COMBO_FILE", "*.txt"), ("IDC_COMBO_FOLDER", folder)] {
+            let box = dialog.comboBoxes[id]
+            box.click()
+            box.typeKey("a", modifierFlags: .command)
+            box.typeText(value)
+        }
+        let sub = dialog.checkBoxes["IDC_CHK_SUBFOLDER"]
+        if (sub.value as? Int) != 1 { sub.click() }
+        dialog.buttons["IDOK"].click()
+    }
+
+    /// Grep：結果が編集窓口に出て、タイトルは条件。結果の行で Enter（タグジャンプ）するとそのファイルのその行に移る。
+    /// タグジャンプバックで Grep の窓口に戻る
+    func testGrepAndTagJump() throws {
+        let dir = try makeGrepFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        grep(in: app, key: "HIT", folder: dir.path)
+        XCTAssertTrue(waitFor(timeout: 10) { self.text.contains("個が検索されました。") }, "Grep の結果：\(text)")
+        XCTAssertTrue(text.contains("\(dir.path)/a.txt(1,7)"), text)
+        XCTAssertTrue(text.contains("\(dir.path)/sub/b.txt(2,1)"), text)
+        XCTAssertTrue(app.windows["HIT"].exists, "Grep の窓口のタイトルは条件")
+        // sub/b.txt の行へ（見出し 10 行の後：a.txt、sub/b.txt の順）
+        let lines = normalizedText.components(separatedBy: "\n")
+        let target = try XCTUnwrap(lines.firstIndex { $0.hasPrefix("\(dir.path)/sub/b.txt") })
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)
+        for _ in 0..<target { key(XCUIKeyboardKey.downArrow.rawValue) }
+        key(XCUIKeyboardKey.return.rawValue)
+        let opened = app.windows["b.txt"]
+        XCTAssertTrue(opened.waitForExistence(timeout: 10), "タグジャンプでファイルが開いた")
+        let openedEditor = opened.textViews["editor"]
+        XCTAssertEqual(openedEditor.value as? String, "x\nHIT b\n")
+        openedEditor.typeText("Z")
+        XCTAssertEqual(openedEditor.value as? String, "x\nZHIT b\n", "2 行目の先頭に移った")
+        // タグジャンプバック
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["タグジャンプバック"].click()
+        XCTAssertTrue(waitFor { self.app.windows.firstMatch.title == "HIT" }, "Grep の窓口に戻った")
+    }
+
+    /// 第 43 步：沙盒の App で、沙盒の外のフォルダーを Grep する。最初は許可を求める対話框で「許可」、
+    /// 再起動後は書签で許可が残っていて、対話框なしで検索できる（完成标志：授权记忆在重启后仍然有效）
+    func testSandboxedGrepFolderAfterRestart() throws {
+        guard let appPath = ProcessInfo.processInfo.environment["SAKURA_SANDBOX_APP"] else {
+            throw XCTSkip("只在 macos/tools/run-tests.sh 里运行")
+        }
+        app.terminate()
+        let appURL = URL(fileURLWithPath: appPath)
+        let dir = try makeGrepFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", "grep-\(UUID().uuidString)"]
+
+        // 1. 許可を求められる：対話框は検索するフォルダーを開いている。「許可」
+        let first = XCUIApplication(url: appURL)
+        first.launchArguments = base
+        first.launch()
+        let firstEditor = first.textViews["editor"]
+        XCTAssertTrue(firstEditor.waitForExistence(timeout: 10))
+        grep(in: first, key: "HIT", folder: dir.path)
+        let panel = openPanel(of: first)
+        XCTAssertTrue(panel.exists, "許可を求める対話框")
+        let allow = first.buttons.matching(NSPredicate(format: "title IN %@ OR label IN %@", ["許可"], ["許可"])).firstMatch
+        XCTAssertTrue(allow.waitForExistence(timeout: 5), "「許可」ボタン")
+        allow.click()
+        XCTAssertTrue(waitFor(timeout: 10) { (firstEditor.value as? String ?? "").contains("個が検索されました。") }, "許可した後に検索した")
+        XCTAssertTrue((firstEditor.value as? String ?? "").contains("\(dir.path)/sub/b.txt(2,1)"))
+        first.typeKey("q", modifierFlags: .command)
+        if first.sheets.firstMatch.waitForExistence(timeout: 2) {
+            first.sheets.firstMatch.buttons.element(boundBy: 1).click()	// 保存しない
+        }
+        XCTAssertTrue(first.wait(for: .notRunning, timeout: 10))
+
+        // 2. 再起動：対話框なしで検索できる。結果からファイルを開ける
+        app = XCUIApplication(url: appURL)
+        app.launchArguments = base
+        app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        grep(in: app, key: "HIT", folder: dir.path)
+        XCTAssertTrue(waitFor(timeout: 10) { self.text.contains("個が検索されました。") }, "再起動後も対話框なしで検索した：\(text)")
+        XCTAssertFalse(app.buttons["許可"].exists)
+        XCTAssertTrue(text.contains("\(dir.path)/a.txt(1,7)"), text)
+        let lines = normalizedText.components(separatedBy: "\n")
+        let target = try XCTUnwrap(lines.firstIndex { $0.hasPrefix("\(dir.path)/a.txt") })
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)
+        for _ in 0..<target { key(XCUIKeyboardKey.downArrow.rawValue) }
+        key(XCUIKeyboardKey.return.rawValue)
+        XCTAssertTrue(app.windows["a.txt"].waitForExistence(timeout: 10), "書签の許可で、結果からファイルを開けた")
+        XCTAssertEqual(app.windows["a.txt"].textViews["editor"].value as? String, "alpha HIT\nnone\n")
+    }
+
     private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {

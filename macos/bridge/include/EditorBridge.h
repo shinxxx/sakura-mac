@@ -1230,6 +1230,10 @@ NS_SWIFT_NAME(EditorDocument)
 
 //! 逻辑行 line 的タグジャンプ 的目标（Grep 的结果、「ファイル名(行,桁)」的消息）。没有时 nil
 - (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line NS_SWIFT_NAME(tagJump(at:));
+//! 加到最后，不记入撤销（Grep 的结果，原版 Command_ADDTAIL）。返回加入之后的位置
+- (ECPosition)appendWithoutUndo:(NSString *)text NS_SWIFT_NAME(appendWithoutUndo(_:));
+//! 当作没有修改（Grep 结束时，原版 SetModified(false,false)）
+- (void)setUnmodified;
 
 @end
 

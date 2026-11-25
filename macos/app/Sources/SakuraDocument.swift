@@ -159,6 +159,12 @@ final class SakuraDocument: NSDocument {
             writeConfirmed(to: url, ofType: typeName, for: saveOperation) { [self] error in
                 nextSaveSettings = nil
                 if error == nil {
+                    // 第 43 步：保存すると Grep の窓口ではなくなる（原版 CGrepAgent::OnAfterSave）
+                    if isGrepMode {
+                        isGrepMode = false
+                        grepKey = ""
+                        contentDidChange()
+                    }
                     // 原版 CMruListener::OnAfterSave。另存为的新文件也记下访问权限（第 31 步）
                     addToRecent()
                     BookmarkStore.shared.remember(url)
@@ -336,12 +342,51 @@ final class SakuraDocument: NSDocument {
     // MARK: - 状态
 
     /// 是否修改过以核心库为准：撤销回到保存时的状态就不算修改（与原版的「(更新)」相同）。
-    /// 文字コードセット指定改了编码时，关闭时也要确认保存（原版 CEditDoc::OnFileClose 的 IsChgCodeSet，第 34 步）
-    override var isDocumentEdited: Bool { editor.isModified || editor.isEncodingChanged }
+    /// 文字コードセット指定改了编码时，关闭时也要确认保存（原版 CEditDoc::OnFileClose 的 IsChgCodeSet，第 34 步）。
+    /// 第 43 步：Grep の窓口は、共通設定「Grepモードで保存確認する」なら閉じるときいつも確認、でなければ確認しない（原版 OnFileClose）
+    override var isDocumentEdited: Bool {
+        if isGrepMode { return GrepDialogController.commonBool("bGrepExitConfirm") }
+        return editor.isModified || editor.isEncodingChanged
+    }
 
-    /// 无题的文档与原版一样显示「(無題)」
+    // MARK: - Grep（第 43 步）
+
+    /// Grep の結果の窓口（原版 CGrepAgent::m_bGrepMode）。保存すると普通の窓口になる
+    var isGrepMode = false
+    /// Grep の条件（原版 CAppMode::m_szGrepKey。窓口のタイトル）
+    var grepKey = ""
+    /// 実行中の Grep（原版 m_bGrepRunning）
+    var grepRunner: GrepRunner?
+
+    /// Grep 中は閉じられない（原版 CGrepAgent::OnBeforeClose「Grepの処理中です。」）
+    override func canClose(withDelegate delegate: Any, shouldClose shouldCloseSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        if grepRunner != nil {
+            windowControllers.first?.window?.makeKeyAndOrderFront(nil)
+            GrepDialogController.showMessage(NSLocalizedString("Grepの処理中です。\n", comment: "STR_GREP_RUNNINNG")
+                .trimmingCharacters(in: .newlines), windowControllers.first?.window)
+            Self.reply(delegate, shouldCloseSelector, false, contextInfo)
+            return
+        }
+        super.canClose(withDelegate: delegate, shouldClose: shouldCloseSelector, contextInfo: contextInfo)
+    }
+
+    /// canClose の返事（document:shouldClose:contextInfo:）
+    private static func reply(_ delegate: Any, _ selector: Selector?, _ shouldClose: Bool, _ contextInfo: UnsafeMutableRawPointer?) {
+        guard let selector, let object = delegate as? NSObject else { return }
+        typealias Reply = @convention(c) (NSObject, Selector, NSDocument?, Bool, UnsafeMutableRawPointer?) -> Void
+        let imp = object.method(for: selector)
+        unsafeBitCast(imp, to: Reply.self)(object, selector, nil, shouldClose, contextInfo)
+    }
+
+    /// 无题的文档与原版一样显示「(無題)」。Grep の窓口は条件（原版のタイトル $h：32 文字まで、長いときは「...」）
     override var displayName: String! {
-        get { fileURL == nil ? "(無題)" : super.displayName }
+        get {
+            if isGrepMode && fileURL == nil {
+                let key = grepKey as NSString
+                return key.length > 32 ? key.substring(to: 32) + "..." : grepKey
+            }
+            return fileURL == nil ? "(無題)" : super.displayName
+        }
         set { super.displayName = newValue }
     }
 

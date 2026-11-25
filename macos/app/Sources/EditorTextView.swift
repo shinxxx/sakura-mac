@@ -164,6 +164,9 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     /// アウトラインの配置を変えている途中（原版 m_bInChangeLayout：開く・閉じるで表示の設定を変えない）
     var outlineChangingLayout = false
     var replacePanel: ReplacePanelController?
+    /// Grep・Grep置換 対話框の記憶（第 43 步。原版 CEditWnd::m_cDlgGrep、m_cDlgGrepReplace）
+    let grepDialogState = GrepDialogState()
+    let grepReplaceDialogState = GrepDialogState()
 
     /// 光标的闪烁
     private var caretBlinkTimer: Timer?
@@ -1415,6 +1418,11 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             selectionAnchor = caret		// 拖动时从这里开始选择
         }
         needsDisplay = true
+        // 第 43 步：Grep の窓口でダブルクリックしたらタグジャンプ（共通設定「ダブルクリックでタグジャンプ」。原版 OnLBUTTONDBLCLK）
+        if event.clickCount == 2 && isGrepMode && GrepDialogController.commonBool("bGTJW_LDBLCLK") {
+            selectionAnchor = nil
+            tagJump(close: false)
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -1560,7 +1568,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         textChanged()
     }
 
-    private static func isLineDelimiter(_ c: unichar) -> Bool {
+    static func isLineDelimiter(_ c: unichar) -> Bool {
         c == 0x0D || c == 0x0A
     }
 
@@ -1749,6 +1757,11 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// Enter（原版 Command_WCHAR の改行）：选择范围删除后，插入输入用的换行符和オートインデント
     override func insertNewline(_ sender: Any?) {
+        // 第 43 步：Grep の窓口ではタグジャンプ（共通設定「エンターキーでタグジャンプ」。Ctrl+Enter は閉じてタグジャンプ。原版 TranslateCommand_grep）
+        if isGrepMode && GrepDialogController.commonBool("bGTJW_RETURN") {
+            tagJump(close: NSApp.currentEvent?.modifierFlags.contains(.control) == true)
+            return
+        }
         let box = boxRange
         let selected = selection
         let start = caret

@@ -80,7 +80,9 @@ final class MenuKeyTests: XCTestCase {
         XCTAssertEqual(search.items.first { $0.title == "置換..." }?.action, #selector(EditorTextView.showReplacePanel(_:)))
         let grep = try XCTUnwrap(search.items.first { $0.tag == 30910 })
         XCTAssertEqual(grep.title, "Grep...")
-        XCTAssertNil(grep.action, "Grep 还没有移植：没有动作，菜单里变灰")
+        XCTAssertEqual(grep.action, #selector(EditorTextView.showGrepDialog(_:)))
+        let compare = try XCTUnwrap(search.items.first { $0.tag == 30950 })
+        XCTAssertNil(compare.action, "ファイル内容比較 还没有移植：没有动作，菜单里变灰")
 
         // 子菜单：編集 > 高度な操作 > TABインデント
         let advanced = try XCTUnwrap(edit.items.first { $0.title == "高度な操作" }?.submenu)
