@@ -12,13 +12,17 @@
 #include "grep/CGrepExceptFileRegexps.h"
 #include "grep/CGrepEnumFilterFolders.h"
 #include "agent/CSearchAgent.h"
+#if defined(_WIN32)	// Mac 版: ダイアログ・編集画面・ウィンドウは界面层(移植計画のステップ 43)
 #include "dlg/CDlgCancel.h"
 #include "_main/CAppMode.h"
 #include "_main/CMutex.h"
-#include "env/CShareData.h"
 #include "env/CSakuraEnvironment.h"
 #include "cmd/COpeBlk.h"
 #include "window/CEditWnd.h"
+#endif
+#include "env/CShareData.h"
+#include "env/CDocTypeManager.h"
+#include "types/CType.h"
 #include "charset/CCodeMediator.h"
 #include "view/colors/CColorStrategy.h"
 #include "charset/CCodeFactory.h"
@@ -26,13 +30,15 @@
 #include "charset/CCodePage.h"
 #include "io/CFileLoad.h"
 #include "io/CBinaryStream.h"
+#if defined(_WIN32)
 #include "util/window.h"
 #include "util/module.h"
+#include "apiwrap/StdApi.h"
+#include "apiwrap/StdControl.h"
+#endif
 #include "util/string_ex2.h"
 #include "grep/GrepMessageFormat.h"
 #include "debug/CRunningTimer.h"
-#include "apiwrap/StdApi.h"
-#include "apiwrap/StdControl.h"
 #include "CSelectLang.h"
 #include "sakura_rc.h"
 #include "config/system_constants.h"
@@ -45,6 +51,7 @@
 
 namespace grep {
 
+#if defined(_WIN32)	// Mac 版:「Grep実行中」のダイアログと結果の文書は界面层(IGrepProgress・IGrepOutputTarget を渡す)
 /*!
 	@brief 「Grep実行中」のダイアログ。中断を受け付けて進み具合を表示する
 
@@ -78,7 +85,7 @@ public:
 
 	void SetHitCount( int nHitCount ) override
 	{
-		ApiWrap::DlgItem_SetText( GetHwnd(), IDC_STATIC_HITCOUNT, std::to_wstring( nHitCount ).c_str() );
+		ApiWrap::DlgItem_SetText( GetHwnd(), IDC_STATIC_HITCOUNT, sakura::format( LTEXT("{}"), nHitCount ).c_str() );
 	}
 
 	void SetFileName( sakura::wstring_view fileName ) override
@@ -158,6 +165,7 @@ private:
 	CEditView*	m_pcEditView;	//!< 結果の文書のビュー
 	bool		m_bStdout;		//!< 標準出力に書くか(-GOPT=U)
 };
+#endif // defined(_WIN32)
 
 //! 大きいファイルの読んだ割合を、前回の表示から 5% 以上進んだら表示する
 void ShowReadPercent( IGrepProgress* pProgress, const WCHAR* pszFile, int nPercent, int& nOldPercent )
@@ -243,6 +251,7 @@ sakura::wstring FormatPathList( const ContainerType& containter )
 	return strPatterns;
 }
 
+#if defined(_WIN32)
 class CFileLoadOrWnd{
 	CFileLoad m_cfl;
 	HWND m_hWnd;
@@ -328,11 +337,80 @@ public:
 		m_cfl.FileClose();
 	}
 };
+#else
+/*!
+	Mac 版: ファイル、または「編集中のテキストから検索」の文書から 1 行ずつ読む
+	(Windows 版は別のウィンドウにメッセージで行を問い合わせる。改行の判定は同じ)
+*/
+class CFileLoadOrWnd{
+	CFileLoad m_cfl;
+	IGrepSourceDoc* m_hWnd;
+	int m_nLineCurrent;
+	int m_nLineNum;
+public:
+	CFileLoadOrWnd(const SEncodingConfig& encode, IGrepSourceDoc* hWnd)
+		: m_cfl(encode)
+		, m_hWnd(hWnd)
+		, m_nLineCurrent(0)
+		, m_nLineNum(0)
+	{
+	}
+	ECodeType FileOpen(const WCHAR* pszFile, bool bBigFile, ECodeType charCode, int nFlag)
+	{
+		if( m_hWnd ){
+			m_nLineCurrent = 0;
+			m_nLineNum = m_hWnd->GetLineCount();
+			return m_hWnd->GetCharCode();
+		}
+		return m_cfl.FileOpen(pszFile, bBigFile, charCode, nFlag);
+	}
+	EConvertResult ReadLine(CNativeW* buffer, CEol* pcEol){
+		if( m_hWnd ){
+			buffer->SetStringHoldBuffer(LTEXT(""), 0);
+			if( m_nLineNum <= m_nLineCurrent ){
+				return RESULT_FAILURE;
+			}
+			const sakura::wstring line = m_hWnd->GetLine(m_nLineCurrent);
+			const int nLineLen = int(line.length());
+			if( nLineLen == 0 ){ return RESULT_FAILURE; } // EOF => 正常終了
+			buffer->SetString(line.c_str(), nLineLen);
+			if( 1 < nLineLen && (*buffer)[nLineLen - 2] == WCODE::CR &&
+					(*buffer)[nLineLen - 1] == WCODE::LF){
+				pcEol->SetType(EEolType::cr_and_lf);
+			}else{
+				pcEol->SetTypeByString(buffer->GetStringPtr() + nLineLen - 1, 1);
+			}
+			m_nLineCurrent++;
+			return RESULT_COMPLETE;
+		}
+		return m_cfl.ReadLine(buffer, pcEol);
+	}
+	LONGLONG GetFileSize(){
+		if( m_hWnd ){
+			return 0;
+		}
+		return m_cfl.GetFileSize();
+	}
+	int GetPercent(){
+		if( m_hWnd ){
+			return (int)(m_nLineCurrent * 100.0 / m_nLineNum);
+		}
+		return m_cfl.GetPercent();
+	}
+	void FileClose(){
+		if( m_hWnd ){
+			return;
+		}
+		m_cfl.FileClose();
+	}
+};
+#endif // defined(_WIN32)
 
 CGrepAgent::CGrepAgent()
 {
 }
 
+#if defined(_WIN32)	// Mac 版: 閉じる前・保存した後は界面层が受け持つ
 ECallbackResult CGrepAgent::OnBeforeClose()
 {
 	//GREP処理中は終了できない
@@ -354,6 +432,7 @@ void CGrepAgent::OnAfterSave([[maybe_unused]] const SSaveInfo& sSaveInfo)
 	m_bGrepMode = false;	// grepウィンドウは通常ウィンドウ化
 	CAppMode::getInstance()->m_szGrepKey[0] = LCHAR('\0');
 }
+#endif // defined(_WIN32)
 
 /*!
 	@date 2014.03.09 novice 最後の\\を取り除くのをやめる(d:\\ -> d:になる)
@@ -389,8 +468,14 @@ sakura::wstring CGrepAgent::ChopYen( const sakura::wstring& str )
 
 	// 最後のフォルダー区切り記号を削除する
 	// [A:\]などのルートであっても削除
+#if !defined(_WIN32)
+	// Mac 版: ルート(/)は残す(空にすると相対パスになる)
+	if( nPathLen == 1 ){
+		return dst;
+	}
+#endif
 	for(size_t i = 0; i < nPathLen; i++ ){
-		if( LCHAR('\\') == dst[i] && i == nPathLen - 1 ){
+		if( PATH_DELIMITER == dst[i] && i == nPathLen - 1 ){
 			dst.resize( nPathLen - 1 );
 			break;
 		}
@@ -424,6 +509,7 @@ static bool AllFoldersExist( const std::vector<sakura::wstring>& vPaths )
 	} );
 }
 
+#if defined(_WIN32)
 int GetHwndTitle(HWND& hWndTarget, CNativeW* pmemTitle, WCHAR* pszWindowName, WCHAR* pszWindowPath, const WCHAR* pszFile)
 {
 	hWndTarget = nullptr;	//out引数をクリアする
@@ -475,6 +561,68 @@ int GetHwndTitle(HWND& hWndTarget, CNativeW* pmemTitle, WCHAR* pszWindowName, WC
 	}
 	return 1;
 }
+#else
+/*!
+	Mac 版:「編集中のテキストから検索」(:HWND:xxxx) の文書を探す。
+	Windows 版のウィンドウハンドルの代わりに、界面层が付けた番号(16 進数)で文書を探す。出力の形は Windows 版と同じ
+*/
+int GetHwndTitle(IGrepSourceDoc*& hWndTarget, CNativeW* pmemTitle, WCHAR* pszWindowName, WCHAR* pszWindowPath, const WCHAR* pszFile, IGrepResultView* pcView)
+{
+	hWndTarget = nullptr;	//out引数をクリアする
+
+	constexpr auto& szTargetPrefix = LTEXT(":HWND:");
+	constexpr auto cchTargetPrefix = int(std::size(szTargetPrefix)) - 1;
+	if( 0 != wcsncmp(pszFile, szTargetPrefix, cchTargetPrefix) ){
+		return 0; // ハンドルGrepではない
+	}
+	const WCHAR* pszToken = pszFile + cchTargetPrefix;
+	unsigned long long nToken = 0;
+	{
+		const sakura::wstring_view token( pszToken );
+		size_t i = 0;
+		for( ; i < token.size(); ++i ){
+			const WCHAR c = token[i];
+			const int d = (LCHAR('0') <= c && c <= LCHAR('9')) ? c - LCHAR('0')
+				: (LCHAR('a') <= c && c <= LCHAR('f')) ? c - LCHAR('a') + 10
+				: (LCHAR('A') <= c && c <= LCHAR('F')) ? c - LCHAR('A') + 10 : -1;
+			if( d < 0 ){ break; }
+			nToken = nToken * 16 + d;
+		}
+		if( i == 0 ){
+			return -1; // ハンドルを読み取れなかった
+		}
+	}
+	hWndTarget = pcView->FindSourceDoc( pszToken );
+	if( !hWndTarget ){
+		return -1; // 対象の文書が存在しない
+	}
+	if( pmemTitle ){
+		const WCHAR* p = LTEXT("Window:[");
+		pmemTitle->SetStringHoldBuffer(p, 8);
+	}
+	const sakura::wstring strPath = hWndTarget->GetFilePath();
+	if( strPath.empty() ){
+		// Grepかアウトプットか無題
+		const sakura::wstring strTitle = hWndTarget->GetWindowLabel();
+		const WCHAR* pszTagName = hWndTarget->IsGrep() ? LTEXT("(Grep)") : strTitle.c_str();	// Grepは検索キーとタグがぶつかることがあるので単に(Grep)と表示
+		const sakura::wstring strName = sakura::format( LTEXT(":HWND:[{:016x}]{}"), nToken, pszTagName );
+		wcsncpy_s( pszWindowName, _MAX_PATH, strName.c_str(), _TRUNCATE );
+		if( pmemTitle ){
+			pmemTitle->AppendString(strTitle.c_str());
+		}
+		pszWindowPath[0] = LCHAR('\0');
+	}else{
+		SplitPath_FolderAndFile(strPath.c_str(), pszWindowPath, pszWindowName);
+		if( pmemTitle ){
+			pmemTitle->AppendString(pszWindowName);
+		}
+	}
+	if( pmemTitle ){
+		pmemTitle->AppendString(LTEXT("]"));
+	}
+	return 1;
+}
+#endif
 
 
 /*! Grep実行
@@ -492,7 +640,7 @@ int GetHwndTitle(HWND& hWndTarget, CNativeW* pmemTitle, WCHAR* pszWindowName, WC
                        存在しないフォルダーのメッセージは、-GOPT=U のときだけ出力先に足す(それ以外はメッセージボックス)
 */
 DWORD CGrepAgent::DoGrep(
-	CEditView*				pcViewDst,	//!< [in] Grep結果の文書のビュー
+	CGrepResultView*		pcViewDst,	//!< [in] Grep結果の文書のビュー
 	const GrepInfo&			gi,			//!< [in] Grep実行の入力一式(検索キー・対象・オプション)
 	const std::optional<IGrepProgress*>&	optProgress,	//!< [in] 中断の確認と進み具合の表示
 	const std::optional<IGrepOutputTarget*>&	optOutput	//!< [in] 結果の出力先
@@ -525,6 +673,7 @@ DWORD CGrepAgent::DoGrep(
 	cmemMessage.AllocStringBuffer( 4000 );
 	cUnicodeBuffer.AllocStringBuffer( 4000 );
 
+#if defined(_WIN32)	// Mac 版: アンドゥ・検索文字列のマーク・描画は界面层が受け持つ
 	pcViewDst->m_bDoing_UndoRedo		= true;
 
 	/* アンドゥバッファの処理 */
@@ -544,11 +693,20 @@ DWORD CGrepAgent::DoGrep(
 	pcViewDst->m_strCurSearchKey = gi.cmGrepKey.GetStringPtr();				/* 検索文字列 */
 	pcViewDst->m_sCurSearchOption = gi.sGrepSearchOption;						// 検索オプション
 	pcViewDst->m_nCurSearchKeySequence = GetDllShareData().m_Common.m_sSearch.m_nSearchKeySequence;
+#endif
 
 	// 置換後文字列の準備
 	CNativeW cmemReplace;
 	if( gi.bGrepReplace ){
 		if( gi.bGrepPaste ){
+#if !defined(_WIN32)
+			// Mac 版: クリップボードの文字列と改行の処理は界面层(下の Windows 版と同じ処理)
+			if( !pcViewDst->GetPasteText( cmemReplace ) ){
+				this->m_bGrepRunning = false;
+				pcViewDst->ErrorMessage( LS(STR_DLGREPLC_CLIPBOARD) );
+				return 0;
+			}
+#else
 			// 矩形・ラインモード貼り付けは未サポート
 			bool bColmnSelect;
 			bool bLineSelect = false;
@@ -571,6 +729,7 @@ DWORD CGrepAgent::DoGrep(
 				cmemReplace.SetString(pszConvertedText, nConvertedTextLen);
 				delete [] pszConvertedText;
 			}
+#endif
 		}else{
 			cmemReplace = gi.cmGrepRep;
 		}
@@ -585,6 +744,7 @@ DWORD CGrepAgent::DoGrep(
 		Note: ここで強調するのは最後の検索文字列であって
 		Grep対象パターンではないことに注意
 	*/
+#if defined(_WIN32)	// Mac 版: 結果の文書の検索文字列の色分けは界面层
 	if (!pcViewDst->RefreshSearchPattern())
 	{
 		this->m_bGrepRunning = false;
@@ -621,27 +781,42 @@ DWORD CGrepAgent::DoGrep(
 	//	(正規表現が途中で途切れると困るので)
 	//	2011.12.10 Moca 表示の際に...に切り捨てられるので登録するように
 	wcsncpy_s( CAppMode::getInstance()->m_szGrepKey, int(std::size(CAppMode::getInstance()->m_szGrepKey)), gi.cmGrepKey.GetStringPtr(), _TRUNCATE );
+#else
+	// Mac 版:「Grep実行中」のダイアログと結果の出力先は界面层が必ず渡す
+	if( !optProgress.has_value() || !optOutput.has_value() ){
+		this->m_bGrepRunning = false;
+		throw std::invalid_argument("DoGrep needs a progress and an output target on Mac");
+	}
+	auto pcProgress = *optProgress;
+#endif
 	this->m_bGrepMode = true;
 
 	//	2007.07.22 genta
 	//	バージョン番号取得のため，処理を前の方へ移動した
 	CSearchStringPattern pattern;
 	{
+#if defined(_WIN32)
+		const HWND hwndPattern = pcViewDst->GetHwnd();
+#else
+		const HWND hwndPattern = nullptr;	// Mac 版: 正規表現の誤りは Grep ダイアログで確かめてある
+#endif
 		/* 検索パターンのコンパイル */
 		bool bError;
 		if( gi.bGrepReplace && !gi.bGrepPaste ){
 			// Grep置換
 			// 2015.03.03 Grep置換がoptGlobalじゃないバグを修正
-			bError = !pattern.SetPattern(pcViewDst->GetHwnd(), gi.cmGrepKey.GetStringPtr(), gi.cmGrepKey.GetStringLength(),
+			bError = !pattern.SetPattern(hwndPattern, gi.cmGrepKey.GetStringPtr(), gi.cmGrepKey.GetStringLength(),
 				cmemReplace.GetStringPtr(), gi.sGrepSearchOption, &cRegexp, true);
 		}else{
-			bError = !pattern.SetPattern(pcViewDst->GetHwnd(), gi.cmGrepKey.GetStringPtr(), gi.cmGrepKey.GetStringLength(),
+			bError = !pattern.SetPattern(hwndPattern, gi.cmGrepKey.GetStringPtr(), gi.cmGrepKey.GetStringLength(),
 				gi.sGrepSearchOption, &cRegexp);
 		}
 		if( bError ){
 			this->m_bGrepRunning = false;
+#if defined(_WIN32)
 			pcViewDst->m_bDoing_UndoRedo = false;
 			pcViewDst->SetUndoBuffer();
+#endif
 			return 0;
 		}
 	}
@@ -649,6 +824,7 @@ DWORD CGrepAgent::DoGrep(
 	// Grepオプションまとめ
 	const GrepInfo sGrepOption = gi.Normalized();
 
+#if defined(_WIN32)
 	// 結果の出力先。指定が無ければ結果の文書(-GOPT=U なら標準出力)に足す
 	using CGrepOutputToViewHolder = std::unique_ptr<grep::CGrepOutputToView>;
 	CGrepOutputToViewHolder pcViewOutput{};
@@ -668,6 +844,9 @@ DWORD CGrepAgent::DoGrep(
 	CEditWnd*	pCEditWnd = CEditWnd::getInstance();	//	Sep. 10, 2002 genta
 	pCEditWnd->SetWindowIcon( hIconSmall, ICON_SMALL );
 	pCEditWnd->SetWindowIcon( hIconBig, ICON_BIG );
+#else
+	auto pcOutput = *optOutput;
+#endif
 
 	CGrepExceptFileRegexps cExceptFileRegexps;	// 除外ファイル(正規表現)。cGrepEnumKeys の照合関数が参照するので先に宣言する
 	CGrepEnumKeys cGrepEnumKeys;
@@ -678,8 +857,10 @@ DWORD CGrepAgent::DoGrep(
 		}
 		if( nErrorNo != 0 ){
 			this->m_bGrepRunning = false;
+#if defined(_WIN32)
 			pcViewDst->m_bDoing_UndoRedo = false;
 			pcViewDst->SetUndoBuffer();
+#endif
 
 			const WCHAR* pszErrorMessage = LS(STR_GREP_ERR_ENUMKEYS0);
 			if( nErrorNo == 1 ){
@@ -691,13 +872,21 @@ DWORD CGrepAgent::DoGrep(
 			else if( nErrorNo == 3 ){
 				pszErrorMessage = cExceptFileRegexps.GetErrorMessage().c_str();
 			}
+#if defined(_WIN32)
 			ErrorMessage( pcViewDst->m_hwndParent, LTEXT("%s"), pszErrorMessage );
+#else
+			pcViewDst->ErrorMessage( pszErrorMessage );
+#endif
 			return 0;
 		}
 	}
 
 	// 出力対象ビューのタイプ別設定(grepout固定)
+#if defined(_WIN32)
 	const STypeConfig& type = pcViewDst->m_pcEditDoc->m_cDocType.GetDocumentAttribute();
+#else
+	const STypeConfig& type = pcViewDst->GetDocumentAttribute();
+#endif
 
 	std::vector<sakura::wstring> vPaths;
 	CreateFolders( gi.cmGrepFolder.GetStringPtr(), vPaths );
@@ -705,8 +894,10 @@ DWORD CGrepAgent::DoGrep(
 	// 存在しないフォルダーが含まれるときは、検索・置換を始める前に止める(Issue #2707)
 	if( !AllFoldersExist( vPaths ) ){
 		this->m_bGrepRunning = false;
+#if defined(_WIN32)
 		pcViewDst->m_bDoing_UndoRedo = false;
 		pcViewDst->SetUndoBuffer();
+#endif
 
 		const sakura::wstring strMessage = LS( STR_DLGGREP5 );
 		if( sGrepOption.bGrepStdout ){
@@ -716,7 +907,11 @@ DWORD CGrepAgent::DoGrep(
 			cmemError.SetString( strLine.c_str(), strLine.length() );
 			AppendResult( *pcOutput, cmemError );
 		}else{
+#if defined(_WIN32)
 			ErrorMessage( pcViewDst->m_hwndParent, LTEXT("%s"), strMessage.c_str() );
+#else
+			pcViewDst->ErrorMessage( strMessage.c_str() );
+#endif
 		}
 		return 0;
 	}
@@ -745,11 +940,19 @@ DWORD CGrepAgent::DoGrep(
 		}
 	}
 
+#if defined(_WIN32)
 	HWND hWndTarget = nullptr;
+#else
+	IGrepSourceDoc* hWndTarget = nullptr;
+#endif
 	WCHAR szWindowName[_MAX_PATH];
 	WCHAR szWindowPath[_MAX_PATH];
 	{
+#if defined(_WIN32)
 		int nHwndRet = GetHwndTitle(hWndTarget, &cmemWork, szWindowName, szWindowPath, gi.cmGrepFile.GetStringPtr());
+#else
+		int nHwndRet = GetHwndTitle(hWndTarget, &cmemWork, szWindowName, szWindowPath, gi.cmGrepFile.GetStringPtr(), pcViewDst);
+#endif
 		if( -1 == nHwndRet ){
 			cmemMessage.AppendString(LTEXT("HWND handle error.\n"));
 			if( sGrepOption.bGrepHeader ){
@@ -866,7 +1069,9 @@ DWORD CGrepAgent::DoGrep(
 	nWork = cmemMessage.GetStringLength();
 	pszWork = cmemMessage.GetStringPtr();
 //@@@ 2002.01.03 YAZAKI Grep直後はカーソルをGrep直前の位置に動かす
+#if defined(_WIN32)	// Mac 版: カーソルは界面层が戻す
 	CLayoutInt tmp_PosY_Layout = pcViewDst->m_pcEditDoc->m_cLayoutMgr.GetLineCount();
+#endif
 	if( 0 < nWork && sGrepOption.bGrepHeader ){
 		AppendResult( *pcOutput, cmemMessage );
 	}
@@ -880,9 +1085,11 @@ DWORD CGrepAgent::DoGrep(
 	// 2003.06.23 Moca 共通設定で変更できるように
 	// 2008.06.08 ryoji 全ビューの表示ON/OFFを同期させる
 //	SetDrawSwitch(false);
+#if defined(_WIN32)	// Mac 版: リアルタイム表示は界面层(IGrepOutputTarget::IsDrawing)
 	if( !CEditWnd::getInstance()->UpdateTextWrap() )	// 折り返し方法関連の更新
 		CEditWnd::getInstance()->RedrawAllViews( pcViewDst );	//	他のペインの表示を更新
 	const bool bDrawSwitchOld = pcViewDst->SetDrawSwitch(0 != GetDllShareData().m_Common.m_sSearch.m_bGrepRealTimeView);
+#endif
 
 	CGrepEnumOptions cGrepEnumOptions;
 	CGrepEnumFiles cGrepExceptAbsFiles;
@@ -897,13 +1104,13 @@ DWORD CGrepAgent::DoGrep(
 	int nGrepTreeResult = 0;
 
 	if( hWndTarget ){
-		for( HWND hwnd = hWndTarget; nullptr != hwnd; hwnd = nullptr ){
+		for( auto hwnd = hWndTarget; nullptr != hwnd; hwnd = nullptr ){
 			SGrepOutput out{ pcOutput, pcProgress, &nHitCount, cmemMessage, cUnicodeBuffer };
 			// 複数ウィンドウループ予約
-			auto nPathLen = wcsnlen_s(szWindowPath, std::size(szWindowPath));
+			auto nPathLen = wcsnlen(szWindowPath, std::size(szWindowPath));
 			sakura::wstring currentFile = szWindowPath;
 			if( currentFile.size() ){
-				currentFile += LCHAR('\\');
+				currentFile += PATH_DELIMITER;
 				nPathLen += 1;
 			}
 			currentFile += szWindowName;
@@ -924,9 +1131,11 @@ DWORD CGrepAgent::DoGrep(
 		}
 		if( 0 < cmemMessage.GetStringLength() ){
 			AppendResult( *pcOutput, cmemMessage );
+#if defined(_WIN32)
 			pcViewDst->GetCommander().Command_GOFILEEND( false );
 			if( !CEditWnd::getInstance()->UpdateTextWrap() )
 				CEditWnd::getInstance()->RedrawAllViews( pcViewDst );
+#endif
 			cmemMessage.Clear();
 		}
 		nHitCount = nGrepTreeResult;
@@ -968,6 +1177,7 @@ DWORD CGrepAgent::DoGrep(
 		AppendResult( *pcOutput, cmemOutput );
 #endif
 	}
+#if defined(_WIN32)	// Mac 版: カーソル・アンドゥ・描画・カレントディレクトリは界面层
 	pcViewDst->GetCaret().MoveCursor( CLayoutPoint(CLayoutInt(0), tmp_PosY_Layout), true );	//	カーソルをGrep直前の位置に戻す。
 
 	// 「Grep実行中」のダイアログを閉じる
@@ -999,6 +1209,9 @@ DWORD CGrepAgent::DoGrep(
 		// 現行フォルダーを検索したフォルダーに変更
 		cxx::SetCurrentDirectoryW(vPaths.front());
 	}
+#else
+	this->m_bGrepRunning = false;
+#endif
 
 	return nHitCount;
 }
@@ -1069,7 +1282,7 @@ int CGrepAgent::DoGrepFiles(
 		}
 
 		sakura::wstring currentFile = pszPath;
-		currentFile += LTEXT("\\");
+		currentFile += PATH_DELIMITER;
 		currentFile += lpFileName;
 		const WCHAR* pszRelPath = (sGrepOption.bGrepSeparateFolder ? lpFileName : currentFile.c_str() + nBasePathLen + 1);
 
@@ -1172,7 +1385,7 @@ int CGrepAgent::DoGrepTree(
 			//フォルダー名を作成する。
 			// 2010.08.01 キャンセルでメモリリークしてました
 			sakura::wstring currentPath  = pszPath;
-			currentPath += LTEXT("\\");
+			currentPath += PATH_DELIMITER;
 			currentPath += lpFileName;
 
 			//サブフォルダーの探索を再帰呼び出し。中断されたら呼ばない
@@ -1212,7 +1425,11 @@ int CGrepAgent::DoGrepFile(
 	const SGrepSearchCond&	cond,				//!< [in] 検索の条件(全ファイルで共通)
 	CBregexp*				pRegexp,			//!< [in] 正規表現コンパイルデータ。既にコンパイルされている必要がある
 	SGrepOutput&			out,				//!< [i/o] 結果の出力先と出力の状態
+#if defined(_WIN32)
 	HWND					hWndTarget,			//!< [in] 対象Windows(NULLでファイル)
+#else
+	IGrepSourceDoc*			hWndTarget,			//!< [in] Mac 版:「編集中のテキストから検索」の文書(NULLでファイル)
+#endif
 	const SGrepFilePath&	path				//!< [in] 検索するファイルの名前とパス
 )
 {

@@ -1,4 +1,4 @@
-# 阶段 1 第 14 步：字符类型方案
+﻿# 阶段 1 第 14 步：字符类型方案
 
 ## 结论
 
@@ -79,7 +79,7 @@ Mac 编译检查的错误数从 8,722 降到 6,876。
 | `env/CShareData_IO.cpp:1482`、`:1590` | `std::to_wstring` | 第 21 步 |
 | `_main/CCommandLine.cpp:83` | `std::wregex` | 第 26 步决定 Mac 版不编译（见 [phase2-windows.md](phase2-windows.md)）：Mac 的 App 由 Finder 用 Apple Event 打开文件，不经过命令行 |
 | `util/window.cpp:505` | `std::wostringstream` | 第 26 步决定 Mac 版不编译：整个文件是 Win32 窗口和对话框的辅助函数，Mac 版的窗口用 AppKit |
-| `agent/CGrepAgent.cpp:81` | `std::to_wstring` | 第 43 步（Grep） |
+| `agent/CGrepAgent.cpp:81` | `std::to_wstring` | 第 43 步已改成 `sakura::format`（这里是 Windows 版的「Grep実行中」对话框，Mac 版不编译） |
 | `macro/CPythonMacroManager.cpp:156`、`:271` | `std::wregex`、`std::to_wstring` | 第 45 步（宏）。Python 宏在 Mac 版是否支持在那一步决定，不支持就不编译 |
 | `CSelectLang.cpp:83` | `std::wregex`（语言 DLL 文件名） | 第 48 步（界面本地化），Mac 版不用语言 DLL |
 

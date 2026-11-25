@@ -7,14 +7,21 @@
 #include "pch.h"
 #include "grep/CGrepEnumKeys.h"
 
+//! 絶対パスの例(Mac 版は '/' から始まるパス。移植計画のステップ 43)
+#if defined(_WIN32)
+#define WORK_DIR "C:\\work\\"
+#else
+#define WORK_DIR "/work/"
+#endif
+
 /*!
 	@brief 解析結果を std::wstring の配列に変換する
 
 	VGrepEnumKeys の要素型に依存せず比較できるようにするためのヘルパー。
 */
-static std::vector<std::wstring> ToStrings(const VGrepEnumKeys& keys)
+static std::vector<sakura::wstring> ToStrings(const VGrepEnumKeys& keys)
 {
-	return std::vector<std::wstring>(keys.cbegin(), keys.cend());
+	return std::vector<sakura::wstring>(keys.cbegin(), keys.cend());
 }
 
 /*!
@@ -22,8 +29,8 @@ static std::vector<std::wstring> ToStrings(const VGrepEnumKeys& keys)
 */
 TEST(CGrepEnumKeys, SplitPattern_Delimiters)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L"*.cpp *.h;*.txt,*.md");
-	EXPECT_THAT(patterns, Eq(std::vector<std::wstring>({ L"*.cpp", L"*.h", L"*.txt", L"*.md" })));
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT("*.cpp *.h;*.txt,*.md"));
+	EXPECT_THAT(patterns, Eq(std::vector<sakura::wstring>({ LTEXT("*.cpp"), LTEXT("*.h"), LTEXT("*.txt"), LTEXT("*.md") })));
 }
 
 /*!
@@ -31,8 +38,8 @@ TEST(CGrepEnumKeys, SplitPattern_Delimiters)
 */
 TEST(CGrepEnumKeys, SplitPattern_DoubleQuotes)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L"\"a b;c.txt\";*.h");
-	EXPECT_THAT(patterns, Eq(std::vector<std::wstring>({ L"a b;c.txt", L"*.h" })));
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT("\"a b;c.txt\";*.h"));
+	EXPECT_THAT(patterns, Eq(std::vector<sakura::wstring>({ LTEXT("a b;c.txt"), LTEXT("*.h") })));
 }
 
 /*!
@@ -40,7 +47,7 @@ TEST(CGrepEnumKeys, SplitPattern_DoubleQuotes)
 */
 TEST(CGrepEnumKeys, SplitPattern_Empty)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L"");
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT(""));
 	EXPECT_THAT(patterns.empty(), IsTrue());
 }
 
@@ -49,7 +56,7 @@ TEST(CGrepEnumKeys, SplitPattern_Empty)
 */
 TEST(CGrepEnumKeys, SplitPattern_DelimitersOnly)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L" ;,");
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT(" ;,"));
 	EXPECT_THAT(patterns.empty(), IsTrue());
 }
 
@@ -61,8 +68,8 @@ TEST(CGrepEnumKeys, SplitPattern_DelimitersOnly)
 */
 TEST(CGrepEnumKeys, SplitPattern_UnclosedDoubleQuote)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L"\"*.cpp;*.h");
-	EXPECT_THAT(patterns, Eq(std::vector<std::wstring>({ L"*.cpp;*.h" })));
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT("\"*.cpp;*.h"));
+	EXPECT_THAT(patterns, Eq(std::vector<sakura::wstring>({ LTEXT("*.cpp;*.h") })));
 }
 
 /*!
@@ -72,8 +79,8 @@ TEST(CGrepEnumKeys, SplitPattern_UnclosedDoubleQuote)
 */
 TEST(CGrepEnumKeys, SplitPattern_QuoteInsideToken)
 {
-	const auto patterns = CGrepEnumKeys::SplitPattern(L"a\"b c\"d;*.h");
-	EXPECT_THAT(patterns, Eq(std::vector<std::wstring>({ L"ab cd", L"*.h" })));
+	const auto patterns = CGrepEnumKeys::SplitPattern(LTEXT("a\"b c\"d;*.h"));
+	EXPECT_THAT(patterns, Eq(std::vector<sakura::wstring>({ LTEXT("ab cd"), LTEXT("*.h") })));
 }
 
 /*!
@@ -81,8 +88,8 @@ TEST(CGrepEnumKeys, SplitPattern_QuoteInsideToken)
 */
 TEST(CGrepEnumKeys, SplitPatternKeepQuotes_KeepsQuotes)
 {
-	const auto patterns = CGrepEnumKeys::SplitPatternKeepQuotes(L"\"a,b.txt\" *.h;a\"b c\"d,\"x y\"");
-	EXPECT_THAT(patterns, Eq(std::vector<std::wstring_view>({ L"\"a,b.txt\"", L"*.h", L"a\"b c\"d", L"\"x y\"" })));
+	const auto patterns = CGrepEnumKeys::SplitPatternKeepQuotes(LTEXT("\"a,b.txt\" *.h;a\"b c\"d,\"x y\""));
+	EXPECT_THAT(patterns, Eq(std::vector<sakura::wstring_view>({ LTEXT("\"a,b.txt\""), LTEXT("*.h"), LTEXT("a\"b c\"d"), LTEXT("\"x y\"") })));
 }
 
 /*!
@@ -90,8 +97,8 @@ TEST(CGrepEnumKeys, SplitPatternKeepQuotes_KeepsQuotes)
 */
 TEST(CGrepEnumKeys, SplitPatternKeepQuotes_Empty)
 {
-	EXPECT_THAT(CGrepEnumKeys::SplitPatternKeepQuotes(L"").empty(), IsTrue());
-	EXPECT_THAT(CGrepEnumKeys::SplitPatternKeepQuotes(L" ;, ;").empty(), IsTrue());
+	EXPECT_THAT(CGrepEnumKeys::SplitPatternKeepQuotes(LTEXT("")).empty(), IsTrue());
+	EXPECT_THAT(CGrepEnumKeys::SplitPatternKeepQuotes(LTEXT(" ;, ;")).empty(), IsTrue());
 }
 
 /*!
@@ -99,11 +106,11 @@ TEST(CGrepEnumKeys, SplitPatternKeepQuotes_Empty)
 */
 TEST(CGrepEnumKeys, HasUnclosedQuote)
 {
-	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(L""), IsFalse());
-	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(L"*.cpp;*.h"), IsFalse());
-	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(L"\"a,b.txt\";\"x y\""), IsFalse());
-	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(L"\"a,b.txt"), IsTrue());
-	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(L"\"a\" \"b"), IsTrue());
+	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(LTEXT("")), IsFalse());
+	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(LTEXT("*.cpp;*.h")), IsFalse());
+	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(LTEXT("\"a,b.txt\";\"x y\"")), IsFalse());
+	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(LTEXT("\"a,b.txt")), IsTrue());
+	EXPECT_THAT(CGrepEnumKeys::HasUnclosedQuote(LTEXT("\"a\" \"b")), IsTrue());
 }
 
 /*!
@@ -112,9 +119,9 @@ TEST(CGrepEnumKeys, HasUnclosedQuote)
 TEST(CGrepEnumKeys, SetFileKeys_DefaultWildcard)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L""), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<std::wstring>({ L"*.*" })));
-	EXPECT_THAT(ToStrings(keys.m_vecSearchFolderKeys), Eq(std::vector<std::wstring>({ L"*.*" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.*") })));
+	EXPECT_THAT(ToStrings(keys.m_vecSearchFolderKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.*") })));
 }
 
 /*!
@@ -123,11 +130,11 @@ TEST(CGrepEnumKeys, SetFileKeys_DefaultWildcard)
 TEST(CGrepEnumKeys, SetFileKeys_Classify)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !*.bak #obj"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<std::wstring>({ L"*.cpp" })));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptFileKeys), Eq(std::vector<std::wstring>({ L"*.bak" })));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptFolderKeys), Eq(std::vector<std::wstring>({ L"obj" })));
-	EXPECT_THAT(ToStrings(keys.m_vecSearchFolderKeys), Eq(std::vector<std::wstring>({ L"*.*" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !*.bak #obj")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.cpp") })));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.bak") })));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptFolderKeys), Eq(std::vector<sakura::wstring>({ LTEXT("obj") })));
+	EXPECT_THAT(ToStrings(keys.m_vecSearchFolderKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.*") })));
 }
 
 /*!
@@ -136,9 +143,9 @@ TEST(CGrepEnumKeys, SetFileKeys_Classify)
 TEST(CGrepEnumKeys, SetFileKeys_AbsoluteExcept)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !C:\\work\\*.bak #C:\\work\\obj"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<std::wstring>({ L"C:\\work\\*.bak" })));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFolderKeys), Eq(std::vector<std::wstring>({ L"C:\\work\\obj" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !" WORK_DIR "*.bak #" WORK_DIR "obj")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("" WORK_DIR "*.bak") })));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFolderKeys), Eq(std::vector<sakura::wstring>({ LTEXT("" WORK_DIR "obj") })));
 	EXPECT_THAT(keys.m_vecExceptFileKeys.empty(), IsTrue());
 	EXPECT_THAT(keys.m_vecExceptFolderKeys.empty(), IsTrue());
 }
@@ -146,13 +153,15 @@ TEST(CGrepEnumKeys, SetFileKeys_AbsoluteExcept)
 /*!
 	@brief UNCパスの除外指定が絶対パスとして振り分けられること
 */
+#if defined(_WIN32)	// Mac 版: UNC パスは無い
 TEST(CGrepEnumKeys, SetFileKeys_UncPathExcept)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !\\\\server\\share\\*.bak"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<std::wstring>({ L"\\\\server\\share\\*.bak" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !\\\\server\\share\\*.bak")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("\\\\server\\share\\*.bak") })));
 	EXPECT_THAT(keys.m_vecExceptFileKeys.empty(), IsTrue());
 }
+#endif
 
 /*!
 	@brief 同じパターンを重複して登録しないこと
@@ -160,8 +169,8 @@ TEST(CGrepEnumKeys, SetFileKeys_UncPathExcept)
 TEST(CGrepEnumKeys, SetFileKeys_Unique)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp *.cpp"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<std::wstring>({ L"*.cpp" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp *.cpp")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecSearchFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.cpp") })));
 }
 
 /*!
@@ -170,7 +179,7 @@ TEST(CGrepEnumKeys, SetFileKeys_Unique)
 TEST(CGrepEnumKeys, SetFileKeys_WildcardInFolderIsError)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*\\file.exe"), Eq(1));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*\\file.exe")), Eq(1));
 }
 
 /*!
@@ -179,7 +188,7 @@ TEST(CGrepEnumKeys, SetFileKeys_WildcardInFolderIsError)
 TEST(CGrepEnumKeys, SetFileKeys_QuestionMarkInFolderIsError)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"?\\file.exe"), Eq(1));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("?\\file.exe")), Eq(1));
 }
 
 /*!
@@ -188,7 +197,7 @@ TEST(CGrepEnumKeys, SetFileKeys_QuestionMarkInFolderIsError)
 TEST(CGrepEnumKeys, SetFileKeys_AbsoluteSearchIsError)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"C:\\work\\*.cpp"), Eq(2));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("" WORK_DIR "*.cpp")), Eq(2));
 }
 
 /*!
@@ -199,11 +208,11 @@ TEST(CGrepEnumKeys, SetFileKeys_AbsoluteSearchIsError)
 TEST(CGrepEnumKeys, SetFileKeys_ClearsAbsoluteExceptOnReentry)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !C:\\work\\*.bak #C:\\work\\obj"), Eq(0));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !" WORK_DIR "*.bak #" WORK_DIR "obj")), Eq(0));
 	ASSERT_THAT(keys.m_vecExceptAbsFileKeys.size(), Eq(1u));
 	ASSERT_THAT(keys.m_vecExceptAbsFolderKeys.size(), Eq(1u));
 
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp"), Eq(0));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp")), Eq(0));
 	EXPECT_THAT(keys.m_vecExceptAbsFileKeys.empty(), IsTrue());
 	EXPECT_THAT(keys.m_vecExceptAbsFolderKeys.empty(), IsTrue());
 }
@@ -214,9 +223,9 @@ TEST(CGrepEnumKeys, SetFileKeys_ClearsAbsoluteExceptOnReentry)
 TEST(CGrepEnumKeys, GetExcludeFilesAndFolders)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !*.bak !C:\\work\\*.tmp #obj #C:\\work\\bin"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.GetExcludeFiles()), Eq(std::vector<std::wstring>({ L"*.bak", L"C:\\work\\*.tmp" })));
-	EXPECT_THAT(ToStrings(keys.GetExcludeFolders()), Eq(std::vector<std::wstring>({ L"obj", L"C:\\work\\bin" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !*.bak !" WORK_DIR "*.tmp #obj #" WORK_DIR "bin")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.GetExcludeFiles()), Eq(std::vector<sakura::wstring>({ LTEXT("*.bak"), LTEXT("" WORK_DIR "*.tmp") })));
+	EXPECT_THAT(ToStrings(keys.GetExcludeFolders()), Eq(std::vector<sakura::wstring>({ LTEXT("obj"), LTEXT("" WORK_DIR "bin") })));
 }
 
 /*!
@@ -225,10 +234,10 @@ TEST(CGrepEnumKeys, GetExcludeFilesAndFolders)
 TEST(CGrepEnumKeys, AddExceptFileAndFolder)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(L"*.cpp !*.bak"), Eq(0));
-	EXPECT_THAT(keys.AddExceptFile(L"*.tmp;C:\\work\\*.log"), Eq(0));
-	EXPECT_THAT(keys.AddExceptFolder(L"obj"), Eq(0));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptFileKeys), Eq(std::vector<std::wstring>({ L"*.bak", L"*.tmp" })));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<std::wstring>({ L"C:\\work\\*.log" })));
-	EXPECT_THAT(ToStrings(keys.m_vecExceptFolderKeys), Eq(std::vector<std::wstring>({ L"obj" })));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("*.cpp !*.bak")), Eq(0));
+	EXPECT_THAT(keys.AddExceptFile(LTEXT("*.tmp;" WORK_DIR "*.log")), Eq(0));
+	EXPECT_THAT(keys.AddExceptFolder(LTEXT("obj")), Eq(0));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("*.bak"), LTEXT("*.tmp") })));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptAbsFileKeys), Eq(std::vector<sakura::wstring>({ LTEXT("" WORK_DIR "*.log") })));
+	EXPECT_THAT(ToStrings(keys.m_vecExceptFolderKeys), Eq(std::vector<sakura::wstring>({ LTEXT("obj") })));
 }

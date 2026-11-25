@@ -1168,6 +1168,116 @@ std::int32_t OutlineItemAt(const OutlineResult& result, std::int32_t layoutLine,
 std::vector<std::int32_t> OutlineNodePath(const OutlineResult& result, std::int32_t item);
 
 // ---------------------------------------------------------------------------
+// Grep・Grep置換（第 43 步。原版 CGrepAgent::DoGrep、Grep 的命令行 -GREPMODE）
+// ---------------------------------------------------------------------------
+
+/*!
+	Grep 的条件（原版 GrepInfo。默认值也相同）。
+	对话框的「除外ファイル」「除外フォルダー」与原版相同，用 ! 和 # 加在 files 的后面（PackGrepFiles）。
+*/
+struct GrepOptions {
+	Text key;								//!< 条件（空的时候是「ファイル検索」：只列出文件名）
+	Text replacement;						//!< Grep置換的置換後（replace 时）
+	Text files;								//!< 対象ファイル（原版 -GFILE。空的时候是 *.*）
+	Text folders;							//!< 検索場所（; 分隔几个文件夹，含 ; 的用 " 括起来）
+	SearchOptions search;					//!< 単語単位・大文字小文字・正規表現
+	bool subFolder = false;					//!< サブフォルダーも検索
+	Encoding charSet = encoding::SJIS;		//!< 文字コードセット（AutoDetect 是自動選択。原版 nGrepCharSet）
+	std::int32_t outputStyle = 1;			//!< 結果出力形式：1 ノーマル、2 ファイル毎、3 結果のみ
+	std::int32_t outputLineType = 0;		//!< 結果出力：0 該当部分、1 該当行、2 否該当行
+	bool fileOnly = false;					//!< ファイル毎最初のみ検索
+	bool baseFolder = false;				//!< ベースフォルダー表示
+	bool separateFolder = false;			//!< フォルダー毎に表示
+	bool exceptFileRegexp = false;			//!< 除外ファイルを正規表現で指定
+	bool header = true;						//!< 检索条件和件数的显示（原版 -GOPT=H 时 false）
+	bool replace = false;					//!< Grep置換
+	bool paste = false;						//!< Grep置換：クリップボードから貼り付け
+	bool backup = false;					//!< Grep置換：バックアップ作成（原版的 .skrold）
+	/*!
+		Grep置換「クリップボードから貼り付け」的文字（界面层取剪贴板，按原版 Command_GREP_REPLACE 的处理：
+		ラインモード貼り付け时末尾补换行、「改行コードを変換して貼り付ける」时换成结果文档的输入换行符）。
+		剪贴板是空的时候 nullopt（原版的「クリップボードに有効なデータがありません！」）。
+	*/
+	std::optional<Text> pasteText;
+};
+
+/*!
+	「編集中のテキストから検索」的文档（原版 :HWND: 的窗口）。Grep 在别的线程运行，所以先在界面的线程取出全部行。
+	files 是 ":HWND:" + id 的 16 进制（GrepSourceToken）。
+*/
+struct GrepSourceText {
+	std::uint64_t id = 0;			//!< 文档的番号（结果里 :HWND:[…] 的数字）
+	Text filePath;					//!< 文件的路径（无题时空）
+	Text windowLabel;				//!< ウィンドウ一覧的名字（无题时显示）
+	bool isGrep = false;			//!< Grep 的结果的窗口
+	Encoding encoding = encoding::UTF8;	//!< 文字コード（自動選択时显示在结果里）
+	std::vector<Text> lines;		//!< 各行（包括换行符）
+};
+
+//! 「編集中のテキストから検索」的対象ファイル（原版 CDlgGrep::GetData 的 ":HWND:%016I64x"）
+Text GrepSourceToken(std::uint64_t id);
+
+//! Grep 的进度（原版「Grep実行中」对话框显示的内容）
+struct GrepProgress {
+	std::int32_t hitCount = 0;		//!< 「件みつかりました」
+	Text file;						//!< 「ファイル」（大的文件时有读了的百分比）
+	Text folder;					//!< 「フォルダー」
+};
+
+//! Grep 的结果
+struct GrepResult {
+	std::int32_t hitCount = 0;		//!< 件数（Grep置換是换了的个数。原版 DoGrep 的返回值）
+	bool cancelled = false;			//!< 中断了（结果里有「中断しました。」）
+	Text errorMessage;				//!< 原版用消息框显示的错误（空：没有）
+};
+
+/*!
+	一次 Grep。界面层在别的线程调用 Run，在界面的线程定时用 TakeOutput 取出结果加到结果的文档里，
+	用 Progress 显示进度，用 Cancel 中断（原版「Grep実行中」对话框的「キャンセル」）。
+	结果的文字与原版加到 Grep 窗口的文字相同（包括检索条件的标题、件数）。
+*/
+class GrepSession {
+public:
+	/*!
+		@param options 条件
+		@param sources 「編集中のテキストから検索」的文档（files 是 GrepSourceToken 时用）
+	*/
+	GrepSession(GrepOptions options, std::vector<GrepSourceText> sources = {});
+	~GrepSession();
+	GrepSession(const GrepSession&) = delete;
+	GrepSession& operator=(const GrepSession&) = delete;
+
+	//! 执行（一个 GrepSession 只能执行一次）。直到结束才返回，可以在别的线程调用
+	GrepResult Run();
+
+	//! 中断（任何线程都可以调用）
+	void Cancel();
+
+	/*!
+		リアルタイム表示（原版「Grep実行中」的复选框，初始值是共通設定 bGrepRealTime）。
+		关着时结果在一个文件的检索后集中加入（原版 IsDrawing 时 10MB 也加入）。任何线程都可以调用。
+	*/
+	void SetRealTimeView(bool on);
+	bool IsRealTimeView() const;
+
+	//! 取出还没取出的结果的文字（任何线程都可以调用）
+	Text TakeOutput();
+
+	//! 现在的进度（任何线程都可以调用）
+	GrepProgress Progress() const;
+
+	//! 正在执行（Run 中）
+	bool IsRunning() const;
+
+private:
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
+};
+
+//! Grep 的结果的文档用的タイプ別設定的番号（原版：扩展名 "grepout" 的类型。没有时是 0「基本」）
+std::int32_t GrepOutputTypeIndex();
+
+// ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------
 

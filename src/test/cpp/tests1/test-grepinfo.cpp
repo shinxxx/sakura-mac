@@ -9,11 +9,15 @@
 #include <Windows.h>
 
 #include "basis/GrepInfo.h"
+#if defined(_WIN32)	// Mac 版: コマンドラインと Grep ダイアログは Windows 版だけ(Mac 版のダイアログは界面层。移植計画のステップ 43)
 #include "_main/CCommandLine.h"
 #include "dlg/CDlgGrepReplace.h"
+#endif
 #include "grep/CGrepEnumKeys.h"
 
+#if defined(_WIN32)
 #include "window/EditorTestSuite.hpp"
+#endif
 
 /*!
  * 同型との等価比較
@@ -87,19 +91,19 @@ TEST(GrepInfo, operatorNotEqual)
 {
 	GrepInfo value, other;
 
-	value.cmGrepKey = L"ぐれっぷ";
+	value.cmGrepKey = LTEXT("ぐれっぷ");
 	ASSERT_THAT(value, Ne(std::ref(other)));
 	value.cmGrepKey = other.cmGrepKey;
 
-	value.cmGrepRep = L"ちかん";
+	value.cmGrepRep = LTEXT("ちかん");
 	ASSERT_THAT(value, Ne(std::ref(other)));
 	value.cmGrepRep = other.cmGrepRep;
 
-	value.cmGrepFile = L"#.git;*.*";
+	value.cmGrepFile = LTEXT("#.git;*.*");
 	ASSERT_THAT(value, Ne(std::ref(other)));
 	value.cmGrepFile = other.cmGrepFile;
 
-	value.cmGrepFolder = L"C:\\work\\sakura";
+	value.cmGrepFolder = LTEXT("C:\\work\\sakura");
 	ASSERT_THAT(value, Ne(std::ref(other)));
 	value.cmGrepFolder = other.cmGrepFolder;
 
@@ -296,13 +300,14 @@ TEST(GrepInfo, Normalized_DoesNotModifySelf)
 TEST(GrepInfo, MakeCommandLine_Default)
 {
 	GrepInfo gi;
-	gi.cmGrepKey.SetString(L"key");
-	gi.cmGrepFile.SetString(L"*.txt");
-	gi.cmGrepFolder.SetString(LR"(C:\work)");
-	const std::wstring expected = LR"(-GREPMODE -GKEY="key" -GFILE="*.txt" -GFOLDER="C:\work" -GCODE=0 -GOPT=1)";	// 引用符を含むのでマクロの外で作る(C2017 の回避)
+	gi.cmGrepKey.SetString(LTEXT("key"));
+	gi.cmGrepFile.SetString(LTEXT("*.txt"));
+	gi.cmGrepFolder.SetString(LTEXT(R"(C:\work)"));
+	const sakura::wstring expected = LTEXT(R"(-GREPMODE -GKEY="key" -GFILE="*.txt" -GFOLDER="C:\work" -GCODE=0 -GOPT=1)");	// 引用符を含むのでマクロの外で作る(C2017 の回避)
 	EXPECT_THAT(gi.MakeCommandLine(), StrEq(expected));
 }
 
+#if defined(_WIN32)	// Mac 版: CCommandLine は Windows 版だけ
 /*!
  * @brief GrepInfo::MakeCommandLine() のテスト
  *  すべての項目を既定値以外にしたコマンドラインを解析すると、元と同じになる(引用符を含む値も)
@@ -310,10 +315,10 @@ TEST(GrepInfo, MakeCommandLine_Default)
 TEST(GrepInfo, MakeCommandLine_RoundTrip)
 {
 	GrepInfo gi;
-	gi.cmGrepKey.SetString(LR"(a"b)");
-	gi.cmGrepRep.SetString(LR"(c"d)");
-	gi.cmGrepFile.SetString(LR"(*.txt;!"x,y.txt")");
-	gi.cmGrepFolder.SetString(LR"(C:\a b)");
+	gi.cmGrepKey.SetString(LTEXT(R"(a"b)"));
+	gi.cmGrepRep.SetString(LTEXT(R"(c"d)"));
+	gi.cmGrepFile.SetString(LTEXT(R"(*.txt;!"x,y.txt")"));
+	gi.cmGrepFolder.SetString(LTEXT(R"(C:\a b)"));
 	gi.sGrepSearchOption.bLoHiCase = true;
 	gi.sGrepSearchOption.bRegularExp = true;
 	gi.sGrepSearchOption.bWordOnly = true;
@@ -346,9 +351,9 @@ TEST(GrepInfo, MakeCommandLine_OutputRoundTrip)
 	for (const int lineType : { 0, 1, 2 }) {
 		for (const int style : { 1, 2, 3 }) {
 			GrepInfo gi;
-			gi.cmGrepKey.SetString(L"key");
-			gi.cmGrepFile.SetString(L"*.txt");
-			gi.cmGrepFolder.SetString(LR"(C:\work)");
+			gi.cmGrepKey.SetString(LTEXT("key"));
+			gi.cmGrepFile.SetString(LTEXT("*.txt"));
+			gi.cmGrepFolder.SetString(LTEXT(R"(C:\work)"));
 			gi.nGrepOutputLineType = lineType;
 			gi.nGrepOutputStyle = style;
 
@@ -358,6 +363,7 @@ TEST(GrepInfo, MakeCommandLine_OutputRoundTrip)
 		}
 	}
 }
+#endif
 
 /*!
  * @brief GrepInfo::MakeCommandLineOptions() のテスト
@@ -370,6 +376,7 @@ TEST(GrepInfo, MakeCommandLineOptions_OutputStyleOutOfRange)
 	EXPECT_THAT(gi.MakeCommandLineOptions(), IsEmpty());
 }
 
+#if defined(_WIN32)	// Mac 版: CDlgGrep は Windows 版だけ(Mac 版の Grep ダイアログのテストは App の GrepDialogTests)
 /*!
  * CDlgGrep を構築するテストのためのフィクスチャクラス
  *
@@ -389,9 +396,9 @@ protected:
 TEST_F(CDlgGrepTest, MakeGrepInfo_CopiesDialogSettings)
 {
 	CDlgGrep dlg;
-	dlg.m_strText = L"ぐれっぷ";
-	dlg.m_szFile = L"*.cpp";
-	dlg.m_szFolder = L"C:\\work\\sakura";
+	dlg.m_strText = LTEXT("ぐれっぷ");
+	dlg.m_szFile = LTEXT("*.cpp");
+	dlg.m_szFolder = LTEXT("C:\\work\\sakura");
 	dlg.m_bSubFolder = TRUE;
 	dlg.m_sSearchOption.bRegularExp = true;
 	dlg.m_nGrepCharSet = CODE_EUC;
@@ -403,9 +410,9 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_CopiesDialogSettings)
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
 
-	EXPECT_THAT(gi.cmGrepKey.GetStringPtr(), StrEq(L"ぐれっぷ"));
-	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(L"*.cpp"));
-	EXPECT_THAT(gi.cmGrepFolder.GetStringPtr(), StrEq(L"C:\\work\\sakura"));
+	EXPECT_THAT(gi.cmGrepKey.GetStringPtr(), StrEq(LTEXT("ぐれっぷ")));
+	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(LTEXT("*.cpp")));
+	EXPECT_THAT(gi.cmGrepFolder.GetStringPtr(), StrEq(LTEXT("C:\\work\\sakura")));
 	EXPECT_THAT(gi.sGrepSearchOption.bRegularExp, IsTrue());
 	EXPECT_THAT(gi.bGrepSubFolder, IsTrue());
 	EXPECT_THAT(gi.nGrepCharSet, Eq(CODE_EUC));
@@ -433,14 +440,14 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_CopiesDialogSettings)
 TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatterns)
 {
 	CDlgGrep dlg;
-	dlg.m_szFile = L"*.cpp";
-	dlg.m_szExcludeFile = L"*.bak";
-	dlg.m_szExcludeFolder = L"obj";
+	dlg.m_szFile = LTEXT("*.cpp");
+	dlg.m_szExcludeFile = LTEXT("*.bak");
+	dlg.m_szExcludeFolder = LTEXT("obj");
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
 
 	// 除外フォルダー(#)が先、除外ファイル(!)が後ろに連結される
-	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(L"*.cpp;#obj;!*.bak"));
+	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(LTEXT("*.cpp;#obj;!*.bak")));
 }
 
 /*!
@@ -450,21 +457,21 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatterns)
 TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatternsWithComma)
 {
 	CDlgGrep dlg;
-	dlg.m_szFile = L"*.*";
-	dlg.m_szExcludeFile = L"\"a,b.txt\"";
-	dlg.m_szExcludeFolder = L"\"obj,old\"";
+	dlg.m_szFile = LTEXT("*.*");
+	dlg.m_szExcludeFile = LTEXT("\"a,b.txt\"");
+	dlg.m_szExcludeFolder = LTEXT("\"obj,old\"");
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
 
 	// 引用符で囲み直さず、接頭辞の後ろにそのまま連結される
-	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(L"*.*;#\"obj,old\";!\"a,b.txt\""));
+	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(LTEXT("*.*;#\"obj,old\";!\"a,b.txt\"")));
 
 	// Grep 実行側で解析すると、除外パターンが1要素のまま復元される
 	CGrepEnumKeys keys;
 	EXPECT_THAT(keys.SetFileKeys(gi.cmGrepFile.GetStringPtr()), Eq(0));
-	EXPECT_THAT(std::vector<std::wstring>(keys.m_vecSearchFileKeys.cbegin(), keys.m_vecSearchFileKeys.cend()), Eq(std::vector<std::wstring>({ L"*.*" })));
-	EXPECT_THAT(std::vector<std::wstring>(keys.m_vecExceptFileKeys.cbegin(), keys.m_vecExceptFileKeys.cend()), Eq(std::vector<std::wstring>({ L"a,b.txt" })));
-	EXPECT_THAT(std::vector<std::wstring>(keys.m_vecExceptFolderKeys.cbegin(), keys.m_vecExceptFolderKeys.cend()), Eq(std::vector<std::wstring>({ L"obj,old" })));
+	EXPECT_THAT(std::vector<sakura::wstring>(keys.m_vecSearchFileKeys.cbegin(), keys.m_vecSearchFileKeys.cend()), Eq(std::vector<sakura::wstring>({ LTEXT("*.*") })));
+	EXPECT_THAT(std::vector<sakura::wstring>(keys.m_vecExceptFileKeys.cbegin(), keys.m_vecExceptFileKeys.cend()), Eq(std::vector<sakura::wstring>({ LTEXT("a,b.txt") })));
+	EXPECT_THAT(std::vector<sakura::wstring>(keys.m_vecExceptFolderKeys.cbegin(), keys.m_vecExceptFolderKeys.cend()), Eq(std::vector<sakura::wstring>({ LTEXT("obj,old") })));
 }
 
 /*!
@@ -474,13 +481,13 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatternsWithComma)
 TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatternsWithSpace)
 {
 	CDlgGrep dlg;
-	dlg.m_szFile = L"*.cpp";
-	dlg.m_szExcludeFile = L"\"a b.txt\"";
-	dlg.m_szExcludeFolder = L"\"x y\"";
+	dlg.m_szFile = LTEXT("*.cpp");
+	dlg.m_szExcludeFile = LTEXT("\"a b.txt\"");
+	dlg.m_szExcludeFolder = LTEXT("\"x y\"");
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
 
-	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(L"*.cpp;#\"x y\";!\"a b.txt\""));
+	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(LTEXT("*.cpp;#\"x y\";!\"a b.txt\"")));
 }
 
 /*!
@@ -490,18 +497,18 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_PacksExcludePatternsWithSpace)
 TEST_F(CDlgGrepTest, MakeGrepInfo_ReplaceDialogAddsReplaceFields)
 {
 	CDlgGrepReplace dlg;
-	dlg.m_strText = L"before";
-	dlg.m_strText2 = L"after";
-	dlg.m_szFile = L"*.cpp";
-	dlg.m_szFolder = L"C:\\work";
+	dlg.m_strText = LTEXT("before");
+	dlg.m_strText2 = LTEXT("after");
+	dlg.m_szFile = LTEXT("*.cpp");
+	dlg.m_szFolder = LTEXT("C:\\work");
 	dlg.m_bPaste = true;
 	dlg.m_bBackup = true;
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
 
-	EXPECT_THAT(gi.cmGrepKey.GetStringPtr(), StrEq(L"before"));
-	EXPECT_THAT(gi.cmGrepRep.GetStringPtr(), StrEq(L"after"));
-	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(L"*.cpp"));
+	EXPECT_THAT(gi.cmGrepKey.GetStringPtr(), StrEq(LTEXT("before")));
+	EXPECT_THAT(gi.cmGrepRep.GetStringPtr(), StrEq(LTEXT("after")));
+	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(LTEXT("*.cpp")));
 	EXPECT_THAT(gi.bGrepReplace, IsTrue());
 	EXPECT_THAT(gi.bGrepPaste, IsTrue());
 	EXPECT_THAT(gi.bGrepBackup, IsTrue());
@@ -527,17 +534,17 @@ TEST_F(CDlgGrepTest, MakeGrepInfo_CopiesExceptFileRegexp)
 TEST_F(CDlgGrepTest, MakeGrepInfo_ExceptFileRegexpRoundTrip)
 {
 	CDlgGrep dlg;
-	dlg.m_szFile = L"*.cpp";
-	dlg.m_szExcludeFile = LR"("\d{2,4}" ^a$)";
+	dlg.m_szFile = LTEXT("*.cpp");
+	dlg.m_szExcludeFile = LTEXT(R"("\d{2,4}" ^a$)");
 	dlg.m_bGrepExceptFileRegexp = true;
 
 	const GrepInfo gi = dlg.MakeGrepInfo();
-	const std::wstring expectedFile = LR"(*.cpp;!"\d{2,4}";!^a$)";	// 引用符を含むのでマクロの外で作る(C2017 の回避)
+	const sakura::wstring expectedFile = LTEXT(R"(*.cpp;!"\d{2,4}";!^a$)");	// 引用符を含むのでマクロの外で作る(C2017 の回避)
 	EXPECT_THAT(gi.cmGrepFile.GetStringPtr(), StrEq(expectedFile));
 
 	CGrepEnumKeys keys;
 	ASSERT_THAT(keys.SetFileKeys(gi.cmGrepFile.GetStringPtr(), gi.bGrepExceptFileRegexp), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, (VGrepEnumKeys{ LR"(\d{2,4})", L"^a$" }));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, (VGrepEnumKeys{ LTEXT(R"(\d{2,4})"), LTEXT("^a$") }));
 	EXPECT_THAT(keys.m_vecExceptFileKeys, IsEmpty());
 }
 
@@ -548,3 +555,4 @@ TEST_F(CDlgGrepTest, ShareDataDefault_ExceptFileRegexpIsOff)
 {
 	EXPECT_THAT(GetDllShareData().m_Common.m_sSearch.m_bGrepExceptFileRegexp, IsFalse());
 }
+#endif

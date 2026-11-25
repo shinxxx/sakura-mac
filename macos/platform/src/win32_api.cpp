@@ -211,6 +211,9 @@ DWORD GetFileAttributesW(const WCHAR* lpFileName)
 	const auto slash = path.find_last_of('/');
 	const auto name = slash == std::string::npos ? path : path.substr(slash + 1);
 	if (name.size() > 1 && name[0] == '.' && name != "..") attr |= FILE_ATTRIBUTE_HIDDEN;
+#if defined(__APPLE__)
+	if (st.st_flags & UF_HIDDEN) attr |= FILE_ATTRIBUTE_HIDDEN;	// 第 43 步：Finder 的隐藏标志
+#endif
 	return attr ? attr : FILE_ATTRIBUTE_NORMAL;
 }
 
@@ -227,6 +230,11 @@ BOOL SetFileAttributesW(const WCHAR* lpFileName, DWORD dwFileAttributes)
 		mode |= S_IWUSR;
 	}
 	if (mode != (st.st_mode & 07777) && ::chmod(path.c_str(), mode) != 0) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+#if defined(__APPLE__)
+	// 第 43 步：隐藏属性是 Finder 的隐藏标志（名字以 . 开头的文件总是隐藏的）
+	const unsigned int flags = (dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) ? (st.st_flags | UF_HIDDEN) : (st.st_flags & ~UF_HIDDEN);
+	if (flags != st.st_flags && ::chflags(path.c_str(), flags) != 0) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+#endif
 	return TRUE;
 }
 

@@ -19,6 +19,12 @@
 #include "util/tchar_convert.h"
 #include <limits.h>
 #include <locale.h>
+#if !defined(_MSC_VER)
+#include <wctype.h>
+#if defined(__APPLE__)
+#include <xlocale.h>
+#endif
+#endif
 
 int __cdecl my_internal_icmp( const char *s1, const char *s2, unsigned int n, unsigned int dcount, bool flag );
 
@@ -442,6 +448,21 @@ int __cdecl my_internal_icmp( const char *s1, const char *s2, unsigned int n, un
 //   ・Unicode の最初の 256 個の符号位置は Windows-1252 の親戚の ISO-8859-1 由来。
 //   ・相違は 0x80-0x9F の区間で、Windows-1252 では図形文字、ISO-8859-1(Unicode) では制御文字。
 // ※ ランタイムの towupper(c)/tolower(c) が将来期待する動作になったとしてもこの方法を使い続けて問題無いはず
+#if !defined(_MSC_VER)
+// Mac 版: towupper()/towlower() は C ロケールでは ASCII しか変換しない(全角英字などが大文字小文字を区別しない検索で一致しない)。
+// VC のランタイムと同じく Unicode の文字を変換するよう、UTF-8 のロケールで変換する(移植計画のステップ 43)。
+// c < 256 は上の VC 版の変換テーブルと同じ結果にする(0x80-0x9F は無変換、Windows-1252 に大文字の無い µ(0xB5) は無変換)。
+static locale_t UnicodeCaseLocale()
+{
+	static const locale_t locale = []{
+		locale_t l = ::newlocale( LC_CTYPE_MASK, "en_US.UTF-8", nullptr );
+		if( !l ) l = ::newlocale( LC_CTYPE_MASK, "C.UTF-8", nullptr );
+		return l;
+	}();
+	return locale;
+}
+#endif
+
 int skr_towupper( int c )
 {
 #ifdef _MSC_VER
@@ -459,6 +480,10 @@ int skr_towupper( int c )
 	}();
 
 	if( c < 256 ) return szMap[c];
+#else
+	if( c < 0x80 ) return my_towupper( c );
+	if( c < 0xA0 || c == 0xB5 ) return c;
+	if( const locale_t locale = UnicodeCaseLocale() ) return int( ::towupper_l( wint_t(WCHAR(c)), locale ) );
 #endif
 	return towupper( (WCHAR)c );
 }
@@ -479,6 +504,10 @@ int skr_towlower( int c )
 	}();
 
 	if( c < 256 ) return szMap[c];
+#else
+	if( c < 0x80 ) return my_towlower( c );
+	if( c < 0xA0 ) return c;
+	if( const locale_t locale = UnicodeCaseLocale() ) return int( ::towlower_l( wint_t(WCHAR(c)), locale ) );
 #endif
 	return towlower( (WCHAR)c );
 }

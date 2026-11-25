@@ -8,7 +8,11 @@
 #include "grep/CGrepEnumKeys.h"
 #include "grep/CGrepEnumFiles.h"
 #include "grep/CGrepEnumFilterFiles.h"
+#if defined(_WIN32)
 #include "grep/GrepTestSuite.hpp"	// grep_test::TempFolder
+#else
+#include "mac-grep-temp-folder.hpp"	// Mac 版: grep_test::TempFolder(GrepTestSuite.hpp は編集ウィンドウを使う。移植計画のステップ 43)
+#endif
 
 #include <algorithm>
 #include <string>
@@ -36,9 +40,9 @@ namespace {
 using grep_test::TempFolder;
 
 //! 列挙結果の名前を昇順(符号単位)で返す
-std::vector<std::wstring> Names(const CGrepEnumFileBase& items)
+std::vector<sakura::wstring> Names(const CGrepEnumFileBase& items)
 {
-	std::vector<std::wstring> names;
+	std::vector<sakura::wstring> names;
 	for (int i = 0; i < items.GetCount(); ++i) {
 		names.emplace_back(items.GetFileName(i));
 	}
@@ -58,13 +62,13 @@ std::vector<std::wstring> Names(const CGrepEnumFileBase& items)
 TEST(CGrepEnumKeysExceptRegex, Classify)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(LR"(*.cpp;!^[^.]+$;!\.bak$;#obj)", true), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT(R"(*.cpp;!^[^.]+$;!\.bak$;#obj)"), true), Eq(0));
 
-	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(L"*.cpp"));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(L"^[^.]+$", LR"(\.bak$)"));
+	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(LTEXT("*.cpp")));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT("^[^.]+$"), LTEXT(R"(\.bak$)")));
 	EXPECT_THAT(keys.m_vecExceptFileKeys, IsEmpty());
 	EXPECT_THAT(keys.m_vecExceptAbsFileKeys, IsEmpty());
-	EXPECT_THAT(keys.m_vecExceptFolderKeys, ElementsAre(L"obj"));
+	EXPECT_THAT(keys.m_vecExceptFolderKeys, ElementsAre(LTEXT("obj")));
 }
 
 /*!
@@ -74,10 +78,10 @@ TEST(CGrepEnumKeysExceptRegex, SkipsPathValidation)
 {
 	CGrepEnumKeys keys;
 	// ワイルドカードとして扱うと、フォルダー部分に * があるのでエラー
-	EXPECT_THAT(keys.SetFileKeys(LR"(!.*\.txt$)"), Eq(1));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT(R"(!.*\.txt$)")), Eq(1));
 	// 正規表現として扱うときはエラーにならない。絶対パスに見えるものも正規表現として扱う
-	EXPECT_THAT(keys.SetFileKeys(LR"(!.*\.txt$;!C:\a$)", true), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LR"(.*\.txt$)", LR"(C:\a$)"));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT(R"(!.*\.txt$;!C:\a$)"), true), Eq(0));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT(R"(.*\.txt$)"), LTEXT(R"(C:\a$)")));
 	EXPECT_THAT(keys.m_vecExceptAbsFileKeys, IsEmpty());
 }
 
@@ -87,7 +91,7 @@ TEST(CGrepEnumKeysExceptRegex, SkipsPathValidation)
 TEST(CGrepEnumKeysExceptRegex, IgnoresEmpty)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"*.cpp;!", true), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*.cpp;!"), true), Eq(0));
 	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, IsEmpty());
 }
 
@@ -97,12 +101,12 @@ TEST(CGrepEnumKeysExceptRegex, IgnoresEmpty)
 TEST(CGrepEnumKeysExceptRegex, ClearsOnReentry)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!^a$", true), Eq(0));
-	keys.m_fnIsExceptFilePath = [](std::wstring_view) { return true; };
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!^a$"), true), Eq(0));
+	keys.m_fnIsExceptFilePath = [](sakura::wstring_view) { return true; };
 
-	ASSERT_THAT(keys.SetFileKeys(L"*.cpp"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*.cpp")), Eq(0));
 	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, IsEmpty());
-	EXPECT_THAT(keys.IsExceptFilePath(L"a"), IsFalse());
+	EXPECT_THAT(keys.IsExceptFilePath(LTEXT("a")), IsFalse());
 }
 
 /*!
@@ -111,8 +115,8 @@ TEST(CGrepEnumKeysExceptRegex, ClearsOnReentry)
 TEST(CGrepEnumKeysExceptRegex, GetExcludeFilesIncludesRegex)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!^a$;!^b$", true), Eq(0));
-	EXPECT_THAT(keys.GetExcludeFiles(), ElementsAre(L"^a$", L"^b$"));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!^a$;!^b$"), true), Eq(0));
+	EXPECT_THAT(keys.GetExcludeFiles(), ElementsAre(LTEXT("^a$"), LTEXT("^b$")));
 }
 
 /*!
@@ -120,13 +124,13 @@ TEST(CGrepEnumKeysExceptRegex, GetExcludeFilesIncludesRegex)
 */
 TEST(CGrepEnumKeysExceptRegex, IsExceptFilePath)
 {
-	const std::wstring readme = LR"(C:\work\README)";
-	const std::wstring text = LR"(C:\work\a.txt)";
+	const sakura::wstring readme = LTEXT(R"(C:\work\README)");
+	const sakura::wstring text = LTEXT(R"(C:\work\a.txt)");
 
 	CGrepEnumKeys keys;
 	EXPECT_THAT(keys.IsExceptFilePath(readme), IsFalse());
 
-	keys.m_fnIsExceptFilePath = [&readme](std::wstring_view filePath) { return filePath == readme; };
+	keys.m_fnIsExceptFilePath = [&readme](sakura::wstring_view filePath) { return filePath == readme; };
 	EXPECT_THAT(keys.IsExceptFilePath(readme), IsTrue());
 	EXPECT_THAT(keys.IsExceptFilePath(text), IsFalse());
 }
@@ -137,8 +141,8 @@ TEST(CGrepEnumKeysExceptRegex, IsExceptFilePath)
 TEST(CGrepEnumKeysExceptRegex, OffKeepsWildcard)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!*.bak"), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileKeys, ElementsAre(L"*.bak"));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!*.bak")), Eq(0));
+	EXPECT_THAT(keys.m_vecExceptFileKeys, ElementsAre(LTEXT("*.bak")));
 	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, IsEmpty());
 }
 
@@ -148,8 +152,8 @@ TEST(CGrepEnumKeysExceptRegex, OffKeepsWildcard)
 TEST(CGrepEnumKeysExceptRegex, Unique)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!^a$;!^a$", true), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(L"^a$"));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!^a$;!^a$"), true), Eq(0));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT("^a$")));
 }
 
 /*!
@@ -157,12 +161,12 @@ TEST(CGrepEnumKeysExceptRegex, Unique)
 */
 TEST(CGrepEnumKeysExceptRegex, QuotedDelimiters)
 {
-	const std::wstring pattern = LR"(!"^a b$";!"\d{2,4}";!"a;b")";	// 引用符を含むのでマクロの外で作る
-	const std::wstring digits = LR"(\d{2,4})";
+	const sakura::wstring pattern = LTEXT(R"(!"^a b$";!"\d{2,4}";!"a;b")");	// 引用符を含むのでマクロの外で作る
+	const sakura::wstring digits = LTEXT(R"(\d{2,4})");
 
 	CGrepEnumKeys keys;
 	ASSERT_THAT(keys.SetFileKeys(pattern.c_str(), true), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(L"^a b$", digits, L"a;b"));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT("^a b$"), digits, LTEXT("a;b")));
 }
 
 /*!
@@ -170,12 +174,12 @@ TEST(CGrepEnumKeysExceptRegex, QuotedDelimiters)
 */
 TEST(CGrepEnumKeysExceptRegex, UnquotedCommaSplits)
 {
-	const std::wstring pattern = LR"(!\d{2,4})";	// 「,」を含むのでマクロの外で作る
+	const sakura::wstring pattern = LTEXT(R"(!\d{2,4})");	// 「,」を含むのでマクロの外で作る
 
 	CGrepEnumKeys keys;
 	ASSERT_THAT(keys.SetFileKeys(pattern.c_str(), true), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LR"(\d{2)"));
-	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(L"4}"));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT(R"(\d{2)")));
+	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(LTEXT("4}")));
 }
 
 /*!
@@ -184,9 +188,13 @@ TEST(CGrepEnumKeysExceptRegex, UnquotedCommaSplits)
 TEST(CGrepEnumKeysExceptRegex, OtherRulesUnchanged)
 {
 	CGrepEnumKeys keys;
-	EXPECT_THAT(keys.SetFileKeys(LR"(#a*\b)", true), Eq(1));
-	EXPECT_THAT(keys.SetFileKeys(LR"(sub*\a.txt)", true), Eq(1));
-	EXPECT_THAT(keys.SetFileKeys(LR"(C:\x\*.txt)", true), Eq(2));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT(R"(#a*\b)"), true), Eq(1));
+	EXPECT_THAT(keys.SetFileKeys(LTEXT(R"(sub*\a.txt)"), true), Eq(1));
+#if defined(_WIN32)
+	EXPECT_THAT(keys.SetFileKeys(LTEXT(R"(C:\x\*.txt)"), true), Eq(2));
+#else
+	EXPECT_THAT(keys.SetFileKeys(LTEXT("/x/*.txt"), true), Eq(2));	// Mac 版: 絶対パスは '/' から
+#endif
 }
 
 /*!
@@ -195,8 +203,8 @@ TEST(CGrepEnumKeysExceptRegex, OtherRulesUnchanged)
 TEST(CGrepEnumKeysExceptRegex, PrefixCharsInPattern)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!!x;!#y", true), Eq(0));
-	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(L"!x", L"#y"));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!!x;!#y"), true), Eq(0));
+	EXPECT_THAT(keys.m_vecExceptFileRegexKeys, ElementsAre(LTEXT("!x"), LTEXT("#y")));
 	EXPECT_THAT(keys.m_vecExceptFolderKeys, IsEmpty());
 }
 
@@ -206,8 +214,8 @@ TEST(CGrepEnumKeysExceptRegex, PrefixCharsInPattern)
 TEST(CGrepEnumKeysExceptRegex, OnlyExcludes)
 {
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"!^a$", true), Eq(0));
-	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(L"*.*"));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("!^a$"), true), Eq(0));
+	EXPECT_THAT(keys.m_vecSearchFileKeys, ElementsAre(LTEXT("*.*")));
 }
 
 // ---------------------------------------------------------------------------
@@ -220,26 +228,26 @@ TEST(CGrepEnumKeysExceptRegex, OnlyExcludes)
 TEST(CGrepEnumFilterFilesExceptRegex, ExceptByFilePathMatcher)
 {
 	TempFolder folder;
-	for (const auto name : { L"a.txt", L"b.log", L"README" }) {
+	for (const auto name : { LTEXT("a.txt"), LTEXT("b.log"), LTEXT("README") }) {
 		folder.AddFile(name, "x");
 	}
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"*", true), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*"), true), Eq(0));
 	{
 		CGrepEnumFilterFiles files;
 		CGrepEnumFiles absExcept;
 		files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-		EXPECT_THAT(Names(files), ElementsAre(L"README", L"a.txt", L"b.log"));
+		EXPECT_THAT(Names(files), ElementsAre(LTEXT("README"), LTEXT("a.txt"), LTEXT("b.log")));
 	}
 
-	const std::wstring readme = (folder.Path() / L"README").wstring();
-	keys.m_fnIsExceptFilePath = [&readme](std::wstring_view filePath) { return filePath == readme; };
+	const sakura::wstring readme = (folder.Path() / LTEXT("README")).wstring();
+	keys.m_fnIsExceptFilePath = [&readme](sakura::wstring_view filePath) { return filePath == readme; };
 	{
 		CGrepEnumFilterFiles files;
 		CGrepEnumFiles absExcept;
 		files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-		EXPECT_THAT(Names(files), ElementsAre(L"a.txt", L"b.log"));
+		EXPECT_THAT(Names(files), ElementsAre(LTEXT("a.txt"), LTEXT("b.log")));
 	}
 }
 
@@ -249,12 +257,20 @@ TEST(CGrepEnumFilterFilesExceptRegex, ExceptByFilePathMatcher)
 TEST(CGrepEnumFilterFilesExceptRegex, MatcherGetsFullPath)
 {
 	TempFolder folder;
-	folder.AddFile(LR"(sub\x.txt)", "x");
+#if defined(_WIN32)
+	folder.AddFile(LTEXT(R"(sub\x.txt)"), "x");
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(LR"(sub\*.txt)", true), Eq(0));
-	std::vector<std::wstring> calledPaths;
-	keys.m_fnIsExceptFilePath = [&calledPaths](std::wstring_view filePath) {
+	ASSERT_THAT(keys.SetFileKeys(LTEXT(R"(sub\*.txt)"), true), Eq(0));
+#else
+	// Mac 版: パスの区切りは '/'
+	folder.AddFile(LTEXT("sub/x.txt"), "x");
+
+	CGrepEnumKeys keys;
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("sub/*.txt"), true), Eq(0));
+#endif
+	std::vector<sakura::wstring> calledPaths;
+	keys.m_fnIsExceptFilePath = [&calledPaths](sakura::wstring_view filePath) {
 		calledPaths.emplace_back(filePath);
 		return true;
 	};
@@ -262,7 +278,11 @@ TEST(CGrepEnumFilterFilesExceptRegex, MatcherGetsFullPath)
 	CGrepEnumFilterFiles files;
 	CGrepEnumFiles absExcept;
 	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	const std::wstring expected = (folder.Path() / LR"(sub\x.txt)").wstring();
+#if defined(_WIN32)
+	const sakura::wstring expected = (folder.Path() / LTEXT(R"(sub\x.txt)")).wstring();
+#else
+	const sakura::wstring expected = (folder.Path() / LTEXT("sub/x.txt")).wstring();
+#endif
 	EXPECT_THAT(calledPaths, ElementsAre(expected));
 	EXPECT_THAT(files.GetCount(), Eq(0));
 }
@@ -273,13 +293,13 @@ TEST(CGrepEnumFilterFilesExceptRegex, MatcherGetsFullPath)
 TEST(CGrepEnumFilterFilesExceptRegex, MatcherNotCalledForFolders)
 {
 	TempFolder folder;
-	folder.AddFolder(L"d");
-	folder.AddFile(L"f", "x");
+	folder.AddFolder(LTEXT("d"));
+	folder.AddFile(LTEXT("f"), "x");
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"*", true), Eq(0));
-	std::vector<std::wstring> calledPaths;
-	keys.m_fnIsExceptFilePath = [&calledPaths](std::wstring_view filePath) {
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*"), true), Eq(0));
+	std::vector<sakura::wstring> calledPaths;
+	keys.m_fnIsExceptFilePath = [&calledPaths](sakura::wstring_view filePath) {
 		calledPaths.emplace_back(filePath);
 		return false;
 	};
@@ -287,6 +307,6 @@ TEST(CGrepEnumFilterFilesExceptRegex, MatcherNotCalledForFolders)
 	CGrepEnumFilterFiles files;
 	CGrepEnumFiles absExcept;
 	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	const std::wstring expected = (folder.Path() / L"f").wstring();
+	const sakura::wstring expected = (folder.Path() / LTEXT("f")).wstring();
 	EXPECT_THAT(calledPaths, ElementsAre(expected));
 }

@@ -438,9 +438,9 @@ void SetLastError(DWORD dwErrCode);
 #define FILE_ATTRIBUTE_ARCHIVE    0x00000020
 #define FILE_ATTRIBUTE_NORMAL     0x00000080
 #define INVALID_FILE_ATTRIBUTES   ((DWORD)-1)
-//! 文件属性。macOS 上只返回只读、目录、隐藏（文件名以 . 开头）；文件不存在时返回 INVALID_FILE_ATTRIBUTES
+//! 文件属性。macOS 上只返回只读、目录、隐藏（文件名以 . 开头，或 Finder 的隐藏标志）；文件不存在时返回 INVALID_FILE_ATTRIBUTES
 DWORD GetFileAttributesW(const WCHAR* lpFileName);
-//! 设置文件属性。macOS 上只处理只读属性（写权限），其余属性忽略
+//! 设置文件属性。macOS 上只处理只读属性（写权限）和隐藏属性（Finder 的隐藏标志），其余属性忽略
 BOOL SetFileAttributesW(const WCHAR* lpFileName, DWORD dwFileAttributes);
 #define GetFileAttributes GetFileAttributesW
 #define SetFileAttributes SetFileAttributesW
@@ -486,6 +486,43 @@ FILE* _wfopen(const WCHAR* filename, const WCHAR* mode);
 */
 BOOL PathMatchSpecW(const WCHAR* pszFile, const WCHAR* pszSpec);
 #define PathMatchSpec PathMatchSpecW
+/*!
+	文件的查找（第 43 步：Grep、ファイルツリー 的文件枚举 grep/CGrepEnumFileBase.h）。实现在 file_api.cpp。
+	lpFileName 是「文件夹/模式」（路径的分隔是 '/'），模式里可以用 '*'、'?'（不区分大小写）。
+	与 Windows（NTFS）相同：先是「.」「..」，然后按名字的大写的 UTF-16 顺序（NTFS 的目录的顺序）返回，
+	所以 Grep 的结果的顺序与 Windows 版相同。
+	属性：目录、只读（没有写的权限）、隐藏（名字以 . 开头，或 Finder 的隐藏标志 UF_HIDDEN）。没有系统属性。
+	符号链接按链接到的东西（与 Windows 的快捷方式不同，Windows 的符号链接也是这样）。
+*/
+typedef struct _WIN32_FIND_DATAW {
+	DWORD dwFileAttributes;
+	FILETIME ftCreationTime;
+	FILETIME ftLastAccessTime;
+	FILETIME ftLastWriteTime;
+	DWORD nFileSizeHigh;
+	DWORD nFileSizeLow;
+	DWORD dwReserved0;
+	DWORD dwReserved1;
+	WCHAR cFileName[MAX_PATH];
+	WCHAR cAlternateFileName[14];
+} WIN32_FIND_DATAW, *LPWIN32_FIND_DATAW;
+typedef WIN32_FIND_DATAW WIN32_FIND_DATA;
+typedef LPWIN32_FIND_DATAW LPWIN32_FIND_DATA;
+HANDLE FindFirstFileW(const WCHAR* lpFileName, LPWIN32_FIND_DATAW lpFindFileData);
+BOOL FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData);
+BOOL FindClose(HANDLE hFindFile);
+#define FindFirstFile FindFirstFileW
+#define FindNextFile FindNextFileW
+#define ERROR_NO_MORE_FILES       18L
+/*!
+	删除文件、改名（第 43 步：Grep置換 的写回 agent/CGrepAgent.cpp 的 CWriteData）。实现在 file_api.cpp。
+	与 Windows 相同：MoveFileW 在新的名字已经有文件时失败（ERROR_ALREADY_EXISTS）；DeleteFileW 不能删除文件夹。
+	只读文件：Windows 不能删除（ERROR_ACCESS_DENIED），macOS 的 unlink 只看文件夹的权限，这里也照 Windows 不删除。
+*/
+BOOL DeleteFileW(const WCHAR* lpFileName);
+BOOL MoveFileW(const WCHAR* lpExistingFileName, const WCHAR* lpNewFileName);
+#define DeleteFile DeleteFileW
+#define MoveFile MoveFileW
 
 /* ---- 键盘、绘图的常量（apiwrap/StdApi.h 等头文件用，第 21 步） ---- */
 //! 属性表（util/shell.h 的 MyPropertySheet 的参数）。只声明类型，设置对话框的步骤再定义

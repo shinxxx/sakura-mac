@@ -15,11 +15,15 @@
 */
 #include "StdAfx.h"
 
+#include <algorithm>
 #include <cerrno>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -211,4 +215,190 @@ BOOL UnmapViewOfFile(LPCVOID lpBaseAddress)
 		Views().erase(it);
 	}
 	return ::munmap(const_cast<void*>(lpBaseAddress), length) == 0 ? TRUE : FALSE;
+}
+
+// ---------------------------------------------------------------------------
+// 文件的查找（第 43 步：Grep、ファイルツリー 的文件枚举）
+// ---------------------------------------------------------------------------
+namespace {
+
+//! 查找的结果（FindFirstFileW 返回的句柄指向它）。一开始就读完文件夹，按 NTFS 的顺序排好
+struct FindHandle {
+	std::vector<WIN32_FIND_DATAW> items;
+	size_t next = 0;
+};
+
+/*!
+	NTFS 比较名字时用的大写（$UpCase 表）。只做常用的部分：ASCII、Latin-1、希腊文、西里尔文、全角英文字母。
+	日文没有大小写，不受影响。
+*/
+WCHAR NtfsUpper(WCHAR c) noexcept
+{
+	if (u'a' <= c && c <= u'z') return WCHAR(c - 0x20);
+	if (c < 0x80) return c;
+	if ((0xE0 <= c && c <= 0xFE && c != 0xF7)) return WCHAR(c - 0x20);
+	if (c == 0xFF) return 0x178;
+	if (0x3B1 <= c && c <= 0x3C9 && c != 0x3C2) return WCHAR(c - 0x20);
+	if (0x430 <= c && c <= 0x44F) return WCHAR(c - 0x20);
+	if (0x450 <= c && c <= 0x45F) return WCHAR(c - 0x50);
+	if (0xFF41 <= c && c <= 0xFF5A) return WCHAR(c - 0x20);
+	return c;
+}
+
+//! NTFS 的目录的顺序：大写以后按 UTF-16 的值比较
+bool NtfsLess(const WCHAR* a, const WCHAR* b) noexcept
+{
+	for (;; ++a, ++b) {
+		const WCHAR ua = NtfsUpper(*a);
+		const WCHAR ub = NtfsUpper(*b);
+		if (ua != ub) return ua < ub;
+		if (*a == 0) return false;
+	}
+}
+
+//! FindFirstFile 的模式（'*'、'?'，不区分大小写）。与 Windows 相同，"*.*" 是全部，"xxx.*" 也匹配没有扩展名的 "xxx"
+bool FindPatternMatch(std::u16string_view name, std::u16string_view spec) noexcept
+{
+	if (spec == u"*" || spec == u"*.*") return true;
+	auto match = [](std::u16string_view f, std::u16string_view p) {
+		size_t fi = 0, pi = 0, starP = std::u16string_view::npos, starF = 0;
+		while (fi < f.size()) {
+			if (pi < p.size() && p[pi] == u'*') {
+				starP = ++pi;
+				starF = fi;
+			} else if (pi < p.size() && (p[pi] == u'?' || NtfsUpper(p[pi]) == NtfsUpper(f[fi]))) {
+				++pi;
+				++fi;
+			} else if (starP != std::u16string_view::npos) {
+				pi = starP;
+				fi = ++starF;
+			} else {
+				return false;
+			}
+		}
+		while (pi < p.size() && p[pi] == u'*') ++pi;
+		return pi == p.size();
+	};
+	if (match(name, spec)) return true;
+	return spec.size() >= 2 && spec.substr(spec.size() - 2) == u".*"
+		&& name.find(u'.') == std::u16string_view::npos && match(name, spec.substr(0, spec.size() - 2));
+}
+
+//! stat 的结果 → WIN32_FIND_DATAW
+WIN32_FIND_DATAW MakeFindData(const std::u16string& name, const struct stat& st)
+{
+	WIN32_FIND_DATAW fd {};
+	DWORD attr = 0;
+	if (S_ISDIR(st.st_mode)) attr |= FILE_ATTRIBUTE_DIRECTORY;
+	if ((st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0) attr |= FILE_ATTRIBUTE_READONLY;
+	bool hidden = name.size() > 1 && name[0] == u'.' && name != u"..";
+#if defined(__APPLE__)
+	hidden = hidden || (st.st_flags & UF_HIDDEN) != 0;
+	fd.ftCreationTime = ToFileTime(st.st_birthtimespec);
+	fd.ftLastAccessTime = ToFileTime(st.st_atimespec);
+	fd.ftLastWriteTime = ToFileTime(st.st_mtimespec);
+#else
+	fd.ftCreationTime = ToFileTime(st.st_ctim);
+	fd.ftLastAccessTime = ToFileTime(st.st_atim);
+	fd.ftLastWriteTime = ToFileTime(st.st_mtim);
+#endif
+	if (hidden) attr |= FILE_ATTRIBUTE_HIDDEN;
+	if (!S_ISDIR(st.st_mode)) attr |= FILE_ATTRIBUTE_ARCHIVE;	// Windows 的普通文件一般有存档属性
+	fd.dwFileAttributes = attr;
+	if (!S_ISDIR(st.st_mode)) {
+		const auto size = static_cast<ULONGLONG>(st.st_size);
+		fd.nFileSizeHigh = static_cast<DWORD>(size >> 32);
+		fd.nFileSizeLow = static_cast<DWORD>(size & 0xFFFFFFFFu);
+	}
+	const size_t n = std::min(name.size(), size_t(MAX_PATH - 1));
+	std::copy_n(name.data(), n, fd.cFileName);
+	fd.cFileName[n] = 0;
+	return fd;
+}
+
+} // namespace
+
+HANDLE FindFirstFileW(const WCHAR* lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
+{
+	if (!lpFileName || !lpFindFileData) { SetLastError(ERROR_INVALID_PARAMETER); return INVALID_HANDLE_VALUE; }
+	const std::u16string_view full(lpFileName);
+	const auto slash = full.find_last_of(u'/');
+	const std::u16string_view spec = slash == std::u16string_view::npos ? full : full.substr(slash + 1);
+	std::u16string folder = slash == std::u16string_view::npos ? std::u16string(u".")
+		: slash == 0 ? std::u16string(u"/") : std::u16string(full.substr(0, slash));
+	if (spec.empty()) { SetLastError(ERROR_FILE_NOT_FOUND); return INVALID_HANDLE_VALUE; }
+	const std::string folderUtf8 = sakura::u16::to_utf8(folder.c_str());
+	DIR* dir = ::opendir(folderUtf8.c_str());
+	if (!dir) { SetLastError(errno == ENOENT || errno == ENOTDIR ? ERROR_PATH_NOT_FOUND : ErrnoToWin32(errno)); return INVALID_HANDLE_VALUE; }
+	auto handle = std::make_unique<FindHandle>();
+	std::vector<WIN32_FIND_DATAW> dots;
+	while (const dirent* e = ::readdir(dir)) {
+		const std::u16string name = sakura::u16::from_utf8(e->d_name);
+		if (!FindPatternMatch(name, spec)) continue;
+		std::string path = folderUtf8;
+		if (path.back() != '/') path += '/';
+		path += e->d_name;
+		struct stat st {};
+		if (::stat(path.c_str(), &st) != 0 && ::lstat(path.c_str(), &st) != 0) continue;	// 链接到的东西不在时用链接本身
+		auto& list = (name == u"." || name == u"..") ? dots : handle->items;
+		list.push_back(MakeFindData(name, st));
+	}
+	::closedir(dir);
+	std::sort(handle->items.begin(), handle->items.end(), [](const WIN32_FIND_DATAW& a, const WIN32_FIND_DATAW& b) {
+		if (NtfsLess(a.cFileName, b.cFileName)) return true;
+		if (NtfsLess(b.cFileName, a.cFileName)) return false;
+		return std::u16string_view(a.cFileName) < std::u16string_view(b.cFileName);	// 区分大小写的文件系统上大写相同的名字
+	});
+	std::sort(dots.begin(), dots.end(), [](const WIN32_FIND_DATAW& a, const WIN32_FIND_DATAW& b) {
+		return std::u16string_view(a.cFileName).size() < std::u16string_view(b.cFileName).size();
+	});
+	handle->items.insert(handle->items.begin(), dots.begin(), dots.end());
+	if (handle->items.empty()) { SetLastError(ERROR_FILE_NOT_FOUND); return INVALID_HANDLE_VALUE; }
+	*lpFindFileData = handle->items[0];
+	handle->next = 1;
+	SetLastError(NO_ERROR);
+	return handle.release();
+}
+
+BOOL FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
+{
+	if (!hFindFile || hFindFile == INVALID_HANDLE_VALUE || !lpFindFileData) { SetLastError(ERROR_INVALID_HANDLE); return FALSE; }
+	auto* h = static_cast<FindHandle*>(hFindFile);
+	if (h->next >= h->items.size()) { SetLastError(ERROR_NO_MORE_FILES); return FALSE; }
+	*lpFindFileData = h->items[h->next++];
+	return TRUE;
+}
+
+BOOL FindClose(HANDLE hFindFile)
+{
+	if (!hFindFile || hFindFile == INVALID_HANDLE_VALUE) { SetLastError(ERROR_INVALID_HANDLE); return FALSE; }
+	delete static_cast<FindHandle*>(hFindFile);
+	return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// 删除文件、改名（第 43 步：Grep置換）
+// ---------------------------------------------------------------------------
+BOOL DeleteFileW(const WCHAR* lpFileName)
+{
+	if (!lpFileName) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
+	const std::string path = sakura::u16::to_utf8(lpFileName);
+	struct stat st {};
+	if (::lstat(path.c_str(), &st) != 0) { SetLastError(ErrnoToWin32(errno)); return FALSE; }
+	if (S_ISDIR(st.st_mode)) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+	// Windows 不能删除只读文件
+	if (!S_ISLNK(st.st_mode) && (st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0) { SetLastError(ERROR_ACCESS_DENIED); return FALSE; }
+	if (::unlink(path.c_str()) != 0) { SetLastError(ErrnoToWin32(errno)); return FALSE; }
+	return TRUE;
+}
+
+BOOL MoveFileW(const WCHAR* lpExistingFileName, const WCHAR* lpNewFileName)
+{
+	if (!lpExistingFileName || !lpNewFileName) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
+	const std::string from = sakura::u16::to_utf8(lpExistingFileName);
+	const std::string to = sakura::u16::to_utf8(lpNewFileName);
+	struct stat st {};
+	if (::lstat(to.c_str(), &st) == 0) { SetLastError(ERROR_ALREADY_EXISTS); return FALSE; }
+	if (::rename(from.c_str(), to.c_str()) != 0) { SetLastError(ErrnoToWin32(errno)); return FALSE; }
+	return TRUE;
 }
