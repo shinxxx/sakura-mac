@@ -65,8 +65,14 @@ foreach ($line in [IO.File]::ReadAllLines((Join-Path $DataDir 'cases.txt'), $utf
 	if ($c.Count -ge 6) { $arguments += " -GREPR=$(Quote $c[5])" }
 	Write-Host "[$name] $arguments"
 	$stdout = Join-Path $work 'stdout.bin'
-	$p = Start-Process -FilePath $SakuraExe -ArgumentList $arguments -RedirectStandardOutput $stdout -PassThru -NoNewWindow
-	if (-not $p.WaitForExit(120000)) { Write-Host "::error::timeout: $name"; $ng = 1; Stop-Sakura; continue }
+	# 偶尔标准输出是空的（编辑进程刚启动时的时机）：空的时候再试（最多 3 次。Grep置換 只在没有改文件时再试）
+	for ($try = 1; $try -le 3; $try++) {
+		$p = Start-Process -FilePath $SakuraExe -ArgumentList $arguments -RedirectStandardOutput $stdout -PassThru -NoNewWindow
+		if (-not $p.WaitForExit(120000)) { Write-Host "::error::timeout: $name"; $ng = 1; Stop-Sakura; break }
+		if ((Get-Item $stdout).Length -gt 0) { break }
+		Write-Host "[$name] empty output (try $try)"
+		Start-Sleep -Seconds 2
+	}
 
 	$text = $utf8.GetString([IO.File]::ReadAllBytes($stdout))
 	$text = [regex]::Replace($text, [regex]::Escape($tree), '{DIR}', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
