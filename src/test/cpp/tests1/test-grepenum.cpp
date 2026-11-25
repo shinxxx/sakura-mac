@@ -16,6 +16,10 @@
 
 namespace {
 
+#if defined(_WIN32)
+using TestPath = std::filesystem::path;	// Mac 版は tests/pch.h(c_str() などが WCHAR の文字列を返す)
+#endif
+
 /*!
 	@brief テスト用の一時フォルダー
 
@@ -25,7 +29,7 @@ namespace {
 class TempFolder {
 public:
 	TempFolder()
-		: m_path(std::filesystem::temp_directory_path() / L"sakura_test_grepenum" / ::testing::UnitTest::GetInstance()->current_test_info()->name())
+		: m_path(std::filesystem::temp_directory_path() / LTEXT("sakura_test_grepenum") / ::testing::UnitTest::GetInstance()->current_test_info()->name())
 	{
 		Remove();
 		std::filesystem::create_directories(m_path);
@@ -54,7 +58,7 @@ public:
 		std::filesystem::create_directories(m_path / relPath);
 	}
 
-	const std::filesystem::path& Path() const noexcept { return m_path; }
+	const TestPath& Path() const noexcept { return m_path; }
 
 private:
 	void Remove() const
@@ -68,13 +72,13 @@ private:
 		std::filesystem::remove_all(m_path, ec);
 	}
 
-	std::filesystem::path m_path;
+	TestPath m_path;
 };
 
 //! 列挙結果の名前を昇順(符号単位)で返す
-std::vector<std::wstring> Names(const CGrepEnumFileBase& items)
+std::vector<sakura::wstring> Names(const CGrepEnumFileBase& items)
 {
-	std::vector<std::wstring> names;
+	std::vector<sakura::wstring> names;
 	for (int i = 0; i < items.GetCount(); ++i) {
 		names.emplace_back(items.GetFileName(i));
 	}
@@ -83,7 +87,7 @@ std::vector<std::wstring> Names(const CGrepEnumFileBase& items)
 }
 
 //! キーの配列を作る
-VGrepEnumKeys Keys(std::initializer_list<const wchar_t*> keys)
+VGrepEnumKeys Keys(std::initializer_list<const WCHAR*> keys)
 {
 	return VGrepEnumKeys(keys.begin(), keys.end());
 }
@@ -100,15 +104,15 @@ VGrepEnumKeys Keys(std::initializer_list<const wchar_t*> keys)
 TEST(CGrepEnumFiles, MatchesWildcardIgnoringCase)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.txt");
-	folder.AddFile(L"b.log");
-	folder.AddFile(L"C.TXT");
+	folder.AddFile(LTEXT("a.txt"));
+	folder.AddFile(LTEXT("b.log"));
+	folder.AddFile(LTEXT("C.TXT"));
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*.txt" });
+	auto keys = Keys({ LTEXT("*.txt") });
 	CGrepEnumOptions options;
 	EXPECT_THAT(files.Enumerates(folder.Path().c_str(), keys, options), Eq(2));
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"C.TXT", L"a.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("C.TXT"), LTEXT("a.txt") }));
 }
 
 /*!
@@ -117,14 +121,14 @@ TEST(CGrepEnumFiles, MatchesWildcardIgnoringCase)
 TEST(CGrepEnumFiles, SkipsFolders)
 {
 	TempFolder folder;
-	folder.AddFolder(L"dir.txt");
-	folder.AddFile(L"a.txt");
+	folder.AddFolder(LTEXT("dir.txt"));
+	folder.AddFile(LTEXT("a.txt"));
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*.txt" });
+	auto keys = Keys({ LTEXT("*.txt") });
 	CGrepEnumOptions options;
 	files.Enumerates(folder.Path().c_str(), keys, options);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"a.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("a.txt") }));
 }
 
 /*!
@@ -133,13 +137,13 @@ TEST(CGrepEnumFiles, SkipsFolders)
 TEST(CGrepEnumFiles, NoDuplicatesAcrossKeys)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.txt");
+	folder.AddFile(LTEXT("a.txt"));
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*.txt", L"a.*", L"A.TXT" });
+	auto keys = Keys({ LTEXT("*.txt"), LTEXT("a.*"), LTEXT("A.TXT") });
 	CGrepEnumOptions options;
 	EXPECT_THAT(files.Enumerates(folder.Path().c_str(), keys, options), Eq(1));
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"a.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("a.txt") }));
 }
 
 /*!
@@ -148,14 +152,25 @@ TEST(CGrepEnumFiles, NoDuplicatesAcrossKeys)
 TEST(CGrepEnumFiles, KeyWithSubFolder)
 {
 	TempFolder folder;
-	folder.AddFile(L"x.txt");
-	folder.AddFile(LR"(sub\x.txt)");
+	folder.AddFile(LTEXT("x.txt"));
+#if defined(_WIN32)
+	folder.AddFile(LTEXT(R"(sub\x.txt)"));
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ LR"(sub\*.txt)" });
+	auto keys = Keys({ LTEXT(R"(sub\*.txt)") });
 	CGrepEnumOptions options;
 	files.Enumerates(folder.Path().c_str(), keys, options);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ LR"(sub\x.txt)" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT(R"(sub\x.txt)") }));
+#else
+	// Mac 版: パスの区切りは '/'
+	folder.AddFile(LTEXT("sub/x.txt"));
+
+	CGrepEnumFiles files;
+	auto keys = Keys({ LTEXT("sub/*.txt") });
+	CGrepEnumOptions options;
+	files.Enumerates(folder.Path().c_str(), keys, options);
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("sub/x.txt") }));
+#endif
 }
 
 /*!
@@ -166,9 +181,9 @@ TEST(CGrepEnumFiles, NonexistentFolder)
 	TempFolder folder;
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*" });
+	auto keys = Keys({ LTEXT("*") });
 	CGrepEnumOptions options;
-	EXPECT_THAT(files.Enumerates((folder.Path() / L"none").c_str(), keys, options), Eq(0));
+	EXPECT_THAT(files.Enumerates((folder.Path() / LTEXT("none")).c_str(), keys, options), Eq(0));
 	EXPECT_THAT(files.GetCount(), Eq(0));
 }
 
@@ -178,15 +193,15 @@ TEST(CGrepEnumFiles, NonexistentFolder)
 TEST(CGrepEnumFiles, SpecialCharactersInFileName)
 {
 	TempFolder folder;
-	for (const auto name : { L"a b.txt", L"a,b.txt", L"a;b.txt", L"#x.txt", L"!y.txt", L"テスト.txt", L"x.txt.bak" }) {
+	for (const auto name : { LTEXT("a b.txt"), LTEXT("a,b.txt"), LTEXT("a;b.txt"), LTEXT("#x.txt"), LTEXT("!y.txt"), LTEXT("テスト.txt"), LTEXT("x.txt.bak") }) {
 		folder.AddFile(name);
 	}
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*.txt" });
+	auto keys = Keys({ LTEXT("*.txt") });
 	CGrepEnumOptions options;
 	files.Enumerates(folder.Path().c_str(), keys, options);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"!y.txt", L"#x.txt", L"a b.txt", L"a,b.txt", L"a;b.txt", L"テスト.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("!y.txt"), LTEXT("#x.txt"), LTEXT("a b.txt"), LTEXT("a,b.txt"), LTEXT("a;b.txt"), LTEXT("テスト.txt") }));
 }
 
 /*!
@@ -197,10 +212,10 @@ TEST(CGrepEnumFiles, SpecialCharactersInFileName)
 TEST(CGrepEnumFiles, ShortNameDoesNotMatch)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.html");
+	folder.AddFile(LTEXT("a.html"));
 
 	CGrepEnumFiles files;
-	auto keys = Keys({ L"*.htm" });
+	auto keys = Keys({ LTEXT("*.htm") });
 	CGrepEnumOptions options;
 	files.Enumerates(folder.Path().c_str(), keys, options);
 	EXPECT_THAT(files.GetCount(), Eq(0));
@@ -212,17 +227,17 @@ TEST(CGrepEnumFiles, ShortNameDoesNotMatch)
 TEST(CGrepEnumFiles, AttributeOptions)
 {
 	TempFolder folder;
-	folder.AddFile(L"n.txt");
-	folder.AddFile(L"h.txt", FILE_ATTRIBUTE_HIDDEN);
-	folder.AddFile(L"r.txt", FILE_ATTRIBUTE_READONLY);
-	folder.AddFile(L"s.txt", FILE_ATTRIBUTE_SYSTEM);
-	auto keys = Keys({ L"*.txt" });
+	folder.AddFile(LTEXT("n.txt"));
+	folder.AddFile(LTEXT("h.txt"), FILE_ATTRIBUTE_HIDDEN);
+	folder.AddFile(LTEXT("r.txt"), FILE_ATTRIBUTE_READONLY);
+	folder.AddFile(LTEXT("s.txt"), FILE_ATTRIBUTE_SYSTEM);
+	auto keys = Keys({ LTEXT("*.txt") });
 
 	{
 		CGrepEnumFiles files;
 		CGrepEnumOptions options;
 		files.Enumerates(folder.Path().c_str(), keys, options);
-		EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"h.txt", L"n.txt", L"r.txt", L"s.txt" }));
+		EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("h.txt"), LTEXT("n.txt"), LTEXT("r.txt"), LTEXT("s.txt") }));
 	}
 	{
 		CGrepEnumFiles files;
@@ -231,7 +246,12 @@ TEST(CGrepEnumFiles, AttributeOptions)
 		options.m_bIgnoreReadOnly = true;
 		options.m_bIgnoreSystem = true;
 		files.Enumerates(folder.Path().c_str(), keys, options);
-		EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"n.txt" }));
+#if defined(_WIN32)
+		EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("n.txt") }));
+#else
+		// Mac 版: システム属性は無い(s.txt は普通のファイル)
+		EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("n.txt"), LTEXT("s.txt") }));
+#endif
 	}
 }
 
@@ -245,15 +265,15 @@ TEST(CGrepEnumFiles, AttributeOptions)
 TEST(CGrepEnumFolders, SkipsFilesAndDots)
 {
 	TempFolder folder;
-	folder.AddFolder(L"a");
-	folder.AddFolder(L"b");
-	folder.AddFile(L"c");
+	folder.AddFolder(LTEXT("a"));
+	folder.AddFolder(LTEXT("b"));
+	folder.AddFile(LTEXT("c"));
 
 	CGrepEnumFolders folders;
-	auto keys = Keys({ L"*" });
+	auto keys = Keys({ LTEXT("*") });
 	CGrepEnumOptions options;
 	folders.Enumerates(folder.Path().c_str(), keys, options);
-	EXPECT_THAT(Names(folders), Eq(std::vector<std::wstring>{ L"a", L"b" }));
+	EXPECT_THAT(Names(folders), Eq(std::vector<sakura::wstring>{ LTEXT("a"), LTEXT("b") }));
 }
 
 /*!
@@ -264,14 +284,14 @@ TEST(CGrepEnumFolders, SkipsFilesAndDots)
 TEST(CGrepEnumFolders, DefaultKeyMatchesNamesWithoutDot)
 {
 	TempFolder folder;
-	folder.AddFolder(L"src");
-	folder.AddFolder(L"a.b");
+	folder.AddFolder(LTEXT("src"));
+	folder.AddFolder(LTEXT("a.b"));
 
 	CGrepEnumFolders folders;
-	auto keys = Keys({ L"*.*" });
+	auto keys = Keys({ LTEXT("*.*") });
 	CGrepEnumOptions options;
 	folders.Enumerates(folder.Path().c_str(), keys, options);
-	EXPECT_THAT(Names(folders), Eq(std::vector<std::wstring>{ L"a.b", L"src" }));
+	EXPECT_THAT(Names(folders), Eq(std::vector<sakura::wstring>{ LTEXT("a.b"), LTEXT("src") }));
 }
 
 // ---------------------------------------------------------------------------
@@ -284,16 +304,16 @@ TEST(CGrepEnumFolders, DefaultKeyMatchesNamesWithoutDot)
 TEST(CGrepEnumFilterFiles, ExceptWildcardIgnoringCase)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.txt");
-	folder.AddFile(L"a.bak");
-	folder.AddFile(L"b.BAK");
+	folder.AddFile(LTEXT("a.txt"));
+	folder.AddFile(LTEXT("a.bak"));
+	folder.AddFile(LTEXT("b.BAK"));
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"*;!*.bak"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*;!*.bak")), Eq(0));
 	CGrepEnumFilterFiles files;
 	CGrepEnumFiles absExcept;
 	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"a.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("a.txt") }));
 }
 
 /*!
@@ -302,15 +322,15 @@ TEST(CGrepEnumFilterFiles, ExceptWildcardIgnoringCase)
 TEST(CGrepEnumFilterFiles, ExceptQuotedNameWithSpace)
 {
 	TempFolder folder;
-	folder.AddFile(L"a b.txt");
-	folder.AddFile(L"c.txt");
+	folder.AddFile(LTEXT("a b.txt"));
+	folder.AddFile(LTEXT("c.txt"));
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(LR"(*;!"a b.txt")"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT(R"(*;!"a b.txt")")), Eq(0));
 	CGrepEnumFilterFiles files;
 	CGrepEnumFiles absExcept;
 	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"c.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("c.txt") }));
 }
 
 /*!
@@ -321,24 +341,24 @@ TEST(CGrepEnumFilterFiles, ExceptQuotedNameWithSpace)
 TEST(CGrepEnumFilterFiles, ExceptQuotedNamesWithComma)
 {
 	TempFolder folder;
-	folder.AddFile(L"a,b.txt");
-	folder.AddFile(L"b.txt");
-	folder.AddFolder(L"obj,old");
-	folder.AddFolder(L"obj");
+	folder.AddFile(LTEXT("a,b.txt"));
+	folder.AddFile(LTEXT("b.txt"));
+	folder.AddFolder(LTEXT("obj,old"));
+	folder.AddFolder(LTEXT("obj"));
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(LR"(*.txt;#"obj,old";!"a,b.txt")"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT(R"(*.txt;#"obj,old";!"a,b.txt")")), Eq(0));
 	{
 		CGrepEnumFilterFiles files;
 		CGrepEnumFiles absExcept;
 		files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-		EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"b.txt" }));
+		EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("b.txt") }));
 	}
 	{
 		CGrepEnumFilterFolders folders;
 		CGrepEnumFolders absExcept;
 		folders.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-		EXPECT_THAT(Names(folders), Eq(std::vector<std::wstring>{ L"obj" }));
+		EXPECT_THAT(Names(folders), Eq(std::vector<sakura::wstring>{ LTEXT("obj") }));
 	}
 }
 
@@ -348,14 +368,26 @@ TEST(CGrepEnumFilterFiles, ExceptQuotedNamesWithComma)
 TEST(CGrepEnumFilterFiles, ExceptDoesNotApplyToKeyWithSubFolder)
 {
 	TempFolder folder;
-	folder.AddFile(LR"(sub\x.bak)");
+#if defined(_WIN32)
+	folder.AddFile(LTEXT(R"(sub\x.bak)"));
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(LR"(sub\*;!*.bak)"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT(R"(sub\*;!*.bak)")), Eq(0));
 	CGrepEnumFilterFiles files;
 	CGrepEnumFiles absExcept;
 	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ LR"(sub\x.bak)" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT(R"(sub\x.bak)") }));
+#else
+	// Mac 版: パスの区切りは '/'
+	folder.AddFile(LTEXT("sub/x.bak"));
+
+	CGrepEnumKeys keys;
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("sub/*;!*.bak")), Eq(0));
+	CGrepEnumFilterFiles files;
+	CGrepEnumFiles absExcept;
+	files.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("sub/x.bak") }));
+#endif
 }
 
 /*!
@@ -367,23 +399,23 @@ TEST(CGrepEnumFilterFiles, ExceptDoesNotApplyToKeyWithSubFolder)
 TEST(CGrepEnumFilterFiles, ExceptAbsolutePath)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.txt");
-	folder.AddFile(L"b.txt");
+	folder.AddFile(LTEXT("a.txt"));
+	folder.AddFile(LTEXT("b.txt"));
 
 	CGrepEnumKeys keys;
-	const auto excludePath = (folder.Path() / L"a.txt").wstring();
-	const std::wstring fileKeys = L"*;!\"" + excludePath + L"\"";
+	const auto excludePath = (folder.Path() / LTEXT("a.txt")).wstring();
+	const sakura::wstring fileKeys = LTEXT("*;!\"") + excludePath + LTEXT("\"");
 	ASSERT_THAT(keys.SetFileKeys(fileKeys.c_str()), Eq(0));
-	ASSERT_THAT(std::vector<std::wstring>(keys.m_vecExceptAbsFileKeys.cbegin(), keys.m_vecExceptAbsFileKeys.cend()), Eq(std::vector<std::wstring>{ excludePath }));
+	ASSERT_THAT(std::vector<sakura::wstring>(keys.m_vecExceptAbsFileKeys.cbegin(), keys.m_vecExceptAbsFileKeys.cend()), Eq(std::vector<sakura::wstring>{ excludePath }));
 
 	CGrepEnumOptions options;
 	CGrepEnumFiles absExcept;
-	absExcept.Enumerates(L"", keys.m_vecExceptAbsFileKeys, options);
+	absExcept.Enumerates(LTEXT(""), keys.m_vecExceptAbsFileKeys, options);
 	EXPECT_THAT(absExcept.GetCount(), Eq(1));
 
 	CGrepEnumFilterFiles files;
 	files.Enumerates(folder.Path().c_str(), keys, options, absExcept);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"b.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("b.txt") }));
 }
 
 /*!
@@ -392,23 +424,23 @@ TEST(CGrepEnumFilterFiles, ExceptAbsolutePath)
 TEST(CGrepEnumFilterFiles, ExceptAbsolutePathWithWildcard)
 {
 	TempFolder folder;
-	folder.AddFile(L"a.bak");
-	folder.AddFile(L"b.bak");
-	folder.AddFile(L"c.txt");
+	folder.AddFile(LTEXT("a.bak"));
+	folder.AddFile(LTEXT("b.bak"));
+	folder.AddFile(LTEXT("c.txt"));
 
 	CGrepEnumKeys keys;
-	const auto excludePath = (folder.Path() / L"*.bak").wstring();
-	const std::wstring fileKeys = L"*;!\"" + excludePath + L"\"";
+	const auto excludePath = (folder.Path() / LTEXT("*.bak")).wstring();
+	const sakura::wstring fileKeys = LTEXT("*;!\"") + excludePath + LTEXT("\"");
 	ASSERT_THAT(keys.SetFileKeys(fileKeys.c_str()), Eq(0));
 
 	CGrepEnumOptions options;
 	CGrepEnumFiles absExcept;
-	absExcept.Enumerates(L"", keys.m_vecExceptAbsFileKeys, options);
+	absExcept.Enumerates(LTEXT(""), keys.m_vecExceptAbsFileKeys, options);
 	EXPECT_THAT(absExcept.GetCount(), Eq(2));
 
 	CGrepEnumFilterFiles files;
 	files.Enumerates(folder.Path().c_str(), keys, options, absExcept);
-	EXPECT_THAT(Names(files), Eq(std::vector<std::wstring>{ L"c.txt" }));
+	EXPECT_THAT(Names(files), Eq(std::vector<sakura::wstring>{ LTEXT("c.txt") }));
 }
 
 /*!
@@ -417,16 +449,16 @@ TEST(CGrepEnumFilterFiles, ExceptAbsolutePathWithWildcard)
 TEST(CGrepEnumFilterFolders, ExceptFolder)
 {
 	TempFolder folder;
-	for (const auto name : { L"Obj", L"obj2", L"obj,old", L"src" }) {
+	for (const auto name : { LTEXT("Obj"), LTEXT("obj2"), LTEXT("obj,old"), LTEXT("src") }) {
 		folder.AddFolder(name);
 	}
 
 	CGrepEnumKeys keys;
-	ASSERT_THAT(keys.SetFileKeys(L"*;#OBJ"), Eq(0));
+	ASSERT_THAT(keys.SetFileKeys(LTEXT("*;#OBJ")), Eq(0));
 	CGrepEnumFilterFolders folders;
 	CGrepEnumFolders absExcept;
 	folders.Enumerates(folder.Path().c_str(), keys, CGrepEnumOptions(), absExcept);
-	EXPECT_THAT(Names(folders), Eq(std::vector<std::wstring>{ L"obj,old", L"obj2", L"src" }));
+	EXPECT_THAT(Names(folders), Eq(std::vector<sakura::wstring>{ LTEXT("obj,old"), LTEXT("obj2"), LTEXT("src") }));
 }
 
 /*!
@@ -437,21 +469,21 @@ TEST(CGrepEnumFilterFolders, ExceptFolder)
 TEST(CGrepEnumFilterFolders, ExceptAbsolutePath)
 {
 	TempFolder folder;
-	folder.AddFolder(L"obj");
-	folder.AddFolder(L"src");
+	folder.AddFolder(LTEXT("obj"));
+	folder.AddFolder(LTEXT("src"));
 
 	CGrepEnumKeys keys;
-	const auto excludePath = (folder.Path() / L"obj").wstring();
-	const std::wstring fileKeys = L"*;#\"" + excludePath + L"\"";
+	const auto excludePath = (folder.Path() / LTEXT("obj")).wstring();
+	const sakura::wstring fileKeys = LTEXT("*;#\"") + excludePath + LTEXT("\"");
 	ASSERT_THAT(keys.SetFileKeys(fileKeys.c_str()), Eq(0));
-	ASSERT_THAT(std::vector<std::wstring>(keys.m_vecExceptAbsFolderKeys.cbegin(), keys.m_vecExceptAbsFolderKeys.cend()), Eq(std::vector<std::wstring>{ excludePath }));
+	ASSERT_THAT(std::vector<sakura::wstring>(keys.m_vecExceptAbsFolderKeys.cbegin(), keys.m_vecExceptAbsFolderKeys.cend()), Eq(std::vector<sakura::wstring>{ excludePath }));
 
 	CGrepEnumOptions options;
 	CGrepEnumFolders absExcept;
-	absExcept.Enumerates(L"", keys.m_vecExceptAbsFolderKeys, options);
+	absExcept.Enumerates(LTEXT(""), keys.m_vecExceptAbsFolderKeys, options);
 	EXPECT_THAT(absExcept.GetCount(), Eq(1));
 
 	CGrepEnumFilterFolders folders;
 	folders.Enumerates(folder.Path().c_str(), keys, options, absExcept);
-	EXPECT_THAT(Names(folders), Eq(std::vector<std::wstring>{ L"src" }));
+	EXPECT_THAT(Names(folders), Eq(std::vector<sakura::wstring>{ LTEXT("src") }));
 }

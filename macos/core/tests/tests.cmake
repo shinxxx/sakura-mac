@@ -1,4 +1,4 @@
-# Mac 版核心库的单元测试：沿用原版 src/test/cpp/tests1 的测试代码。
+﻿# Mac 版核心库的单元测试：沿用原版 src/test/cpp/tests1 的测试代码。
 # test-design_template.cpp 依赖 Windows 的模块句柄，不在 Mac 上运行。
 # 只列出对应模块已经移植完成的测试文件。后续步骤每移植一个模块，就把相应的测试加进来。
 set(SAKURA_CORE_TEST_SOURCES
@@ -26,6 +26,10 @@ set(SAKURA_CORE_TEST_SOURCES
   src/test/cpp/tests1/test-editinfo.cpp
   src/test/cpp/tests1/test-format.cpp
   src/test/cpp/tests1/test-grepmessageformat.cpp       # 第 21 步
+  src/test/cpp/tests1/test-cgrepenumkeys.cpp           # 第 43 步：Grep 的对象文件模式（Windows 的绝对路径换成 Mac 的）
+  src/test/cpp/tests1/test-grepenum.cpp                # 第 43 步：Grep 的文件枚举（FindFirstFile 的 Mac 版）
+  src/test/cpp/tests1/test-grep-exclude-regex.cpp      # 第 43 步：除外ファイル 的正規表現（一时フォルダー是 mac-grep-temp-folder.hpp）
+  src/test/cpp/tests1/test-grepinfo.cpp                # 第 43 步：GrepInfo（CCommandLine、CDlgGrep 的部分只在 Windows 版）
   src/test/cpp/tests1/test-int2dec.cpp
   src/test/cpp/tests1/test-is_mailaddress.cpp
   src/test/cpp/tests1/test-statictype.cpp
@@ -60,4 +64,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-type-settings.cpp"    # 第 40 步：タイプ別設定的读写、打开着的文档跟着变
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-command-settings.cpp" # 第 41 步：キー割り当て・メインメニュー・ツールバー・カスタムメニュー
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-outline.cpp"          # 第 42 步：アウトライン解析（样本在 data/outline/，与 Windows 版的结果比较）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-grep.cpp"             # 第 43 步：Grep・Grep置換（原版 test-grep-cmdline.cpp 移到 Mac 版）
 )

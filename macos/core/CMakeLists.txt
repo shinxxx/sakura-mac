@@ -141,6 +141,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/cmd/COpeBlk.cpp
   sakura_core/cmd/COpeBuf.cpp
   sakura_core/agent/CSearchAgent.cpp      # 文档内的查找和替换
+  sakura_core/agent/CGrepAgent.cpp        # 第 43 步：Grep・Grep置換（对话框、结果的文档由界面层负责）
   sakura_core/doc/CDocListener.cpp        # 文档事件（读入、保存）的通知
   sakura_core/docplus/CModifyManager.cpp  # 行的修改标记
   sakura_core/_main/global.cpp            # 查找选项等共用定义（进程相关的部分在第 26 步）
@@ -279,7 +280,8 @@ endif()
 # ---------------------------------------------------------------------------
 add_library(sakura_core_api STATIC
   "${CMAKE_CURRENT_SOURCE_DIR}/api/SakuraCore.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/api/OutlineView.cpp")   # 第 42 步：アウトライン解析的结果（原版 CDlgFuncList 的数据部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/OutlineView.cpp"    # 第 42 步：アウトライン解析的结果（原版 CDlgFuncList 的数据部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/Grep.cpp")          # 第 43 步：Grep・Grep置換（原版 CGrepAgent::DoGrep 在别的线程运行）
 target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(sakura_core_api PRIVATE sakura_core "-framework CoreFoundation")   # 第 42 步：アウトライン的アルファベット順（lstrcmpi 的代替）
 add_dependencies(sakura_core_api sakura_funccode)

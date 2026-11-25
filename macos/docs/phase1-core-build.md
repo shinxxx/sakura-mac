@@ -25,7 +25,7 @@ ctest --test-dir build/mac-core --output-on-failure
 | debug | 3 | 3 | — |
 | docplus | 4 | 2 | `CDiffManager.cpp`（依赖窗口和绘制）、`CModifyManager.cpp`（依赖 `CEditDoc` 和 COM 的 VARIANT）：第 20 步 |
 | io | 7 | 3 | `CTextStream.cpp`（代码页转换）：第 17 步；`CFile.cpp`、`CFileLoad.cpp`（依赖 `CEditWnd.h`）：第 20 步；`CZipFile.cpp`：只给插件安装用，Mac 版不支持 DLL 插件，不移植 |
-| grep | 1（另有 7 个头文件） | 0 | `GrepMessageFormat.cpp` 依赖共享内存 `DLLSHAREDATA`：第 21 步。`CGrepEnum*.h` 等头文件用 Win32 的 `FindFirstFile` 和 Windows 路径（盘符、`\`），要按 Mac 的路径规则和沙盒授权改写：第 43 步（Grep） |
+| grep | 1（另有 7 个头文件） | 0 | `GrepMessageFormat.cpp` 依赖共享内存 `DLLSHAREDATA`：第 21 步。`CGrepEnum*.h` 等头文件用 Win32 的 `FindFirstFile` 和 Windows 路径（盘符、`\`）：第 43 步已改（路径的分隔用 `PATH_DELIMITER`，`FindFirstFile` 由平台层提供，见 [phase3-grep.md](phase3-grep.md)） |
 | mem | 5 | 5 | — |
 | parse | 2 | 2 | — |
 
@@ -38,7 +38,7 @@ ctest --test-dir build/mac-core --output-on-failure
 | `test-file` | 主要测试 `util/file`（设置文件位置等）：第 21 步（第 17 步核对时从第 17 步改到这里） |
 | `test-detectindentationstyle` `test-csearchagent` | 依赖 `doc/logic` 和 `agent`：第 20 步 |
 | `test-cfileext` `test-grepmessageformat` | 依赖 env（`CDocTypeManager`、`DLLSHAREDATA`）：第 21 步 |
-| `test-cgrepenumkeys` `test-grepenum` `test-grep-exclude-regex` `test-grepinfo` | 依赖 Windows 的路径规则、文件查找和 Grep 对话框：第 43 步 |
+| `test-cgrepenumkeys` `test-grepenum` `test-grep-exclude-regex` `test-grepinfo` | 第 43 步已在 Mac 上运行，全部通过（Windows 的绝对路径换成 Mac 的；`test-grepinfo` 里 CCommandLine・CDlgGrep 的部分只在 Windows 版，见 [phase3-grep.md](phase3-grep.md)） |
 | `test-cerrorinfo` `test-czipfile` | Mac 版不需要（COM、插件 zip） |
 
 第 12 步把这 9 个目录当作“纯逻辑”，实际编译后发现上面这些文件依赖 charset、doc、env 或界面，只能在对应模块移植后再加入。

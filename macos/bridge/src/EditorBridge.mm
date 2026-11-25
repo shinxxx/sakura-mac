@@ -1352,6 +1352,241 @@ static_assert(ECOutlineSortZtoA == static_cast<NSInteger>(core::OutlineSort::Zto
 
 @end
 
+// ---------------------------------------------------------------------------
+// Grep・Grep置換（第 43 步）
+// ---------------------------------------------------------------------------
+
+static_assert(ECGrepHistoryFile == static_cast<NSInteger>(core::GrepHistory::File));
+static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHistory::ExcludeFolder));
+
+@interface ECGrepOptions ()
+- (core::GrepOptions)coreOptions;
+@end
+
+@interface ECGrepSourceText ()
+- (core::GrepSourceText)coreSource;
+@end
+
+@interface ECGrepResult ()
+- (instancetype)initWithResult:(const core::GrepResult&)result;
+@end
+
+@interface ECGrepDialogCheck ()
+- (instancetype)initWithCheck:(const core::GrepDialogCheck&)check;
+@end
+
+@interface ECTagJumpTarget ()
+- (instancetype)initWithTarget:(const core::TagJumpTarget&)target;
+@end
+
+@implementation ECGrepOptions
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		const core::GrepOptions defaults;
+		_key = @"";
+		_replacement = @"";
+		_files = @"";
+		_folders = @"";
+		_charSet = defaults.charSet;
+		_outputStyle = defaults.outputStyle;
+		_outputLineType = defaults.outputLineType;
+		_header = YES;
+	}
+	return self;
+}
+
+- (core::GrepOptions)coreOptions
+{
+	core::GrepOptions o;
+	o.key = ToText(_key);
+	o.replacement = ToText(_replacement);
+	o.files = ToText(_files);
+	o.folders = ToText(_folders);
+	o.search.regularExpression = _regularExpression == YES;
+	o.search.matchCase = _matchCase == YES;
+	o.search.wholeWord = _wholeWord == YES;
+	o.subFolder = _subFolder == YES;
+	o.charSet = static_cast<core::Encoding>(_charSet);
+	o.outputStyle = ClampInt32(_outputStyle);
+	o.outputLineType = ClampInt32(_outputLineType);
+	o.fileOnly = _fileOnly == YES;
+	o.baseFolder = _baseFolder == YES;
+	o.separateFolder = _separateFolder == YES;
+	o.exceptFileRegexp = _exceptFileRegexp == YES;
+	o.header = _header == YES;
+	o.replace = _replace == YES;
+	o.paste = _paste == YES;
+	o.backup = _backup == YES;
+	if (_pasteText) o.pasteText = ToText(_pasteText);
+	return o;
+}
+
+@end
+
+@implementation ECGrepSourceText
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		_filePath = @"";
+		_windowLabel = @"";
+		_encoding = ECEncodingUTF8;
+		_lines = @[];
+	}
+	return self;
+}
+
+- (core::GrepSourceText)coreSource
+{
+	core::GrepSourceText source;
+	source.id = _sourceID;
+	source.filePath = ToText(_filePath);
+	source.windowLabel = ToText(_windowLabel);
+	source.isGrep = _isGrep == YES;
+	source.encoding = static_cast<core::Encoding>(_encoding);
+	source.lines.reserve(_lines.count);
+	for (NSString *line in _lines) source.lines.push_back(ToText(line));
+	return source;
+}
+
+@end
+
+@implementation ECGrepResult
+
+- (instancetype)initWithResult:(const core::GrepResult&)result
+{
+	self = [super init];
+	if (self) {
+		_hitCount = result.hitCount;
+		_cancelled = result.cancelled ? YES : NO;
+		_errorMessage = ToNSString(result.errorMessage);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECGrepSession {
+	std::unique_ptr<core::GrepSession> _session;
+}
+
+- (instancetype)initWithOptions:(ECGrepOptions *)options sources:(NSArray<ECGrepSourceText *> *)sources
+{
+	self = [super init];
+	if (self) {
+		std::vector<core::GrepSourceText> coreSources;
+		for (ECGrepSourceText *source in sources) coreSources.push_back([source coreSource]);
+		_session = std::make_unique<core::GrepSession>([options coreOptions], std::move(coreSources));
+	}
+	return self;
+}
+
+- (ECGrepResult *)run { return [[ECGrepResult alloc] initWithResult:_session->Run()]; }
+- (void)cancel { _session->Cancel(); }
+- (BOOL)realTimeView { return _session->IsRealTimeView() ? YES : NO; }
+- (void)setRealTimeView:(BOOL)realTimeView { _session->SetRealTimeView(realTimeView == YES); }
+- (BOOL)isRunning { return _session->IsRunning() ? YES : NO; }
+- (NSString *)takeOutput { return ToNSString(_session->TakeOutput()); }
+- (NSInteger)progressHitCount { return _session->Progress().hitCount; }
+- (NSString *)progressFile { return ToNSString(_session->Progress().file); }
+- (NSString *)progressFolder { return ToNSString(_session->Progress().folder); }
+
+@end
+
+@implementation ECGrepDialogCheck
+
+- (instancetype)initWithCheck:(const core::GrepDialogCheck&)check
+{
+	self = [super init];
+	if (self) {
+		_error = ToNSString(check.error);
+		_file = ToNSString(check.file);
+		_folders = ToNSString(check.folders);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECTagJumpTarget
+
+- (instancetype)initWithTarget:(const core::TagJumpTarget&)target
+{
+	self = [super init];
+	if (self) {
+		_path = ToNSString(target.path);
+		_hasSourceID = target.sourceId ? YES : NO;
+		_sourceID = target.sourceId.value_or(0);
+		_line = target.line;
+		_column = target.column;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECGrep
+
++ (NSArray<NSString *> *)historyOf:(ECGrepHistory)kind
+{
+	NSMutableArray<NSString *> *items = [NSMutableArray array];
+	for (const auto& item : core::GrepHistoryItems(static_cast<core::GrepHistory>(kind))) [items addObject:ToNSString(item)];
+	return items;
+}
+
++ (void)addHistory:(NSString *)text kind:(ECGrepHistory)kind
+{
+	core::AddGrepHistory(static_cast<core::GrepHistory>(kind), ToText(text));
+}
+
++ (NSDictionary<NSString *, NSString *> *)dialogDefaults
+{
+	const auto d = core::GetGrepDialogDefaults();
+	return @{ @"file": ToNSString(d.file), @"folder": ToNSString(d.folder),
+			  @"excludeFile": ToNSString(d.excludeFile), @"excludeFolder": ToNSString(d.excludeFolder) };
+}
+
++ (NSString *)packFiles:(NSString *)file excludeFile:(NSString *)excludeFile excludeFolder:(NSString *)excludeFolder
+{
+	return ToNSString(core::PackGrepFiles(ToText(file), ToText(excludeFile), ToText(excludeFolder)));
+}
+
++ (NSArray<NSString *> *)splitFolders:(NSString *)folders base:(NSString *)base
+{
+	NSMutableArray<NSString *> *items = [NSMutableArray array];
+	for (const auto& item : core::SplitGrepFolders(ToText(folders), ToText(base))) [items addObject:ToNSString(item)];
+	return items;
+}
+
++ (NSString *)joinFolders:(NSArray<NSString *> *)folders
+{
+	std::vector<core::Text> items;
+	for (NSString *folder in folders) items.push_back(ToText(folder));
+	return ToNSString(core::JoinGrepFolders(items));
+}
+
++ (nullable NSString *)foldersUp:(NSString *)folders base:(NSString *)base
+{
+	const auto up = core::GrepFoldersUp(ToText(folders), ToText(base));
+	return up ? ToNSString(*up) : nil;
+}
+
++ (ECGrepDialogCheck *)checkDialogFile:(NSString *)file excludeFile:(NSString *)excludeFile excludeFolder:(NSString *)excludeFolder
+	folders:(NSString *)folders base:(NSString *)base fromThisText:(BOOL)fromThisText
+{
+	return [[ECGrepDialogCheck alloc] initWithCheck:core::CheckGrepDialog(ToText(file), ToText(excludeFile), ToText(excludeFolder),
+		ToText(folders), ToText(base), fromThisText == YES)];
+}
+
++ (NSString *)sourceToken:(uint64_t)sourceID { return ToNSString(core::GrepSourceToken(sourceID)); }
++ (NSInteger)outputTypeIndex { return core::GrepOutputTypeIndex(); }
+
+@end
+
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
 }
@@ -1857,5 +2092,11 @@ static ECSearchResult *InvalidViewResult()
 }
 
 - (BOOL)hasFuncListMark:(NSInteger)line { return _doc->HasFuncListMark(ClampInt32(line)) ? YES : NO; }
+
+- (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line
+{
+	const auto target = core::FindTagJump(*_doc, ClampInt32(line));
+	return target ? [[ECTagJumpTarget alloc] initWithTarget:*target] : nil;
+}
 
 @end

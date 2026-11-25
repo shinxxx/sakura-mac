@@ -148,3 +148,37 @@ using ::testing::StrCaseNe;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::ThrowsMessage;
+
+// ---------------------------------------------------------------------------
+// 第 43 步：原版测试里 std::filesystem::path 的写法（Grep 的测试）
+// Windows 的 path 是 wchar_t，c_str() 可以直接传给 WCHAR 的函数；Mac 的 path 是 char（UTF-8）。
+// ---------------------------------------------------------------------------
+
+/*!
+	原版测试的 path.c_str()、path.wstring()、path.native() 返回 WCHAR 的文字。
+	测试里把 std::filesystem::path 换成 TestPath（Windows 是 std::filesystem::path 本身）。
+*/
+class TestPath : public std::filesystem::path {
+public:
+	using std::filesystem::path::path;
+	TestPath() = default;
+	TestPath(const std::filesystem::path& p) : std::filesystem::path(p) {}
+
+	const WCHAR* c_str() const { m_native = sakura::path_to_wstring(*this); return m_native.c_str(); }
+	sakura::wstring wstring() const { return sakura::path_to_wstring(*this); }
+	const sakura::wstring& native() const { m_native = sakura::path_to_wstring(*this); return m_native; }
+	const std::filesystem::path& fs() const noexcept { return *this; }
+
+	template <class T>
+	TestPath operator/(const T& rhs) const { return TestPath(fs() / rhs); }
+	TestPath parent_path() const { return TestPath(fs().parent_path()); }
+
+private:
+	mutable sakura::wstring m_native;
+};
+
+//! 原版测试用 std::filesystem::path 的 c_str()（Mac 是 char）调用的函数
+inline BOOL SetFileAttributesW(const char* path, DWORD attributes)
+{
+	return ::SetFileAttributesW(sakura::u16::from_utf8(path).c_str(), attributes);
+}

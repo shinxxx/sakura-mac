@@ -1,0 +1,27 @@
+
+□検索条件  「ファイル検索」
+検索対象       *.*
+フォルダー       {DIR}
+除外ファイル   
+除外フォルダー   
+    (サブフォルダーも検索)
+    (文字コードセットの自動判別)
+
+
+{DIR}/1.txt  [UTF-8]
+{DIR}/a.txt  [UTF-8]
+{DIR}/alpha.txt  [UTF-8]
+{DIR}/b.txt  [SJIS]
+{DIR}/c.log  [UTF-8]
+{DIR}/empty.txt  [UTF-8]
+{DIR}/euc.txt  [EUC]
+{DIR}/mixed.txt  [UTF-8]
+{DIR}/utf16.txt  [UTF-16]
+{DIR}/Zeta.txt  [UTF-8]
+{DIR}/_u.txt  [UTF-8]
+{DIR}/日本語.txt  [UTF-8]
+{DIR}/obj/f.txt  [UTF-8]
+{DIR}/Sub/d.txt  [UTF-8]
+{DIR}/Sub/x.dat  [UTF-8]
+{DIR}/Sub/deep/e.txt  [UTF-8]
+16 個が検索されました。

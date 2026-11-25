@@ -1,0 +1,48 @@
+
+□検索条件  "HIT"
+検索対象       *.txt
+フォルダー       {DIR}
+除外ファイル   
+除外フォルダー   
+    (サブフォルダーも検索)
+    (英大文字小文字を区別しない)
+    (文字コードセットの自動判別)
+    (一致した行を出力)
+
+
+◎"{DIR}"
+■
+◆"1.txt"  [UTF-8]
+・(     1,5    ): one HIT
+◆"a.txt"  [UTF-8]
+・(     1,1    ): HIT x hit
+・(     3,5    ): テスト HIT
+・(     4,1    ): HITHIT
+◆"alpha.txt"  [UTF-8]
+・(     1,7    ): alpha HIT
+◆"b.txt"  [SJIS]
+・(     1,10   ): テストの文章です。HIT
+◆"euc.txt"  [EUC]
+・(     2,1    ): HIT euc
+◆"mixed.txt"  [UTF-8]
+・(     1,1    ): HIT
+・(     3,1    ): HIT
+・(     4,5    ): end HIT
+◆"utf16.txt"  [UTF-16]
+・(     1,1    ): HIT utf16
+◆"Zeta.txt"  [UTF-8]
+・(     1,6    ): zeta HIT
+◆"_u.txt"  [UTF-8]
+・(     1,7    ): under HIT
+◆"日本語.txt"  [UTF-8]
+・(     2,1    ): Hit me
+■"obj"
+◆"f.txt"  [UTF-8]
+・(     1,1    ): HIT f
+■"Sub"
+◆"d.txt"  [UTF-8]
+・(     1,1    ): HIT d
+■"Sub/deep"
+◆"e.txt"  [UTF-8]
+・(     1,3    ): e HIT
+17 個が検索されました。

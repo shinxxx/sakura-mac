@@ -1,0 +1,30 @@
+
+□検索条件  「ファイル検索」
+検索対象       *.txt
+フォルダー       {DIR}
+除外ファイル   
+除外フォルダー   
+    (サブフォルダーも検索)
+    (文字コードセットの自動判別)
+
+
+◎"{DIR}"
+■
+◆"1.txt"  [UTF-8]
+◆"a.txt"  [UTF-8]
+◆"alpha.txt"  [UTF-8]
+◆"b.txt"  [SJIS]
+◆"empty.txt"  [UTF-8]
+◆"euc.txt"  [EUC]
+◆"mixed.txt"  [UTF-8]
+◆"utf16.txt"  [UTF-16]
+◆"Zeta.txt"  [UTF-8]
+◆"_u.txt"  [UTF-8]
+◆"日本語.txt"  [UTF-8]
+■"obj"
+◆"f.txt"  [UTF-8]
+■"Sub"
+◆"d.txt"  [UTF-8]
+■"Sub/deep"
+◆"e.txt"  [UTF-8]
+14 個が検索されました。

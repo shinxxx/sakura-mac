@@ -1,0 +1,24 @@
+# Grep 与 Windows 版对照的条件（计划第 43 步）。用 TAB 分隔：名字、条件(-GKEY)、対象ファイル(-GFILE)、-GOPT、-GCODE（空：不指定）、置換後(-GREPR。没有这一列：不是置換)
+normal_area	HIT	*.txt	SK	
+normal_line	HIT	*.txt	SKP	
+nohit_line	HIT	*.txt	SKN	
+perfile	HIT	*.txt	SK2P	
+result_only	HIT	*.txt	SK3	
+base_folder	HIT	*.txt	SKPB	
+base_separate	HIT	*.txt	SK2PBD	
+separate	HIT	*.txt	SK1D	
+file_only	HIT	*.txt	SKF	
+word_ignorecase	hit	*.txt	SKW	
+case	hit	*.txt	SKL	
+regex	H[a-z]T|テ.ト	*.txt	SKRP	
+japanese	テスト	*.txt	SK	
+file_list		*.*	SK	
+file_list_perfile		*.txt	SK2BD	
+exclude	HIT	*.txt;!a.txt;#obj	SK	
+sjis_fixed	テスト	*.txt	S	
+utf8_fixed	テスト	*.txt	S	4
+sub_key	HIT	Sub/*.txt	K	
+no_subfolder	HIT	*.txt	K	
+replace	HIT	*.txt	SK		REP
+replace_regex	H(.)T	*.txt	SKRP		<$1>
+replace_backup	テスト	*.txt	SKO		TEST

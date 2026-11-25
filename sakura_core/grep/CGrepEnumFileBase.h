@@ -106,7 +106,7 @@ public:
 			// 基準フォルダーが空(絶対パスのキー)なら区切りを付けない
 			strPath.assign( svBaseFolder );
 			if( !svBaseFolder.empty() ){
-				strPath.append( LTEXT("\\") );
+				strPath += PATH_DELIMITER;
 			}
 			strPath.append( strKey );
 
@@ -139,7 +139,7 @@ public:
 				strName.append( w32fd.cFileName );
 				strFullPath.assign( svBaseFolder );
 				if( !svBaseFolder.empty() ){
-					strFullPath.append( LTEXT("\\") );
+					strFullPath += PATH_DELIMITER;
 				}
 				strFullPath.append( strName );
 				if( !IsValid( w32fd, strName.c_str() ) ){

@@ -38,7 +38,7 @@ private:
 	sakura::wstring_view MakeFullPath( sakura::wstring_view name ){
 		m_strFullPath.assign( m_strBaseFolder );
 		if( !m_strBaseFolder.empty() ){
-			m_strFullPath.append( LTEXT("\\") );
+			m_strFullPath += PATH_DELIMITER;
 		}
 		m_strFullPath.append( name );
 		return m_strFullPath;

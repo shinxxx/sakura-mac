@@ -878,6 +878,118 @@ NS_SWIFT_NAME(OutlineResult)
 - (NSArray<NSNumber *> *)nodePathForItem:(NSInteger)item NS_SWIFT_NAME(nodePath(forItem:));
 @end
 
+// ---------------------------------------------------------------------------
+// Grep・Grep置換（第 43 步。sakura::core::GrepSession 等）
+// ---------------------------------------------------------------------------
+
+//! Grep 的条件（sakura::core::GrepOptions：原版 GrepInfo）
+NS_SWIFT_NAME(GrepOptions)
+@interface ECGrepOptions : NSObject
+@property (copy) NSString *key;
+@property (copy) NSString *replacement;
+@property (copy) NSString *files;				//!< 対象ファイル（除外は PackGrepFiles で加えたもの）
+@property (copy) NSString *folders;
+@property BOOL regularExpression;
+@property BOOL matchCase;
+@property BOOL wholeWord;
+@property BOOL subFolder;
+@property ECEncoding charSet;
+@property NSInteger outputStyle;				//!< 1 ノーマル、2 ファイル毎、3 結果のみ
+@property NSInteger outputLineType;			//!< 0 該当部分、1 該当行、2 否該当行
+@property BOOL fileOnly;
+@property BOOL baseFolder;
+@property BOOL separateFolder;
+@property BOOL exceptFileRegexp;
+@property BOOL header;
+@property BOOL replace;
+@property BOOL paste;
+@property BOOL backup;
+@property (copy, nullable) NSString *pasteText;	//!< 貼り付ける文字（剪贴板是空的时候 nil）
+@end
+
+//! 「編集中のテキストから検索」的文档（sakura::core::GrepSourceText）
+NS_SWIFT_NAME(GrepSourceText)
+@interface ECGrepSourceText : NSObject
+@property uint64_t sourceID;
+@property (copy) NSString *filePath;
+@property (copy) NSString *windowLabel;
+@property BOOL isGrep;
+@property ECEncoding encoding;
+@property (copy) NSArray<NSString *> *lines;		//!< 各行（包括换行符）
+@end
+
+NS_SWIFT_NAME(GrepResult)
+@interface ECGrepResult : NSObject
+@property (readonly) NSInteger hitCount;
+@property (readonly) BOOL cancelled;
+@property (readonly, copy) NSString *errorMessage;	//!< 空：没有错误
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	一次 Grep（sakura::core::GrepSession）。run 在别的线程调用；cancel、takeOutput、进度可以在任何线程调用
+*/
+NS_SWIFT_NAME(GrepSession)
+@interface ECGrepSession : NSObject
+- (instancetype)initWithOptions:(ECGrepOptions *)options sources:(NSArray<ECGrepSourceText *> *)sources NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
+- (ECGrepResult *)run;
+- (void)cancel;
+@property BOOL realTimeView;
+@property (readonly, getter=isRunning) BOOL running;
+- (NSString *)takeOutput;
+@property (readonly) NSInteger progressHitCount;
+@property (readonly, copy) NSString *progressFile;
+@property (readonly, copy) NSString *progressFolder;
+@end
+
+//! Grep 对话框的历史的种类（sakura::core::GrepHistory）
+typedef NS_ENUM(NSInteger, ECGrepHistory) {
+	ECGrepHistoryFile NS_SWIFT_NAME(file) = 0,
+	ECGrepHistoryFolder NS_SWIFT_NAME(folder),
+	ECGrepHistoryExcludeFile NS_SWIFT_NAME(excludeFile),
+	ECGrepHistoryExcludeFolder NS_SWIFT_NAME(excludeFolder),
+} NS_SWIFT_NAME(GrepHistory);
+
+//! Grep 对话框的「OK」的检查（sakura::core::GrepDialogCheck）
+NS_SWIFT_NAME(GrepDialogCheck)
+@interface ECGrepDialogCheck : NSObject
+@property (readonly, copy) NSString *error;
+@property (readonly, copy) NSString *file;
+@property (readonly, copy) NSString *folders;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! タグジャンプ 的目标（sakura::core::TagJumpTarget）
+NS_SWIFT_NAME(TagJumpTarget)
+@interface ECTagJumpTarget : NSObject
+@property (readonly, copy) NSString *path;		//!< 「編集中のテキストから検索」的结果时是空
+@property (readonly) BOOL hasSourceID;
+@property (readonly) uint64_t sourceID;
+@property (readonly) NSInteger line;				//!< 1 开始。0：没有指定
+@property (readonly) NSInteger column;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+NS_SWIFT_NAME(GrepCore)
+@interface ECGrep : NSObject
++ (NSArray<NSString *> *)historyOf:(ECGrepHistory)kind NS_SWIFT_NAME(history(_:));
++ (void)addHistory:(NSString *)text kind:(ECGrepHistory)kind NS_SWIFT_NAME(addHistory(_:kind:));
+//! 打开对话框时的初始值：file、folder、excludeFile、excludeFolder（原版 CDlgGrep::DoModal）
++ (NSDictionary<NSString *, NSString *> *)dialogDefaults;
++ (NSString *)packFiles:(NSString *)file excludeFile:(NSString *)excludeFile excludeFolder:(NSString *)excludeFolder NS_SWIFT_NAME(packFiles(_:excludeFile:excludeFolder:));
++ (NSArray<NSString *> *)splitFolders:(NSString *)folders base:(NSString *)base NS_SWIFT_NAME(splitFolders(_:base:));
++ (NSString *)joinFolders:(NSArray<NSString *> *)folders NS_SWIFT_NAME(joinFolders(_:));
++ (nullable NSString *)foldersUp:(NSString *)folders base:(NSString *)base NS_SWIFT_NAME(foldersUp(_:base:));
++ (ECGrepDialogCheck *)checkDialogFile:(NSString *)file excludeFile:(NSString *)excludeFile excludeFolder:(NSString *)excludeFolder
+	folders:(NSString *)folders base:(NSString *)base fromThisText:(BOOL)fromThisText
+	NS_SWIFT_NAME(checkDialog(file:excludeFile:excludeFolder:folders:base:fromThisText:));
++ (NSString *)sourceToken:(uint64_t)sourceID NS_SWIFT_NAME(sourceToken(_:));
+//! Grep 的结果的文档的タイプ別設定的番号（扩展名 grepout 的类型）
+@property (class, readonly) NSInteger outputTypeIndex;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -1113,6 +1225,11 @@ NS_SWIFT_NAME(EditorDocument)
 	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findFuncListMark(from:forward:searchAll:wrapped:));
 //! この行に関数リストマークがあるか
 - (BOOL)hasFuncListMark:(NSInteger)line NS_SWIFT_NAME(hasFuncListMark(_:));
+
+// ----- Grep・タグジャンプ（第 43 步） -----
+
+//! 逻辑行 line 的タグジャンプ 的目标（Grep 的结果、「ファイル名(行,桁)」的消息）。没有时 nil
+- (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line NS_SWIFT_NAME(tagJump(at:));
 
 @end
 

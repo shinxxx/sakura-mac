@@ -1,0 +1,4 @@
+HIT x hit
+none
+テスト HIT
+HITHIT

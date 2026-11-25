@@ -17,6 +17,13 @@
 #include <string_view>
 #include <filesystem>
 
+//! パスの区切り文字(Mac 版は '/'。移植計画のステップ 43：Grep・ファイルツリーのパスの組み立てに使う)
+#if defined(_WIN32)
+inline constexpr WCHAR PATH_DELIMITER = LCHAR('\\');
+#else
+inline constexpr WCHAR PATH_DELIMITER = LCHAR('/');
+#endif
+
 bool fexist(LPCWSTR pszPath); //!< ファイルまたはディレクトリが存在すればtrue
 bool fexist(const std::filesystem::path& path) noexcept; //!< ファイルまたはディレクトリが存在すればtrue
 
