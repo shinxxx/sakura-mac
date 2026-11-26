@@ -67,4 +67,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-grep.cpp"             # 第 43 步：Grep・Grep置換（原版 test-grep-cmdline.cpp 移到 Mac 版）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-filetree.cpp"         # 第 43 步：ファイルツリー
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-edit-support.cpp"     # 第 44 步：編集支援（対括弧、ブックマーク、差分、補完、タグ）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-macro.cpp"           # 第 45 步：マクロ（関数表、キーマクロの読み書き、JScript の前処理、ExpandParameter、Cookie）
 )

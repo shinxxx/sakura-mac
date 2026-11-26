@@ -1560,6 +1560,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     override func doCommand(by selector: Selector) {
         if isearchHandleSelector(selector) { return }	// 第 44 步：インクリメンタルサーチ中
         if hokanActive && selector != #selector(deleteBackward(_:)) { hokanHide() }	// 原版 PreprocessCommand_hokan
+        if responds(to: selector) { recordKeyMacro(selector: selector) }	// 第 45 步：キーマクロの記録
         // 输入法和按键分配把方向键、Backspace 等变成选择子。这里只处理原型需要的几个
         if responds(to: selector) {
             perform(selector, with: nil)
@@ -2111,7 +2112,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         default:
             return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem)
                 ?? validateISearchMenuItem(menuItem) ?? validateDiffMenuItem(menuItem) ?? validateKeywordHelpMenuItem(menuItem)
-                ?? validateTagJumpMenuItem(menuItem) ?? true
+                ?? validateTagJumpMenuItem(menuItem) ?? validateKeyMacroMenuItem(menuItem) ?? true
         }
     }
 
@@ -2124,6 +2125,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     func insertText(_ string: Any, replacementRange: NSRange) {
         let text = Self.plainString(string)
+        recordKeyMacro(typed: text, fromInputMethod: hasMarkedText())	// 第 45 步：キーマクロの記録（Char・CharIme）
         // 第 44 步：インクリメンタルサーチ中の文字入力は検索文字列に（原版 F_WCHAR、F_IME_CHAR → F_ISEARCH_ADD_CHAR）
         if isearch.isActive {
             clearMarkedText()

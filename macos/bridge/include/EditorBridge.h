@@ -1133,6 +1133,120 @@ NS_SWIFT_NAME(KeywordHelp)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+//! マクロの引数・戻り値の型（sakura::core::MacroValueType）
+typedef NS_ENUM(NSInteger, ECMacroValueType) {
+	ECMacroValueTypeNone = 0,
+	ECMacroValueTypeInt = 1,
+	ECMacroValueTypeString = 2,
+} NS_SWIFT_NAME(MacroValueType);
+
+//! マクロの読み込み・実行結果（sakura::core::MacroLoadResult。原版 EMacroResult）
+typedef NS_ENUM(NSInteger, ECMacroLoadResult) {
+	ECMacroLoadResultSuccess = 0,
+	ECMacroLoadResultFailure = 1,
+	ECMacroLoadResultEncodingError = 2,
+} NS_SWIFT_NAME(MacroLoadResult);
+
+//! マクロの種類（sakura::core::MacroKind）
+typedef NS_ENUM(NSInteger, ECMacroKind) {
+	ECMacroKindKey = 0,			//!< キーマクロ（.mac）
+	ECMacroKindJScript = 1,		//!< JScript（.js）
+	ECMacroKindUnsupported = 2,	//!< 原版にはあるが Mac 版にない（.vbs .ppa .py など）
+	ECMacroKindUnknown = 3,
+} NS_SWIFT_NAME(MacroKind);
+
+//! マクロの命令・関数の情報（sakura::core::MacroFunctionInfo。原版 MacroFuncInfo）
+NS_SWIFT_NAME(MacroFunctionInfo)
+@interface ECMacroFunctionInfo : NSObject
+@property (readonly) NSInteger code;				//!< 機能番号
+@property (readonly, copy) NSString *name;			//!< 関数名（S_ なし）
+@property (readonly, copy) NSArray<NSNumber *> *argTypes;	//!< 引数の型（ECMacroValueType）
+@property (readonly) ECMacroValueType resultType;
+@property (readonly) BOOL isFunction;				//!< 値を返す関数
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! マクロの引数（sakura::core::MacroArg。原版 CMacroParam）
+NS_SWIFT_NAME(MacroArg)
+@interface ECMacroArg : NSObject
+@property (readonly) BOOL isString;
+@property (readonly, copy) NSString *text;		//!< 数値のときも 10 進の文字列
+@property (readonly) NSInteger intValue;		//!< _wtoi
++ (instancetype)string:(NSString *)text NS_SWIFT_NAME(string(_:));
++ (instancetype)int:(NSInteger)value NS_SWIFT_NAME(int(_:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! キーマクロの一行（sakura::core::MacroCall）
+NS_SWIFT_NAME(MacroCall)
+@interface ECMacroCall : NSObject
+@property (readonly) NSInteger code;
+@property (readonly, copy) NSArray<ECMacroArg *> *args;
+- (instancetype)initWithCode:(NSInteger)code args:(NSArray<ECMacroArg *> *)args NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! キーマクロの読み込みの結果（sakura::core::KeyMacroParseResult）
+NS_SWIFT_NAME(KeyMacroParseResult)
+@interface ECKeyMacroParseResult : NSObject
+@property (readonly) ECMacroLoadResult result;
+@property (readonly, copy) NSArray<ECMacroCall *> *calls;
+@property (readonly, copy) NSString *errorTitle;
+@property (readonly, copy) NSString *errorMessage;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! ExpandParameter の画面の側の値（sakura::core::ExpandParameterView）
+NS_SWIFT_NAME(ExpandParameterView)
+@interface ECExpandParameterView : NSObject
+@property (copy) NSString *selectedText;
+@property ECPosition caret;
+@property NSInteger untitledNumber;
+@property BOOL grepMode;
+@property BOOL outputMode;
+@property (copy) NSString *grepKey;
+@property (copy) NSString *macroPath;
+@property BOOL recordingKeyMacro;
+@property BOOL viewMode;
+@property BOOL readOnly;
+@property BOOL minimized;
+@property (copy) NSString *date;
+@property (copy) NSString *time;
+@property (copy) NSString *fileDate;
+@property (copy) NSString *fileTime;
+@property (copy) NSString *appName;
+@property (copy) NSString *appPath;
+@property (copy) NSString *version;
+@end
+
+//! マクロ（第 45 步：sakura::core の Macro.cpp）
+NS_SWIFT_NAME(MacroCore)
+@interface ECMacro : NSObject
+//! 命令・関数の一覧（原版の表の順）
+@property (class, readonly, copy) NSArray<ECMacroFunctionInfo *> *functions;
+//! 名前から（S_ 可、大小を区別、関数が先）。キーマクロ
++ (nullable ECMacroFunctionInfo *)findFunction:(NSString *)name NS_SWIFT_NAME(findFunction(_:));
+//! 名前から（大小を区別しない。JScript の Editor オブジェクト）
++ (nullable ECMacroFunctionInfo *)findFunctionIgnoreCase:(NSString *)name NS_SWIFT_NAME(findFunctionIgnoreCase(_:));
+//! 機能番号から（命令が先）
++ (nullable ECMacroFunctionInfo *)functionByCode:(NSInteger)code NS_SWIFT_NAME(function(code:));
+//! 機能名（原版 LS(機能番号)）
++ (NSString *)displayName:(NSInteger)code NS_SWIFT_NAME(displayName(_:));
+//! キーマクロに記録できる機能か（原版 CanFuncIsKeyMacro）
++ (BOOL)canRecord:(NSInteger)code NS_SWIFT_NAME(canRecord(_:));
++ (ECKeyMacroParseResult *)parseKeyMacro:(NSString *)source NS_SWIFT_NAME(parseKeyMacro(_:));
++ (NSString *)formatKeyMacro:(NSArray<ECMacroCall *> *)calls NS_SWIFT_NAME(formatKeyMacro(_:));
++ (ECKeyMacroParseResult *)loadKeyMacroFile:(NSString *)path NS_SWIFT_NAME(loadKeyMacroFile(_:));
++ (BOOL)saveKeyMacroFile:(NSString *)path calls:(NSArray<ECMacroCall *> *)calls NS_SWIFT_NAME(saveKeyMacroFile(_:calls:));
+//! マクロのファイル（.js）を読む。読めないとき nil、result に理由
++ (nullable NSString *)loadSourceFile:(NSString *)path result:(ECMacroLoadResult *)result NS_SWIFT_NAME(loadSourceFile(_:result:));
++ (ECMacroKind)kindOfPath:(NSString *)path NS_SWIFT_NAME(kind(ofPath:));
+//! JScript の前処理（括弧なしの参照に () を足す）
++ (NSString *)prepareJScript:(NSString *)source NS_SWIFT_NAME(prepareJScript(_:));
++ (NSInteger)compareVersion:(NSString *)a with:(NSString *)b NS_SWIFT_NAME(compareVersion(_:_:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -1445,6 +1559,18 @@ NS_SWIFT_NAME(EditorDocument)
 //! 次／前の差分的目标逻辑行。找不到时 -1。wrapped：绕回去了
 - (NSInteger)findDiffMarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll
 	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findDiffMark(from:forward:searchAll:wrapped:));
+
+// ----- マクロ（第 45 步） -----
+//! 特殊文字の展開（原版 CSakuraEnvironment::ExpandParameter）
+- (NSString *)expandParameter:(NSString *)source view:(ECExpandParameterView *)view NS_SWIFT_NAME(expandParameter(_:view:));
+//! Cookie（原版 CCookieManager）。scope は "window" か "document"
+- (NSString *)cookie:(NSString *)scope name:(NSString *)name NS_SWIFT_NAME(cookie(scope:name:));
+- (NSString *)cookie:(NSString *)scope name:(NSString *)name defaultValue:(NSString *)defaultValue NS_SWIFT_NAME(cookie(scope:name:defaultValue:));
+//! 0：成功、1：scope が違う、2：名前が違う
+- (NSInteger)setCookie:(NSString *)scope name:(NSString *)name value:(NSString *)value NS_SWIFT_NAME(setCookie(scope:name:value:));
+//! 0：成功、1：scope が違う、2：名前が違う、5：ない
+- (NSInteger)deleteCookie:(NSString *)scope name:(NSString *)name NS_SWIFT_NAME(deleteCookie(scope:name:));
+- (NSString *)cookieNames:(NSString *)scope NS_SWIFT_NAME(cookieNames(scope:));
 
 @end
 

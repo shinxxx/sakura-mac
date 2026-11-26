@@ -1580,6 +1580,135 @@ Text ExportFileTree(const Text& path, const std::vector<FileTreeItem>& items);
 	排版（自动换行）在第 27 步加入（下面的“排版”）。光标、选择范围、绘制属于编辑画面，不在这里（第 28～30 步）。
 	同一个 Document 只能在一个线程里使用。
 */
+// ---------------------------------------------------------------------------
+// マクロ（第 45 步。macos/core/api/Macro.cpp）
+// 原版 CSMacroMgr の関数表、CKeyMacroMgr のキーマクロファイル（.mac）の読み書き、
+// CSakuraEnvironment::ExpandParameter、JScript マクロを JavaScriptCore で動かすための前処理。
+// マクロの実行（コマンド・関数の処理）は界面層（Swift）が行う。
+// ---------------------------------------------------------------------------
+
+//! マクロの引数・戻り値の型（原版 MacroFuncInfo の VARTYPE：VT_EMPTY、VT_I4、VT_BSTR）
+enum class MacroValueType : std::uint8_t { None, Int, String };
+
+//! マクロの命令・関数の情報（原版 MacroFuncInfo）
+struct MacroFunctionInfo {
+	std::int32_t code = 0;				//!< 機能番号（EFunctionCode）
+	Text name;							//!< 関数名（「S_」なし。例 InsText）
+	std::vector<MacroValueType> args;	//!< 引数の型（VT_EMPTY の手前まで）
+	MacroValueType result = MacroValueType::None;	//!< 戻り値の型
+	bool isFunction = false;			//!< 値を返す関数（原版 m_MacroFuncInfoArr）。false は命令（m_MacroFuncInfoCommandArr）
+};
+
+//! 命令・関数の一覧（原版の表の順。命令が先、関数が後。同じ機能番号の別名も一つずつ）
+const std::vector<MacroFunctionInfo>& MacroFunctions();
+//! 名前から（原版 CSMacroMgr::GetFuncInfoByName：「S_」は付いていてもよい、大文字小文字を区別、関数を先に探す）。なければ nullptr
+const MacroFunctionInfo* FindMacroFunction(const Text& name);
+//! 名前から、大文字小文字を区別しないで（原版 CIfObj::GetIDsOfNames の _wcsicmp。JScript の Editor オブジェクト）
+const MacroFunctionInfo* FindMacroFunctionIgnoreCase(const Text& name);
+//! 機能番号から（原版 CSMacroMgr::GetFuncInfoByID：命令を先に探す）
+const MacroFunctionInfo* MacroFunctionByCode(std::int32_t code);
+//! 機能名（キーマクロ保存のコメント。原版 LS(機能番号)）
+Text MacroFunctionDisplayName(std::int32_t code);
+//! キーマクロに記録できる機能か（原版 CSMacroMgr::CanFuncIsKeyMacro）
+bool CanRecordInKeyMacro(std::int32_t code);
+
+//! マクロの引数（原版 CMacroParam：文字列か数値）
+struct MacroArg {
+	bool isString = false;
+	Text text;					//!< 文字列（数値のときも 10 進の文字列。原版は数値も文字列で持つ）
+	static MacroArg String(const Text& s) { return MacroArg{ true, s }; }
+	static MacroArg Int(std::int32_t n);
+	std::int32_t IntValue() const;	//!< _wtoi
+};
+
+//! キーマクロの一行（原版 CMacro：機能番号と引数）
+struct MacroCall {
+	std::int32_t code = 0;
+	std::vector<MacroArg> args;
+};
+
+//! マクロの読み込み・実行結果（原版 EMacroResult）
+enum class MacroLoadResult { Success, Failure, EncodingError };
+
+//! キーマクロの読み込みの結果
+struct KeyMacroParseResult {
+	MacroLoadResult result = MacroLoadResult::Success;
+	std::vector<MacroCall> calls;
+	Text errorTitle;	//!< エラーのとき：メッセージボックスの題（原版 STR_ERR_DLGKEYMACMGR2「キーボードマクロの読み込みエラー」）
+	Text errorMessage;	//!< エラーのとき：原版と同じメッセージ（行・桁を含む）
+};
+/*!
+	キーマクロのソースを解析する（原版 CKeyMacroMgr::LoadKeyMacro）。
+	原版と同じく、エラーの行の前まで読めていても失敗（calls は途中まで）
+*/
+KeyMacroParseResult ParseKeyMacro(const Text& source);
+/*!
+	キーマクロの保存の形式（原版 CKeyMacroMgr::SaveKeyMacro）：最初のコメント、各行「関数名(引数);\t// 機能名」、改行は CRLF
+*/
+Text FormatKeyMacro(const std::vector<MacroCall>& calls);
+//! キーマクロのファイルを読む（原版：BOM 付き UTF-8 か Shift_JIS）。読めないとき Failure、変換できないとき EncodingError
+KeyMacroParseResult LoadKeyMacroFile(const Text& path);
+//! キーマクロのファイルを書く（BOM 付き UTF-8。原版 CTextOutputStream）
+bool SaveKeyMacroFile(const Text& path, const std::vector<MacroCall>& calls);
+
+//! マクロのソースの読み込みの結果
+struct MacroSourceResult {
+	MacroLoadResult result = MacroLoadResult::Success;
+	Text source;
+};
+/*!
+	マクロのファイル（.js など）を読む（原版 CWSHMacroManager::LoadKeyMacro：各行に CRLF を付けてつなぐ）。
+	原版は BOM 付き UTF-8 か Shift_JIS。Mac 版は BOM がなくても UTF-8 として正しければ UTF-8（Mac で作るファイルは BOM なしの UTF-8 が普通）
+*/
+MacroSourceResult LoadMacroSourceFile(const Text& path);
+
+//! マクロの種類（原版 CMacroFactory：拡張子で決める）
+enum class MacroKind {
+	Key,			//!< キーマクロ（.mac）
+	JScript,		//!< JScript（.js）：JavaScriptCore で実行
+	Unsupported,	//!< 原版にはあるが Mac 版にない（.vbs .ppa .py など。Windows の DLL・Windows Script Host が要る）
+	Unknown,		//!< マクロでない
+};
+//! 拡張子（「.」なし、大小を区別しない）からマクロの種類
+MacroKind MacroKindOfExtension(const Text& ext);
+//! パスの拡張子からマクロの種類（原版 CSMacroMgr::Load の拡張子の取り方）
+MacroKind MacroKindOfPath(const Text& path);
+
+/*!
+	JScript のマクロを JavaScriptCore で動かすための前処理。
+	原版の Editor オブジェクトは IDispatch で、括弧なしの参照（`GetFilename`、`SelectWord;`、`while (IsPossibleUndo)`）も
+	呼び出しになる（CIfObj::Invoke は DISPATCH_PROPERTYGET でも実行する）。JavaScript ではそうならないので、
+	命令・関数の名前（大文字小文字も同じ）の後ろに「(」がないところに「()」を足す。
+	文字列・コメント・正規表現の中と、「.」の後ろ（Editor. は除く）、スクリプトで宣言した名前（var・function・引数など）は変えない。
+	行と桁は変わらない（足すのは同じ行の中）
+*/
+Text PrepareJScriptMacro(const Text& source);
+
+//! バージョン番号の比較（原版 CompareVersion）。A が新しい：正、同じ：0、古い：負
+std::int32_t CompareVersionString(const Text& verA, const Text& verB);
+
+//! ExpandParameter の画面の側の値（原版は CEditWnd・CEditView から取る）
+struct ExpandParameterView {
+	Text selectedText;				//!< $C 選択中のテキスト（選択がないときはカーソル位置の単語。原版 GetCurrentTextForSearch）
+	Position caret;					//!< $x $y カーソルの論理位置
+	std::int32_t untitledNumber = 0;	//!< $n 無題の通し番号（0：なし）
+	bool grepMode = false;			//!< $n $w Grep モード
+	bool outputMode = false;		//!< $w アウトプットウィンドウ
+	Text grepKey;					//!< $h Grep の検索キー
+	Text macroPath;					//!< $M 実行中のマクロのパス
+	bool recordingKeyMacro = false;	//!< ${M? キーマクロの記録中（この窓口で）
+	bool viewMode = false;			//!< ${R? ビューモード
+	bool readOnly = false;			//!< ${R? 上書き禁止
+	bool minimized = false;			//!< ${I? アイコン化
+	Text date;						//!< $d 今日の日付（共通設定の日付書式。界面層が書式化する）
+	Text time;						//!< $t 今の時刻
+	Text fileDate;					//!< $D ファイルのタイムスタンプの日付（空：保存されていない）
+	Text fileTime;					//!< $T ファイルのタイムスタンプの時刻
+	Text appName;					//!< $A アプリ名（原版 STR_GSTR_APPNAME。sakura_rc.rc2 の文字列は核心库にないので界面層から）
+	Text appPath;					//!< $S サクラエディタのフルパス（Mac 版は App のパス）
+	Text version;					//!< $V バージョン
+};
+
 class Document {
 public:
 	//! 新文档（无题，空的一行）。核心库需要已经启动（Startup）
@@ -2188,6 +2317,22 @@ public:
 		searchAll 时绕回。@param[out] pWrapped 绕回去了
 	*/
 	std::int32_t FindDiffMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped = nullptr) const;
+
+	// ----- マクロ（第 45 步） -----
+	//! 特殊文字の展開（原版 CSakuraEnvironment::ExpandParameter）。文書の値はこの文書から、画面の値は view から
+	Text ExpandParameter(const Text& source, const ExpandParameterView& view) const;
+	/*!
+		Cookie（原版 CCookieManager。CEditDoc::m_cCookie）。scope は "window" か "document"。
+		document の Cookie は閉じて(無題)・開いたときに消える（原版 CEditDoc::InitDoc）
+	*/
+	Text GetCookie(const Text& scope, const Text& name) const;
+	Text GetCookieDefault(const Text& scope, const Text& name, const Text& defaultValue) const;
+	//! 0：成功、1：scope が違う、2：名前が違う
+	std::int32_t SetCookie(const Text& scope, const Text& name, const Text& value);
+	//! 0：成功、1：scope が違う、2：名前が違う、5：ない
+	std::int32_t DeleteCookie(const Text& scope, const Text& name);
+	//! 名前を「,」でつないで
+	Text GetCookieNames(const Text& scope) const;
 
 private:
 	Document();

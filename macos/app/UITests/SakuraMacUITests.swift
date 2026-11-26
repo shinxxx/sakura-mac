@@ -392,6 +392,91 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "print_value print_value", "候補が 1 つ：すぐに決まる")
     }
 
+    /// ツール > キーマクロ（第 45 步）：記録開始 → 入力・矢印キー → 記録終了（タイトルの【キーマクロの記録中】が消える）→ 実行。
+    /// 実行は一回の「元に戻す」で全部戻る
+    func testKeyMacroRecordAndExecute() {
+        let tools = app.menuBars.menuBarItems["ツール"]
+        let window = app.windows.firstMatch
+        tools.click()
+        tools.menuItems["キーマクロの記録開始"].click()
+        XCTAssertTrue(window.title.contains("【キーマクロの記録中】"), "記録中のタイトル：\(window.title)")
+        editor.typeText("ab\n")
+        key(XCUIKeyboardKey.leftArrow.rawValue)	// 前の行の末尾
+        editor.typeText("X")
+        tools.click()
+        tools.menuItems["キーマクロの記録終了"].click()
+        XCTAssertFalse(window.title.contains("【キーマクロの記録中】"), "記録終了後のタイトル：\(window.title)")
+        XCTAssertEqual(normalizedText, "abX\n")
+        key(XCUIKeyboardKey.downArrow.rawValue)	// 2 行目の先頭
+        tools.click()
+        tools.menuItems["キーマクロの実行"].click()
+        XCTAssertEqual(normalizedText, "abX\nabX\n", "同じ操作をもう一度")
+        key("z", .command)
+        XCTAssertEqual(normalizedText, "abX\n", "一回の元に戻すで全部戻る")
+    }
+
+    /// 画面の記録（第 45 步の確認用）：ウィンドウ・パネルの画面を結果に残す（run-tests.sh の後に取り出す）
+    private func keepScreenshot(_ element: XCUIElement, _ name: String) {
+        let shot = XCTAttachment(screenshot: element.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// ツール > キーマクロの保存・読み込み（第 45 步）：保存パネル、開くパネルでファイルを選ぶ、文法の誤りのあるファイルの実行で原版の 2 つのメッセージ
+    func testKeyMacroPanelsAndLoadError() throws {
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let bad = dir.appendingPathComponent("bad-\(UUID().uuidString.prefix(8)).mac")
+        try "Down(0);\r\nNoSuch(1);\r\n".write(to: bad, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: bad) }
+
+        let tools = app.menuBars.menuBarItems["ツール"]
+        let window = app.windows.firstMatch
+        tools.click()
+        tools.menuItems["キーマクロの記録開始"].click()
+        editor.typeText("abc")
+        keepScreenshot(window, "step45-recording-title")
+        tools.click()
+        keepScreenshot(app.menuBars.menuBarItems["ツール"].menus.firstMatch, "step45-tools-menu-recording")
+        tools.menuItems["キーマクロの記録終了"].click()
+
+        // 保存パネル（キャンセル）
+        tools.click()
+        tools.menuItems["キーマクロの保存"].click()
+        let save = app.sheets.firstMatch.exists ? app.sheets.firstMatch : app.dialogs.firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 5), "保存パネル")
+        keepScreenshot(save, "step45-save-panel")
+        save.typeKey(.escape, modifierFlags: [])
+
+        // 開くパネルでファイルを選ぶ（⇧⌘G でパスを入れる）
+        tools.click()
+        tools.menuItems["キーマクロの読み込み"].click()
+        let open = app.dialogs.firstMatch
+        XCTAssertTrue(open.waitForExistence(timeout: 5), "開くパネル")
+        keepScreenshot(open, "step45-open-panel")
+        open.typeKey("g", modifierFlags: [.command, .shift])
+        sleep(1)
+        app.typeText(bad.path)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(waitFor { !open.exists }, "開くパネルが閉じた")
+
+        // 実行：文法の誤り → 読み込めない
+        tools.click()
+        tools.menuItems["キーマクロの実行"].click()
+        let first = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", "NoSuchは存在しない関数です")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 5), "Macro読み込みエラー")
+        keepScreenshot(app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.windows.firstMatch, "step45-load-error")
+        app.buttons["OK"].firstMatch.click()
+        let second = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", "ファイルを開けませんでした。")).firstMatch
+        XCTAssertTrue(second.waitForExistence(timeout: 5), "ファイルを開けませんでした")
+        keepScreenshot(app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.windows.firstMatch, "step45-open-error")
+        app.buttons["OK"].firstMatch.click()
+        XCTAssertEqual(normalizedText, "abc", "一行も実行しない")
+    }
+
     /// 検索 > ダイレクトタグジャンプ：カーソル位置の単語を tags ファイルで探して、そのファイルのその行へ（第 44 步）
     func testDirectTagJump() throws {
         let dir = try makeGrepFolder()

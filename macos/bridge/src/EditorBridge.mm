@@ -1410,6 +1410,10 @@ static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHis
 - (instancetype)initWithTarget:(const core::TagJumpTarget&)target;
 @end
 
+@interface ECExpandParameterView ()
+- (core::ExpandParameterView)coreView;
+@end
+
 @interface ECFileTreeRoot ()
 - (instancetype)initWithRoot:(const core::FileTreeRoot&)root;
 @end
@@ -2571,4 +2575,190 @@ static ECSearchResult *InvalidViewResult()
 	return target ? [[ECTagJumpTarget alloc] initWithTarget:*target] : nil;
 }
 
+// ----- マクロ（第 45 步） -----
+
+- (NSString *)expandParameter:(NSString *)source view:(ECExpandParameterView *)view
+{
+	return ToNSString(_doc->ExpandParameter(ToText(source), [view coreView]));
+}
+- (NSString *)cookie:(NSString *)scope name:(NSString *)name { return ToNSString(_doc->GetCookie(ToText(scope), ToText(name))); }
+- (NSString *)cookie:(NSString *)scope name:(NSString *)name defaultValue:(NSString *)defaultValue
+{
+	return ToNSString(_doc->GetCookieDefault(ToText(scope), ToText(name), ToText(defaultValue)));
+}
+- (NSInteger)setCookie:(NSString *)scope name:(NSString *)name value:(NSString *)value
+{
+	return _doc->SetCookie(ToText(scope), ToText(name), ToText(value));
+}
+- (NSInteger)deleteCookie:(NSString *)scope name:(NSString *)name { return _doc->DeleteCookie(ToText(scope), ToText(name)); }
+- (NSString *)cookieNames:(NSString *)scope { return ToNSString(_doc->GetCookieNames(ToText(scope))); }
+
+@end
+
+// ----- マクロ（第 45 步） -----
+
+static_assert(ECMacroValueTypeNone == static_cast<NSInteger>(core::MacroValueType::None));
+static_assert(ECMacroValueTypeInt == static_cast<NSInteger>(core::MacroValueType::Int));
+static_assert(ECMacroValueTypeString == static_cast<NSInteger>(core::MacroValueType::String));
+static_assert(ECMacroLoadResultSuccess == static_cast<NSInteger>(core::MacroLoadResult::Success));
+static_assert(ECMacroLoadResultFailure == static_cast<NSInteger>(core::MacroLoadResult::Failure));
+static_assert(ECMacroLoadResultEncodingError == static_cast<NSInteger>(core::MacroLoadResult::EncodingError));
+static_assert(ECMacroKindKey == static_cast<NSInteger>(core::MacroKind::Key));
+static_assert(ECMacroKindJScript == static_cast<NSInteger>(core::MacroKind::JScript));
+static_assert(ECMacroKindUnsupported == static_cast<NSInteger>(core::MacroKind::Unsupported));
+static_assert(ECMacroKindUnknown == static_cast<NSInteger>(core::MacroKind::Unknown));
+
+@implementation ECMacroFunctionInfo
+- (instancetype)initWithInfo:(const core::MacroFunctionInfo&)f
+{
+	if ((self = [super init])) {
+		_code = f.code;
+		_name = ToNSString(f.name);
+		NSMutableArray<NSNumber *> *args = [NSMutableArray array];
+		for (auto a : f.args) [args addObject:@(static_cast<NSInteger>(a))];
+		_argTypes = args;
+		_resultType = static_cast<ECMacroValueType>(f.result);
+		_isFunction = f.isFunction ? YES : NO;
+	}
+	return self;
+}
+@end
+
+@implementation ECMacroArg
+- (instancetype)initWithArg:(const core::MacroArg&)a
+{
+	if ((self = [super init])) {
+		_isString = a.isString ? YES : NO;
+		_text = ToNSString(a.text);
+	}
+	return self;
+}
++ (instancetype)string:(NSString *)text { return [[ECMacroArg alloc] initWithArg:core::MacroArg::String(ToText(text))]; }
++ (instancetype)int:(NSInteger)value { return [[ECMacroArg alloc] initWithArg:core::MacroArg::Int(ClampInt32(value))]; }
+- (NSInteger)intValue { return [self coreArg].IntValue(); }
+- (core::MacroArg)coreArg { return core::MacroArg{ _isString == YES, ToText(_text) }; }
+@end
+
+@implementation ECMacroCall
+- (instancetype)initWithCode:(NSInteger)code args:(NSArray<ECMacroArg *> *)args
+{
+	if ((self = [super init])) {
+		_code = code;
+		_args = [args copy];
+	}
+	return self;
+}
+- (instancetype)initWithCall:(const core::MacroCall&)c
+{
+	NSMutableArray<ECMacroArg *> *args = [NSMutableArray array];
+	for (const auto& a : c.args) [args addObject:[[ECMacroArg alloc] initWithArg:a]];
+	return [self initWithCode:c.code args:args];
+}
+- (core::MacroCall)coreCall
+{
+	core::MacroCall c;
+	c.code = ClampInt32(_code);
+	for (ECMacroArg *a in _args) c.args.push_back([a coreArg]);
+	return c;
+}
+@end
+
+@implementation ECKeyMacroParseResult
+- (instancetype)initWithResult:(const core::KeyMacroParseResult&)r
+{
+	if ((self = [super init])) {
+		_result = static_cast<ECMacroLoadResult>(r.result);
+		NSMutableArray<ECMacroCall *> *calls = [NSMutableArray array];
+		for (const auto& c : r.calls) [calls addObject:[[ECMacroCall alloc] initWithCall:c]];
+		_calls = calls;
+		_errorTitle = ToNSString(r.errorTitle);
+		_errorMessage = ToNSString(r.errorMessage);
+	}
+	return self;
+}
+@end
+
+@implementation ECExpandParameterView
+- (instancetype)init
+{
+	if ((self = [super init])) {
+		_selectedText = @""; _grepKey = @""; _macroPath = @""; _date = @""; _time = @"";
+		_fileDate = @""; _fileTime = @""; _appName = @""; _appPath = @""; _version = @"";
+	}
+	return self;
+}
+- (core::ExpandParameterView)coreView
+{
+	core::ExpandParameterView v;
+	v.selectedText = ToText(_selectedText);
+	v.caret = ToCore(_caret);
+	v.untitledNumber = ClampInt32(_untitledNumber);
+	v.grepMode = _grepMode == YES;
+	v.outputMode = _outputMode == YES;
+	v.grepKey = ToText(_grepKey);
+	v.macroPath = ToText(_macroPath);
+	v.recordingKeyMacro = _recordingKeyMacro == YES;
+	v.viewMode = _viewMode == YES;
+	v.readOnly = _readOnly == YES;
+	v.minimized = _minimized == YES;
+	v.date = ToText(_date);
+	v.time = ToText(_time);
+	v.fileDate = ToText(_fileDate);
+	v.fileTime = ToText(_fileTime);
+	v.appName = ToText(_appName);
+	v.appPath = ToText(_appPath);
+	v.version = ToText(_version);
+	return v;
+}
+@end
+
+namespace {
+NSArray<ECMacroFunctionInfo *> *MacroFunctionList()
+{
+	static NSArray<ECMacroFunctionInfo *> *list = [] {
+		NSMutableArray<ECMacroFunctionInfo *> *a = [NSMutableArray array];
+		for (const auto& f : core::MacroFunctions()) [a addObject:[[ECMacroFunctionInfo alloc] initWithInfo:f]];
+		return [a copy];
+	}();
+	return list;
+}
+//! 表の中の同じ項目（ECMacroFunctionInfo は表の順に一つずつ）
+ECMacroFunctionInfo *_Nullable MacroInfoFor(const core::MacroFunctionInfo* f)
+{
+	if (!f) return nil;
+	const auto& table = core::MacroFunctions();
+	const auto index = static_cast<NSUInteger>(f - table.data());
+	return index < MacroFunctionList().count ? MacroFunctionList()[index] : nil;
+}
+std::vector<core::MacroCall> ToCoreCalls(NSArray<ECMacroCall *> *calls)
+{
+	std::vector<core::MacroCall> v;
+	for (ECMacroCall *c in calls) v.push_back([c coreCall]);
+	return v;
+}
+} // namespace
+
+@implementation ECMacro
++ (NSArray<ECMacroFunctionInfo *> *)functions { return MacroFunctionList(); }
++ (nullable ECMacroFunctionInfo *)findFunction:(NSString *)name { return MacroInfoFor(core::FindMacroFunction(ToText(name))); }
++ (nullable ECMacroFunctionInfo *)findFunctionIgnoreCase:(NSString *)name { return MacroInfoFor(core::FindMacroFunctionIgnoreCase(ToText(name))); }
++ (nullable ECMacroFunctionInfo *)functionByCode:(NSInteger)code
+{
+	return FitsInt32(code) ? MacroInfoFor(core::MacroFunctionByCode(static_cast<std::int32_t>(code))) : nil;
+}
++ (NSString *)displayName:(NSInteger)code { return FitsInt32(code) ? ToNSString(core::MacroFunctionDisplayName(static_cast<std::int32_t>(code))) : @""; }
++ (BOOL)canRecord:(NSInteger)code { return FitsInt32(code) && core::CanRecordInKeyMacro(static_cast<std::int32_t>(code)) ? YES : NO; }
++ (ECKeyMacroParseResult *)parseKeyMacro:(NSString *)source { return [[ECKeyMacroParseResult alloc] initWithResult:core::ParseKeyMacro(ToText(source))]; }
++ (NSString *)formatKeyMacro:(NSArray<ECMacroCall *> *)calls { return ToNSString(core::FormatKeyMacro(ToCoreCalls(calls))); }
++ (ECKeyMacroParseResult *)loadKeyMacroFile:(NSString *)path { return [[ECKeyMacroParseResult alloc] initWithResult:core::LoadKeyMacroFile(ToText(path))]; }
++ (BOOL)saveKeyMacroFile:(NSString *)path calls:(NSArray<ECMacroCall *> *)calls { return core::SaveKeyMacroFile(ToText(path), ToCoreCalls(calls)) ? YES : NO; }
++ (nullable NSString *)loadSourceFile:(NSString *)path result:(ECMacroLoadResult *)result
+{
+	const auto r = core::LoadMacroSourceFile(ToText(path));
+	if (result) *result = static_cast<ECMacroLoadResult>(r.result);
+	return r.result == core::MacroLoadResult::Success ? ToNSString(r.source) : nil;
+}
++ (ECMacroKind)kindOfPath:(NSString *)path { return static_cast<ECMacroKind>(core::MacroKindOfPath(ToText(path))); }
++ (NSString *)prepareJScript:(NSString *)source { return ToNSString(core::PrepareJScriptMacro(ToText(source))); }
++ (NSInteger)compareVersion:(NSString *)a with:(NSString *)b { return core::CompareVersionString(ToText(a), ToText(b)); }
 @end

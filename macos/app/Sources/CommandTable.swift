@@ -164,6 +164,12 @@ enum CommandTable {
         31340: Selector(("activateNextWindow:")),					// F_NEXTWINDOW（AppDelegate）
         31341: Selector(("activatePreviousWindow:")),				// F_PREVWINDOW（AppDelegate）
 
+        // 第 45 步：キーマクロ（KeyMacro.swift）
+        31250: #selector(EditorTextView.recKeyMacro(_:)),			// F_RECKEYMACRO キーマクロの記録開始／終了
+        31251: #selector(EditorTextView.saveKeyMacro(_:)),			// F_SAVEKEYMACRO キーマクロの保存
+        31252: #selector(EditorTextView.loadKeyMacro(_:)),			// F_LOADKEYMACRO キーマクロの読み込み
+        31253: #selector(EditorTextView.execKeyMacro(_:)),			// F_EXECKEYMACRO キーマクロの実行
+
         // ヘルプ（第 34 步：AboutPanel.swift，原版的内容）
         31455: #selector(NSApplication.showSakuraAbout(_:)),		// F_ABOUT バージョン情報
     ]
@@ -181,6 +187,8 @@ enum CommandTable {
     @discardableResult
     static func perform(_ code: Int, from responder: NSResponder?) -> Bool {
         guard let selector = selector(for: code) else { return false }
+        // 第 45 步：キーマクロの記録中なら記録する（原版 CViewCommander::HandleCommand）
+        if let view = responder as? EditorTextView { KeyMacroRecorder.shared.record(code, view: view) }
         let sender = CommandSender(code)
         if let responder, responder.tryToPerform(selector, with: sender) { return true }
         return NSApp.sendAction(selector, to: nil, from: sender)

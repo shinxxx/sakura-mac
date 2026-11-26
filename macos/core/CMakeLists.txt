@@ -152,7 +152,8 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/util/zoom.cpp               # 第 34 步：フォントサイズ拡大／縮小的倍率计算
   sakura_core/_main/CMutex.cpp            # Mac 版是进程内的命名互斥锁
   sakura_core/uiparts/CMenuDrawer.cpp     # 只编译工具栏按钮表（共通设置的工具栏项目），绘制菜单是界面的步骤
-  sakura_core/macro/CSMacroMgr.cpp        # 只编译宏函数名表（按键分配的 ini 读写），宏的执行是第 45 步
+  sakura_core/macro/CSMacroMgr.cpp        # 只编译宏函数名表（按键分配的 ini 读写、第 45 步的キーマクロ）。宏的执行（CMacro）由界面层做
+  sakura_core/macro/CCookieManager.cpp    # 第 45 步：マクロの Cookie（GetCookie 等）
   # 第 33 步：语法颜色（色分け）。颜色名表（ini 的颜色设置）从第 21 步就编进来了。
   # 选择、查找文字的颜色（CColor_Found.cpp）属于编辑画面，由 Mac 版的画面负责
   sakura_core/view/colors/CColorStrategy.cpp
@@ -286,7 +287,8 @@ add_library(sakura_core_api STATIC
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Grep.cpp"          # 第 43 步：Grep・Grep置換（原版 CGrepAgent::DoGrep 在别的线程运行）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/FileTree.cpp"       # 第 43 步：ファイルツリー（原版 CDlgFuncList::SetTreeFile 等的数据部分）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Diff.cpp"           # 第 44 步：DIFF差分表示 的差分（原版は diff.exe）
-  "${CMAKE_CURRENT_SOURCE_DIR}/api/TagJumpList.cpp")   # 第 44 步：タグジャンプ一覧（原版 CDlgTagJumpList の検索の部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/TagJumpList.cpp"    # 第 44 步：タグジャンプ一覧（原版 CDlgTagJumpList の検索の部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/Macro.cpp")         # 第 45 步：マクロの関数表、キーマクロの読み書き、JScript の前処理
 target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(sakura_core_api PRIVATE sakura_core "-framework CoreFoundation")   # 第 42 步：アウトライン的アルファベット順（lstrcmpi 的代替）
 add_dependencies(sakura_core_api sakura_funccode)
