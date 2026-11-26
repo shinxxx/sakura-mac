@@ -1,4 +1,4 @@
-﻿# Sakura Editor for Mac：核心库（libsakura_core）和单元测试
+# Sakura Editor for Mac：核心库（libsakura_core）和单元测试
 #
 # 阶段 1 第 16 步起使用。在 macOS 上构建；Linux 上只能用 clang（只用于开发时快速检查，不支持 GCC）。
 #
@@ -284,7 +284,8 @@ add_library(sakura_core_api STATIC
   "${CMAKE_CURRENT_SOURCE_DIR}/api/SakuraCore.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/api/OutlineView.cpp"    # 第 42 步：アウトライン解析的结果（原版 CDlgFuncList 的数据部分）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Grep.cpp"          # 第 43 步：Grep・Grep置換（原版 CGrepAgent::DoGrep 在别的线程运行）
-  "${CMAKE_CURRENT_SOURCE_DIR}/api/FileTree.cpp")      # 第 43 步：ファイルツリー（原版 CDlgFuncList::SetTreeFile 等的数据部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/FileTree.cpp"       # 第 43 步：ファイルツリー（原版 CDlgFuncList::SetTreeFile 等的数据部分）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/Diff.cpp")          # 第 44 步：DIFF差分表示 的差分（原版は diff.exe）
 target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(sakura_core_api PRIVATE sakura_core "-framework CoreFoundation")   # 第 42 步：アウトライン的アルファベット順（lstrcmpi 的代替）
 add_dependencies(sakura_core_api sakura_funccode)

@@ -925,11 +925,12 @@ struct HelperPage: CommonSettingsPageLogic {
         (idc("CHECK_HTMLHELPISSINGLE"), "bHtmlHelpIsSingle"),
     ]
 
-    /// 外部ヘルプ・外部 HTML ヘルプ（Windows のヘルプ）、migemo の DLL と辞書（Mac 版は組み込み。偏离项 9）
+    /// 外部ヘルプ・外部 HTML ヘルプ（Windows のヘルプ）、migemo の DLL（Mac 版は組み込み。偏离项 9）。
+    /// migemo の辞書は第 44 步（MIGEMO インクリメンタルサーチ）から使う：辞書は GPL なので附带せず、ユーザーが指定する
     var unavailable: Set<String> {
         Set(["EDIT_EXTHELP1", "BUTTON_OPENHELP1", "EDIT_EXTHTMLHELP", "BUTTON_OPENEXTHTMLHELP", "CHECK_HTMLHELPISSINGLE",
-             "EDIT_MIGEMO_DLL", "BUTTON_OPENMDLL", "EDIT_MIGEMO_DICT", "BUTTON_OPENMDICT"].map(idc))
-            .union(["DLL(M)", "辞書(I)"])
+             "EDIT_MIGEMO_DLL", "BUTTON_OPENMDLL"].map(idc))
+            .union(["DLL(M)"])
     }
     /// キーワードヘルプのフォント（sakura.ini の khlf、khps、khlfFaceName）
     static let font = LogFontSetting(lf: "khlf", pointSize: "khps", faceName: "khlfFaceName")
@@ -945,11 +946,26 @@ struct HelperPage: CommonSettingsPageLogic {
 
     func getData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.storeChecks(checks, values)
+        values.set(page.text(idc("EDIT_MIGEMO_DICT")), "szMigemoDict")
     }
 
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
         if id == idc("BUTTON_KEYWORDHELPFONT") {
             Self.font.choose(page, idc("STATIC_KEYWORDHELPFONT"), values, window: window)
+        }
+        if id == idc("BUTTON_OPENMDICT") {
+            // 原版 IDC_BUTTON_OPENMDICT：相対パスは設定ファイルから。選んだフォルダーは可能なら相対パスにする（GetRelPath）。
+            // 沙盒：選んだフォルダーは許可として覚える（Grep と同じ FolderAccess）
+            let iniFolder = (EditorCore.settingsFilePath as NSString).deletingLastPathComponent
+            let current = page.text(idc("EDIT_MIGEMO_DICT"))
+            let initial = current.isEmpty || current.hasPrefix("/") ? current : (iniFolder as NSString).appendingPathComponent(current)
+            if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("検索するフォルダーを選んでください", comment: "STR_PROPCOMHELP_MIGEMODIR"), initial) {
+                FolderAccess.shared.remember(URL(fileURLWithPath: folder, isDirectory: true))
+                let normalized = FolderAccess.normalized(folder)
+                let relative = FolderAccess.contains(iniFolder, normalized) && normalized != FolderAccess.normalized(iniFolder)
+                    ? String(normalized.dropFirst(FolderAccess.normalized(iniFolder).count + 1)) : normalized
+                page.setText(idc("EDIT_MIGEMO_DICT"), relative)
+            }
         }
     }
 }

@@ -43,7 +43,8 @@ extension EditorTextView {
     /// 検索 > タグジャンプバック（F_TAGJUMPBACK）：ジャンプした元の窓口のジャンプした位置に戻る
     @objc func tagJumpBack(_ sender: Any?) {
         guard let entry = TagJumpStack.pop(), let view = entry.view, let window = view.window else {
-            NSSound.beep()	// 原版はステータスバーに「タグジャンプバックできません」（Mac 版にはまだステータスバーが無い）
+            NSSound.beep()
+            sendStatusMessage(NSLocalizedString("タグジャンプバックできません", comment: "STR_ERR_TAGJMPBK1"))	// 第 44 步
             return
         }
         window.makeKeyAndOrderFront(nil)
@@ -90,6 +91,12 @@ extension EditorTextView {
         let path = target.path
         FolderAccess.shared.startAccess(file: path)
         TagJumpStack.push(self, origin)
+        openAndJump(path: path, line: line, column: column, close: close)
+        return true
+    }
+
+    /// ファイルを開いて（開いていればその窓口で）行・桁へ移る。close：元の窓口を閉じる（原版 TagJumpSub）
+    func openAndJump(path: String, line: Int, column: Int, close: Bool) {
         let url = URL(fileURLWithPath: path)
         let sourceWindow = window
         let selfView = self
@@ -102,7 +109,6 @@ extension EditorTextView {
             if line > 0 { view.jumpToTagPosition(line: line, column: column) }
             if close && view !== selfView { sourceWindow?.performClose(nil) }
         }
-        return true
     }
 
     /// 行・桁（1 開始。桁が 0 なら行頭）へ移る（原版 MYWM_SETCARETPOS）

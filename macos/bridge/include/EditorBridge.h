@@ -519,6 +519,20 @@ NS_SWIFT_NAME(EditorTypeSettingImportResult)
 	核心库的启动和结束、名字的查询。
 	App 启动时调用一次 +startup，结束时调用 +shutdownSavingSettings:。
 */
+//! DIFF差分表示の結果（sakura::core::Document::DiffResult）
+typedef NS_ENUM(NSInteger, ECDiffResult) {
+	ECDiffResultMarked NS_SWIFT_NAME(marked) = 0,
+	ECDiffResultNoDiff NS_SWIFT_NAME(noDiff) = 1,
+	ECDiffResultBinary NS_SWIFT_NAME(binary) = 2,
+} NS_SWIFT_NAME(EditorDiffResult);
+
+//! MIGEMO の準備の結果（sakura::core::MigemoStatus）
+typedef NS_ENUM(NSInteger, ECMigemoStatus) {
+	ECMigemoStatusReady NS_SWIFT_NAME(ready) = 0,
+	ECMigemoStatusNoLibrary NS_SWIFT_NAME(noLibrary) = 1,
+	ECMigemoStatusNoDictionary NS_SWIFT_NAME(noDictionary) = 2,
+} NS_SWIFT_NAME(EditorMigemoStatus);
+
 NS_SWIFT_NAME(EditorCore)
 @interface ECCore : NSObject
 
@@ -641,6 +655,16 @@ NS_SWIFT_NAME(EditorCore)
 @property (class, readonly, copy) NSArray<NSString *> *replaceKeyHistory;
 //! 登记到历史（_MAX_PATH 以上长度的不登记）。登记后序号加 1
 + (void)addSearchKey:(NSString *)key NS_SWIFT_NAME(addSearchKey(_:));
+//! ウィンドウ一覧の文字（原版 GetMenuFullLabel_WinListNoEscape）。index が -1 のときはアクセスキーなし
++ (NSString *)windowListLabelForPath:(NSString *)path untitledId:(NSInteger)untitledId modified:(BOOL)modified
+	encoding:(ECEncoding)encoding grepKey:(nullable NSString *)grepKey index:(NSInteger)index
+	NS_SWIFT_NAME(windowListLabel(path:untitledId:modified:encoding:grepKey:index:));
+//! ファイル名の似ている度合い（原版 FileMatchScoreSepExt）
++ (NSInteger)fileMatchScore:(NSString *)file1 with:(NSString *)file2 NS_SWIFT_NAME(fileMatchScore(_:_:));
+//! MIGEMO の準備（第 44 步：インクリメンタルサーチ。辞書は共通設定『支援』の「辞書」）
++ (ECMigemoStatus)prepareMigemo;
+//! 辞書の設定が変わったとき：次の prepareMigemo で読み直す
++ (void)resetMigemo;
 + (void)addReplaceKey:(NSString *)key NS_SWIFT_NAME(addReplaceKey(_:));
 //! 历史的序号（每次登记加 1）
 @property (class, readonly) NSInteger searchKeySequence;
@@ -1063,6 +1087,16 @@ NS_SWIFT_NAME(FileTreeCore)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+//! キーワードヘルプの結果（sakura::core::Document::KeywordHelp）
+NS_SWIFT_NAME(KeywordHelp)
+@interface ECKeywordHelp : NSObject
+@property (readonly, copy) NSString *info;			//!< 表示する文字
+@property (readonly) NSInteger dictionary;			//!< 最初にヒットした辞書の番号
+@property (readonly, copy) NSString *dictionaryPath;	//!< その辞書のファイル（設定のまま）
+@property (readonly) NSInteger line;				//!< 辞書の中の行（1 から）
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -1334,6 +1368,47 @@ NS_SWIFT_NAME(EditorDocument)
 - (BOOL)markPattern:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(markPattern(_:options:));
 //! ブックマークの行番号のリスト（「最近使ったファイル」の形式）
 @property (copy) NSString *bookmarkList;
+
+//! インクリメンタルサーチの検索（from はそのまま使う）。見つかったら YES。migemo：key をローマ字として C/Migemo で
+- (BOOL)isearchFind:(NSString *)key from:(ECPosition)from forward:(BOOL)forward options:(ECSearchOptions)options
+	migemo:(BOOL)migemo range:(ECRange *)outRange NS_SWIFT_NAME(isearchFind(_:from:forward:options:migemo:range:));
+//! 後方の再検索の開始位置（原版：最後の行の「改行を含む長さ - 1」）
+@property (readonly) ECPosition isearchWrapBackwardStart;
+
+/*!
+	DIFF差分表示：この文書と otherText（相手の全文）を比べて、この文書の行に印を付ける（前の印は消す）。
+	flags は原版 F_DIFF の選択肢（0x01 -i、0x02 -w、0x04 -b、0x08 -B、0x10 -t、0x20 この文書が旧ファイル）
+*/
+- (ECDiffResult)applyDiff:(NSString *)otherText flags:(NSInteger)flags NS_SWIFT_NAME(applyDiff(_:flags:));
+//! この行の差分の印（0 なし、1 追加、2 変更、3 削除、4 削除(EOF以降)）
+- (NSInteger)diffMark:(NSInteger)line NS_SWIFT_NAME(diffMark(_:));
+//! ファイルの全文（DIFF差分表示の相手。原版 MakeDiffTmpFile2：タイプ別設定の文字コードで自動判別、履歴に入れない）。読めないとき nil
++ (nullable NSString *)textOfFileAtPath:(NSString *)path NS_SWIFT_NAME(textOfFile(atPath:));
+/*!
+	ファイル内容比較：この文書の from と other の otherFrom から一文字ずつ比べる。異なる箇所があれば YES、
+	mine・theirs はその位置（同じときは末尾）
+*/
+- (BOOL)compareWith:(ECDocument *)other from:(ECPosition)from otherFrom:(ECPosition)otherFrom
+	mine:(ECPosition *)mine theirs:(ECPosition *)theirs NS_SWIFT_NAME(compare(with:from:otherFrom:mine:theirs:));
+//! 差分の全解除
+- (void)resetDiffMarks;
+
+// 入力補完・キーワードヘルプ（第 44 步）
+//! カーソル直前の単語（原版 GetLeftWord）。ないときは空
+- (NSString *)leftWordAt:(ECPosition)caret NS_SWIFT_NAME(leftWord(at:));
+//! 入力補完の候補（補完ファイル・編集中データ・強調キーワード。並べ替えない）
+- (NSArray<NSString *> *)hokanCandidatesForKey:(NSString *)key caret:(ECPosition)caret NS_SWIFT_NAME(hokanCandidates(key:caret:));
+//! 入力補完・キーワードヘルプが読むファイルの絶対パス（沙盒の書签用）
+@property (readonly, copy) NSArray<NSString *> *supportFilePaths;
+//! タイプ別設定「キーワードヘルプ機能を使用する」
+@property (readonly) BOOL usesKeywordHelp;
+//! キーワード辞書の検索（原版 KeySearchCore）。ヒットしないときは nil
+- (nullable ECKeywordHelp *)lookupKeywordHelp:(NSString *)key NS_SWIFT_NAME(lookupKeywordHelp(_:));
+//! 差分の印を付けているか
+@property (readonly) BOOL isDiffUsed;
+//! 次／前の差分的目标逻辑行。找不到时 -1。wrapped：绕回去了
+- (NSInteger)findDiffMarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll
+	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findDiffMark(from:forward:searchAll:wrapped:));
 
 @end
 

@@ -276,7 +276,7 @@ jobs:
   edit-support-windows:
     needs: check-encoding
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     permissions:
       contents: read
     defaults:
@@ -299,10 +299,18 @@ jobs:
           "Sakura Editor $($rel.tagName) ($($asset.name))"
           Get-ChildItem -Recurse sakura | ForEach-Object { $_.FullName }
 
+      # 原版 DIFF差分表示 が呼ぶ diff.exe（GNU diffutils。上游的 build-sakura.yml と同じ GnuWin32 版）
+      - name: Install DiffUtils (winget)
+        run: |
+          winget install --id GnuWin32.DiffUtils --exact --accept-package-agreements --accept-source-agreements --disable-interactivity
+          $diff = Get-ChildItem -Recurse "${env:ProgramFiles(x86)}\GnuWin32", "$env:ProgramFiles\GnuWin32" -Filter diff.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $diff) { throw 'diff.exe not found' }
+          "DIFF_EXE=$($diff.FullName)" >> $env:GITHUB_ENV
+
       - name: Run macro
         run: |
           $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
-          ./macos/tools/editsupport/windows-edit-support.ps1 -SakuraExe $exe -DataDir macos/core/tests/data/editsupport -OutDir edit-support-result
+          ./macos/tools/editsupport/windows-edit-support.ps1 -SakuraExe $exe -DataDir macos/core/tests/data/editsupport -OutDir edit-support-result -DiffExe $env:DIFF_EXE
 
       - name: Upload result
         if: always()
@@ -311,6 +319,7 @@ jobs:
           name: edit-support-windows
           path: |
             edit-support-result/*.txt
+            edit-support-result/*.png
 
       - name: Compare with expected
         run: |

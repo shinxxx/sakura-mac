@@ -39,6 +39,7 @@
 #include "doc/layout/CLayoutMgr.h"
 #include "docplus/CModifyManager.h"
 #include "docplus/CBookmarkManager.h"
+#include "docplus/CDiffManager.h"
 #include "view/colors/EColorIndexType.h"
 #include "view/colors/CColorStrategy.h"
 #include "env/CRegexKeyword.h"
@@ -65,10 +66,14 @@
 #include "env/CDataProfile.h"
 #include "env/CSearchKeywordManager.h"
 #include "parse/CWordParse.h"
+#include "env/CDicMgr.h"
+#include "doc/CDocReader.h"
+#include "charset/charcode.h"
 #include "recent/CRecentSearch.h"
 #include "recent/CRecentReplace.h"
 #include "env/DLLSHAREDATA.h"
 #include "extmodule/CBregexp.h"
+#include "extmodule/CMigemo.h"
 #include "io/CBinaryStream.h"
 #include "io/CFileLoad.h"
 #include "io/CTextStream.h"
@@ -226,12 +231,16 @@ void SetLayoutFont(const Text& faceName, std::int32_t size)
 	ApplyLayoutFont();
 }
 
+//! インクリメンタルサーチの MIGEMO（第 44 步。原版 CEditView::m_pcmigemo = CMigemo::getInstance()）
+std::unique_ptr<CMigemo> g_migemo;
+
 void Shutdown(bool saveSettings)
 {
 	if (!g_shareData) return;
 	if (saveSettings && !g_settingsImportPending) {
 		CShareData_IO::SaveShareData();
 	}
+	g_migemo.reset();	// 第 44 步：インクリメンタルサーチ用の C/Migemo（辞書の設定が変わったら読み直す）
 	// 在静态对象析构之前销毁共通设置（第 21 步：析构顺序不对时 macOS 上会异常结束）
 	g_shareData.reset();
 }
@@ -365,6 +374,8 @@ public:
 			ShareData_IO_Nickname(profile);
 		} else if (section == LTEXT("Statusbar")) {
 			ShareData_IO_Statusbar(profile);
+		} else if (section == LTEXT("Other")) {
+			ShareData_IO_Other(profile);	// 第 44 步：DIFF差分表示の選択肢（nDiffFlgOpt）、キーワード指定タグジャンプの設定と履歴
 		} else {
 			return false;
 		}
@@ -1770,6 +1781,7 @@ struct Document::Impl {
 	std::shared_ptr<SearchMarkCache> searchMarkCache;	//!< 查找文字标记用的条件（第 32 步）
 	std::unique_ptr<CRegexKeyword> regexKeyword;	//!< 正規表現キーワード（第 33 步，原版 CEditView::m_cRegexKeyword）
 	bool typeLocked = false;	//!< タイプ別設定一覧の一時適用（原版 CDocType::m_nSettingTypeLocked。第 40 步）
+	bool diffUse = false;		//!< DIFF差分表示実施中（原版 CDiffManager::m_bIsDiffUse。第 44 步）
 
 	~Impl()
 	{
@@ -5152,6 +5164,396 @@ void Document::SetBookmarkList(const Text& marks)
 	std::vector<WCHAR> buf(marks.begin(), marks.end());
 	buf.push_back(0);
 	CBookmarkManager(&m_impl->lines).SetBookMarks(buf.data());
+}
+
+// ----- インクリメンタルサーチ（第 44 步。原版 view/CEditView_Cmdisrch.cpp） -----
+
+MigemoStatus PrepareMigemo()
+{
+	// 原版 ISearchEnter の SEARCH_MIGEMO：DLL を初期化し、辞書を読む（読めていれば読み直さない）
+	if (!g_migemo) g_migemo = std::make_unique<CMigemo>();
+	// Mac 版は C/Migemo を組み込み：共通設定の DLL 名（使わない）にかかわらず migemo.dll として読む
+	if (!g_migemo->IsAvailable() && DLL_SUCCESS != g_migemo->InitDll(LTEXT("migemo.dll"))) return MigemoStatus::NoLibrary;
+	g_migemo->migemo_load_all();
+	return g_migemo->migemo_is_enable() ? MigemoStatus::Ready : MigemoStatus::NoDictionary;
+}
+
+void ResetMigemo() { g_migemo.reset(); }
+
+Text MigemoQuery(const Text& key)
+{
+	if (PrepareMigemo() != MigemoStatus::Ready) return key;
+	return Text(g_migemo->migemo_query_w(key));
+}
+
+std::optional<Range> Document::ISearchFind(const Text& key, const Position& from, SearchDirection direction,
+										   const SearchOptions& options, bool migemo)
+{
+	// 原版 ISearchWordMake + CLayoutMgr::SearchWord（開始位置はそのまま CSearchAgent::SearchWord に渡す）
+	auto& d = *m_impl;
+	d.lastSearchError.clear();
+	if (from.line < 0 || from.line >= d.lines.GetLineCount() || from.column < 0) return std::nullopt;
+	const Text pattern = migemo ? MigemoQuery(key) : key;
+	PreparedPattern prepared(pattern, options);
+	if (!prepared.ok) {
+		d.lastSearchError = prepared.error;
+		return std::nullopt;
+	}
+	CLogicRange match;
+	const ESearchDirection eDir = (direction == SearchDirection::Forward) ? SEARCH_FORWARD : SEARCH_BACKWARD;
+	if (!CSearchAgent(&d.lines).SearchWord(ToLogic(from), eDir, &match, prepared.pattern)) return std::nullopt;
+	return Range{ d.NormalizePosition(match.GetFrom()), d.NormalizePosition(match.GetTo()) };
+}
+
+Position Document::ISearchWrapBackwardStart() const
+{
+	// 原版 ISearchExec(bNext) の後方の再検索：最後の行の GetLengthWithEOL() - 1
+	const auto& d = *m_impl;
+	const CLogicInt nLineP = d.lines.GetLineCount() - CLogicInt(1);
+	const CDocLine* pDocLine = d.lines.GetLine(nLineP);
+	if (!pDocLine) return Position{};
+	return Position{ static_cast<std::int32_t>(nLineP), std::max(0, static_cast<int>(pDocLine->GetLengthWithEOL()) - 1) };
+}
+
+// ----- DIFF差分表示（第 44 步。原版 view/CEditView_Diff.cpp、cmd/CViewCommander_Diff.cpp、docplus/CDiffManager.cpp） -----
+
+namespace {
+
+//! 差分情報を行範囲指定で登録する（原版 CDiffLineMgr::SetDiffMarkRange）
+void SetDiffMarkRange(CDocLineMgr& lines, EDiffMark nMode, int nStartLine, int nEndLine)
+{
+	if (nStartLine < 0) nStartLine = 0;
+	// 最終行より後に削除行あり
+	const int nLines = lines.GetLineCount();
+	if (nLines <= nEndLine) {
+		nEndLine = nLines - 1;
+		if (CDocLine* pCDocLine = lines.GetLine(CLogicInt(nEndLine))) CDiffLineSetter(pCDocLine).SetLineDiffMark(MARK_DIFF_DEL_EX);
+	}
+	for (int i = nStartLine; i <= nEndLine; i++) {
+		if (CDocLine* pCDocLine = lines.GetLine(CLogicInt(i))) CDiffLineSetter(pCDocLine).SetLineDiffMark(nMode);
+	}
+}
+
+} // namespace
+
+Document::DiffResult Document::ApplyDiff(const Text& otherText, const DiffOptions& options, bool thisIsOld)
+{
+	auto& d = *m_impl;
+	if (d.diffUse) ResetDiffMarks();
+	const Text thisText = GetText();
+	// diff はバイナリファイル（NUL を含む）を比べない（原版 COutputAdapterDiff::OutputA の「Binary files 」）
+	if (thisText.find(u'\0') != Text::npos || otherText.find(u'\0') != Text::npos) return DiffResult::Binary;
+	const auto mine = SplitDiffLines(thisText);
+	const auto other = SplitDiffLines(otherText);
+	// 原版：旧ファイルを先に diff に渡す（nFlgFile12 = 0 のとき編集中のファイルが旧）
+	const auto hunks = thisIsOld ? ComputeDiff(mine, other, options) : ComputeDiff(other, mine, options);
+	for (const auto& h : hunks) {
+		// 原版 AnalyzeDiffInfo
+		d.diffUse = true;
+		const int s1 = h.oldFrom, e1 = h.oldTo, s2 = h.newFrom, e2 = h.newTo;
+		if (thisIsOld) {
+			if (h.mode == 'a') SetDiffMarkRange(d.lines, MARK_DIFF_DELETE, s1, e1);
+			else if (h.mode == 'c') SetDiffMarkRange(d.lines, MARK_DIFF_CHANGE, s1 - 1, e1 - 1);
+			else SetDiffMarkRange(d.lines, MARK_DIFF_APPEND, s1 - 1, e1 - 1);
+		} else {
+			if (h.mode == 'a') SetDiffMarkRange(d.lines, MARK_DIFF_APPEND, s2 - 1, e2 - 1);
+			else if (h.mode == 'c') SetDiffMarkRange(d.lines, MARK_DIFF_CHANGE, s2 - 1, e2 - 1);
+			else SetDiffMarkRange(d.lines, MARK_DIFF_DELETE, s2, e2);
+		}
+	}
+	return d.diffUse ? DiffResult::Marked : DiffResult::NoDiff;
+}
+
+Document::CompareResult Document::CompareWith(const Document& theirs, const Position& from, const Position& theirsFrom) const
+{
+	// 原版 Commander_COMPARE_core（相手の行は共有メモリで少しずつ受け取る。Mac 版は同じプロセスなので行全体）
+	CompareResult r;
+	r.different = true;
+	CLogicPoint poSrc = ToLogic(from), poDes = ToLogic(theirsFrom);
+	auto done = [&]() {
+		r.mine = FromLogic(poSrc);
+		r.theirs = FromLogic(poDes);
+		return r;
+	};
+	for (;;) {
+		CLogicInt nLineLenSrc(0), nLineLenDes(0);
+		const WCHAR* pLineSrc = CDocLine::GetDocLineStrWithEOL_Safe(m_impl->lines.GetLine(poSrc.GetY2()), &nLineLenSrc);
+		const WCHAR* pLineDes = CDocLine::GetDocLineStrWithEOL_Safe(theirs.m_impl->lines.GetLine(poDes.GetY2()), &nLineLenDes);
+		if (!pLineDes) nLineLenDes = CLogicInt(0);
+		if (pLineSrc == nullptr && 0 == nLineLenDes) {
+			r.different = false;
+			return done();
+		}
+		if (pLineSrc == nullptr || 0 == nLineLenDes) return done();
+		while (poDes.x < nLineLenDes) {
+			if (nLineLenSrc <= poSrc.x) return done();
+			if (pLineSrc[poSrc.x] != pLineDes[poDes.x]) return done();
+			poSrc.x++;
+			poDes.x++;
+		}
+		if (poSrc.x < nLineLenSrc) return done();
+		poSrc.x = CLogicInt(0);
+		poSrc.y++;
+		poDes.x = CLogicInt(0);
+		poDes.y++;
+	}
+}
+
+DiffMark Document::GetDiffMark(std::int32_t line) const
+{
+	const CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(line));
+	return pLine ? static_cast<DiffMark>(CDiffLineGetter(pLine).GetLineDiffMark()) : DiffMark::None;
+}
+
+void Document::ResetDiffMarks()
+{
+	// 原版 CDiffLineMgr::ResetAllDiffMark
+	for (CDocLine* pDocLine = m_impl->lines.GetDocLineTop(); pDocLine; pDocLine = pDocLine->GetNextLine()) {
+		pDocLine->m_sMark.m_cDiffmarked = MARK_DIFF_NONE;
+	}
+	m_impl->diffUse = false;
+}
+
+bool Document::IsDiffUsed() const { return m_impl->diffUse; }
+
+std::int32_t Document::FindDiffMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped) const
+{
+	// 原版 Command_Diff_Next / Command_Diff_Prev → CDiffLineMgr::SearchDiffMark
+	auto& d = *m_impl;
+	const int nYOld = line;
+	CLogicInt y(line);
+	for (int n = 0; n < 2; n++) {
+		CLogicInt found(0);
+		if (CDiffLineMgr(&d.lines).SearchDiffMark(y, forward ? SEARCH_FORWARD : SEARCH_BACKWARD, &found)) {
+			if (pWrapped) *pWrapped = forward ? (nYOld >= found) : (nYOld <= found);
+			return found;
+		}
+		if (!searchAll) break;
+		y = forward ? CLogicInt(-1) : d.lines.GetLineCount();
+	}
+	if (pWrapped) *pWrapped = false;
+	return -1;
+}
+
+// ----- ウィンドウ一覧の文字（第 44 步） -----
+
+Text WindowListLabel(const WindowListEntry& entry, std::int32_t index)
+{
+	EditInfo fi;
+	if (entry.path.size() < _MAX_PATH) fi.m_szPath = entry.path.c_str();
+	fi.m_bIsModified = entry.modified;
+	fi.m_nCharCode = static_cast<ECodeType>(entry.encoding);
+	fi.m_bIsGrep = entry.grep;
+	fi.m_szGrepKey = entry.grepKey.substr(0, 1023).c_str();
+	WCHAR szName[512] = {};
+	CFileNameManager::getInstance()->GetMenuFullLabel_WinListNoEscape(szName, int(std::size(szName)), &fi, entry.untitledId, index, nullptr);
+	return Text(szName);
+}
+
+std::int32_t FileMatchScore(const Text& file1, const Text& file2) { return FileMatchScoreSepExt(file1.c_str(), file2.c_str()); }
+
+// ----- 入力補完・キーワードヘルプ（第 44 步。原版 view/CEditView_CmdHokan.cpp、env/CHokanMgr.cpp、view/CEditView_Search.cpp） -----
+
+Text Document::LeftWord(const Position& caret) const
+{
+	// 原版 CViewParser::GetLeftWord。行頭（折り返した行の頭も同じ論理位置）ならば前の行の末尾を見るが、
+	// 前の論理行は改行で終わるので単語はない
+	auto& d = *m_impl;
+	CLogicInt nLineLen(0);
+	const WCHAR* pLine = CDocLine::GetDocLineStrWithEOL_Safe(d.lines.GetLine(CLogicInt(caret.line)), &nLineLen);
+	const int nIdxTo = caret.column;
+	if (pLine == nullptr || nIdxTo <= 0 || nIdxTo > nLineLen) return Text();
+	const int nCharChars = int(&pLine[nIdxTo] - CNativeW::GetCharPrev(pLine, nLineLen, &pLine[nIdxTo]));
+	if (nCharChars == 0) return Text();
+	const int nIdx = nIdxTo - nCharChars;
+	if (nCharChars == 1 && WCODE::IsWordDelimiter(pLine[nIdx])) return Text();
+	// 現在位置の単語の範囲を調べる
+	CLogicInt nFrom(0), nTo(0);
+	CNativeW cmemWord, cmemWordLeft;
+	if (!CSearchAgent(const_cast<CDocLineMgr*>(&d.lines)).WhereCurrentWord(CLogicInt(caret.line), CLogicInt(nIdx), &nFrom, &nTo,
+																			 &cmemWord, &cmemWordLeft)) {
+		return Text();
+	}
+	cmemWordLeft.AppendString(&pLine[nIdx], nCharChars);
+	return Text(cmemWordLeft.GetStringPtr(), cmemWordLeft.GetStringLength());
+}
+
+std::vector<Text> Document::HokanCandidates(const Text& key, const Position& caret) const
+{
+	const auto& d = *m_impl;
+	const STypeConfig& type = d.typeConfig;
+	const bool bHokanLoHiCase = type.m_bHokanLoHiCase;
+	vector_ex<sakura::wstring> vKouho;
+	// 補完ファイル（CDicMgr::HokanSearch）
+	CDicMgr::HokanSearch(key.c_str(), bHokanLoHiCase, vKouho, 0, type.m_szHokanFile);
+	// 編集中データから（原版 CEditView::HokanSearchByFile）
+	if (type.m_bUseHokanByFile) {
+		const WCHAR* pszKey = key.c_str();
+		const int nKeyLen = int(key.size());
+		const size_t nMaxKouho = 1024;
+		const int nLines = d.lines.GetLineCount();
+		const bool bKeyStartWithMark = wcschr(LTEXT("$@#\\"), pszKey[0]) != nullptr;
+		bool full = false;
+		for (CLogicInt i(0); i < nLines && !full; i++) {
+			CLogicInt nLineLenL(0);
+			const WCHAR* pszLine = CDocReader(const_cast<CDocLineMgr&>(d.lines)).GetLineStrWithoutEOL(i, &nLineLenL);
+			const int nLineLen = nLineLenL;
+			int nCharSize = 1;
+			for (int j = 0; j < nLineLen; j += nCharSize) {
+				nCharSize = CNativeW::GetSizeOfChar(pszLine, nLineLen, j);
+				// 半角記号は候補に含めない
+				if (pszLine[j] < 0x00C0 && !IS_KEYWORD_CHAR(pszLine[j])) continue;
+				// キーの先頭が記号以外の場合、記号で始まる単語は候補からはずす
+				if (!bKeyStartWithMark && wcschr(LTEXT("$@#\\"), pszLine[j]) != nullptr) continue;
+				// 文字種類取得
+				ECharKind kindPre = CWordParse::WhatKindOfChar(pszLine, nLineLen, j);
+				// 全角記号は候補に含めない
+				if (kindPre == CK_ZEN_SPACE || kindPre == CK_ZEN_NOBASU || kindPre == CK_ZEN_DAKU ||
+					kindPre == CK_ZEN_KIGO || kindPre == CK_ZEN_SKIGO) continue;
+				const bool bWordStartWithMark = wcschr(LTEXT("$@#\\"), pszLine[j]) != nullptr;
+				const int nWordBegin = j;
+				int nWordLen = nCharSize;
+				int nWordLenStop = -1;	// 送り仮名無視用単語の終わり。-1は無効
+				for (j += nCharSize; j < nLineLen; j += nCharSize) {
+					nCharSize = CNativeW::GetSizeOfChar(pszLine, nLineLen, j);
+					if (pszLine[j] < 0x00C0 && !IS_KEYWORD_CHAR(pszLine[j])) break;
+					ECharKind kindCur = CWordParse::WhatKindOfChar(pszLine, nLineLen, j);
+					if (kindCur == CK_ZEN_SPACE || kindCur == CK_ZEN_KIGO || kindCur == CK_ZEN_SKIGO) break;
+					ECharKind kindMerge = CWordParse::WhatKindOfTwoChars(kindPre, kindCur);
+					if (kindMerge == CK_NULL) {	// kindPreとkindCurが別種
+						if (kindCur == CK_HIRA) {
+							kindMerge = kindCur;		// ひらがななら続行
+							if (kindPre != CK_ZEN_ETC) nWordLenStop = nWordLen;	// 漢字のみ送り仮名を候補に含める
+						} else if (bKeyStartWithMark && bWordStartWithMark && kindPre == CK_UDEF) {
+							kindMerge = kindCur;		// 記号で始まる単語は制限を緩める
+						} else {
+							j -= nCharSize;
+							break;						// それ以外は単語の切れ目
+						}
+					}
+					kindPre = kindMerge;
+					nWordLen += nCharSize;
+				}
+				if (0 < nWordLenStop) nWordLen = nWordLenStop;
+				if (nWordLen > 1020) continue;	// CDicMgr等の制限により長すぎる単語は無視する
+				if (nKeyLen > nWordLen) continue;
+				const WCHAR* word = pszLine + nWordBegin;
+				const int nRet = bHokanLoHiCase ? wmemicmp(pszKey, word, nKeyLen) : wmemcmp(pszKey, word, nKeyLen);
+				if (nRet != 0) continue;
+				// カーソル位置の単語は候補からはずす
+				if (caret.line == i && nWordBegin <= caret.column && caret.column <= nWordBegin + nWordLen) continue;
+				vKouho.push_back_unique(sakura::wstring(word, nWordLen));
+				if (nMaxKouho <= vKouho.size()) {
+					full = true;
+					break;
+				}
+			}
+		}
+	}
+	// 強調キーワードから（原版 CHokanMgr::HokanSearchByKeyword）
+	if (type.m_bUseHokanByKeyword) {
+		CKeyWordSetMgr& keywordMgr = GetDllShareData().m_Common.m_sSpecialKeyword.m_CKeyWordSetMgr;
+		const int nKeyLen = int(key.size());
+		for (int n = 0; n < MAX_KEYWORDSET_PER_TYPE; n++) {
+			const int kwdset = type.m_nKeyWordSetIdx[n];
+			if (kwdset == -1) continue;
+			const int keyCount = keywordMgr.GetKeyWordNum(kwdset);
+			for (int i = 0; i < keyCount; i++) {
+				const WCHAR* word = keywordMgr.GetKeyWord(kwdset, i);
+				const int nRet = bHokanLoHiCase ? wmemicmp(key.c_str(), word, nKeyLen) : wmemcmp(key.c_str(), word, nKeyLen);
+				if (nRet != 0) continue;
+				vKouho.push_back_unique(sakura::wstring(word));
+			}
+		}
+	}
+	std::vector<Text> result;
+	for (const auto& w : vKouho) result.emplace_back(w.c_str(), w.size());
+	return result;
+}
+
+std::vector<Text> Document::SupportFilePaths() const
+{
+	// 原版 CTextInputStream_AbsIni の _Resolve（bOrExedir = true）
+	const STypeConfig& type = m_impl->typeConfig;
+	std::vector<Text> paths;
+	auto add = [&](const WCHAR* fname) {
+		if (!fname || !fname[0]) return;
+		if (_IS_REL_PATH(fname)) {
+			WCHAR path[_MAX_PATH] = {};
+			GetInidirOrExedir(path, fname);
+			paths.emplace_back(path);
+		} else {
+			paths.emplace_back(fname);
+		}
+	};
+	add(type.m_szHokanFile);
+	for (int i = 0; i < type.m_nKeyHelpNum; i++) {
+		if (type.m_KeyHelpArr[i].m_bUse) add(type.m_KeyHelpArr[i].m_szPath);
+	}
+	return paths;
+}
+
+bool Document::UsesKeywordHelp() const { return m_impl->typeConfig.m_bUseKeyWordHelp; }
+
+Document::KeywordHelp Document::LookupKeywordHelp(const Text& key) const
+{
+	// 原版 CEditView::KeySearchCore
+	const STypeConfig& type = m_impl->typeConfig;
+	KeywordHelp r;
+	CNativeW info;
+	if (type.m_bUseKeyHelpKeyDisp) {	// キーワードも表示する
+		info.AppendString(LTEXT("[ "));
+		info.AppendString(key.c_str());
+		info.AppendString(LTEXT(" ]"));
+	}
+	const int nCmpLen = type.m_bUseKeyHelpPrefix ? int(key.size()) : 100;	// 途中まで一致を使う場合
+	auto unescape = [](CNativeW& cInfo) {	// 原版 UnEscapeInfoText
+		cInfo.Replace(LTEXT("\\n"), LTEXT("\n"));
+		cInfo.Replace(LTEXT("\\x5C"), LTEXT("\\"));
+		return cInfo.GetStringPtr();
+	};
+	CDicMgr dicMgr;
+	for (int i = 0; i < type.m_nKeyHelpNum; i++) {
+		if (!type.m_KeyHelpArr[i].m_bUse) continue;
+		CNativeW* pcmemRefKey = nullptr;
+		CNativeW* pcmemRefText = nullptr;
+		int nLine = 0;
+		if (!dicMgr.Search(key.c_str(), nCmpLen, &pcmemRefKey, &pcmemRefText, type.m_KeyHelpArr[i].m_szPath, &nLine)) continue;
+		std::unique_ptr<CNativeW> refKey(pcmemRefKey), refText(pcmemRefText);
+		if (type.m_bUseKeyHelpAllSearch) {	// ヒットした次の辞書も検索
+			info.AppendString(info.GetStringLength() != 0 ? LS(STR_ERR_DLGEDITVW5) : LS(STR_ERR_DLGEDITVW6));
+			// 表示するのはファイル名(拡張子なし)のみ
+			WCHAR szFile[_MAX_PATH] = {};
+			_wsplitpath_s(type.m_KeyHelpArr[i].m_szPath, nullptr, 0, nullptr, 0, szFile, std::size(szFile), nullptr, 0);
+			info.AppendString(szFile);
+			info.AppendString(LTEXT("\n"));
+			if (type.m_bUseKeyHelpPrefix) {
+				info.AppendString(refKey->GetStringPtr());
+				info.AppendString(LTEXT(" >>\n"));
+			}
+			info.AppendString(unescape(*refText));
+			if (!r.hit) {
+				r.dictionary = i;
+				r.dictionaryPath = Text(type.m_KeyHelpArr[i].m_szPath);
+				r.line = nLine;
+				r.hit = true;
+			}
+		} else {	// 最初のヒット項目のみ返す場合
+			if (info.GetStringLength() != 0) info.AppendString(LTEXT("\n--------------------\n"));
+			if (type.m_bUseKeyHelpPrefix) {
+				info.AppendString(refKey->GetStringPtr());
+				info.AppendString(LTEXT(" >>\n"));
+			}
+			info.AppendString(unescape(*refText));
+			r.dictionary = i;
+			r.dictionaryPath = Text(type.m_KeyHelpArr[i].m_szPath);
+			r.line = nLine;
+			r.hit = true;
+			break;
+		}
+	}
+	r.info = Text(info.GetStringPtr(), info.GetStringLength());
+	return r;
 }
 
 // ----- フォントサイズ（第 34 步） -----

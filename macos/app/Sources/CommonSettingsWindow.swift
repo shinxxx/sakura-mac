@@ -1359,6 +1359,7 @@ final class CommonSettingsWindowController: PropSheetWindowController {
 
     override func didApply(changed: Bool) {
         if changed {
+            EditorCore.resetMigemo()	// 第 44 步：Migemo の辞書を次に使うときに読み直す（原版は再起動まで読み直さない）
             NotificationCenter.default.post(name: EditorTextView.commonSettingsDidChangeNotification, object: nil)
         }
         // キー割り当て が変わった：メニューのショートカットを新しい割り当てで（第 41 步）

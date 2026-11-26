@@ -275,9 +275,11 @@ extension EditorTextView {
         var target = EditorPosition()
         var wrapped: ObjCBool = false
         if document.modifiedLineTarget(from: caret, next: next, position: &target, wrapped: &wrapped) {
-            setCaret(target)	// 「▼先頭から再検索しました」原版显示在状态栏（Mac 版还没有状态栏）
+            setCaret(target)
+            if wrapped.boolValue { sendSearchStatus(next: next, wrapped: true) }	// 第 44 步：ステータスメッセージ
             return
         }
+        sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
             ? NSLocalizedString("前方(↓) に変更行が見つかりません。", comment: "STR_MODLINE_NEXT_NOT_FOUND")
             : NSLocalizedString("後方(↑) に変更行が見つかりません。", comment: "STR_MODLINE_PREV_NOT_FOUND"))

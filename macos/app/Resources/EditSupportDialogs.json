@@ -1,0 +1,50 @@
+{"source": "sakura_core/sakura_rc.rc", "pages": [
+], "dialogs": [
+ {"name": "DIFF差分表示", "dialog": "IDD_DIFF", "size": [263, 303], "controls": [
+  {"id": "IDC_FRAME_DIFF_DST", "kind": "group", "frame": [7, 47, 249, 138], "text": "比較するファイル", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_DST1", "kind": "radio", "frame": [13, 58, 78, 11], "text": "外部ファイルを指定", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_DST2", "kind": "radio", "frame": [13, 89, 147, 11], "text": "他の編集中のファイル"},
+  {"id": "IDC_EDIT_DIFF_DST", "kind": "edit", "frame": [13, 72, 191, 13]},
+  {"id": "IDC_BUTTON_DIFF_DST", "kind": "button", "frame": [208, 72, 42, 14], "text": "参照(R)...", "flags": ["group"]},
+  {"id": "IDC_LIST_DIFF_FILES", "kind": "list", "frame": [13, 102, 236, 77]},
+  {"id": "IDC_CHECK_DIFF_OPT_CASE", "kind": "check", "frame": [7, 191, 101, 10], "text": "大文字小文字の同一視(C)"},
+  {"id": "IDC_CHECK_DIFF_OPT_SPACE", "kind": "check", "frame": [7, 203, 64, 10], "text": "空白無視(W)"},
+  {"id": "IDC_CHECK_DIFF_OPT_SPCCHG", "kind": "check", "frame": [7, 216, 73, 10], "text": "空白変更無視(B)"},
+  {"id": "IDC_CHECK_DIFF_OPT_BLINE", "kind": "check", "frame": [7, 229, 74, 10], "text": "空白行無視(L)"},
+  {"id": "IDC_CHECK_DIFF_OPT_TABSPC", "kind": "check", "frame": [7, 242, 74, 10], "text": "タブ空白変換(T)"},
+  {"id": "IDC_FRAME_DIFF_FILE12", "kind": "group", "frame": [110, 190, 146, 26], "text": "編集中ファイルが...", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_FILE1", "kind": "radio", "frame": [119, 201, 59, 10], "text": "新ファイル(N)", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_FILE2", "kind": "radio", "frame": [183, 201, 59, 10], "text": "旧ファイル(D)"},
+  {"id": "IDC_FRAME_SEARCH_MSG", "kind": "group", "frame": [110, 221, 146, 41], "text": "次の差分(前の差分)へ移動時"},
+  {"id": "IDC_CHECK_NOTIFYNOTFOUND", "kind": "check", "frame": [114, 232, 140, 10], "text": "見つからないときにメッセージを表示(M)"},
+  {"id": "IDC_CHECK_SEARCHALL", "kind": "check", "frame": [114, 245, 130, 10], "text": "先頭（末尾）から再検索する(Z)"},
+  {"id": "IDC_CHECK_DIFF_EXEC_STATE", "kind": "check", "frame": [110, 267, 139, 10], "text": "DIFF差分がないときにメッセージを表示"},
+  {"id": "IDOK", "kind": "button", "frame": [93, 282, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [147, 282, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [202, 282, 50, 14], "text": "ヘルプ(H)"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 7, 61, 10], "text": "編集中のファイル"},
+  {"id": "IDC_STATIC_DIFF_SRC", "kind": "edit", "frame": [7, 18, 249, 23], "flags": ["multiline", "readonly"]}
+ ]},
+ {"name": "ファイル内容比較", "dialog": "IDD_COMPARE", "size": [365, 165], "controls": [
+  {"id": "IDC_STATIC", "kind": "label", "frame": [5, 31, 158, 10], "text": "比較するファイルを下から選択してください(C):"},
+  {"id": "IDC_LIST_FILES", "kind": "list", "frame": [5, 42, 355, 95]},
+  {"id": "IDC_CHECK_TILE_H", "kind": "check", "frame": [293, 30, 66, 10], "text": "左右に表示(T)"},
+  {"id": "IDOK", "kind": "button", "frame": [184, 145, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [244, 145, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [304, 145, 50, 14], "text": "ヘルプ(H)"},
+  {"id": "IDC_STATIC_COMPARESRC", "kind": "edit", "frame": [7, 7, 355, 20], "flags": ["multiline", "readonly"]}
+ ]},
+ {"name": "ダイレクトタグジャンプ一覧", "dialog": "IDD_TAGJUMPLIST", "size": [410, 189], "controls": [
+  {"id": "IDC_STATIC_BASEDIR", "kind": "label", "frame": [4, 151, 276, 10], "text": "DIR"},
+  {"id": "IDC_STATIC_KEYWORD", "kind": "label", "frame": [4, 162, 100, 10], "text": "キーワード(K)"},
+  {"id": "IDC_KEYWORD", "kind": "combo", "frame": [3, 172, 134, 180]},
+  {"id": "IDC_LIST_TAGJUMP", "kind": "listview", "frame": [3, 4, 403, 143], "text": "List1"},
+  {"id": "IDC_BUTTON_PREVTAG", "kind": "button", "frame": [296, 152, 50, 14], "text": "前へ(P)"},
+  {"id": "IDC_BUTTON_NEXTTAG", "kind": "button", "frame": [349, 152, 50, 14], "text": "次へ(N)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [243, 170, 50, 14], "text": "ヘルプ(H)"},
+  {"id": "IDOK", "kind": "button", "frame": [296, 170, 50, 14], "text": "ジャンプ(J)"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [349, 170, 50, 14], "text": "キャンセル(X)"},
+  {"id": "IDC_CHECK_ICASE", "kind": "check", "frame": [144, 163, 95, 10], "text": "大文字小文字の同一視(F)"},
+  {"id": "IDC_CHECK_ANYWHERE", "kind": "check", "frame": [144, 175, 95, 10], "text": "文字列の途中にマッチ(A)"}
+ ]}
+]}

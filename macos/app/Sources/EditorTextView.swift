@@ -161,6 +161,20 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     var bracketHighlight: (pair: EditorPosition, bracket: EditorPosition)?
     /// カーソルが動いた・選択が終わった：次に描くときに対括弧を探し直す
     var bracketHighlightDirty = true
+    /// インクリメンタルサーチ（第 44 步，ISearch.swift）
+    var isearch = ISearchState()
+    /// ステータスメッセージ（第 44 步，StatusMessage.swift）
+    var statusLabel: StatusMessageLabel?
+    var statusTimer: Timer?
+    /// 入力補完（第 44 步，Hokan.swift。原版 m_bHokan と CEditWnd::m_cHokanMgr）
+    var hokanActive = false
+    var hokanWindow: HokanWindowController?
+    /// キーワードヘルプ（第 44 步，KeywordHelp.swift。原版 m_cTipWnd・m_dwTipTimer）
+    var keywordTip: KeywordTipWindow?
+    var keywordTipTimer: Timer?
+    var keywordTipKey: String?
+    var keywordTipHit = false
+    private var keywordTrackingArea: NSTrackingArea?
     /// 查找、置换对话框（第 32 步。原版的 CEditWnd::m_cDlgFind、m_cDlgReplace，一个窗口一个）
     var findPanel: FindPanelController?
     /// アウトライン解析（第 42 步。原版 CEditWnd::m_cDlgFuncList）
@@ -189,6 +203,11 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         // 第 39 步：共通設定窗口按了 OK（原版 MYWM_CHANGESETTING 时各窗口的 OnChangeSetting）
         NotificationCenter.default.addObserver(self, selector: #selector(commonSettingsDidChange(_:)),
                                                name: Self.commonSettingsDidChangeNotification, object: nil)
+        // 第 44 步：メニューの機能を実行する前にインクリメンタルサーチを抜ける（原版 TranslateCommand_isearch）
+        NotificationCenter.default.addObserver(self, selector: #selector(menuWillSendAction(_:)),
+                                               name: NSMenu.willSendActionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(menuWillSendActionForHokan(_:)),
+                                               name: NSMenu.willSendActionNotification, object: nil)
         // 第 40 步：タイプ別設定窗口按了 OK（原版 MYWM_CHANGESETTING の PM_CHANGESETTING_TYPE）
         NotificationCenter.default.addObserver(self, selector: #selector(typeSettingsDidChange(_:)),
                                                name: TypeSettingsWindowController.didChangeNotification, object: nil)
@@ -232,6 +251,19 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         updateFontMetrics()
         reloadColors()
         contentDidChange()
+    }
+
+    /// メニューの機能の実行の前（第 44 步）：インクリメンタルサーチ以外の機能ならインクリメンタルサーチを抜ける
+    @objc private func menuWillSendAction(_ notification: Notification) {
+        guard isearch.isActive, window?.isKeyWindow == true, window?.firstResponder === self,
+              let item = notification.userInfo?["MenuItem"] as? NSMenuItem else { return }
+        if Self.isearchCommands[item.tag] == nil { isearchExit() }
+    }
+
+    /// メニューの機能の前（第 44 步）：入力補完以外は補完ウィンドウを消す
+    @objc private func menuWillSendActionForHokan(_ notification: Notification) {
+        guard hokanActive, let item = notification.userInfo?["MenuItem"] as? NSMenuItem, item.tag != 31430 else { return }
+        hokanHide()
     }
 
     /// タイプ別設定变了：这个文档的类型（或按文件名决定的类型）是那个类型时，读新的设置，重新排版、重画
@@ -953,6 +985,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                 fg.setFill()
                 NSRect(x: 0, y: top, width: 2, height: lineHeight).fill()
             }
+            drawDiffMark(line: current.start.line, top: top, color: fg)	// DIFFマーク描画（第 44 步）
         }
         guard settings.showLineNumbers else { return }
         let number: String
@@ -1409,16 +1442,36 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     override func resignFirstResponder() -> Bool {
         needsDisplay = true
+        if hokanActive { hokanHide() }	// 第 44 步：フォーカスを失ったら補完ウィンドウを消す（原版 OnKillFocus）
+        hideKeywordTip()
         caretBlinkTimer?.invalidate()
         caretBlinkTimer = nil
         return true
     }
 
+    /// 第 44 步：マウスの動きを受ける（キーワードヘルプ：マウスが止まってから辞書 Tip を出す）
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let keywordTrackingArea { removeTrackingArea(keywordTrackingArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil)
+        addTrackingArea(area)
+        keywordTrackingArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        restartKeywordTipTimer()
+    }
+
     override func keyDown(with event: NSEvent) {
         // 第 34 步：原版的按键分配表里有、并且已经移植了的功能直接执行（KeyCommands、CommandTable）。
         // 输入法输入中（有未确定文字）的键全部交给输入法
+        restartKeywordTipTimer()	// 第 44 步：キーを押したら辞書 Tip を消す
         if !hasMarkedText() {
+            if hokanHandleKey(event) { return }	// 第 44 步：補完ウィンドウの一覧の移動・決定
             let code = KeyCommands.command(for: event)
+            hokanPreprocess(code: code)
+            if isearchHandleKey(code: code) { return }	// 第 44 步：インクリメンタルサーチ中
             if code != 0, CommandTable.perform(code, from: self) { return }
         }
         // 其它交给输入法；输入法不要的键变成 insertText(_:replacementRange:) 或 doCommand(by:)
@@ -1427,6 +1480,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     override func mouseDown(with event: NSEvent) {
         if inputContext?.handleEvent(event) == true { return }
+        isearchExit()	// 第 44 步：クリックでインクリメンタルサーチを抜ける（原版 OnLBUTTONDOWN）
+        if hokanActive { hokanHide() }
         window?.makeFirstResponder(self)
         if hasMarkedText() {
             unmarkText()
@@ -1503,6 +1558,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     override func doCommand(by selector: Selector) {
+        if isearchHandleSelector(selector) { return }	// 第 44 步：インクリメンタルサーチ中
+        if hokanActive && selector != #selector(deleteBackward(_:)) { hokanHide() }	// 原版 PreprocessCommand_hokan
         // 输入法和按键分配把方向键、Backspace 等变成选择子。这里只处理原型需要的几个
         if responds(to: selector) {
             perform(selector, with: nil)
@@ -1867,6 +1924,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// BackSpace（F_DELETE_BACK）：有选择时删除选择范围，否则删除光标前的一个字
     override func deleteBackward(_ sender: Any?) {
+        defer { hokanPostprocess() }	// 第 44 步：補完ウィンドウが出ていれば候補を出し直す
         if let box = boxRange {
             edit { document.deleteBox(box) }
             return
@@ -2051,7 +2109,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             return !hasMarkedText()
         // 第 32 步：検索メニュー（SearchCommands.swift）、第 34 步：移動・選択（CursorCommands.swift）、モード・設定（ModeCommands.swift）
         default:
-            return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem) ?? true
+            return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem)
+                ?? validateISearchMenuItem(menuItem) ?? validateDiffMenuItem(menuItem) ?? validateKeywordHelpMenuItem(menuItem) ?? true
         }
     }
 
@@ -2064,6 +2123,13 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     func insertText(_ string: Any, replacementRange: NSRange) {
         let text = Self.plainString(string)
+        // 第 44 步：インクリメンタルサーチ中の文字入力は検索文字列に（原版 F_WCHAR、F_IME_CHAR → F_ISEARCH_ADD_CHAR）
+        if isearch.isActive {
+            clearMarkedText()
+            isearchAdd(text)
+            return
+        }
+        defer { hokanPostprocess() }	// 第 44 步：補完ウィンドウが出ていれば候補を出し直す（原版 PostprocessCommand_hokan）
         // 矩形选择中的输入：每行的选择范围之前插入（原版 Command_WCHAR → Command_INDENT、Command_INSTEXT）
         if let box = boxRange, replacementRange.location == NSNotFound {
             clearMarkedText()

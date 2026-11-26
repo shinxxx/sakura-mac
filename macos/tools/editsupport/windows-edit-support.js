@@ -27,6 +27,14 @@ function writeResult(name, lines) {
 	s.Close();
 }
 
+//! 進み具合（止まったときにどこまで進んだか分かるように）
+function progress(text) {
+	var f = fso.OpenTextFile("@OUT@\\progress.txt", 8, true);
+	var d = new Date();
+	f.WriteLine(d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + " " + text);
+	f.Close();
+}
+
 function caret() {
 	return Editor.ExpandParameter("$y") + ":" + Editor.ExpandParameter("$x");
 }
@@ -119,7 +127,57 @@ sections.push(function () {
 	Editor.FileClose();
 });
 
+// ----- DIFF差分表示：diff\<名字>\old.txt・new.txt を開いて相手のファイルと Diff、各行の差分の印（GetLineAttribute の 3） -----
+// 選択肢（原版 F_DIFF の第 2 引数）：0x01 -i、0x02 -w、0x04 -b、0x08 -B、0x10 -t、0x20 編集中のファイルが旧ファイル
+var DIFF_FLAGS = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x0F];
+function diffCases() {
+	var names = [];
+	for (var e = new Enumerator(fso.GetFolder("@DATA@\\diff").SubFolders); !e.atEnd(); e.moveNext()) names.push(e.item().Name);
+	names.sort();
+	return names;
+}
+function hex(n) { var s = n.toString(16); return s.length < 2 ? "0" + s : s; }
+// 差分のない組み合わせ（windows-edit-support.ps1 が GNU diff を直接実行して書く「名字 選択肢」の行）。
+// 原版は差分がないと必ずメッセージボックスを出して宏が止まるので、Diff せずに印（すべて 0）を読む
+function noDiffCases() {
+	var set = {};
+	var f = fso.OpenTextFile("@OUT@\\nodiff.txt", 1);
+	while (!f.AtEndOfStream) {
+		var line = f.ReadLine();
+		if (line !== "") set[line] = true;
+	}
+	f.Close();
+	return set;
+}
+sections.push(function () {
+	var out = [];
+	var names = diffCases();
+	var noDiff = noDiffCases();
+	for (var c = 0; c < names.length; c++) {
+		var dir = "@DATA@\\diff\\" + names[c] + "\\";
+		for (var f = 0; f < DIFF_FLAGS.length; f++) {
+			for (var side = 0; side < 2; side++) {
+				// side 0：新ファイルを開いて旧ファイルと比べる、side 1：旧ファイルを開いて新ファイルと（0x20）
+				var flags = DIFF_FLAGS[f] | (side ? 0x20 : 0);
+				progress(names[c] + " " + hex(flags));
+				Editor.FileOpen(dir + (side ? "old.txt" : "new.txt"));
+				if (!noDiff[names[c] + " " + hex(DIFF_FLAGS[f])]) Editor.Diff(dir + (side ? "new.txt" : "old.txt"), flags);
+				var n = Editor.GetLineCount(0);
+				var marks = [];
+				if (Editor.GetLineStr(1) !== "" || n > 1) {
+					for (var y = 1; y <= n; y++) marks.push(Editor.GetLineAttribute(y, 3));
+				}
+				out.push(names[c] + " " + hex(flags) + ": " + marks.join(","));
+				Editor.DiffReset();
+				Editor.FileClose();
+			}
+		}
+	}
+	writeResult("diffmark", out);
+});
+
 for (var i = 0; i < sections.length; i++) {
+	progress("section " + i);
 	try {
 		sections[i]();
 	} catch (e) {
