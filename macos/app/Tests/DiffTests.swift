@@ -14,6 +14,7 @@ final class DiffTests: XCTestCase {
     private var messages: [String?] = []
     private var savedSearch: EditorSearchSettings!
     private var savedTile = ""
+    private var savedFlags = 0
     private var directory: URL!
     private var savedAll: (() -> [EditorTextView])!
     private var savedChooseFile: ((String, NSWindow?) -> String?)!
@@ -28,6 +29,7 @@ final class DiffTests: XCTestCase {
         savedAll = EditingDocument.all
         savedChooseFile = DiffDialogController.chooseFile
         EditingDocument.all = { [unowned self] in views }
+        savedFlags = DiffDialogController.lastFlags
         DiffDialogController.lastFlags = 0
         directory = TestCore.home.appendingPathComponent("diff-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -40,6 +42,7 @@ final class DiffTests: XCTestCase {
         DiffDialogController.runModal = nil
         CompareDialogController.runModal = nil
         EditorCore.searchSettings = savedSearch
+        DiffDialogController.lastFlags = savedFlags
         _ = EditorCore.setCommonSetting(savedTile, section: "Common", key: "bCompareAndTileHorz")
         for w in windows { w.close() }
         windows = []
@@ -116,6 +119,7 @@ final class DiffTests: XCTestCase {
         XCTAssertTrue(dialog.isAccepted)
         XCTAssertEqual(dialog.flags, 0x02 | 0x08 | 0x20 | 0x40)
         XCTAssertEqual(DiffDialogController.lastFlags, dialog.flags)
+        XCTAssertEqual(EditorCore.commonSetting(section: "Other", key: "nDiffFlgOpt"), String(dialog.flags), "sakura.ini の [Other]")
         XCTAssertTrue(EditorCore.searchSettings.searchAll)
         XCTAssertFalse(EditorCore.searchSettings.notifyNotFound)
     }

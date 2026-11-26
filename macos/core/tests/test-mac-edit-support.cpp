@@ -531,6 +531,12 @@ TEST_F(MacEditSupportTest, DiffHunks)
 	EXPECT_EQ("", Hunks(ComputeDiff(L({ u"a", u"", u"b" }), L({ u"a", u"b", u"" }), bl)));
 	EXPECT_EQ("2d1 3a3", Hunks(ComputeDiff(L({ u"a", u"", u"b" }), L({ u"a", u"b", u"" }), o)));
 	EXPECT_EQ("2a3", Hunks(ComputeDiff(L({ u"a", u"" }), L({ u"a", u"", u"c" }), bl)));
+	// -B に -b・-w を付けると空白だけの行も空（GNU diff 2.8.7 と同じ）
+	EXPECT_EQ("2d1", Hunks(ComputeDiff(L({ u"a", u"  ", u"b" }), L({ u"a", u"b" }), bl)));
+	DiffOptions blw = bl; blw.ignoreAllSpace = true;
+	EXPECT_EQ("", Hunks(ComputeDiff(L({ u"a", u"  ", u"b" }), L({ u"a", u"b" }), blw)));
+	DiffOptions blb = bl; blb.ignoreSpaceChange = true;
+	EXPECT_EQ("", Hunks(ComputeDiff(L({ u"a", u" \t", u"b" }), L({ u"a", u"b" }), blb)));
 	// 行の分け方：LF、CR LF の CR は除く、改行のない最後の行は区別する
 	const auto lines = SplitDiffLines(u"a\r\nb\rc\nd");
 	ASSERT_EQ(3u, lines.size());
@@ -538,6 +544,9 @@ TEST_F(MacEditSupportTest, DiffHunks)
 	EXPECT_EQ(u"b\rc", lines[1]);
 	EXPECT_EQ(Text(u"d") + u'\0', lines[2]);
 	EXPECT_EQ("2c2", Hunks(ComputeDiff(SplitDiffLines(u"a\nb"), SplitDiffLines(u"a\nb\n"), o)));
+	// -b・-w では最後の改行の有無を区別しない（GNU diff 2.8.7 と同じ）
+	EXPECT_EQ("", Hunks(ComputeDiff(SplitDiffLines(u"a\nb"), SplitDiffLines(u"a\nb\n"), w)));
+	EXPECT_EQ("", Hunks(ComputeDiff(SplitDiffLines(u"a\nb"), SplitDiffLines(u"a\nb\n"), b)));
 }
 
 // 行の印（原版 AnalyzeDiffInfo）：編集中のファイルが新ファイル（既定）・旧ファイル、最後の行より後の削除、次・前の差分

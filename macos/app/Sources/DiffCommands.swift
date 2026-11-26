@@ -39,8 +39,11 @@ final class DiffDialogController: NSObject, NSWindowDelegate {
         if !initial.isEmpty { panel.directoryURL = URL(fileURLWithPath: (initial as NSString).deletingLastPathComponent, isDirectory: true) }
         return panel.runModal() == .OK ? panel.url?.path : nil
     }
-    /// 原版 m_pShareData->m_nDiffFlgOpt（sakura.ini には保存しない。App が動いている間だけ）
-    static var lastFlags = 0
+    /// 原版 m_pShareData->m_nDiffFlgOpt（sakura.ini の [Other] nDiffFlgOpt）
+    static var lastFlags: Int {
+        get { Int(EditorCore.commonSetting(section: "Other", key: "nDiffFlgOpt") ?? "0") ?? 0 }
+        set { _ = EditorCore.setCommonSetting(String(newValue), section: "Other", key: "nDiffFlgOpt") }
+    }
 
     let page: PropPage
     let window: NSPanel

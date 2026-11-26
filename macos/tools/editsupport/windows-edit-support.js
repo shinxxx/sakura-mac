@@ -30,7 +30,8 @@ function writeResult(name, lines) {
 //! 進み具合（止まったときにどこまで進んだか分かるように）
 function progress(text) {
 	var f = fso.OpenTextFile("@OUT@\\progress.txt", 8, true);
-	f.WriteLine(text);
+	var d = new Date();
+	f.WriteLine(d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + " " + text);
 	f.Close();
 }
 
@@ -136,9 +137,22 @@ function diffCases() {
 	return names;
 }
 function hex(n) { var s = n.toString(16); return s.length < 2 ? "0" + s : s; }
+// 差分のない組み合わせ（windows-edit-support.ps1 が GNU diff を直接実行して書く「名字 選択肢」の行）。
+// 原版は差分がないと必ずメッセージボックスを出して宏が止まるので、Diff せずに印（すべて 0）を読む
+function noDiffCases() {
+	var set = {};
+	var f = fso.OpenTextFile("@OUT@\\nodiff.txt", 1);
+	while (!f.AtEndOfStream) {
+		var line = f.ReadLine();
+		if (line !== "") set[line] = true;
+	}
+	f.Close();
+	return set;
+}
 sections.push(function () {
 	var out = [];
 	var names = diffCases();
+	var noDiff = noDiffCases();
 	for (var c = 0; c < names.length; c++) {
 		var dir = "@DATA@\\diff\\" + names[c] + "\\";
 		for (var f = 0; f < DIFF_FLAGS.length; f++) {
@@ -147,7 +161,7 @@ sections.push(function () {
 				var flags = DIFF_FLAGS[f] | (side ? 0x20 : 0);
 				progress(names[c] + " " + hex(flags));
 				Editor.FileOpen(dir + (side ? "old.txt" : "new.txt"));
-				Editor.Diff(dir + (side ? "new.txt" : "old.txt"), flags);
+				if (!noDiff[names[c] + " " + hex(DIFF_FLAGS[f])]) Editor.Diff(dir + (side ? "new.txt" : "old.txt"), flags);
 				var n = Editor.GetLineCount(0);
 				var marks = [];
 				if (Editor.GetLineStr(1) !== "" || n > 1) {
@@ -163,6 +177,7 @@ sections.push(function () {
 });
 
 for (var i = 0; i < sections.length; i++) {
+	progress("section " + i);
 	try {
 		sections[i]();
 	} catch (e) {

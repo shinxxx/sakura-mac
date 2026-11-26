@@ -374,6 +374,8 @@ public:
 			ShareData_IO_Nickname(profile);
 		} else if (section == LTEXT("Statusbar")) {
 			ShareData_IO_Statusbar(profile);
+		} else if (section == LTEXT("Other")) {
+			ShareData_IO_Other(profile);	// 第 44 步：DIFF差分表示の選択肢（nDiffFlgOpt）、キーワード指定タグジャンプの設定と履歴
 		} else {
 			return false;
 		}

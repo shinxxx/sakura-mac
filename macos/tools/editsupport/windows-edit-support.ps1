@@ -37,6 +37,8 @@ Copy-Item $DiffExe (Join-Path (Split-Path $SakuraExe) 'diff.exe')
 # 選択肢（原版 F_DIFF の第 2 引数のビット → diff の選択肢）。OrderedDictionary の整数の添字は位置になるので配列で
 $flagOptions = @(@(0x00, ''), @(0x01, '-i'), @(0x02, '-w'), @(0x04, '-b'), @(0x08, '-B'), @(0x10, '-t'), @(0x0F, '-iwbB'))
 $diffLines = New-Object System.Collections.Generic.List[string]
+# 差分のない組み合わせ：原版は差分がないと「DIFF差分は見つかりませんでした。」のメッセージボックスを必ず出す（宏が止まる）ので宏では Diff しない
+$noDiff = New-Object System.Collections.Generic.List[string]
 foreach ($case in (Get-ChildItem (Join-Path $DataDir 'diff') -Directory | Sort-Object Name)) {
 	foreach ($pair in $flagOptions) {
 		$flag = $pair[0]
@@ -45,9 +47,11 @@ foreach ($case in (Get-ChildItem (Join-Path $DataDir 'diff') -Directory | Sort-O
 		$diffArgs += (Join-Path $case.FullName 'old.txt'), (Join-Path $case.FullName 'new.txt')
 		$hunks = & $DiffExe @diffArgs | Where-Object { $_ -match '^[0-9]' }
 		$diffLines.Add(('{0} {1:x2}: {2}' -f $case.Name, $flag, ($hunks -join ' ')))
+		if (-not $hunks) { $noDiff.Add(('{0} {1:x2}' -f $case.Name, $flag)) }
 	}
 }
 [IO.File]::WriteAllText((Join-Path $OutDir 'diff.txt'), (($diffLines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+[IO.File]::WriteAllText((Join-Path $OutDir 'nodiff.txt'), (($noDiff -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
 
 $template = Get-Content (Join-Path $PSScriptRoot 'windows-edit-support.js') -Raw -Encoding utf8
 $js = $template.Replace('@DATA@', $work.Replace('\', '\\')).Replace('@OUT@', $OutDir.Replace('\', '\\'))

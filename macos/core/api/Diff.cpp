@@ -41,7 +41,8 @@ Text Normalize(const Text& line, const DiffOptions& o)
 	bool space = false;
 	for (char16_t c : line) {
 		if (o.ignoreCase && c >= u'A' && c <= u'Z') c = static_cast<char16_t>(c - u'A' + u'a');
-		if ((o.ignoreAllSpace || o.ignoreSpaceChange) && IsAsciiSpace(c)) {
+		// -b・-w：改行のない最後の行の印（\0）も空白と同じに扱う（GNU diff 2.8.7 も -b・-w では最後の改行の有無を区別しない）
+		if ((o.ignoreAllSpace || o.ignoreSpaceChange) && (IsAsciiSpace(c) || c == u'\0')) {
 			space = true;
 			continue;
 		}
@@ -240,11 +241,17 @@ std::vector<DiffHunk> ComputeDiff(const std::vector<Text>& oldLines, const std::
 		while (x < na && ctx.changedA[x]) ++x;
 		while (y < nb && ctx.changedB[y]) ++y;
 		if (x == x0 && y == y0) break;	// 念のため
-		// -B：変更した行がすべて空の塊は出さない
+		// -B：変更した行がすべて空の塊は出さない（-b・-w のときは空白だけの行も空。GNU diff 2.8.7 の analyze_hunk と同じ）
 		if (options.ignoreBlankLines) {
+			const bool skipSpace = options.ignoreAllSpace || options.ignoreSpaceChange;
+			auto isBlank = [skipSpace](const Text& line) {
+				if (!skipSpace) return line.empty();
+				for (char16_t c : line) if (!IsAsciiSpace(c)) return false;
+				return true;
+			};
 			bool blank = true;
-			for (int i = x0; i < x && blank; ++i) blank = oldLines[i].empty();
-			for (int i = y0; i < y && blank; ++i) blank = newLines[i].empty();
+			for (int i = x0; i < x && blank; ++i) blank = isBlank(oldLines[i]);
+			for (int i = y0; i < y && blank; ++i) blank = isBlank(newLines[i]);
 			if (blank) continue;
 		}
 		DiffHunk h;
