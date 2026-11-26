@@ -106,6 +106,12 @@ final class HokanTests: XCTestCase {
         XCTAssertTrue(hokan.isVisible)
         XCTAssertEqual(hokan.words, ["print_r", "printf", "println"])
         XCTAssertEqual(hokan.selectedWord, "print_r")
+        // 外観：一覧は窓の上端から（題名の帯の分を空けない）、左右の余白なし、選択はいつも強調色
+        hokan.panel.contentView?.layoutSubtreeIfNeeded()
+        let firstRow = hokan.table.convert(hokan.table.rect(ofRow: 0), to: nil)
+        XCTAssertEqual(firstRow.maxY, hokan.panel.contentView?.frame.maxY ?? 0, accuracy: 1, "1 行目が窓の上端")
+        XCTAssertEqual(hokan.table.style, .plain)
+        XCTAssertEqual(hokan.table.rowView(atRow: 0, makeIfNecessary: true)?.isEmphasized, true)
         XCTAssertTrue(view.hokanHandleKey(key(NSDownArrowFunctionKey)))
         XCTAssertEqual(hokan.selectedWord, "printf")
         XCTAssertFalse(view.hokanHandleKey(key(NSTabCharacter)), "Tab は決定キーではない")

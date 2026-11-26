@@ -31,6 +31,7 @@ final class HokanWindowController: NSObject, NSTableViewDataSource, NSTableViewD
         table = NSTableView()
         super.init()
         table.headerView = nil
+        table.style = .plain	// 原版のリストボックス：左右の余白・角の丸い選択なし
         table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("word")))
         table.dataSource = self
         table.delegate = self
@@ -41,6 +42,9 @@ final class HokanWindowController: NSObject, NSTableViewDataSource, NSTableViewD
         table.doubleAction = #selector(doubleClicked(_:))
         table.setAccessibilityIdentifier("hokanList")
         let scroll = NSScrollView()
+        // 題名の帯（透明）の分を空けない：一覧は窓の上端から（原版のリストボックスは窓いっぱい）
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.contentInsets = NSEdgeInsetsZero
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
@@ -127,8 +131,21 @@ final class HokanWindowController: NSObject, NSTableViewDataSource, NSTableViewD
         return label
     }
 
+    /// 選択行はいつも強調色（フォーカスを取らない窓でも原版のリストボックスと同じく青）
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        HokanRowView()
+    }
+
     func tableViewSelectionDidChange(_ notification: Notification) {
         view?.hokanShowTip()	// 原版 OnLbnSelChange → ShowTip
+    }
+}
+
+/// 入力補完の一覧の行：選択はいつも強調色、文字は白
+final class HokanRowView: NSTableRowView {
+    override var isEmphasized: Bool {
+        get { true }
+        set {}
     }
 }
 
