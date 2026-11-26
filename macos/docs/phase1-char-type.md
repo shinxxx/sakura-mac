@@ -24,7 +24,7 @@
 | 文件 | 内容 |
 |---|---|
 | `sakura_core/util/wchar16.h` | `sakura::wstring`；`sakura::u16` 命名空间里的模板实现（字符串比较、查找、复制、切分，数值转换，大小写转换，UTF-8 / UTF-32 互转，以及与 MSVC 宽字符 printf 书式相同的 `format` / `vsnprintf_s`）；非 Windows 平台上的同名重载 |
-| `macos/platform/tests/test_wchar16.cpp` | 示例与测试。macOS（clang，arm64 + x86_64）和 Windows（MSVC x64）都会编译运行；在 Windows 上还会把 `sakura::u16` 的结果和 MSVC 运行库逐项对比 |
+| `macos/platform/tests/test_wchar16.cpp` | 示例与测试。macOS（clang，arm64。2026-11-26 起只支持 Apple 芯片，以前也编 x86_64）和 Windows（MSVC x64）都会编译运行；在 Windows 上还会把 `sakura::u16` 的结果和 MSVC 运行库逐项对比 |
 
 printf 书式按 MSVC 宽字符版的规则处理：`%s` 是宽字符串，`%hs` / `%S` 是窄字符串（Mac 上按 UTF-8 处理），另外支持 `%I64d` 等 MSVC 专有写法。
 

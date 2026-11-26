@@ -30,6 +30,10 @@
 
 ## 在 Mac 上构建
 
+Mac 版只支持 Apple 芯片（arm64）的 Mac，不支持 Intel 芯片（2026-11-26 项目负责人决定）。App、桥接层框架、核心库都只编 arm64
+（`Config/App.xcconfig` 的 `ARCHS = arm64`、`macos/core/CMakeLists.txt` 的 `CMAKE_OSX_ARCHITECTURES`），
+CI 和 `run-tests.sh` 用 `macos/tools/check-arch.sh`（`lipo -archs`）确认只含 arm64。
+
 需要 Xcode 15 或更新版本、[XcodeGen](https://github.com/yonaskolb/XcodeGen) 和 CMake，以及三个子模块（核心库的正则和 Migemo）。
 
 ```sh
@@ -41,7 +45,7 @@ open SakuraMac.xcodeproj
 ```
 
 在 Xcode 里选好签名团队（Signing & Capabilities），按 Cmd+R 运行。
-App 名称、Bundle ID、最低系统版本都集中在 `macos/app/Config/App.xcconfig`。
+App 名称、Bundle ID、最低系统版本、架构都集中在 `macos/app/Config/App.xcconfig`。
 构建时 Xcode 先运行 `macos/app/Scripts/build-core.sh`，用 CMake 把核心库构建到仓库根目录的 `build/xcode-core/<Debug|Release>/`，再链接进桥接层框架。按 Cmd+U 运行桥接层的单元测试。
 
 一次跑完全部自动测试（核心库、App 单元测试、界面测试）：`macos/tools/run-tests.sh`（见 [自动测试](docs/testing.md)）。

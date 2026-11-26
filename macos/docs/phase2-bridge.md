@@ -18,7 +18,7 @@ EditorBridge.framework（macos/bridge，Objective-C++）
 - `macos/bridge/include/EditorBridge.h`：公开头文件，只引用 Foundation。Swift 看到的就是这个文件。
 - `macos/bridge/src/EditorBridge.mm`：实现。每个方法只是调用对应的 `sakura::core` 函数。
 
-核心库的静态库由 Xcode 在构建桥接层框架之前运行 `macos/app/Scripts/build-core.sh` 用 CMake 构建，放在仓库根目录的 `build/xcode-core/<Debug|Release>/`。架构和最低系统版本按 Xcode 的设置（Release 是 `arm64`、`x86_64` 通用二进制）。脚本也可以单独运行。
+核心库的静态库由 Xcode 在构建桥接层框架之前运行 `macos/app/Scripts/build-core.sh` 用 CMake 构建，放在仓库根目录的 `build/xcode-core/<Debug|Release>/`。架构和最低系统版本按 Xcode 的设置（只支持 Apple 芯片：Debug・Release 都只编 `arm64`，2026-11-26 起；以前 Release 是 `arm64`、`x86_64` 通用二进制）。脚本也可以单独运行。
 
 ## Swift 里的样子
 
@@ -63,7 +63,7 @@ EditorBridge.framework（macos/bridge，Objective-C++）
   - 打开不存在的文件返回 `.failed`。
   - 编辑、查找（补充平面字符算 2 个 UTF-16 单位）、正则全部替换、撤销和重做、超出范围的位置被拒绝（包括超出 32 位）、另存为 UTF-16LE 带 BOM 并统一成 CRLF，字节正确。
   - 命令：功能名「元に戻す」、能否执行、执行撤销和换行符切换。
-- CI（`build-macos.yml` 的 `build`）：取子模块，`xcodebuild test`（Debug）运行上面的测试；Release 构建后确认 App 里嵌入了 `EditorBridge.framework`，并且是 `arm64`、`x86_64` 通用二进制；启动检查不变。
+- CI（`build-macos.yml` 的 `build`）：取子模块，`xcodebuild test`（Debug）运行上面的测试；Release 构建后确认 App 里嵌入了 `EditorBridge.framework`，并且只含 `arm64`（`macos/tools/check-arch.sh`。2026-11-26 起只支持 Apple 芯片；以前确认的是 `arm64`、`x86_64` 通用二进制）；启动检查不变。
 
 ## 在 Mac 上构建的前提
 

@@ -12,6 +12,8 @@ cmake_minimum_required(VERSION 3.24)
 # 与 App 的最低系统版本（macos/app/Config/App.xcconfig）相同。
 # 原版代码用 std::format，浮点数的格式化（std::to_chars）从 macOS 13.3 起才有（第 24 步）
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3" CACHE STRING "Minimum macOS version")
+# 只支持 Apple 芯片（arm64），不支持 Intel 芯片（2026-11-26 项目负责人决定）
+set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Mac 版只支持 arm64")
 project(sakura_core_mac LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)

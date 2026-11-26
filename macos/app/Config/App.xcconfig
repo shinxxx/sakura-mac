@@ -13,6 +13,10 @@ PRODUCT_BUNDLE_IDENTIFIER = com.hanagumo.texteditor
 // macOS 13 的用户都能免费更新到 13.3 以上。
 MACOSX_DEPLOYMENT_TARGET = 13.3
 
+// 只支持 Apple 芯片（arm64），不支持 Intel 芯片（2026-11-26 项目负责人决定）。
+// Debug・Release、App・桥接层框架・测试都只编 arm64（核心库由 Scripts/build-core.sh 按这个 ARCHS 编）
+ARCHS = arm64
+
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
 

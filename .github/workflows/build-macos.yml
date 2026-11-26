@@ -40,12 +40,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build and run test_wchar16 (clang, universal)
+      - name: Build and run test_wchar16 (clang, arm64)
         run: |
-          clang++ -std=c++20 -Wall -Wextra -DNOMINMAX -arch arm64 -arch x86_64 \
+          clang++ -std=c++20 -Wall -Wextra -DNOMINMAX -arch arm64 \
             -I macos/platform/include -I sakura_core \
             macos/platform/tests/test_wchar16.cpp -o test_wchar16
-          lipo -archs test_wchar16
+          macos/tools/check-arch.sh test_wchar16
           ./test_wchar16
 
   # 第 16 步：Mac 版核心库（macos/core）的构建和单元测试
@@ -63,10 +63,14 @@ jobs:
         run: git submodule update --init --depth 1 externals/Onigmo externals/bregonig externals/cmigemo
 
       - name: Configure
-        run: cmake -S macos/core -B build/mac-core -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+        run: cmake -S macos/core -B build/mac-core -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=arm64
 
       - name: Build
         run: cmake --build build/mac-core -j 4
+
+      # 只含 arm64（Mac 版只支持 Apple 芯片）
+      - name: Check architecture
+        run: macos/tools/check-arch.sh build/mac-core/*.a build/mac-core/sakura_core_tests
 
       - name: Test
         run: ctest --test-dir build/mac-core --output-on-failure -j 4
@@ -354,13 +358,12 @@ jobs:
         working-directory: macos/app
         run: |
           set -o pipefail
-          # 通用二进制：目的地是「Any Mac」（只写 -scheme 时 xcodebuild 选第一个目的地「My Mac arm64」，
-          # 2026-11-23 的 runner image 起只编 arm64）
+          # 只支持 Apple 芯片（arm64）：Config/App.xcconfig 的 ARCHS = arm64
           xcodebuild \
             -project SakuraMac.xcodeproj \
             -scheme SakuraMac \
             -configuration Release \
-            -destination 'generic/platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -408,15 +411,13 @@ jobs:
           test -d "$APP"
           /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$APP/Contents/Info.plist"
-          lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac"
-          lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac" | grep -q arm64
-          lipo -archs "$APP/Contents/MacOS/Sakura Editor for Mac" | grep -q x86_64
-          # 桥接层框架嵌在 App 里，也是通用二进制
-          FW="$APP/Contents/Frameworks/EditorBridge.framework/EditorBridge"
-          test -f "$FW"
-          lipo -archs "$FW"
-          lipo -archs "$FW" | grep -q arm64
-          lipo -archs "$FW" | grep -q x86_64
+          # 只含 arm64（Mac 版只支持 Apple 芯片）：App、嵌在 App 里的桥接层框架、Release 和 Debug 的核心库
+          ../tools/check-arch.sh \
+            "$APP/Contents/MacOS/Sakura Editor for Mac" \
+            "$APP/Contents/Frameworks/EditorBridge.framework/EditorBridge" \
+            "build/Build/Products/Debug/Sakura Editor for Mac.app/Contents/MacOS/Sakura Editor for Mac" \
+            ../../build/xcode-core/Release/libsakura_core_api.a \
+            ../../build/xcode-core/Debug/libsakura_core_api.a
 
       # 第 9 步：确认 App 能启动，不会一启动就崩溃（CI 没有屏幕可看，只确认进程启动 10 秒后仍在运行）
       - name: Launch smoke test
