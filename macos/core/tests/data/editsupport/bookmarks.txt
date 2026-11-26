@@ -1,0 +1,10 @@
+﻿first line
+  ab  
+
+abc def
+	
+line ab
+x
+AB upper
+
+last ab

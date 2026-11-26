@@ -1308,6 +1308,33 @@ NS_SWIFT_NAME(EditorDocument)
 //! 当作没有修改（Grep 结束时，原版 SetModified(false,false)）
 - (void)setUnmodified;
 
+// ----- 編集支援（第 44 步） -----
+
+/*!
+	対括弧の検索（原版 SearchBracket）。找到时返回 YES：pair 是对应的括弧，bracket 是光标处（或光标前面）的括弧。
+	checkPrev：光标后面不是括弧时看前面的字。areaTop ≤ areaBottom 时只找到表示領域（排版行）的边（強調表示），
+	areaTop > areaBottom 时找整个文件（F_BRACKETPAIR）
+*/
+- (BOOL)findBracketPairAt:(ECPosition)caret checkPrev:(BOOL)checkPrev areaTop:(NSInteger)areaTop areaBottom:(NSInteger)areaBottom
+	pair:(ECPosition *)outPair bracket:(ECPosition *)outBracket NS_SWIFT_NAME(findBracketPair(at:checkPrev:areaTop:areaBottom:pair:bracket:));
+//! 対括弧の対応表にある括弧か
++ (BOOL)isBracketCharacter:(unichar)ch NS_SWIFT_NAME(isBracket(_:));
+
+//! この逻辑行にブックマークがあるか
+- (BOOL)isBookmarked:(NSInteger)line NS_SWIFT_NAME(isBookmarked(_:));
+- (void)setBookmark:(BOOL)on line:(NSInteger)line NS_SWIFT_NAME(setBookmark(_:line:));
+//! ブックマーク設定・解除：fromLine～toLine（都包括）的每行反转
+- (void)toggleBookmarksFrom:(NSInteger)fromLine to:(NSInteger)toLine NS_SWIFT_NAME(toggleBookmarks(from:to:));
+//! 次／前のブックマーク的目标逻辑行。找不到时 -1。wrapped：绕回去了
+- (NSInteger)findBookmarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll
+	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findBookmark(from:forward:searchAll:wrapped:));
+//! ブックマークの全解除
+- (void)resetBookmarks;
+//! パターンに一致する行をマーク。正規表現の错误时 NO（lastSearchError）
+- (BOOL)markPattern:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(markPattern(_:options:));
+//! ブックマークの行番号のリスト（「最近使ったファイル」の形式）
+@property (copy) NSString *bookmarkList;
+
 @end
 
 NS_ASSUME_NONNULL_END

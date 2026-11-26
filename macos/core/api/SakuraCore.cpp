@@ -38,6 +38,7 @@
 #include "doc/layout/CLayout.h"
 #include "doc/layout/CLayoutMgr.h"
 #include "docplus/CModifyManager.h"
+#include "docplus/CBookmarkManager.h"
 #include "view/colors/EColorIndexType.h"
 #include "view/colors/CColorStrategy.h"
 #include "env/CRegexKeyword.h"
@@ -2127,7 +2128,13 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 			caret = view.caret;
 			viewTopLine = view.viewTopLine;
 		}
-		AddToRecent(caret, viewTopLine);
+		// ブックマーク復元（第 44 步）。历史里的记录照原样留着（原版 OnAfterLoad 的 eiOld.m_szMarkLines）
+		Text marks;
+		if (bInMRU && GetDllShareData().m_Common.m_sFile.GetRestoreBookmarks()) {
+			marks = Text(fiPrev.m_szMarkLines);
+			SetBookmarkList(marks);
+		}
+		AddToRecentWithMarks(caret, viewTopLine, marks);
 	}
 	return FromConvertResult(eRet);
 }
@@ -2379,7 +2386,12 @@ std::optional<RestoredView> Document::GetRestoredView() const { return m_impl->r
 
 void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
 {
-	// 原版 CMruListener::_HoldBookmarks_And_AddToMRU（内容是 CEditDoc::GetEditInfo）。书签（ブックマーク）还没有移植
+	// 原版 CMruListener::_HoldBookmarks_And_AddToMRU（内容是 CEditDoc::GetEditInfo，ブックマーク也一起登记，第 44 步）
+	AddToRecentWithMarks(caret, viewTopLine, GetBookmarkList());
+}
+
+void Document::AddToRecentWithMarks(const Position& caret, std::int32_t viewTopLine, const Text& marks)
+{
 	const auto& d = *m_impl;
 	if (d.info.path.empty() || d.info.path.size() >= _MAX_PATH) return;
 	EditInfo fi;
@@ -2391,6 +2403,7 @@ void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
 	fi.m_nCharCode = static_cast<ECodeType>(d.info.encoding);
 	fi.m_bBom = d.info.bom;
 	fi.m_nTypeId = d.typeConfig.m_id;
+	fi.m_szMarkLines = marks.substr(0, MAX_MARKLINES_LEN).c_str();
 	CMRUFile().Add(&fi);
 }
 
@@ -4942,6 +4955,203 @@ bool Document::HasFuncListMark(std::int32_t line) const
 {
 	const CDocLine* pcDocLine = m_impl->lines.GetLine(CLogicInt(line));
 	return pcDocLine && CFuncListManager().GetLineFuncList(pcDocLine);
+}
+
+// ----- 対括弧（第 44 步。原版 view/CEditView_Paint_Bracket.cpp） -----
+
+namespace {
+
+//! 対括弧の対応表（原版 g_aKakkos）
+struct KakkoPair { WCHAR open; WCHAR close; };
+constexpr KakkoPair kKakkos[] = {
+	// 半角
+	{ u'(', u')' }, { u'[', u']' }, { u'{', u'}' }, { u'<', u'>' }, { u'｢', u'｣' },
+	// 全角
+	{ u'【', u'】' }, { u'『', u'』' }, { u'「', u'」' }, { u'＜', u'＞' }, { u'≪', u'≫' }, { u'《', u'》' },
+	{ u'（', u'）' }, { u'〈', u'〉' }, { u'｛', u'｝' }, { u'〔', u'〕' }, { u'［', u'］' }, { u'“', u'”' }, { u'〝', u'〟' },
+};
+
+} // namespace
+
+bool IsBracketChar(char16_t ch)
+{
+	// 原版 CEditView::IsBracket
+	for (const auto& k : kKakkos) {
+		if (ch == static_cast<char16_t>(k.open) || ch == static_cast<char16_t>(k.close)) return true;
+	}
+	return false;
+}
+
+std::optional<Document::BracketMatch> Document::FindBracketPair(const Position& caret, bool checkPrev,
+																 std::optional<BracketSearchArea> area) const
+{
+	// 原版 CEditView::SearchBracket・SearchBracketForward・SearchBracketBackward。
+	// area が無いのは mode の bit0（表示領域外を調べる）が 1 のとき
+	auto& d = *m_impl;
+	CLogicPoint ptPos = ToLogic(caret);
+	const CDocLine* pLine = d.lines.GetLine(ptPos.GetY2());
+	CLogicInt len;
+	const WCHAR* cline = CDocLine::GetDocLineStrWithEOL_Safe(pLine, &len);
+	if (cline == nullptr) return std::nullopt;	// 最後の行に本文がない場合
+	if (ptPos.x > len) return std::nullopt;
+
+	auto forward = [&](CLogicPoint pt, WCHAR upChar, WCHAR dnChar) -> std::optional<Position> {
+		CLayoutPoint ptColLine;
+		d.layout.LogicToLayout(pt, &ptColLine);
+		std::int64_t nSearchNum = area ? std::int64_t(area->bottom) - ptColLine.GetY2() : 0;
+		const CDocLine* ci = d.lines.GetLine(pt.GetY2());
+		CLogicInt l;
+		const WCHAR* line = ci->GetDocLineStrWithEOL(&l);
+		const WCHAR* lineend = line + l;
+		const WCHAR* cPos = line + pt.x;
+		int level = 0;
+		for (;;) {
+			while (cPos < lineend) {
+				const WCHAR* nPos = CNativeW::GetCharNext(line, l, cPos);
+				if (nPos - cPos > 1) { cPos = nPos; continue; }
+				if (upChar == *cPos) ++level;
+				else if (dnChar == *cPos) --level;
+				if (level == 0) {
+					pt.x = CLogicInt(int(cPos - line));
+					return FromLogic(pt);
+				}
+				cPos = nPos;
+			}
+			nSearchNum--;
+			if (nSearchNum < 0 && area) break;	// 表示領域の終端
+			pt.y++;
+			ci = ci->GetNextLine();
+			if (ci == nullptr) break;
+			line = ci->GetDocLineStrWithEOL(&l);
+			cPos = line;
+			lineend = line + l;
+		}
+		return std::nullopt;
+	};
+	auto backward = [&](CLogicPoint pt, WCHAR dnChar, WCHAR upChar) -> std::optional<Position> {
+		CLayoutPoint ptColLine;
+		d.layout.LogicToLayout(pt, &ptColLine);
+		std::int64_t nSearchNum = area ? std::int64_t(ptColLine.GetY2()) - area->top : 0;
+		const CDocLine* ci = d.lines.GetLine(pt.GetY2());
+		CLogicInt l;
+		const WCHAR* line = ci->GetDocLineStrWithEOL(&l);
+		const WCHAR* cPos = line + pt.x;
+		int level = 1;
+		for (;;) {
+			while (cPos > line) {
+				const WCHAR* pPos = CNativeW::GetCharPrev(line, l, cPos);
+				if (cPos - pPos > 1) { cPos = pPos; continue; }
+				if (upChar == *pPos) ++level;
+				else if (dnChar == *pPos) --level;
+				if (level == 0) {
+					pt.x = CLogicInt(int(pPos - line));
+					return FromLogic(pt);
+				}
+				cPos = pPos;
+			}
+			nSearchNum--;
+			if (nSearchNum < 0 && area) break;	// 表示領域の先頭
+			pt.y--;
+			ci = ci->GetPrevLine();
+			if (ci == nullptr) break;
+			line = ci->GetDocLineStrWithEOL(&l);
+			cPos = line + l;
+		}
+		return std::nullopt;
+	};
+	auto search = [&](CLogicPoint pt) -> std::optional<std::optional<Position>> {
+		for (const auto& k : kKakkos) {
+			if (k.open == cline[pt.x]) return forward(pt, k.open, k.close);
+			if (k.close == cline[pt.x]) return backward(pt, k.open, k.close);
+		}
+		return std::nullopt;	// 括弧ではない
+	};
+
+	if (ptPos.x < len) {
+		if (auto r = search(ptPos)) {
+			if (!*r) return std::nullopt;
+			return BracketMatch{ **r, FromLogic(ptPos) };
+		}
+	}
+	if (!checkPrev) return std::nullopt;	// カーソルの前方を調べない場合
+	// 括弧が見つからなかったら，カーソルの直前の文字を調べる
+	if (ptPos.x <= 0) return std::nullopt;
+	const WCHAR* bPos = CNativeW::GetCharPrev(cline, ptPos.x, cline + ptPos.x);
+	if (cline + ptPos.x - bPos != 1) return std::nullopt;
+	ptPos.x = CLogicInt(int(bPos - cline));
+	if (auto r = search(ptPos)) {
+		if (!*r) return std::nullopt;
+		return BracketMatch{ **r, FromLogic(ptPos) };
+	}
+	return std::nullopt;
+}
+
+// ----- ブックマーク（第 44 步。原版 cmd/CViewCommander_Bookmark.cpp、docplus/CBookmarkManager.cpp） -----
+
+bool Document::IsBookmarked(std::int32_t line) const
+{
+	const CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(line));
+	return pLine && CBookmarkGetter(pLine).IsBookmarked();
+}
+
+void Document::SetBookmark(std::int32_t line, bool on)
+{
+	if (CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(line))) CBookmarkSetter(pLine).SetBookmark(on);
+}
+
+void Document::ToggleBookmarks(std::int32_t fromLine, std::int32_t toLine)
+{
+	// 原版 Command_BOOKMARK_SET：各行のブックマークを反転
+	for (std::int32_t y = fromLine; y <= toLine; ++y) {
+		if (CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(y))) {
+			CBookmarkSetter cBookmark(pLine);
+			cBookmark.SetBookmark(!cBookmark.IsBookmarked());
+		}
+	}
+}
+
+std::int32_t Document::FindBookmark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped) const
+{
+	// 原版 Command_BOOKMARK_NEXT / Command_BOOKMARK_PREV
+	auto& d = *m_impl;
+	const int nYOld = line;
+	CLogicInt y(line);
+	for (int n = 0; n < 2; n++) {
+		CLogicInt found(0);
+		if (CBookmarkManager(&d.lines).SearchBookMark(y, forward ? SEARCH_FORWARD : SEARCH_BACKWARD, &found)) {
+			if (pWrapped) *pWrapped = forward ? (nYOld >= found) : (nYOld <= found);
+			return found;
+		}
+		if (!searchAll) break;
+		y = forward ? CLogicInt(-1) : d.lines.GetLineCount();
+	}
+	if (pWrapped) *pWrapped = false;
+	return -1;
+}
+
+void Document::ResetBookmarks() { CBookmarkManager(&m_impl->lines).ResetAllBookMark(); }
+
+bool Document::MarkPattern(const Text& key, const SearchOptions& options)
+{
+	// 原版 Command_BOOKMARK_PATTERN → CBookmarkManager::MarkSearchWord
+	auto& d = *m_impl;
+	d.lastSearchError.clear();
+	PreparedPattern prepared(key, options);
+	if (!prepared.ok) {
+		d.lastSearchError = prepared.error;
+		return false;
+	}
+	CBookmarkManager(&d.lines).MarkSearchWord(prepared.pattern);
+	return true;
+}
+
+Text Document::GetBookmarkList() const { return Text(CBookmarkManager(&m_impl->lines).GetBookMarks()); }
+
+void Document::SetBookmarkList(const Text& marks)
+{
+	std::vector<WCHAR> buf(marks.begin(), marks.end());
+	buf.push_back(0);
+	CBookmarkManager(&m_impl->lines).SetBookMarks(buf.data());
 }
 
 // ----- フォントサイズ（第 34 步） -----

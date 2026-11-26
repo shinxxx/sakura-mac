@@ -1330,6 +1330,9 @@ GrepDialogCheck CheckGrepDialog(const Text& file, const Text& excludeFile, const
 
 class Document;
 
+//! 対括弧の対応表にある括弧か（原版 CEditView::IsBracket，第 44 步）
+bool IsBracketChar(char16_t ch);
+
 // ----- タグジャンプ（第 43 步。原版 CViewCommander::Command_TagJumpNoMessage 中 Grep 的结果、エラーメッセージ 的部分）-----
 
 //! タグジャンプ 的目标
@@ -1932,8 +1935,55 @@ public:
 	//! この行に関数リストマークがあるか
 	bool HasFuncListMark(std::int32_t line) const;
 
+	// ----- 対括弧（第 44 步） -----
+
+	//! 対括弧の検索的结果
+	struct BracketMatch {
+		Position pair;		//!< 対応する括弧（原版 m_ptBracketPairPos_PHY）
+		Position bracket;	//!< カーソル位置の括弧（カーソルの後ろの文字、または直前の文字。原版 m_ptBracketCaretPos_PHY）
+	};
+	//! 只在表示領域里找时的范围（排版行，top、bottom 都包括）
+	struct BracketSearchArea {
+		std::int32_t top = 0;
+		std::int32_t bottom = 0;
+	};
+	/*!
+		対括弧の検索（原版 CEditView::SearchBracket）：光标后面的字是括弧时找对应的括弧，
+		不是时 checkPrev（原版 mode bit1）则看光标前面的字。不看注释、字符串（与原版相同）。
+		area 指定时只找到表示領域的边（原版 mode bit0 = 0：対括弧の強調表示），没指定时找到文件的头或尾（F_BRACKETPAIR）。
+	*/
+	std::optional<BracketMatch> FindBracketPair(const Position& caret, bool checkPrev,
+												std::optional<BracketSearchArea> area = std::nullopt) const;
+
+	// ----- ブックマーク（第 44 步） -----
+
+	//! この逻辑行にブックマークがあるか
+	bool IsBookmarked(std::int32_t line) const;
+	void SetBookmark(std::int32_t line, bool on);
+	//! ブックマーク設定・解除（原版 Command_BOOKMARK_SET）：fromLine～toLine（都包括）的每行反转
+	void ToggleBookmarks(std::int32_t fromLine, std::int32_t toLine);
+	/*!
+		次のブックマークへ／前のブックマークへ（原版 Command_BOOKMARK_NEXT/PREV）的目标逻辑行。
+		从 line 的下一行（前の 时上一行）找。searchAll（共通設定「先頭（末尾）から再検索する」）时绕回。
+		找不到时 -1。@param[out] pWrapped 绕回去了（原版「▼先頭から再検索しました」等）
+	*/
+	std::int32_t FindBookmark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped = nullptr) const;
+	//! ブックマークの全解除（原版 Command_BOOKMARK_RESET）
+	void ResetBookmarks();
+	/*!
+		パターンに一致する行をマーク（原版 Command_BOOKMARK_PATTERN → CBookmarkManager::MarkSearchWord）。
+		正規表現の错误时 false（GetLastSearchError）
+	*/
+	bool MarkPattern(const Text& key, const SearchOptions& options);
+	//! ブックマークの行番号のリスト（原版 GetBookMarks：「最近使ったファイル」に保存する形式 ":0…"）
+	Text GetBookmarkList() const;
+	//! 行番号のリストからブックマーク（原版 SetBookMarks。旧形式「1,3,5」も読める）
+	void SetBookmarkList(const Text& marks);
+
 private:
 	Document();
+	//! AddToRecent 的本体。marks 是登记的ブックマーク（原版 EditInfo::m_szMarkLines）
+	void AddToRecentWithMarks(const Position& caret, std::int32_t viewTopLine, const Text& marks);
 	struct Impl;
 	std::unique_ptr<Impl> m_impl;
 };

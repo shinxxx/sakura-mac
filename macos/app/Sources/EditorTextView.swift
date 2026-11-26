@@ -157,6 +157,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
 
     /// 查找的状态（第 32 步。原版 CEditView 的 m_strCurSearchKey 等。SearchCommands.swift）
     var searchState = SearchState()
+    /// 強調表示中の対括弧（第 44 步，原版 m_ptBracketPairPos_PHY、m_ptBracketCaretPos_PHY）
+    var bracketHighlight: (pair: EditorPosition, bracket: EditorPosition)?
+    /// カーソルが動いた・選択が終わった：次に描くときに対括弧を探し直す
+    var bracketHighlightDirty = true
     /// 查找、置换对话框（第 32 步。原版的 CEditWnd::m_cDlgFind、m_cDlgReplace，一个窗口一个）
     var findPanel: FindPanelController?
     /// アウトライン解析（第 42 步。原版 CEditWnd::m_cDlgFuncList）
@@ -609,7 +613,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     var hasSelection: Bool { selection != nil || boxSelection != nil }
 
     func clearSelection() {
-        if selectionAnchor != nil || isBoxSelection { needsDisplay = true }
+        if selectionAnchor != nil || isBoxSelection {
+            needsDisplay = true
+            bracketHighlightDirty = true	// 原版 CViewSelect：選択の終了で SetBracketPairPos(true)
+        }
         selectionAnchor = nil
         isBoxSelection = false
         selectingLock = false	// 原版 DisableSelectArea 也解除选择的锁定
@@ -657,6 +664,10 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
             NSRect(x: 0, y: dirtyRect.minY, width: gutterWidth, height: dirtyRect.height).fill()
         }
 
+        if bracketHighlightDirty {
+            bracketHighlightDirty = false
+            updateBracketHighlight()
+        }
         let first = rowIndex(atY: dirtyRect.minY)
         let last = min(displayLineCount, Int((dirtyRect.maxY - topMargin) / lineHeight) + 1)
         if first < last {
@@ -734,7 +745,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
 
         // 行号（原版 CTextDrawer::DispLineNumber）：按逻辑行数时，折り返した行不显示行号。EOF 的空行没有行号
-        if settings.showLineNumbers && current.isLayoutLine {
+        if current.isLayoutLine {
             drawLineNumber(current, row: r, top: top, rowBack: rowBack)
         } else if settings.showLineNumbers && rowBack != textBack {
             Self.nsColor(rowBack).setFill()
@@ -856,9 +867,22 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         guard current.isLayoutLine, current.text.length > 0 else { return [] }
         let search = searchMarkColors(row: r)
         let syntax = syntaxColors(row: r)
-        if syntax.isEmpty { return search }
-        if search.isEmpty { return syntax }
-        return zip(search, syntax).map { $0 ?? $1 }
+        var result: [EditorColorSetting?]
+        if syntax.isEmpty {
+            result = search
+        } else if search.isEmpty {
+            result = syntax
+        } else {
+            result = zip(search, syntax).map { $0 ?? $1 }
+        }
+        // 対括弧の強調表示（第 44 步）はいちばん上に描く（原版 DrawBracketPair は描画のあと）
+        let brackets = bracketHighlightIndices(row: r)
+        if !brackets.isEmpty {
+            if result.isEmpty { result = [EditorColorSetting?](repeating: nil, count: current.text.length) }
+            let info = color(.bracketPair)
+            for i in brackets { result[i] = info }
+        }
+        return result
     }
 
     /// 这一行的每个字符的语法颜色（第 33 步，原版的色分け：注释、字符串、关键字、数字、URL 等）。
@@ -916,15 +940,21 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 行号（原版 CTextDrawer::DispLineNumber）。改过的行用「行番号（変更行）」的颜色、粗体
+    /// 第 44 步：ブックマーク（DIFF）の行は「ブックマーク」の色（Bookmark.swift の lineNumberColor）。
+    /// 行番号を表示しないときも左の 8 点をその背景色で塗る（原版 DispLineNumber の「行番号エリアの背景描画」）
     private func drawLineNumber(_ current: Row, row r: Int, top: CGFloat, rowBack: UInt32) {
-        var info = color(.lineNumber)
-        let modified = color(.lineNumberModified)
-        if modified.display && document.isLineModified(current.start.line) {
-            info = modified
-        }
+        let (info, markBar) = lineNumberColor(line: current.start.line)
         let fg = Self.nsColor(info.text)
         Self.nsColor(backColor(info, rowBack: rowBack)).setFill()
         NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
+        defer {
+            // 「ブックマーク」を表示しないときのブックマークの縦線（原版：幅 2 のペンで x = 1）
+            if markBar {
+                fg.setFill()
+                NSRect(x: 0, y: top, width: 2, height: lineHeight).fill()
+            }
+        }
+        guard settings.showLineNumbers else { return }
         let number: String
         if settings.lineNumberPerLogicalLine {
             number = current.start.column == 0 ? String(current.start.line + 1) : ""
@@ -1190,6 +1220,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
                           height: max(visible.height, topMargin * 2 + CGFloat(displayLineCount + 1) * lineHeight))
         if frame.size != size { setFrameSize(size) }
         scrollToVisible(caretRect.insetBy(dx: -8, dy: 0))
+        bracketHighlightDirty = true
         needsDisplay = true
         inputContext?.invalidateCharacterCoordinates()
         // アウトライン解析の選択はキャレットに付いていく（原版 CCaret::ShowCaretPosInfo → NotifyCaretMovement）

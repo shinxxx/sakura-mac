@@ -238,9 +238,9 @@ final class FindPanelController: SearchPanelBase {
         let next = b.button(NSLocalizedString("下検索", comment: "IDD_FIND"), 221, 20, 58, id: "findNext",
                             target: self, action: #selector(searchNext(_:)))
         next.keyEquivalent = "\r"
-        // 該当行マーク（ブックマーク）はブックマークの移植（後のステップ）まで使えない
-        let mark = b.button(NSLocalizedString("該当行マーク", comment: "IDD_FIND"), 221, 38, 58, id: "findMark", target: nil, action: nil)
-        mark.isEnabled = false
+        // 該当行マーク（第 44 步：ブックマーク）
+        b.button(NSLocalizedString("該当行マーク", comment: "IDD_FIND"), 221, 38, 58, id: "findMark",
+                 target: self, action: #selector(markLines(_:)))
         let cancel = b.button(NSLocalizedString("キャンセル", comment: "IDD_FIND"), 221, 57, 58, id: "findCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
@@ -323,6 +323,13 @@ final class FindPanelController: SearchPanelBase {
     @objc func searchPrev(_ sender: Any?) { search(next: false) }
     @objc func searchNext(_ sender: Any?) { search(next: true) }
 
+    /// 該当行マーク（原版 IDC_BUTTON_SETMARK → F_BOOKMARK_PATTERN）。検索ダイアログを自動的に閉じる
+    @objc func markLines(_ sender: Any?) {
+        guard getData() > 0 else { return }
+        view?.bookmarkPattern(nil)
+        if EditorCore.searchSettings.autoCloseFind { close() }
+    }
+
     private func search(next: Bool) {
         let result = getData()
         if result > 0 {
@@ -399,8 +406,8 @@ final class ReplacePanelController: SearchPanelBase {
         nextButton = b.button(NSLocalizedString("下検索", comment: "IDD_REPLACE"), 237, 19, 56, id: "replaceNext",
                               target: self, action: #selector(searchNext(_:)))
         nextButton.keyEquivalent = "\r"
-        let mark = b.button(NSLocalizedString("該当行マーク", comment: "IDD_REPLACE"), 237, 38, 56, id: "replaceMark", target: nil, action: nil)
-        mark.isEnabled = false
+        b.button(NSLocalizedString("該当行マーク", comment: "IDD_REPLACE"), 237, 38, 56, id: "replaceMark",
+                 target: self, action: #selector(markLines(_:)))
         replaceButton = b.button(NSLocalizedString("置換", comment: "IDD_REPLACE"), 237, 57, 56, id: "replaceOne",
                                  target: self, action: #selector(replace(_:)))
         b.button(NSLocalizedString("すべて置換", comment: "IDD_REPLACE"), 237, 73, 56, id: "replaceAll",
@@ -539,6 +546,12 @@ final class ReplacePanelController: SearchPanelBase {
 
     @objc func searchPrev(_ sender: Any?) { search(next: false) }
     @objc func searchNext(_ sender: Any?) { search(next: true) }
+
+    /// 該当行マーク（原版 IDC_BUTTON_SETMARK → F_BOOKMARK_PATTERN）
+    @objc func markLines(_ sender: Any?) {
+        guard getData() > 0 else { return }
+        view?.bookmarkPattern(nil)
+    }
 
     private func search(next: Bool) {
         let result = getData()

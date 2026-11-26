@@ -291,6 +291,49 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abc XYf", "F6 之后方向键选择，输入替换选择范围")
     }
 
+    // MARK: - 第 44 步：編集支援
+
+    /// 検索 >「対括弧の検索」：カーソルが対応する括弧へ移る、もう一度で戻る
+    func testBracketPair() {
+        editor.typeText("f(a(b)c)d")
+        key(XCUIKeyboardKey.leftArrow.rawValue, .command)	// 行頭
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["対括弧の検索"].click()
+        editor.typeText("X")
+        XCTAssertEqual(text, "f(a(b)cX)d", "閉じ括弧の前へ移った")
+        menu.click()
+        menu.menuItems["対括弧の検索"].click()
+        editor.typeText("Y")
+        XCTAssertEqual(text, "fY(a(b)cX)d", "開き括弧の前へ戻った")
+    }
+
+    /// ブックマーク：⌘F2 設定・解除、F2 次へ、⇧F2 前へ（原版の Ctrl+F2・F2・Shift+F2）、検索 > ブックマーク > ブックマークの一覧
+    func testBookmarks() {
+        editor.typeText("one\ntwo\nthree\nfour")
+        key(XCUIKeyboardKey.upArrow.rawValue)			// three
+        key(XCUIKeyboardKey.F2.rawValue, .command)		// 設定
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文書の先頭
+        key(XCUIKeyboardKey.F2.rawValue)				// 次のブックマークへ
+        editor.typeText("X")
+        XCTAssertEqual(normalizedText, "one\ntwo\nXthree\nfour", "ブックマークの行の先頭へ移った")
+        key(XCUIKeyboardKey.downArrow.rawValue, .command)	// 文書の最後
+        key(XCUIKeyboardKey.F2.rawValue, .shift)		// 前のブックマークへ
+        editor.typeText("Y")
+        XCTAssertEqual(normalizedText, "one\ntwo\nYXthree\nfour")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        let submenu = menu.menuItems["ブックマーク"]
+        XCTAssertTrue(submenu.waitForExistence(timeout: 3))
+        submenu.hover()
+        let view = submenu.menuItems["ブックマークの一覧..."]
+        XCTAssertTrue(view.waitForExistence(timeout: 3), "検索 > ブックマーク > ブックマークの一覧")
+        XCTAssertTrue(view.isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")

@@ -2335,6 +2335,53 @@ static ECSearchResult *InvalidViewResult()
 
 - (void)setUnmodified { _doc->SetUnmodified(); }
 
+// ----- 編集支援（第 44 步） -----
+
+- (BOOL)findBracketPairAt:(ECPosition)caret checkPrev:(BOOL)checkPrev areaTop:(NSInteger)areaTop areaBottom:(NSInteger)areaBottom
+	pair:(ECPosition *)outPair bracket:(ECPosition *)outBracket
+{
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.column)) return NO;
+	std::optional<core::Document::BracketSearchArea> area;
+	if (areaTop <= areaBottom) area = core::Document::BracketSearchArea{ ClampInt32(areaTop), ClampInt32(areaBottom) };
+	const auto r = _doc->FindBracketPair(ToCore(caret), checkPrev == YES, area);
+	if (!r) return NO;
+	if (outPair) *outPair = FromCore(r->pair);
+	if (outBracket) *outBracket = FromCore(r->bracket);
+	return YES;
+}
+
++ (BOOL)isBracketCharacter:(unichar)ch { return core::IsBracketChar(static_cast<char16_t>(ch)) ? YES : NO; }
+
+- (BOOL)isBookmarked:(NSInteger)line { return FitsInt32(line) && _doc->IsBookmarked(static_cast<std::int32_t>(line)) ? YES : NO; }
+
+- (void)setBookmark:(BOOL)on line:(NSInteger)line
+{
+	if (FitsInt32(line)) _doc->SetBookmark(static_cast<std::int32_t>(line), on == YES);
+}
+
+- (void)toggleBookmarksFrom:(NSInteger)fromLine to:(NSInteger)toLine
+{
+	_doc->ToggleBookmarks(ClampInt32(fromLine), ClampInt32(toLine));
+}
+
+- (NSInteger)findBookmarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll wrapped:(nullable BOOL *)wrapped
+{
+	bool w = false;
+	const std::int32_t found = _doc->FindBookmark(ClampInt32(line), forward == YES, searchAll == YES, &w);
+	if (wrapped) *wrapped = w ? YES : NO;
+	return found;
+}
+
+- (void)resetBookmarks { _doc->ResetBookmarks(); }
+
+- (BOOL)markPattern:(NSString *)key options:(ECSearchOptions)options
+{
+	return _doc->MarkPattern(ToText(key), ToCore(options)) ? YES : NO;
+}
+
+- (NSString *)bookmarkList { return ToNSString(_doc->GetBookmarkList()); }
+- (void)setBookmarkList:(NSString *)bookmarkList { _doc->SetBookmarkList(ToText(bookmarkList)); }
+
 - (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line
 {
 	const auto target = core::FindTagJump(*_doc, ClampInt32(line));
