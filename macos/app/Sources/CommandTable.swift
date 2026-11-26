@@ -91,6 +91,12 @@ enum CommandTable {
         30945: #selector(EditorTextView.tagJumpClose(_:)),			// F_TAGJUMP_CLOSE 閉じてタグジャンプ
         // 第 44 步：編集支援（BracketPair.swift 等）
         30960: #selector(EditorTextView.bracketPair(_:)),			// F_BRACKETPAIR 対括弧の検索
+        30970: #selector(EditorTextView.bookmarkSet(_:)),			// F_BOOKMARK_SET ブックマーク設定・解除（Bookmark.swift）
+        30971: #selector(EditorTextView.bookmarkNext(_:)),			// F_BOOKMARK_NEXT 次のブックマークへ
+        30972: #selector(EditorTextView.bookmarkPrev(_:)),			// F_BOOKMARK_PREV 前のブックマークへ
+        30973: #selector(EditorTextView.bookmarkReset(_:)),			// F_BOOKMARK_RESET ブックマークの全解除
+        30974: #selector(EditorTextView.bookmarkView(_:)),			// F_BOOKMARK_VIEW ブックマークの一覧
+        30975: #selector(EditorTextView.bookmarkPattern(_:)),		// F_BOOKMARK_PATTERN パターンに一致する行をマーク
         // 第 42 步：アウトライン解析（OutlineWindow.swift）
         30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
         30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)

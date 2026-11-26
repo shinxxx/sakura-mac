@@ -745,7 +745,7 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         }
 
         // 行号（原版 CTextDrawer::DispLineNumber）：按逻辑行数时，折り返した行不显示行号。EOF 的空行没有行号
-        if settings.showLineNumbers && current.isLayoutLine {
+        if current.isLayoutLine {
             drawLineNumber(current, row: r, top: top, rowBack: rowBack)
         } else if settings.showLineNumbers && rowBack != textBack {
             Self.nsColor(rowBack).setFill()
@@ -940,15 +940,21 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
     }
 
     /// 行号（原版 CTextDrawer::DispLineNumber）。改过的行用「行番号（変更行）」的颜色、粗体
+    /// 第 44 步：ブックマーク（DIFF）の行は「ブックマーク」の色（Bookmark.swift の lineNumberColor）。
+    /// 行番号を表示しないときも左の 8 点をその背景色で塗る（原版 DispLineNumber の「行番号エリアの背景描画」）
     private func drawLineNumber(_ current: Row, row r: Int, top: CGFloat, rowBack: UInt32) {
-        var info = color(.lineNumber)
-        let modified = color(.lineNumberModified)
-        if modified.display && document.isLineModified(current.start.line) {
-            info = modified
-        }
+        let (info, markBar) = lineNumberColor(line: current.start.line)
         let fg = Self.nsColor(info.text)
         Self.nsColor(backColor(info, rowBack: rowBack)).setFill()
         NSRect(x: 0, y: top, width: gutterWidth, height: lineHeight).fill()
+        defer {
+            // 「ブックマーク」を表示しないときのブックマークの縦線（原版：幅 2 のペンで x = 1）
+            if markBar {
+                fg.setFill()
+                NSRect(x: 0, y: top, width: 2, height: lineHeight).fill()
+            }
+        }
+        guard settings.showLineNumbers else { return }
         let number: String
         if settings.lineNumberPerLogicalLine {
             number = current.start.column == 0 ? String(current.start.line + 1) : ""

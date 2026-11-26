@@ -309,6 +309,31 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "fY(a(b)cX)d", "開き括弧の前へ戻った")
     }
 
+    /// ブックマーク：⌘F2 設定・解除、F2 次へ、⇧F2 前へ（原版の Ctrl+F2・F2・Shift+F2）、検索 > ブックマーク > ブックマークの一覧
+    func testBookmarks() {
+        editor.typeText("one\ntwo\nthree\nfour")
+        key(XCUIKeyboardKey.upArrow.rawValue)			// three
+        key(XCUIKeyboardKey.F2.rawValue, .command)		// 設定
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文書の先頭
+        key(XCUIKeyboardKey.F2.rawValue)				// 次のブックマークへ
+        editor.typeText("X")
+        XCTAssertEqual(normalizedText, "one\ntwo\nXthree\nfour", "ブックマークの行の先頭へ移った")
+        key(XCUIKeyboardKey.downArrow.rawValue, .command)	// 文書の最後
+        key(XCUIKeyboardKey.F2.rawValue, .shift)		// 前のブックマークへ
+        editor.typeText("Y")
+        XCTAssertEqual(normalizedText, "one\ntwo\nYXthree\nfour")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        let submenu = menu.menuItems["ブックマーク"]
+        XCTAssertTrue(submenu.waitForExistence(timeout: 3))
+        submenu.hover()
+        let view = submenu.menuItems["ブックマークの一覧..."]
+        XCTAssertTrue(view.waitForExistence(timeout: 3), "検索 > ブックマーク > ブックマークの一覧")
+        XCTAssertTrue(view.isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")

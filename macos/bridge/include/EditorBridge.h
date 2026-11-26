@@ -1320,6 +1320,21 @@ NS_SWIFT_NAME(EditorDocument)
 //! 対括弧の対応表にある括弧か
 + (BOOL)isBracketCharacter:(unichar)ch NS_SWIFT_NAME(isBracket(_:));
 
+//! この逻辑行にブックマークがあるか
+- (BOOL)isBookmarked:(NSInteger)line NS_SWIFT_NAME(isBookmarked(_:));
+- (void)setBookmark:(BOOL)on line:(NSInteger)line NS_SWIFT_NAME(setBookmark(_:line:));
+//! ブックマーク設定・解除：fromLine～toLine（都包括）的每行反转
+- (void)toggleBookmarksFrom:(NSInteger)fromLine to:(NSInteger)toLine NS_SWIFT_NAME(toggleBookmarks(from:to:));
+//! 次／前のブックマーク的目标逻辑行。找不到时 -1。wrapped：绕回去了
+- (NSInteger)findBookmarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll
+	wrapped:(nullable BOOL *)wrapped NS_SWIFT_NAME(findBookmark(from:forward:searchAll:wrapped:));
+//! ブックマークの全解除
+- (void)resetBookmarks;
+//! パターンに一致する行をマーク。正規表現の错误时 NO（lastSearchError）
+- (BOOL)markPattern:(NSString *)key options:(ECSearchOptions)options NS_SWIFT_NAME(markPattern(_:options:));
+//! ブックマークの行番号のリスト（「最近使ったファイル」の形式）
+@property (copy) NSString *bookmarkList;
+
 @end
 
 NS_ASSUME_NONNULL_END

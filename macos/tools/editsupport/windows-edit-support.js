@@ -57,6 +57,68 @@ sections.push(function () {
 	Editor.FileClose();
 });
 
+// ----- ブックマーク：設定・解除（選択範囲）、次・前（先頭から再検索する・しない）、全解除、パターンに一致する行をマーク -----
+sections.push(function () {
+	var out = [];
+	Editor.FileOpen("@DATA@\\bookmarks.txt");
+	var n = Editor.GetLineCount(0);
+	function marks(title) {
+		var s = [];
+		for (var y = 1; y <= n; y++) {
+			if (Editor.GetLineAttribute(y, 2)) s.push(y);
+		}
+		out.push(title + ": " + s.join(","));
+	}
+	// 見つからないときのメッセージを出さない（0x08 を付けない）、先頭（末尾）から再検索する（0x20）
+	function setSearchAll(on) {
+		Editor.SearchNext("\u0001\u0002notfound", (on ? 0x20 : 0) | 0x800);
+	}
+	function walk(title) {
+		var s = [];
+		for (var y = 1; y <= n; y++) {
+			Editor.MoveCursor(y, 2, 0);
+			Editor.BookmarkNext();
+			var next = caret();
+			Editor.MoveCursor(y, 2, 0);
+			Editor.BookmarkPrev();
+			s.push(y + ">" + next + "<" + caret());
+		}
+		out.push(title + ": " + s.join(" "));
+	}
+	Editor.MoveCursor(2, 1, 0); Editor.BookmarkSet();
+	Editor.MoveCursor(5, 1, 0); Editor.BookmarkSet();
+	marks("set 2,5");
+	Editor.MoveCursor(3, 1, 0); Editor.MoveCursor(5, 1, 1); Editor.BookmarkSet();
+	marks("toggle 3-5");
+	Editor.MoveCursor(8, 3, 0); Editor.MoveCursor(9, 1, 1); Editor.BookmarkSet();
+	marks("toggle 8-9");
+	Editor.MoveCursor(1, 1, 0); Editor.BookmarkSet(); Editor.BookmarkSet();
+	marks("toggle 1 twice");
+	setSearchAll(true);
+	walk("next/prev searchAll");
+	setSearchAll(false);
+	walk("next/prev");
+	Editor.BookmarkReset();
+	marks("reset");
+	Editor.MoveCursor(1, 1, 0);
+	setSearchAll(false);
+	walk("no marks");
+	Editor.BookmarkPattern("ab", 0x800);
+	marks("pattern ab");
+	Editor.BookmarkPattern("ab", 0x02 | 0x800);
+	marks("pattern ab case");
+	Editor.BookmarkReset();
+	Editor.BookmarkPattern("ab", 0x01 | 0x800);
+	marks("pattern ab word");
+	Editor.BookmarkReset();
+	Editor.BookmarkPattern("^\\s*$", 0x04 | 0x800);
+	marks("pattern regex blank");
+	Editor.BookmarkPattern("AB", 0x02 | 0x800);
+	marks("pattern AB case added");
+	writeResult("bookmark", out);
+	Editor.FileClose();
+});
+
 for (var i = 0; i < sections.length; i++) {
 	try {
 		sections[i]();

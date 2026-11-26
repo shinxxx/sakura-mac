@@ -38,6 +38,7 @@
 #include "doc/layout/CLayout.h"
 #include "doc/layout/CLayoutMgr.h"
 #include "docplus/CModifyManager.h"
+#include "docplus/CBookmarkManager.h"
 #include "view/colors/EColorIndexType.h"
 #include "view/colors/CColorStrategy.h"
 #include "env/CRegexKeyword.h"
@@ -2127,7 +2128,13 @@ Result Document::Open(const Text& path, const OpenOptions& options)
 			caret = view.caret;
 			viewTopLine = view.viewTopLine;
 		}
-		AddToRecent(caret, viewTopLine);
+		// ブックマーク復元（第 44 步）。历史里的记录照原样留着（原版 OnAfterLoad 的 eiOld.m_szMarkLines）
+		Text marks;
+		if (bInMRU && GetDllShareData().m_Common.m_sFile.GetRestoreBookmarks()) {
+			marks = Text(fiPrev.m_szMarkLines);
+			SetBookmarkList(marks);
+		}
+		AddToRecentWithMarks(caret, viewTopLine, marks);
 	}
 	return FromConvertResult(eRet);
 }
@@ -2379,7 +2386,12 @@ std::optional<RestoredView> Document::GetRestoredView() const { return m_impl->r
 
 void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
 {
-	// 原版 CMruListener::_HoldBookmarks_And_AddToMRU（内容是 CEditDoc::GetEditInfo）。书签（ブックマーク）还没有移植
+	// 原版 CMruListener::_HoldBookmarks_And_AddToMRU（内容是 CEditDoc::GetEditInfo，ブックマーク也一起登记，第 44 步）
+	AddToRecentWithMarks(caret, viewTopLine, GetBookmarkList());
+}
+
+void Document::AddToRecentWithMarks(const Position& caret, std::int32_t viewTopLine, const Text& marks)
+{
 	const auto& d = *m_impl;
 	if (d.info.path.empty() || d.info.path.size() >= _MAX_PATH) return;
 	EditInfo fi;
@@ -2391,6 +2403,7 @@ void Document::AddToRecent(const Position& caret, std::int32_t viewTopLine)
 	fi.m_nCharCode = static_cast<ECodeType>(d.info.encoding);
 	fi.m_bBom = d.info.bom;
 	fi.m_nTypeId = d.typeConfig.m_id;
+	fi.m_szMarkLines = marks.substr(0, MAX_MARKLINES_LEN).c_str();
 	CMRUFile().Add(&fi);
 }
 
@@ -5071,6 +5084,74 @@ std::optional<Document::BracketMatch> Document::FindBracketPair(const Position& 
 		return BracketMatch{ **r, FromLogic(ptPos) };
 	}
 	return std::nullopt;
+}
+
+// ----- ブックマーク（第 44 步。原版 cmd/CViewCommander_Bookmark.cpp、docplus/CBookmarkManager.cpp） -----
+
+bool Document::IsBookmarked(std::int32_t line) const
+{
+	const CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(line));
+	return pLine && CBookmarkGetter(pLine).IsBookmarked();
+}
+
+void Document::SetBookmark(std::int32_t line, bool on)
+{
+	if (CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(line))) CBookmarkSetter(pLine).SetBookmark(on);
+}
+
+void Document::ToggleBookmarks(std::int32_t fromLine, std::int32_t toLine)
+{
+	// 原版 Command_BOOKMARK_SET：各行のブックマークを反転
+	for (std::int32_t y = fromLine; y <= toLine; ++y) {
+		if (CDocLine* pLine = m_impl->lines.GetLine(CLogicInt(y))) {
+			CBookmarkSetter cBookmark(pLine);
+			cBookmark.SetBookmark(!cBookmark.IsBookmarked());
+		}
+	}
+}
+
+std::int32_t Document::FindBookmark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped) const
+{
+	// 原版 Command_BOOKMARK_NEXT / Command_BOOKMARK_PREV
+	auto& d = *m_impl;
+	const int nYOld = line;
+	CLogicInt y(line);
+	for (int n = 0; n < 2; n++) {
+		CLogicInt found(0);
+		if (CBookmarkManager(&d.lines).SearchBookMark(y, forward ? SEARCH_FORWARD : SEARCH_BACKWARD, &found)) {
+			if (pWrapped) *pWrapped = forward ? (nYOld >= found) : (nYOld <= found);
+			return found;
+		}
+		if (!searchAll) break;
+		y = forward ? CLogicInt(-1) : d.lines.GetLineCount();
+	}
+	if (pWrapped) *pWrapped = false;
+	return -1;
+}
+
+void Document::ResetBookmarks() { CBookmarkManager(&m_impl->lines).ResetAllBookMark(); }
+
+bool Document::MarkPattern(const Text& key, const SearchOptions& options)
+{
+	// 原版 Command_BOOKMARK_PATTERN → CBookmarkManager::MarkSearchWord
+	auto& d = *m_impl;
+	d.lastSearchError.clear();
+	PreparedPattern prepared(key, options);
+	if (!prepared.ok) {
+		d.lastSearchError = prepared.error;
+		return false;
+	}
+	CBookmarkManager(&d.lines).MarkSearchWord(prepared.pattern);
+	return true;
+}
+
+Text Document::GetBookmarkList() const { return Text(CBookmarkManager(&m_impl->lines).GetBookMarks()); }
+
+void Document::SetBookmarkList(const Text& marks)
+{
+	std::vector<WCHAR> buf(marks.begin(), marks.end());
+	buf.push_back(0);
+	CBookmarkManager(&m_impl->lines).SetBookMarks(buf.data());
 }
 
 // ----- フォントサイズ（第 34 步） -----

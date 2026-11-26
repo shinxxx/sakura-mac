@@ -1955,8 +1955,35 @@ public:
 	std::optional<BracketMatch> FindBracketPair(const Position& caret, bool checkPrev,
 												std::optional<BracketSearchArea> area = std::nullopt) const;
 
+	// ----- ブックマーク（第 44 步） -----
+
+	//! この逻辑行にブックマークがあるか
+	bool IsBookmarked(std::int32_t line) const;
+	void SetBookmark(std::int32_t line, bool on);
+	//! ブックマーク設定・解除（原版 Command_BOOKMARK_SET）：fromLine～toLine（都包括）的每行反转
+	void ToggleBookmarks(std::int32_t fromLine, std::int32_t toLine);
+	/*!
+		次のブックマークへ／前のブックマークへ（原版 Command_BOOKMARK_NEXT/PREV）的目标逻辑行。
+		从 line 的下一行（前の 时上一行）找。searchAll（共通設定「先頭（末尾）から再検索する」）时绕回。
+		找不到时 -1。@param[out] pWrapped 绕回去了（原版「▼先頭から再検索しました」等）
+	*/
+	std::int32_t FindBookmark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped = nullptr) const;
+	//! ブックマークの全解除（原版 Command_BOOKMARK_RESET）
+	void ResetBookmarks();
+	/*!
+		パターンに一致する行をマーク（原版 Command_BOOKMARK_PATTERN → CBookmarkManager::MarkSearchWord）。
+		正規表現の错误时 false（GetLastSearchError）
+	*/
+	bool MarkPattern(const Text& key, const SearchOptions& options);
+	//! ブックマークの行番号のリスト（原版 GetBookMarks：「最近使ったファイル」に保存する形式 ":0…"）
+	Text GetBookmarkList() const;
+	//! 行番号のリストからブックマーク（原版 SetBookMarks。旧形式「1,3,5」も読める）
+	void SetBookmarkList(const Text& marks);
+
 private:
 	Document();
+	//! AddToRecent 的本体。marks 是登记的ブックマーク（原版 EditInfo::m_szMarkLines）
+	void AddToRecentWithMarks(const Position& caret, std::int32_t viewTopLine, const Text& marks);
 	struct Impl;
 	std::unique_ptr<Impl> m_impl;
 };
