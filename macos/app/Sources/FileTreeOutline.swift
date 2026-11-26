@@ -157,8 +157,11 @@ final class FileTreeData: NSObject, NSOutlineViewDataSource, NSOutlineViewDelega
         guard node.children == nil else { return !(node.children ?? []).isEmpty }
         guard loadChildren(node) else { return false }
         if node.children?.isEmpty ?? true {
-            // [+]記号削除
-            DispatchQueue.main.async { outlineView.reloadItem(node) }
+            // [+]記号削除（展開の処理が終わってから。その前にツリーが作り直されていたら何もしない）
+            DispatchQueue.main.async { [weak self, weak outlineView, weak node] in
+                guard let self, let outlineView, let node, outlineView.dataSource === self, outlineView.row(forItem: node) >= 0 else { return }
+                outlineView.reloadItem(node)
+            }
             return false
         }
         outlineView.reloadItem(node, reloadChildren: true)

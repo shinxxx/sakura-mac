@@ -166,7 +166,10 @@ final class FileTreeTests: XCTestCase {
         XCTAssertTrue(outline.isExpandable(empty))
         outline.expandItem(empty)
         XCTAssertFalse(outline.isItemExpanded(empty))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        let deadline = Date().addingTimeInterval(3)
+        while outline.isExpandable(empty) && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
         XCTAssertFalse(outline.isExpandable(empty))
         // コピーは無い（原版 m_cmemClipText が空）
         panel.copyToPasteboard()
