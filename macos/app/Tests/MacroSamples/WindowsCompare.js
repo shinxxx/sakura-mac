@@ -69,7 +69,9 @@ Editor.MoveCursor(1, 6, 0);
 Editor.SelectWord();
 put("selectword", Editor.GetSelectedString(0));
 put("selected", Editor.IsTextSelected());
-put("select.range", Editor.GetSelectLineFrom() + "," + Editor.GetSelectColmFrom() + "-" + Editor.GetSelectLineTo() + "," + Editor.GetSelectColmTo());
+// GetSelectColmFrom・GetSelectColmTo・LineIndexToColumn・LineColumnToIndex は比べない：
+// 原版 2.4 のレイアウト桁はフォントの幅の単位（CI の Windows では一文字 7）で、文字単位の Mac 版と合わない（phase3-macro.md）
+put("select.lines", Editor.GetSelectLineFrom() + "-" + Editor.GetSelectLineTo());
 Editor.MoveCursor(2, 1, 0);
 put("selected.after", Editor.IsTextSelected());
 Editor.SelectLine();
@@ -165,11 +167,9 @@ put("cookie.delete2", Editor.DeleteCookie("window", "k1"));
 put("cookie.badscope", Editor.SetCookie("app", "k", "v"));
 put("cookie.badname", Editor.SetCookie("window", "1x", "v"));
 
-// ----- 行・桁の換算、バージョン -----
+// ----- 行の換算、バージョン -----
 clear();
 Editor.InsText("a\tbあc");
-put("index2column", Editor.LineIndexToColumn(1, 3) + "," + Editor.LineIndexToColumn(1, 5));
-put("column2index", Editor.LineColumnToIndex(1, 5) + "," + Editor.LineColumnToIndex(1, 9));
 put("linenum", Editor.LayoutToLogicLineNum(1) + "," + Editor.LogicToLayoutLineNum(1, 1));
 put("compareversion", Editor.CompareVersion("2.4.1", "2.4.10") + "," + Editor.CompareVersion("2.4.1.0", "2.4.1") + "," + Editor.CompareVersion("2.3", "2.4"));
 
