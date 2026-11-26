@@ -127,6 +127,25 @@ final class DialogScreenshotTests: XCTestCase {
         compare.window.orderOut(nil)
     }
 
+    /// タグジャンプ一覧（キーワード指定・ダイレクト）
+    func testTagJumpListDialog() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("shot-tags-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("src"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try "!_TAG_FILE_SORTED\t1\t/sorted/\nShape\tsrc/shape.h\t12;\"\ts\nShape\tsrc/shape.cpp\t40;\"\tc\tclass:Base\nShapeList\tsrc/list.cpp\t7;\"\tf\n"
+            .write(to: folder.appendingPathComponent("tags"), atomically: true, encoding: .utf8)
+        let base = folder.appendingPathComponent("src/main.cpp").path
+        for direct in [false, true] {
+            let search = TagJumpSearch(baseFilePath: base, direct: direct)
+            if direct { _ = search.findDirect("Shape") }
+            let dialog = try XCTUnwrap(TagJumpListDialogController(search: search, direct: direct, keyword: "Shape"))
+            if !direct { dialog.findNow() }
+            dialog.window.orderFront(nil)
+            try shot(try XCTUnwrap(dialog.window.contentView), direct ? "IDD_TAGJUMPLIST_direct" : "IDD_TAGJUMPLIST")
+            dialog.window.orderOut(nil)
+        }
+    }
+
     /// 編集画面：DIFF の印（追加・変更・削除）、ブックマーク、強調した対括弧、I-Search のステータスメッセージ
     func testEditorMarks() throws {
         let view = try makeView()

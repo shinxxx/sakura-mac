@@ -8,7 +8,7 @@ import EditorBridge
 /// タグジャンプ（第 43 步。原版 CViewCommander_TagJump.cpp の Command_TAGJUMP・Command_TAGJUMPBACK、CEditView::TagJumpSub）。
 ///
 /// 飛び先は核心库が決める（EditorDocument.tagJump(at:)：Grep の結果の各形式、「ファイル名(行,桁)」のメッセージ）。
-/// tags ファイルのタグジャンプ（ダイレクトタグジャンプ）は第 44 步。
+/// tags ファイルのタグジャンプ（ダイレクトタグジャンプ）は第 44 步（TagJumpList.swift）：ファイル名がない行では tags で探す。
 /// 原版は戻り先を共有メモリに積む（CTagJumpManager。最大 MAX_TAGJUMPNUM 個）。Mac 版は App の中に積む。
 enum TagJumpStack {
     struct Entry {
@@ -72,7 +72,10 @@ extension EditorTextView {
     @discardableResult
     func tagJump(close: Bool) -> Bool {
         guard let target = document.tagJump(at: caret.line) else {
-            NSSound.beep()	// 原版はステータスバーに「タグジャンプできません」
+            // ファイル名がなければ tags ファイルで（第 44 步，原版 Command_TagJumpByTagsFile）
+            if tagJumpByTagsFile(close: close) { return true }
+            NSSound.beep()
+            sendStatusMessage(NSLocalizedString("タグジャンプできません", comment: "STR_ERR_TAGJMP1"))
             return false
         }
         let origin = caret

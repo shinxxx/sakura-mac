@@ -856,6 +856,14 @@ static std::vector<std::pair<core::Text, core::Text>> ToPairs(NSDictionary<NSStr
 + (void)addSearchKey:(NSString *)key { core::AddSearchKey(ToText(key)); }
 + (ECMigemoStatus)prepareMigemo { return static_cast<ECMigemoStatus>(core::PrepareMigemo()); }
 
++ (NSArray<NSString *> *)tagJumpKeywordHistory
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& k : core::TagJumpKeywordHistory()) [result addObject:ToNSString(k)];
+	return result;
+}
++ (void)addTagJumpKeyword:(NSString *)keyword { core::AddTagJumpKeyword(ToText(keyword)); }
+
 + (NSString *)windowListLabelForPath:(NSString *)path untitledId:(NSInteger)untitledId modified:(BOOL)modified
 	encoding:(ECEncoding)encoding grepKey:(nullable NSString *)grepKey index:(NSInteger)index
 {
@@ -1842,6 +1850,59 @@ std::vector<core::FileTreeItem> FromFileTreeItems(NSArray<ECFileTreeItem *> *ite
 + (NSString *)sourceToken:(uint64_t)sourceID { return ToNSString(core::GrepSourceToken(sourceID)); }
 + (NSInteger)outputTypeIndex { return core::GrepOutputTypeIndex(); }
 
+@end
+
+@implementation ECTagJumpListItem
+- (instancetype)initWithItem:(const core::TagJumpListItem&)i
+{
+	if ((self = [super init])) {
+		_keyword = ToNSString(i.keyword);
+		_file = ToNSString(i.file);
+		_line = i.line;
+		_kind = ToNSString(i.kind);
+		_note = ToNSString(i.note);
+		_depth = i.depth;
+		_hasBaseDir = i.hasBaseDir ? YES : NO;
+	}
+	return self;
+}
+@end
+
+@implementation ECTagJumpList {
+	std::unique_ptr<core::TagJumpList> _list;
+}
+- (instancetype)initWithBaseFilePath:(NSString *)path direct:(BOOL)direct
+{
+	if ((self = [super init])) {
+		_list = std::make_unique<core::TagJumpList>(ToText(path), direct == YES);
+	}
+	return self;
+}
+- (NSInteger)findDirect:(NSString *)keyword { return _list->FindDirect(ToText(keyword)); }
+- (void)find:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial newFind:(BOOL)newFind
+{
+	_list->Find(ToText(keyword), icase == YES, partial == YES, newFind == YES);
+}
+- (void)nextPage:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial { _list->NextPage(ToText(keyword), icase == YES, partial == YES); }
+- (void)prevPage:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial { _list->PrevPage(ToText(keyword), icase == YES, partial == YES); }
+- (NSArray<ECTagJumpListItem *> *)items
+{
+	NSMutableArray<ECTagJumpListItem *> *result = [NSMutableArray array];
+	for (const auto& i : _list->Items()) [result addObject:[[ECTagJumpListItem alloc] initWithItem:i]];
+	return result;
+}
+- (NSInteger)bestIndex { return _list->BestIndex(); }
+- (BOOL)hasNextPage { return _list->HasNextPage() ? YES : NO; }
+- (BOOL)hasPrevPage { return _list->HasPrevPage() ? YES : NO; }
+- (NSString *)baseDirectory { return ToNSString(_list->BaseDirectory()); }
+- (nullable NSString *)fullPathAtIndex:(NSInteger)index line:(NSInteger *)line
+{
+	if (!FitsInt32(index)) return nil;
+	const auto t = _list->FullPathAndLine(static_cast<std::int32_t>(index));
+	if (!t) return nil;
+	if (line) *line = t->line;
+	return ToNSString(t->path);
+}
 @end
 
 @implementation ECKeywordHelp

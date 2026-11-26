@@ -392,6 +392,33 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "print_value print_value", "候補が 1 つ：すぐに決まる")
     }
 
+    /// 検索 > ダイレクトタグジャンプ：カーソル位置の単語を tags ファイルで探して、そのファイルのその行へ（第 44 步）
+    func testDirectTagJump() throws {
+        let dir = try makeGrepFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "call TagTarget here\n".write(to: dir.appendingPathComponent("main.txt"), atomically: true, encoding: .utf8)
+        try "one\ntwo\nthree\n".write(to: dir.appendingPathComponent("area.txt"), atomically: true, encoding: .utf8)
+        try "!_TAG_FILE_SORTED\t1\t/sorted/\nTagTarget\tarea.txt\t3;\"\tf\n".write(to: dir.appendingPathComponent("tags"), atomically: true, encoding: .utf8)
+        // main.txt を開く：Grep の結果からタグジャンプ（カーソルは TagTarget の先頭）
+        grep(in: app, key: "TagTarget", folder: dir.path)
+        XCTAssertTrue(waitFor(timeout: 10) { self.text.contains("\(dir.path)/main.txt(1,6)") }, "Grep の結果：\(text)")
+        let lines = normalizedText.components(separatedBy: "\n")
+        let target = try XCTUnwrap(lines.firstIndex { $0.hasPrefix("\(dir.path)/main.txt") })
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)
+        for _ in 0..<target { key(XCUIKeyboardKey.downArrow.rawValue) }
+        key(XCUIKeyboardKey.return.rawValue)
+        let main = documentWindow(app, "main.txt")
+        XCTAssertTrue(main.waitForExistence(timeout: 10), "main.txt が開いた")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["ダイレクトタグジャンプ"].click()
+        let area = documentWindow(app, "area.txt")
+        XCTAssertTrue(area.waitForExistence(timeout: 10), "tags の area.txt が開いた")
+        let areaEditor = area.textViews["editor"]
+        areaEditor.typeText("Z")
+        XCTAssertEqual(areaEditor.value as? String, "one\ntwo\nZthree\n", "3 行目へ移った")
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")

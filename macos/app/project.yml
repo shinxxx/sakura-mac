@@ -143,6 +143,7 @@ targets:
       - path: Sources/DiffCommands.swift
       - path: Sources/Hokan.swift
       - path: Sources/KeywordHelp.swift
+      - path: Sources/TagJumpList.swift
       - path: Resources/EditSupportDialogs.json
         buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
