@@ -354,10 +354,13 @@ jobs:
         working-directory: macos/app
         run: |
           set -o pipefail
+          # 通用二进制：目的地是「Any Mac」（只写 -scheme 时 xcodebuild 选第一个目的地「My Mac arm64」，
+          # 2026-11-23 的 runner image 起只编 arm64）
           xcodebuild \
             -project SakuraMac.xcodeproj \
             -scheme SakuraMac \
             -configuration Release \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
