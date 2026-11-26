@@ -257,8 +257,9 @@ final class SakuraMacUITests: XCTestCase {
         let search = bar.menuBarItems["検索"]
         search.click()
         XCTAssertTrue(search.menuItems["次を検索"].isEnabled, "已移植的功能可以用")
-        XCTAssertTrue(search.menuItems["Grep..."].exists, "原版的「Grep...」")
-        XCTAssertFalse(search.menuItems["Grep..."].isEnabled, "还没有移植的功能变灰")
+        XCTAssertTrue(search.menuItems["Grep..."].isEnabled, "原版的「Grep...」（第 43 步）")
+        XCTAssertTrue(search.menuItems["ファイル内容比較..."].exists, "原版的「ファイル内容比較...」")
+        XCTAssertFalse(search.menuItems["ファイル内容比較..."].isEnabled, "还没有移植的功能变灰")
         let incremental = search.menuItems["インクリメンタルサーチ"]
         incremental.hover()
         XCTAssertTrue(incremental.menuItems["前方インクリメンタルサーチ"].waitForExistence(timeout: 3), "子菜单也与原版相同")
@@ -1054,7 +1055,7 @@ final class SakuraMacUITests: XCTestCase {
         key(XCUIKeyboardKey.upArrow.rawValue, .command)
         for _ in 0..<target { key(XCUIKeyboardKey.downArrow.rawValue) }
         key(XCUIKeyboardKey.return.rawValue)
-        let opened = app.windows["b.txt"]
+        let opened = documentWindow(app, "b.txt")
         XCTAssertTrue(opened.waitForExistence(timeout: 10), "タグジャンプでファイルが開いた")
         let openedEditor = opened.textViews["editor"]
         XCTAssertEqual(openedEditor.value as? String, "x\nHIT b\n")
@@ -1113,8 +1114,13 @@ final class SakuraMacUITests: XCTestCase {
         key(XCUIKeyboardKey.upArrow.rawValue, .command)
         for _ in 0..<target { key(XCUIKeyboardKey.downArrow.rawValue) }
         key(XCUIKeyboardKey.return.rawValue)
-        XCTAssertTrue(app.windows["a.txt"].waitForExistence(timeout: 10), "書签の許可で、結果からファイルを開けた")
-        XCTAssertEqual(app.windows["a.txt"].textViews["editor"].value as? String, "alpha HIT\nnone\n")
+        XCTAssertTrue(documentWindow(app, "a.txt").waitForExistence(timeout: 10), "書签の許可で、結果からファイルを開けた")
+        XCTAssertEqual(documentWindow(app, "a.txt").textViews["editor"].value as? String, "alpha HIT\nnone\n")
+    }
+
+    /// 文件的窗口（标题是「文件名 – 编码」）
+    private func documentWindow(_ app: XCUIApplication, _ name: String) -> XCUIElement {
+        app.windows.matching(NSPredicate(format: "title == %@ OR title BEGINSWITH %@", name, name + " ")).firstMatch
     }
 
     private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
