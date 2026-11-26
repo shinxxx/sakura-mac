@@ -41,7 +41,8 @@ protected:
 	void SetUp() override
 	{
 		ASSERT_TRUE(Startup());
-		m_dir = std::filesystem::temp_directory_path() / "sakura-mac-macro-test";
+		// ctest は並行して別のプロセスで実行するので、テストごとに別のフォルダー
+		m_dir = std::filesystem::temp_directory_path() / (std::string("sakura-mac-macro-test-") + ::testing::UnitTest::GetInstance()->current_test_info()->name());
 		std::filesystem::remove_all(m_dir);
 		std::filesystem::create_directories(m_dir);
 	}
