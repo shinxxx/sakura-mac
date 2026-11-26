@@ -90,13 +90,26 @@ enum CommandTable {
         30941: #selector(EditorTextView.tagJumpBack(_:)),			// F_TAGJUMPBACK タグジャンプバック
         30945: #selector(EditorTextView.tagJumpClose(_:)),			// F_TAGJUMP_CLOSE 閉じてタグジャンプ
         // 第 44 步：編集支援（BracketPair.swift 等）
+        30950: #selector(EditorTextView.compareFiles(_:)),			// F_COMPARE ファイル内容比較（DiffCommands.swift）
         30960: #selector(EditorTextView.bracketPair(_:)),			// F_BRACKETPAIR 対括弧の検索
+        30976: #selector(EditorTextView.diffDialog(_:)),			// F_DIFF_DIALOG DIFF差分表示
+        30978: #selector(EditorTextView.diffNext(_:)),				// F_DIFF_NEXT 次の差分へ
+        30979: #selector(EditorTextView.diffPrev(_:)),				// F_DIFF_PREV 前の差分へ
+        30980: #selector(EditorTextView.diffReset(_:)),				// F_DIFF_RESET 差分の全解除
         30970: #selector(EditorTextView.bookmarkSet(_:)),			// F_BOOKMARK_SET ブックマーク設定・解除（Bookmark.swift）
         30971: #selector(EditorTextView.bookmarkNext(_:)),			// F_BOOKMARK_NEXT 次のブックマークへ
         30972: #selector(EditorTextView.bookmarkPrev(_:)),			// F_BOOKMARK_PREV 前のブックマークへ
         30973: #selector(EditorTextView.bookmarkReset(_:)),			// F_BOOKMARK_RESET ブックマークの全解除
         30974: #selector(EditorTextView.bookmarkView(_:)),			// F_BOOKMARK_VIEW ブックマークの一覧
         30975: #selector(EditorTextView.bookmarkPattern(_:)),		// F_BOOKMARK_PATTERN パターンに一致する行をマーク
+        30981: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_NEXT 前方インクリメンタルサーチ（ISearch.swift）
+        30982: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_PREV 後方インクリメンタルサーチ
+        30983: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_REGEXP_NEXT 前方正規表現インクリメンタルサーチ
+        30984: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_REGEXP_PREV 後方正規表現インクリメンタルサーチ
+        30985: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_MIGEMO_NEXT 前方MIGEMOインクリメンタルサーチ
+        30986: #selector(EditorTextView.isearchCommand(_:)),		// F_ISEARCH_MIGEMO_PREV 後方MIGEMOインクリメンタルサーチ
+        31430: #selector(EditorTextView.hokanCommand(_:)),			// F_HOKAN 入力補完（Hokan.swift）
+        31431: #selector(EditorTextView.toggleKeySearch(_:)),		// F_TOGGLE_KEY_SEARCH キーワードヘルプ自動表示（KeywordHelp.swift）
         // 第 42 步：アウトライン解析（OutlineWindow.swift）
         30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
         30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)

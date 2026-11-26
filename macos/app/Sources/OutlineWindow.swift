@@ -1118,9 +1118,11 @@ extension EditorTextView {
         let line = document.findFuncListMark(from: caret.line, forward: next, searchAll: EditorCore.searchSettings.searchAll,
                                              wrapped: &wrapped)
         if line >= 0 {
-            moveCursorSelecting(EditorPosition(line: line, column: 0))	// 「▼先頭から再検索しました」はステータスバー（Mac 版はまだない）
+            moveCursorSelecting(EditorPosition(line: line, column: 0))
+            if wrapped.boolValue { sendSearchStatus(next: next, wrapped: true) }	// 第 44 步：ステータスメッセージ
             return
         }
+        sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
             ? NSLocalizedString("前方(↓) に関数が見つかりません。", comment: "STR_FUCLIST_NEXT_NOT_FOUND")
             : NSLocalizedString("後方(↑) に関数が見つかりません。", comment: "STR_FUCLIST_PREV_NOT_FOUND"))

@@ -6,7 +6,8 @@ import AppKit
 import EditorBridge
 import XCTest
 
-/// 第 43 步的对话框的截图（Grep・Grep置換・Grep実行中・ファイルツリー設定・ファイルツリー）。
+/// 第 43 步的对话框的截图（Grep・Grep置換・Grep実行中・ファイルツリー設定・ファイルツリー）、
+/// 第 44 步（DIFF差分表示・ファイル内容比較、差分・ブックマーク・対括弧を表示した編集画面）。
 ///
 /// 外观的自动检查在 GrepTests・FileTreeTests（PropLayoutTests.truncated）。这里把画面写成 PNG，供人对照原版查看
 /// （写到 $TMPDIR/sakura-dialog-shots/，路径打印在测试日志里）。
@@ -105,5 +106,50 @@ final class DialogScreenshotTests: XCTestCase {
         let panel = try XCTUnwrap(view.outlinePanel)
         if let root = panel.treeView.item(atRow: 0) { panel.treeView.expandItem(root) }
         try shot(try XCTUnwrap(panel.window?.contentView), "IDD_FUNCLIST_filetree")
+    }
+
+    // MARK: - 第 44 步
+
+    func testEditSupportDialogs() throws {
+        let view = try makeView()
+        let other = try makeView()
+        let savedAll = EditingDocument.all
+        EditingDocument.all = { [view, other] }
+        defer { EditingDocument.all = savedAll }
+        let diff = try XCTUnwrap(DiffDialogController(view: view))
+        diff.page.setText("IDC_EDIT_DIFF_DST", "/Users/example/project/old.txt")
+        diff.window.orderFront(nil)
+        try shot(try XCTUnwrap(diff.window.contentView), "IDD_DIFF")
+        diff.window.orderOut(nil)
+        let compare = try XCTUnwrap(CompareDialogController(view: view))
+        compare.window.orderFront(nil)
+        try shot(try XCTUnwrap(compare.window.contentView), "IDD_COMPARE")
+        compare.window.orderOut(nil)
+    }
+
+    /// 編集画面：DIFF の印（追加・変更・削除）、ブックマーク、強調した対括弧、I-Search のステータスメッセージ
+    func testEditorMarks() throws {
+        let view = try makeView()
+        let document = view.document
+        _ = document.insert("int main() {\n\tif (a[i] < b) {\n\t\treturn 1;\n\t}\n\treturn 0;\n}\n", at: EditorPosition(line: 0, column: 0))
+        view.contentDidChange()
+        _ = document.applyDiff("int main() {\n\treturn 1;\n\t}\n\treturn 0;\n\tx();\n}\n", flags: 0)
+        document.setBookmark(true, line: 4)
+        let saved = EditorCore.commonSetting(section: "Types(\(document.typeIndex))", key: "C[BRC]")
+        _ = EditorCore.setCommonSetting("1,1,000080,f0fbff,0", section: "Types(\(document.typeIndex))", key: "C[BRC]")
+        defer {
+            if let saved { _ = EditorCore.setCommonSetting(saved, section: "Types(\(document.typeIndex))", key: "C[BRC]") }
+            _ = document.applyTypeSettingChange(document.typeIndex)
+        }
+        _ = document.applyTypeSettingChange(document.typeIndex)
+        view.typeSettingsReloaded()
+        view.window?.makeFirstResponder(view)
+        view.setCaret(EditorPosition(line: 1, column: 4))
+        view.isearchEnter(.normal, forward: true)
+        view.isearchAdd("return")
+        view.isearchExit()
+        view.setCaret(EditorPosition(line: 1, column: 4))
+        view.sendStatusMessage("I-Search: return", persistent: true)
+        try shot(try XCTUnwrap(view.enclosingScrollView), "editor-marks")
     }
 }

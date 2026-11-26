@@ -138,6 +138,13 @@ targets:
       # 第 44 步：編集支援
       - path: Sources/BracketPair.swift
       - path: Sources/Bookmark.swift
+      - path: Sources/ISearch.swift
+      - path: Sources/StatusMessage.swift
+      - path: Sources/DiffCommands.swift
+      - path: Sources/Hokan.swift
+      - path: Sources/KeywordHelp.swift
+      - path: Resources/EditSupportDialogs.json
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

@@ -1330,6 +1330,76 @@ GrepDialogCheck CheckGrepDialog(const Text& file, const Text& excludeFile, const
 
 class Document;
 
+// ----- 行単位の差分（第 44 步：DIFF差分表示。macos/core/api/Diff.cpp） -----
+
+//! 差分の選択肢（原版 DIFF差分表示 のダイアログ、diff の -i -w -b -B -t）
+struct DiffOptions {
+	bool ignoreCase = false;		//!< 大文字小文字の同一視（-i）
+	bool ignoreAllSpace = false;	//!< 空白無視（-w）
+	bool ignoreSpaceChange = false;	//!< 空白変更無視（-b）
+	bool ignoreBlankLines = false;	//!< 空白行無視（-B）
+	bool expandTabs = false;		//!< タブ空白変換（-t。出力だけの選択肢なので結果は変わらない）
+};
+//! diff の通常形式の一つの塊（「s1,e1 mode s2,e2」。行番号は 1 から。a の旧側・d の新側は「この行の次」）
+struct DiffHunk {
+	char mode = 'c';			//!< 'a' 追加、'c' 変更、'd' 削除
+	std::int32_t oldFrom = 0;
+	std::int32_t oldTo = 0;
+	std::int32_t newFrom = 0;
+	std::int32_t newTo = 0;
+};
+/*!
+	行の差分（GNU diff の通常形式と同じ塊。diff.exe の代わりの独自の実装）。
+	行は SplitDiffLines で分けたもの
+*/
+std::vector<DiffHunk> ComputeDiff(const std::vector<Text>& oldLines, const std::vector<Text>& newLines, const DiffOptions& options);
+//! 塊の見出し（diff の出力の「99,99c99,99」）
+Text FormatDiffHunk(const DiffHunk& hunk);
+//! diff の行に分ける（LF で区切る。CR LF の CR は除く。改行のない最後の行は末尾に \0 を付けて区別する）
+std::vector<Text> SplitDiffLines(const Text& text);
+
+//! ウィンドウ一覧の一項目（DIFF差分表示・ファイル内容比較 の「他の編集中のファイル」。原版 EditInfo の一部）
+struct WindowListEntry {
+	Text path;						//!< 空は無題
+	std::int32_t untitledId = -1;	//!< 無題の番号（原版 EditNode::m_nId。-1 は番号なし）
+	bool modified = false;
+	Encoding encoding = encoding::UTF8;
+	bool grep = false;				//!< Grep の結果の窓口
+	Text grepKey;					//!< Grep の条件
+};
+/*!
+	ウィンドウ一覧の文字（原版 CFileNameManager::GetMenuFullLabel_WinListNoEscape：「1 パス *  [UTF-8]」）。
+	index が -1 のときはアクセスキーなし
+*/
+Text WindowListLabel(const WindowListEntry& entry, std::int32_t index);
+//! ファイル名の似ている度合い（原版 FileMatchScoreSepExt：比較の相手の初期選択）
+std::int32_t FileMatchScore(const Text& file1, const Text& file2);
+
+//! 行の差分の印（原版 EDiffMark）
+enum class DiffMark : std::uint8_t {
+	None = 0,		//!< 無変更
+	Append = 1,		//!< 追加
+	Change = 2,		//!< 変更
+	Delete = 3,		//!< 削除（この行の前で削除された）
+	DeleteAtEnd = 4,	//!< 削除(EOF以降)
+};
+
+//! MIGEMO インクリメンタルサーチの準備の結果（第 44 步）
+enum class MigemoStatus {
+	Ready,			//!< 使える
+	NoLibrary,		//!< C/Migemo が使えない（原版「MIGEMO.DLLが使用できません。」。Mac 版は組み込みなので起きない）
+	NoDictionary,	//!< 辞書が読めない（原版「MIGEMOは使用できません。」）
+};
+/*!
+	MIGEMO の準備（原版 ISearchEnter の SEARCH_MIGEMO：InitDll、migemo_load_all）。辞書は共通設定『支援』の
+	「辞書」のフォルダー（空のときは sakura.ini のフォルダーの dict）の utf-8 か cp932。一度読めたら読み直さない
+*/
+MigemoStatus PrepareMigemo();
+//! 辞書の設定が変わったとき：次の PrepareMigemo で読み直す
+void ResetMigemo();
+//! ローマ字 → 正規表現（C/Migemo の migemo_query）。使えないときは key のまま
+Text MigemoQuery(const Text& key);
+
 //! 対括弧の対応表にある括弧か（原版 CEditView::IsBracket，第 44 步）
 bool IsBracketChar(char16_t ch);
 
@@ -1979,6 +2049,90 @@ public:
 	Text GetBookmarkList() const;
 	//! 行番号のリストからブックマーク（原版 SetBookMarks。旧形式「1,3,5」も読める）
 	void SetBookmarkList(const Text& marks);
+
+	// ----- インクリメンタルサーチ（第 44 步） -----
+
+	/*!
+		インクリメンタルサーチの検索（原版 ISearchExec → CLayoutMgr::SearchWord → CSearchAgent::SearchWord）。
+		from はそのまま使う（原版の後方の再検索は ISearchWrapBackwardStart から）。行が範囲外のときは nullopt。
+		migemo のときは key を C/Migemo で正規表現に変える（PrepareMigemo が Ready でないときは key のまま）。
+		正規表現の错误时 nullopt（GetLastSearchError）
+	*/
+	std::optional<Range> ISearchFind(const Text& key, const Position& from, SearchDirection direction,
+									 const SearchOptions& options, bool migemo);
+	//! 後方の再検索の開始位置（原版：最後の行の「改行を含む長さ - 1」）
+	Position ISearchWrapBackwardStart() const;
+
+	// ----- DIFF差分表示（第 44 步） -----
+
+	//! 差分の結果
+	enum class DiffResult {
+		Marked,		//!< 差分の印を付けた
+		NoDiff,		//!< 差分がない（原版「DIFF差分は見つかりませんでした。」）
+		Binary,		//!< バイナリ（NUL を含む。原版「DIFF差分を行おうとしたファイルはバイナリファイルです。」）
+	};
+	/*!
+		DIFF差分表示（原版 Command_Diff → ViewDiffInfo → AnalyzeDiffInfo）：この文書と otherText（相手の全文）を比べて、
+		この文書の行に追加・変更・削除の印を付ける。前の印は消す。thisIsOld：この文書が旧ファイル（原版 0x0020）
+	*/
+	DiffResult ApplyDiff(const Text& otherText, const DiffOptions& options, bool thisIsOld);
+	// ----- 入力補完・キーワードヘルプ（第 44 步） -----
+
+	/*!
+		カーソル直前の単語（原版 CViewParser::GetLeftWord：単語の先頭からカーソルの直前の文字まで）。
+		ないときは空（原版「補完対象がありません」）
+	*/
+	Text LeftWord(const Position& caret) const;
+	/*!
+		入力補完の候補（原版 CHokanMgr::Search）：タイプ別設定『支援』の補完ファイル（CDicMgr::HokanSearch）、
+		「編集中データから候補を探す」（CEditView::HokanSearchByFile。caret の単語は除く、1024 個まで）、
+		「強調キーワードを候補にする」（HokanSearchByKeyword）の順。重複は補完ファイルの中だけ残る（原版と同じ）。並べ替えはしない
+	*/
+	std::vector<Text> HokanCandidates(const Text& key, const Position& caret) const;
+
+	//! キーワードヘルプの結果（原版 CTipWnd の m_cInfo・m_KeyWasHit・m_nSearchDict・m_nSearchLine）
+	struct KeywordHelp {
+		bool hit = false;		//!< 該当するキーがあった
+		Text info;				//!< 表示する文字（\n で改行）
+		std::int32_t dictionary = -1;	//!< 最初にヒットした辞書（タイプ別設定のキーワードヘルプの番号）
+		Text dictionaryPath;	//!< その辞書のファイル（設定のまま）
+		std::int32_t line = 0;	//!< 辞書の中の行（1 から）
+	};
+	/*!
+		入力補完・キーワードヘルプが読むファイル（補完ファイル、使う辞書）の絶対パス（相対パスは sakura.ini から）。
+		App は沙盒でこれらのファイルの書签を使う
+	*/
+	std::vector<Text> SupportFilePaths() const;
+	//! タイプ別設定「キーワードヘルプ機能を使用する」
+	bool UsesKeywordHelp() const;
+	/*!
+		キーワード辞書の検索（原版 CEditView::KeySearchCore）：タイプ別設定のキーワードヘルプの辞書を順に。
+		「1行目にキーワードも表示する」「前方一致」「ヒットした次の辞書も検索」の設定も原版と同じ
+	*/
+	KeywordHelp LookupKeywordHelp(const Text& key) const;
+
+	//! ファイル内容比較の結果
+	struct CompareResult {
+		bool different = false;	//!< 異なる箇所が見つかった
+		Position mine;			//!< この文書の異なる箇所
+		Position theirs;		//!< 相手の文書の異なる箇所
+	};
+	/*!
+		ファイル内容比較（原版 Command_COMPARE → Commander_COMPARE_core）：この文書の from と相手の文書の theirsFrom から
+		一文字ずつ（改行も）比べて、最初に異なる位置。原版は別のプロセスの窓口と比べる、Mac 版は同じプロセスの文書と
+	*/
+	CompareResult CompareWith(const Document& theirs, const Position& from, const Position& theirsFrom) const;
+	//! この行の差分の印
+	DiffMark GetDiffMark(std::int32_t line) const;
+	//! 差分の全解除（原版 Command_Diff_Reset）
+	void ResetDiffMarks();
+	//! 差分の印を付けているか（原版 CDiffManager::IsDiffUse。原版は一つのプロセス（窓口）に一つ、Mac 版は文書ごと）
+	bool IsDiffUsed() const;
+	/*!
+		次の差分へ／前の差分へ（原版 Command_Diff_Next/Prev）の目標逻辑行。找不到时 -1。
+		searchAll 时绕回。@param[out] pWrapped 绕回去了
+	*/
+	std::int32_t FindDiffMark(std::int32_t line, bool forward, bool searchAll, bool* pWrapped = nullptr) const;
 
 private:
 	Document();

@@ -28,6 +28,12 @@ namespace core = sakura::core;
 static_assert(static_cast<NSInteger>(ECResultSuccess) == static_cast<NSInteger>(core::Result::Ok));
 static_assert(static_cast<NSInteger>(ECResultLostSome) == static_cast<NSInteger>(core::Result::LostSome));
 static_assert(static_cast<NSInteger>(ECResultFailed) == static_cast<NSInteger>(core::Result::Failed));
+static_assert(static_cast<NSInteger>(ECMigemoStatusReady) == static_cast<NSInteger>(core::MigemoStatus::Ready));
+static_assert(static_cast<NSInteger>(ECDiffResultMarked) == static_cast<NSInteger>(core::Document::DiffResult::Marked));
+static_assert(static_cast<NSInteger>(ECDiffResultNoDiff) == static_cast<NSInteger>(core::Document::DiffResult::NoDiff));
+static_assert(static_cast<NSInteger>(ECDiffResultBinary) == static_cast<NSInteger>(core::Document::DiffResult::Binary));
+static_assert(static_cast<NSInteger>(ECMigemoStatusNoLibrary) == static_cast<NSInteger>(core::MigemoStatus::NoLibrary));
+static_assert(static_cast<NSInteger>(ECMigemoStatusNoDictionary) == static_cast<NSInteger>(core::MigemoStatus::NoDictionary));
 static_assert(static_cast<NSInteger>(ECResultInvalidArgument) == static_cast<NSInteger>(core::Result::InvalidArgument));
 static_assert(static_cast<NSInteger>(ECResultNotFound) == static_cast<NSInteger>(core::Result::NotFound));
 static_assert(static_cast<NSInteger>(ECResultNotSupported) == static_cast<NSInteger>(core::Result::NotSupported));
@@ -848,6 +854,23 @@ static std::vector<std::pair<core::Text, core::Text>> ToPairs(NSDictionary<NSStr
 }
 
 + (void)addSearchKey:(NSString *)key { core::AddSearchKey(ToText(key)); }
++ (ECMigemoStatus)prepareMigemo { return static_cast<ECMigemoStatus>(core::PrepareMigemo()); }
+
++ (NSString *)windowListLabelForPath:(NSString *)path untitledId:(NSInteger)untitledId modified:(BOOL)modified
+	encoding:(ECEncoding)encoding grepKey:(nullable NSString *)grepKey index:(NSInteger)index
+{
+	core::WindowListEntry e;
+	e.path = ToText(path);
+	e.untitledId = static_cast<std::int32_t>(std::clamp<NSInteger>(untitledId, -1, INT32_MAX));
+	e.modified = modified == YES;
+	e.encoding = static_cast<core::Encoding>(encoding);
+	e.grep = grepKey != nil;
+	if (grepKey) e.grepKey = ToText(grepKey);
+	return ToNSString(core::WindowListLabel(e, static_cast<std::int32_t>(std::clamp<NSInteger>(index, -1, INT32_MAX))));
+}
+
++ (NSInteger)fileMatchScore:(NSString *)file1 with:(NSString *)file2 { return core::FileMatchScore(ToText(file1), ToText(file2)); }
++ (void)resetMigemo { core::ResetMigemo(); }
 + (void)addReplaceKey:(NSString *)key { core::AddReplaceKey(ToText(key)); }
 + (NSInteger)searchKeySequence { return core::SearchKeySequence(); }
 + (NSInteger)replaceKeySequence { return core::ReplaceKeySequence(); }
@@ -1821,6 +1844,19 @@ std::vector<core::FileTreeItem> FromFileTreeItems(NSArray<ECFileTreeItem *> *ite
 
 @end
 
+@implementation ECKeywordHelp
+- (instancetype)initWithHelp:(const core::Document::KeywordHelp&)h
+{
+	if ((self = [super init])) {
+		_info = ToNSString(h.info);
+		_dictionary = h.dictionary;
+		_dictionaryPath = ToNSString(h.dictionaryPath);
+		_line = h.line;
+	}
+	return self;
+}
+@end
+
 @implementation ECDocument {
 	std::unique_ptr<core::Document> _doc;
 }
@@ -2381,6 +2417,92 @@ static ECSearchResult *InvalidViewResult()
 
 - (NSString *)bookmarkList { return ToNSString(_doc->GetBookmarkList()); }
 - (void)setBookmarkList:(NSString *)bookmarkList { _doc->SetBookmarkList(ToText(bookmarkList)); }
+
+- (BOOL)isearchFind:(NSString *)key from:(ECPosition)from forward:(BOOL)forward options:(ECSearchOptions)options
+	migemo:(BOOL)migemo range:(ECRange *)outRange
+{
+	if (!FitsInt32(from.line) || !FitsInt32(from.column)) return NO;
+	const auto r = _doc->ISearchFind(ToText(key), ToCore(from),
+									 forward ? core::SearchDirection::Forward : core::SearchDirection::Backward,
+									 ToCore(options), migemo == YES);
+	if (!r) return NO;
+	if (outRange) *outRange = FromCore(*r);
+	return YES;
+}
+
+- (ECPosition)isearchWrapBackwardStart { return FromCore(_doc->ISearchWrapBackwardStart()); }
+
+- (ECDiffResult)applyDiff:(NSString *)otherText flags:(NSInteger)flags
+{
+	core::DiffOptions o;
+	o.ignoreCase = (flags & 0x01) != 0;
+	o.ignoreAllSpace = (flags & 0x02) != 0;
+	o.ignoreSpaceChange = (flags & 0x04) != 0;
+	o.ignoreBlankLines = (flags & 0x08) != 0;
+	o.expandTabs = (flags & 0x10) != 0;
+	return static_cast<ECDiffResult>(_doc->ApplyDiff(ToText(otherText), o, (flags & 0x20) != 0));
+}
+
+- (NSInteger)diffMark:(NSInteger)line { return FitsInt32(line) ? static_cast<NSInteger>(_doc->GetDiffMark(static_cast<std::int32_t>(line))) : 0; }
++ (nullable NSString *)textOfFileAtPath:(NSString *)path
+{
+	auto doc = core::Document::Create();
+	if (!doc) return nil;
+	core::OpenOptions options;
+	options.useHistory = false;
+	const auto r = doc->Open(ToText(path), options);
+	if (r != core::Result::Ok && r != core::Result::LostSome) return nil;
+	return ToNSString(doc->GetText());
+}
+
+- (BOOL)compareWith:(ECDocument *)other from:(ECPosition)from otherFrom:(ECPosition)otherFrom
+	mine:(ECPosition *)mine theirs:(ECPosition *)theirs
+{
+	const auto r = _doc->CompareWith(*other->_doc, ToCore(from), ToCore(otherFrom));
+	if (mine) *mine = FromCore(r.mine);
+	if (theirs) *theirs = FromCore(r.theirs);
+	return r.different ? YES : NO;
+}
+
+- (void)resetDiffMarks { _doc->ResetDiffMarks(); }
+
+- (NSString *)leftWordAt:(ECPosition)caret
+{
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.column)) return @"";
+	return ToNSString(_doc->LeftWord(ToCore(caret)));
+}
+
+- (NSArray<NSString *> *)hokanCandidatesForKey:(NSString *)key caret:(ECPosition)caret
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.column)) return result;
+	for (const auto& w : _doc->HokanCandidates(ToText(key), ToCore(caret))) [result addObject:ToNSString(w)];
+	return result;
+}
+
+- (NSArray<NSString *> *)supportFilePaths
+{
+	NSMutableArray<NSString *> *result = [NSMutableArray array];
+	for (const auto& p : _doc->SupportFilePaths()) [result addObject:ToNSString(p)];
+	return result;
+}
+
+- (BOOL)usesKeywordHelp { return _doc->UsesKeywordHelp() ? YES : NO; }
+
+- (nullable ECKeywordHelp *)lookupKeywordHelp:(NSString *)key
+{
+	const auto h = _doc->LookupKeywordHelp(ToText(key));
+	return h.hit ? [[ECKeywordHelp alloc] initWithHelp:h] : nil;
+}
+- (BOOL)isDiffUsed { return _doc->IsDiffUsed() ? YES : NO; }
+
+- (NSInteger)findDiffMarkFromLine:(NSInteger)line forward:(BOOL)forward searchAll:(BOOL)searchAll wrapped:(nullable BOOL *)wrapped
+{
+	bool w = false;
+	const std::int32_t found = _doc->FindDiffMark(ClampInt32(line), forward == YES, searchAll == YES, &w);
+	if (wrapped) *wrapped = w ? YES : NO;
+	return found;
+}
 
 - (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line
 {

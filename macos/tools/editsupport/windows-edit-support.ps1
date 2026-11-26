@@ -5,10 +5,13 @@
 # Windows 版 sakura.exe 的编辑辅助功能的结果（计划第 44 步，CI 的 edit-support-windows 运行）：
 #   宏 windows-edit-support.js 的 @DATA@、@OUT@ 换成实际的文件夹，sakura.exe -M=宏 运行，等 done.txt 写出来。
 #   结果是 <OutDir>\<名字>.txt（UTF-8），与 Mac 版的 expected 比较。
+#   DiffExe（GNU diffutils 的 diff.exe，原版 DIFF差分表示 用的）：复制到 sakura.exe 的文件夹（宏的 Diff 用），
+#   再直接对 diff\<名字>\old.txt・new.txt 运行，塊の見出し（「99,99c99,99」）写到 diff.txt（与 Mac 版自己实现的差分比较）。
 param(
 	[Parameter(Mandatory = $true)][string]$SakuraExe,
 	[Parameter(Mandatory = $true)][string]$DataDir,
-	[Parameter(Mandatory = $true)][string]$OutDir
+	[Parameter(Mandatory = $true)][string]$OutDir,
+	[Parameter(Mandatory = $true)][string]$DiffExe
 )
 $ErrorActionPreference = 'Stop'
 
@@ -25,6 +28,24 @@ Get-ChildItem (Split-Path $SakuraExe) -Filter 'sakura_lang_*.dll' | ForEach-Obje
 $work = Join-Path $OutDir 'work'
 if (Test-Path $work) { Remove-Item -Recurse -Force $work }
 Copy-Item -Recurse -LiteralPath $DataDir -Destination $work
+
+# GNU diff：sakura.exe の隣に置く（DLL も）。直接実行して塊の見出しを集める
+$DiffExe = (Resolve-Path $DiffExe).Path
+Get-ChildItem (Split-Path $DiffExe) -Filter '*.dll' | ForEach-Object { Copy-Item $_.FullName (Split-Path $SakuraExe) }
+Copy-Item $DiffExe (Join-Path (Split-Path $SakuraExe) 'diff.exe')
+& $DiffExe --version | Select-Object -First 1
+$flagOptions = [ordered]@{ 0x00 = ''; 0x01 = '-i'; 0x02 = '-w'; 0x04 = '-b'; 0x08 = '-B'; 0x10 = '-t'; 0x0F = '-iwbB' }
+$diffLines = New-Object System.Collections.Generic.List[string]
+foreach ($case in (Get-ChildItem (Join-Path $DataDir 'diff') -Directory | Sort-Object Name)) {
+	foreach ($flag in $flagOptions.Keys) {
+		$diffArgs = @()
+		if ($flagOptions[$flag] -ne '') { $diffArgs += $flagOptions[$flag] }
+		$diffArgs += (Join-Path $case.FullName 'old.txt'), (Join-Path $case.FullName 'new.txt')
+		$hunks = & $DiffExe @diffArgs | Where-Object { $_ -match '^[0-9]' }
+		$diffLines.Add(('{0} {1:x2}: {2}' -f $case.Name, $flag, ($hunks -join ' ')))
+	}
+}
+[IO.File]::WriteAllText((Join-Path $OutDir 'diff.txt'), (($diffLines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding($false)))
 
 $template = Get-Content (Join-Path $PSScriptRoot 'windows-edit-support.js') -Raw -Encoding utf8
 $js = $template.Replace('@DATA@', $work.Replace('\', '\\')).Replace('@OUT@', $OutDir.Replace('\', '\\'))

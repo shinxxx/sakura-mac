@@ -8,7 +8,8 @@
 写成 JSON，App 按它摆放控件（布局、项目、顺序、文字照原版，控件用 Mac 的）。
 原版的 rc 改了以后重新运行：python3 make_prop_dialogs.py
 （输出 macos/app/Resources/CommonSettingsDialogs.json、TypeSettingsDialogs.json、
-第 42 步的アウトライン解析 OutlineDialogs.json、第 43 步的 Grep GrepDialogs.json）
+第 42 步的アウトライン解析 OutlineDialogs.json、第 43 步的 Grep GrepDialogs.json、
+第 44 步的编辑辅助功能 EditSupportDialogs.json）
 """
 import json
 import os
@@ -37,6 +38,13 @@ GREP_DIALOGS = [
     "IDD_GREP",
     "IDD_GREP_REPLACE",
     "IDD_GREPRUNNING",
+]
+
+# 编辑辅助功能（第 44 步。原版 CDlgDiff、CDlgCompare、CDlgTagJumpList）
+EDIT_SUPPORT_DIALOGS = [
+    "IDD_DIFF",
+    "IDD_COMPARE",
+    "IDD_TAGJUMPLIST",
 ]
 
 # 从タイプ別設定的页打开的对话框（第 40 步）
@@ -196,6 +204,7 @@ def main():
     write(lines, TYPE_PAGES, TYPE_DIALOGS, os.path.join(out_dir, "TypeSettingsDialogs.json"))
     write(lines, [], OUTLINE_DIALOGS, os.path.join(out_dir, "OutlineDialogs.json"))
     write(lines, [], GREP_DIALOGS, os.path.join(out_dir, "GrepDialogs.json"))
+    write(lines, [], EDIT_SUPPORT_DIALOGS, os.path.join(out_dir, "EditSupportDialogs.json"))
 
 
 if __name__ == "__main__":

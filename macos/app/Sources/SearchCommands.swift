@@ -240,11 +240,14 @@ extension EditorTextView {
         clearBoxSelectionForSearch()
         applySearchView(result.view)
         switch result.status {
-        case .found, .wrapped:
-            break	// 「▼先頭から再検索しました」はステータスバー（Mac 版はまだない）
+        case .found:
+            break
+        case .wrapped:
+            sendSearchStatus(next: true, wrapped: true)	// 第 44 步：ステータスメッセージ
         case .invalidPattern:
             Self.showRegexpError(result.error)
         default:
+            sendSearchStatus(next: true, wrapped: nil)
             Self.alertNotFound(notFoundMessage ?? String(format: NSLocalizedString(
                 "前方(↓) に文字列 '%@' が１つも見つかりません。", comment: "STR_ERR_SRNEXT3"), Self.keyName(searchState.key)))
         }
@@ -260,11 +263,14 @@ extension EditorTextView {
         clearBoxSelectionForSearch()
         applySearchView(result.view)
         switch result.status {
-        case .found, .wrapped:
+        case .found:
             break
+        case .wrapped:
+            sendSearchStatus(next: false, wrapped: true)
         case .invalidPattern:
             Self.showRegexpError(result.error)
         default:
+            sendSearchStatus(next: false, wrapped: nil)
             Self.alertNotFound(String(format: NSLocalizedString(
                 "後方(↑) に文字列 '%@' が１つも見つかりません。", comment: "STR_ERR_SRPREV3"), Self.keyName(searchState.key)))
         }

@@ -119,6 +119,41 @@ sections.push(function () {
 	Editor.FileClose();
 });
 
+// ----- DIFF差分表示：diff\<名字>\old.txt・new.txt を開いて相手のファイルと Diff、各行の差分の印（GetLineAttribute の 3） -----
+// 選択肢（原版 F_DIFF の第 2 引数）：0x01 -i、0x02 -w、0x04 -b、0x08 -B、0x10 -t、0x20 編集中のファイルが旧ファイル
+var DIFF_FLAGS = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x0F];
+function diffCases() {
+	var names = [];
+	for (var e = new Enumerator(fso.GetFolder("@DATA@\\diff").SubFolders); !e.atEnd(); e.moveNext()) names.push(e.item().Name);
+	names.sort();
+	return names;
+}
+function hex(n) { var s = n.toString(16); return s.length < 2 ? "0" + s : s; }
+sections.push(function () {
+	var out = [];
+	var names = diffCases();
+	for (var c = 0; c < names.length; c++) {
+		var dir = "@DATA@\\diff\\" + names[c] + "\\";
+		for (var f = 0; f < DIFF_FLAGS.length; f++) {
+			for (var side = 0; side < 2; side++) {
+				// side 0：新ファイルを開いて旧ファイルと比べる、side 1：旧ファイルを開いて新ファイルと（0x20）
+				var flags = DIFF_FLAGS[f] | (side ? 0x20 : 0);
+				Editor.FileOpen(dir + (side ? "old.txt" : "new.txt"));
+				Editor.Diff(dir + (side ? "new.txt" : "old.txt"), flags);
+				var n = Editor.GetLineCount(0);
+				var marks = [];
+				if (Editor.GetLineStr(1) !== "" || n > 1) {
+					for (var y = 1; y <= n; y++) marks.push(Editor.GetLineAttribute(y, 3));
+				}
+				out.push(names[c] + " " + hex(flags) + ": " + marks.join(","));
+				Editor.DiffReset();
+				Editor.FileClose();
+			}
+		}
+	}
+	writeResult("diffmark", out);
+});
+
 for (var i = 0; i < sections.length; i++) {
 	try {
 		sections[i]();

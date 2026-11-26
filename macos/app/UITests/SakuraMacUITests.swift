@@ -258,8 +258,8 @@ final class SakuraMacUITests: XCTestCase {
         search.click()
         XCTAssertTrue(search.menuItems["次を検索"].isEnabled, "已移植的功能可以用")
         XCTAssertTrue(search.menuItems["Grep..."].isEnabled, "原版的「Grep...」（第 43 步）")
-        XCTAssertTrue(search.menuItems["ファイル内容比較..."].exists, "原版的「ファイル内容比較...」")
-        XCTAssertFalse(search.menuItems["ファイル内容比較..."].isEnabled, "还没有移植的功能变灰")
+        XCTAssertTrue(search.menuItems["タグファイルの作成..."].exists, "原版的「タグファイルの作成...」")
+        XCTAssertFalse(search.menuItems["タグファイルの作成..."].isEnabled, "Mac 版没有的功能变灰（第 44 步：不附带 ctags）")
         let incremental = search.menuItems["インクリメンタルサーチ"]
         incremental.hover()
         XCTAssertTrue(incremental.menuItems["前方インクリメンタルサーチ"].waitForExistence(timeout: 3), "子菜单也与原版相同")
@@ -332,6 +332,64 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(view.isEnabled)
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+    }
+
+    /// 検索 > インクリメンタルサーチ > 前方インクリメンタルサーチ：入力した文字で検索、ステータスメッセージ、Return で抜ける
+    func testIncrementalSearch() {
+        editor.typeText("abc abd")
+        key(XCUIKeyboardKey.upArrow.rawValue, .command)	// 文書の先頭
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        let submenu = menu.menuItems["インクリメンタルサーチ"]
+        XCTAssertTrue(submenu.waitForExistence(timeout: 3))
+        submenu.hover()
+        let item = submenu.menuItems["前方インクリメンタルサーチ"]
+        XCTAssertTrue(item.waitForExistence(timeout: 3))
+        item.click()
+        let status = app.staticTexts["statusMessage"]
+        // 子菜单的点击が効かないことがある（XCUITest）：もう一度
+        if !status.waitForExistence(timeout: 3) {
+            menu.click()
+            submenu.hover()
+            item.click()
+        }
+        XCTAssertTrue(status.waitForExistence(timeout: 5), "ステータスメッセージ")
+        editor.typeText("abd")
+        XCTAssertEqual((status.value as? String)?.trimmingCharacters(in: .whitespaces), "I-Search: abd")
+        editor.typeText("\r")	// 抜ける（改行は入らない）
+        editor.typeText("X")		// 見つかった abd が選択されている
+        XCTAssertEqual(text, "abc X")
+    }
+
+    /// 検索 > DIFF差分表示...：他の編集中のファイルと比べて、次の差分へ移る
+    func testDiff() {
+        editor.typeText("a\nb\nc")
+        key("n", .command)	// 新しい窓口（キー入力はこの窓口へ）
+        XCTAssertTrue(waitFor { app.windows.count >= 2 }, "2 つ目の窓口")
+        app.typeText("a\nX\nc")
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["DIFF差分表示..."].click()
+        let ok = app.buttons["IDOK"]
+        XCTAssertTrue(ok.waitForExistence(timeout: 5), "DIFF差分表示 のダイアログ")
+        ok.click()
+        app.typeKey(XCUIKeyboardKey.upArrow.rawValue, modifierFlags: .command)	// 文書の先頭
+        menu.click()
+        menu.menuItems["次の差分へ"].click()
+        app.typeText("Y")
+        let texts = app.textViews.matching(identifier: "editor").allElementsBoundByIndex.map {
+            ($0.value as? String ?? "").replacingOccurrences(of: "\r\n", with: "\n")
+        }
+        XCTAssertTrue(texts.contains("a\nYX\nc"), "変更した行へ移った：\(texts)")
+    }
+
+    /// ツール > 入力補完：編集中の単語から候補が 1 つならそのまま決まる
+    func testInputCompletion() {
+        editor.typeText("print_value pri")
+        let menu = app.menuBars.menuBarItems["ツール"]
+        menu.click()
+        menu.menuItems["入力補完"].click()
+        XCTAssertEqual(text, "print_value print_value", "候補が 1 つ：すぐに決まる")
     }
 
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案

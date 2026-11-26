@@ -125,7 +125,7 @@ final class PropLayoutTests: XCTestCase {
     /// ページから開く対話框（位置と大きさ、文字色統一、強調キーワードの選択、タイプ別設定一覧 等）
     func testDialogsHaveNoTruncatedText() throws {
         var problems: [String] = []
-        for resource in ["CommonSettingsDialogs", "TypeSettingsDialogs"] {
+        for resource in ["CommonSettingsDialogs", "TypeSettingsDialogs", "EditSupportDialogs"] {	// 第 44 步：DIFF差分表示・ファイル内容比較・タグジャンプ一覧
             for definition in PropDialogs.load(resource)?.dialogs ?? [] {
                 problems += Self.truncated(PropPage(definition: definition)).map { "\(definition.dialog): \($0)" }
             }
