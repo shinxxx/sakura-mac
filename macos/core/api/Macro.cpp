@@ -1,4 +1,4 @@
-/*! @file
+﻿/*! @file
 	@brief マクロ（计划第 45 步）
 
 	- 関数表：原版 CSMacroMgr の m_MacroFuncInfoCommandArr・m_MacroFuncInfoArr（sakura_core/macro/CSMacroMgr.cpp をそのまま使う）。

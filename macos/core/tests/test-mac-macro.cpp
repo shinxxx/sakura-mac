@@ -1,4 +1,4 @@
-/*! @file
+﻿/*! @file
 	@brief マクロ（计划第 45 步）の核心库の部分の测试
 
 	- 関数表（原版 CSMacroMgr の表、GetFuncInfoByName・GetFuncInfoByID・CanFuncIsKeyMacro、CIfObj の大文字小文字を区別しない検索）
