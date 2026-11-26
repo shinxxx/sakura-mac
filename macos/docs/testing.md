@@ -99,6 +99,8 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 
 ## マクロ（第 45 步）
 
+- CI 的 `macro-windows` 在 Windows 上用官方版 sakura.exe 执行 `Tests/MacroSamples/WindowsCompare.js`，与 `WindowsCompare.txt` 比较；Mac 版由 `JSMacroTests.testWindowsCompare` 执行同一个宏、比较同一个文件。详见 [phase3-macro.md](phase3-macro.md)。
+
 - 核心库 `test-mac-macro.cpp`：関数表、キーマクロ（.mac）の読み書き（原版の書式、エスケープ、読み込みエラーのメッセージ）、ExpandParameter、Cookie、JScript の前処理。
 - App 的 `KeyMacroTests`：記録（入力・矢印キー等の選択子・キー割り当て・ダイアログ）→ RecKey.mac → 実行（一つの取り消し単位）、保存・読み込み、
   読み込みエラーのメッセージ、記録する引数（原版 AddLParam）、MacroHost の命令・関数。

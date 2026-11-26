@@ -109,6 +109,18 @@ SampleChar、SampleExpandParameter、SampleGetCharCode、SampleGetFilename、Sam
 SampleGetSelectxxx、SampleIsInsMode、SampleIsPossibleUndo、SampleIsTextSelected、CopyDirPath。
 其余样例是 VBScript・PPA（SampleBookmarkPattern、SampleChangeTabWidth、SampleFileSaveAs、SampleGrep、SampleReplaceAll、SampleSearchNext）或键盘宏（SampleGoLineTop），Mac 版不用 VBScript・PPA。
 
+### 与 Windows 官方版的对照（CI `macro-windows`）
+
+同一个 JScript 宏 `macos/app/Tests/MacroSamples/WindowsCompare.js` 在两边执行，比较最后的文档：
+- Windows：CI 的 `macro-windows` 用 `macos/tools/macro/windows-macro.ps1` 让官方发布的 sakura.exe（v2.4.3）以 `-M=` 执行，把文档写成 UTF-8；
+- Mac：App 单元测试 `JSMacroTests.testWindowsCompare` 执行同一个宏；
+- 两边都与 `WindowsCompare.txt`（Windows 的结果）比较。内容：插入・Enter・行数・行内容、光标移动・MoveCursor・Jump、SelectWord・SelectLine、Delete・DeleteBack、
+  SearchNext・SearchPrev（单词、大小写、正则）、ReplaceAll 的 6 种标志・Replace、`Editor.getlinecount` 之类的小写名字（`editor` 这个对象名在原版也是 undefined）、
+  省略括号、ExpandParameter、GetFilename、Cookie 9 项、LayoutToLogicLineNum・LogicToLayoutLineNum、CompareVersion。
+
+**和原版不同、不比较的**：GetSelectColmFrom・GetSelectColmTo・LineIndexToColumn・LineColumnToIndex。原版 2.4 的布局列是按字体宽度的单位
+（CI 的 Windows 上一个半角字为 7），随字体变化；Mac 版是字符单位（帮助的样例 SampleGetSelectxxx 的「5byte」是按字符单位写的）。
+
 ## 测试
 
 见 [testing.md](testing.md) 的「マクロ（第 45 步）」。
