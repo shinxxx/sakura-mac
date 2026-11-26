@@ -1472,6 +1472,17 @@ public:
 	void BeginEdit();
 	void EndEdit();
 
+	/*!
+		加到文档的最后，不记入撤销（第 43 步：Grep 的结果。原版 Command_ADDTAIL，Grep 中 m_bDoing_UndoRedo）。
+		@return 加入的文字之后的位置
+	*/
+	Position AppendWithoutUndo(const Text& text);
+
+	/*!
+		当作没有修改（第 43 步：原版 Grep 结束时的 SetModified(false,false)）：修改标记清除，各行也不再是変更行
+	*/
+	void SetUnmodified();
+
 	bool CanUndo() const;
 	bool CanRedo() const;
 	//! 撤销。@param[out] pCaret 撤销后的光标位置（原版 Command_UNDO 的移动位置）

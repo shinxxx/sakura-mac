@@ -83,6 +83,12 @@ enum CommandTable {
         30905: #selector(EditorTextView.toggleSearchMark(_:)),		// F_SEARCH_CLEARMARK
         30909: #selector(EditorTextView.jumpToSearchStart(_:)),		// F_JUMP_SRCHSTARTPOS
         30920: #selector(EditorTextView.showJumpDialog(_:)),		// F_JUMP_DIALOG
+        // 第 43 步：Grep・Grep置換・タグジャンプ（GrepDialog.swift、GrepRunner.swift、TagJump.swift）
+        30910: #selector(EditorTextView.showGrepDialog(_:)),		// F_GREP_DIALOG Grep
+        30912: #selector(EditorTextView.showGrepReplaceDialog(_:)),	// F_GREP_REPLACE_DLG Grep置換
+        30940: #selector(EditorTextView.tagJump(_:)),				// F_TAGJUMP タグジャンプ
+        30941: #selector(EditorTextView.tagJumpBack(_:)),			// F_TAGJUMPBACK タグジャンプバック
+        30945: #selector(EditorTextView.tagJumpClose(_:)),			// F_TAGJUMP_CLOSE 閉じてタグジャンプ
         // 第 42 步：アウトライン解析（OutlineWindow.swift）
         30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
         30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)

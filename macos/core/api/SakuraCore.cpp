@@ -2542,6 +2542,28 @@ Result Document::Delete(const Range& range)
 	return Replace(range, Text());
 }
 
+Position Document::AppendWithoutUndo(const Text& text)
+{
+	auto& d = *m_impl;
+	const Position end = EndPosition();
+	if (text.empty()) return end;
+	const int opeSeq = d.opeBuf.GetNextSeq();
+	COpeLineData insData;
+	StringToOpeLineData(text.c_str(), static_cast<int>(text.size()), insData, opeSeq);
+	const CLogicPoint at(CLogicInt(end.column), CLogicInt(end.line));
+	const CLogicPoint ptNew = d.ReplaceRaw(CLogicRange(at, at), &insData, nullptr, opeSeq, nullptr);
+	d.modified = true;
+	return Position{ ptNew.GetY2(), ptNew.GetX2() };
+}
+
+void Document::SetUnmodified()
+{
+	auto& d = *m_impl;
+	d.modified = false;
+	d.opeBuf.SetNoModified();
+	++d.changeCount;
+}
+
 void Document::BeginEdit()
 {
 	auto& d = *m_impl;

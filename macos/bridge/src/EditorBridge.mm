@@ -2093,6 +2093,14 @@ static ECSearchResult *InvalidViewResult()
 
 - (BOOL)hasFuncListMark:(NSInteger)line { return _doc->HasFuncListMark(ClampInt32(line)) ? YES : NO; }
 
+- (ECPosition)appendWithoutUndo:(NSString *)text
+{
+	const auto p = _doc->AppendWithoutUndo(ToText(text));
+	return ECPosition{ p.line, p.column };
+}
+
+- (void)setUnmodified { _doc->SetUnmodified(); }
+
 - (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line
 {
 	const auto target = core::FindTagJump(*_doc, ClampInt32(line));

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Zlib
 
-import Foundation
+import AppKit
 import EditorBridge
 
 /// 「最近使ったファイル」的访问权限（第 31 步：沙盒文件访问）。
@@ -100,5 +100,105 @@ final class BookmarkStore {
         guard let data = try? PropertyListSerialization.data(fromPropertyList: bookmarks, format: .binary, options: 0) else { return }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: fileURL, options: .atomic)
+    }
+}
+
+/// 文件夹的访问权限（第 43 步：Grep 的検索場所、ファイルツリー）。
+///
+/// 沙盒里的 App 只能读用户在对话框里选的文件夹。Grep 的検索場所 由用户用「...」选，
+/// 或者输入时没有权限的文件夹在 OK 时请用户在对话框里确认一次（原版没有这一步）。
+/// 选过的文件夹记安全书签（folder-bookmarks.plist），重启后从书签取回权限，里面的文件夹、文件都能读写。
+/// 取回的权限一直拿着，直到 App 结束（Grep 的结果打开文件、ファイルツリー 都要用）。
+final class FolderAccess {
+    static let shared = FolderAccess(store: BookmarkStore(fileURL: URL(fileURLWithPath: EditorCore.settingsFilePath)
+        .deletingLastPathComponent().appendingPathComponent("folder-bookmarks.plist")))
+
+    let store: BookmarkStore
+    /// 拿着权限的文件夹（路径 → URL）
+    private var accessing: [String: URL] = [:]
+
+    /// 请用户授权的对话框（单元测试换掉）。路径 → 选了的文件夹（取消时 nil）
+    static var choose: (_ path: String, _ message: String, _ parent: NSWindow?) -> URL? = { path, message, parent in
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.message = message
+        panel.prompt = NSLocalizedString("許可", comment: "Grep のフォルダーの許可")
+        panel.directoryURL = URL(fileURLWithPath: path, isDirectory: true)
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    init(store: BookmarkStore) {
+        self.store = store
+    }
+
+    /// 这个文件夹（或上层的文件夹）记着书签时取回权限。取回了、或者本来就能读时 true
+    @discardableResult
+    func startAccess(path: String) -> Bool {
+        let path = Self.normalized(path)
+        if accessing.keys.contains(where: { Self.contains($0, path) }) { return true }
+        for saved in store.paths where Self.contains(saved, path) {
+            if let url = store.resolve(path: saved) {
+                if url.startAccessingSecurityScopedResource() || Self.isReadable(path) {
+                    accessing[saved] = url
+                    return true
+                }
+            }
+        }
+        return Self.isReadable(path)
+    }
+
+    /// 文件夹能读吗（沙盒外运行的单元测试、界面测试的 App 总是能读）
+    static func isReadable(_ path: String) -> Bool {
+        (try? FileManager.default.contentsOfDirectory(atPath: path)) != nil
+    }
+
+    /// 用户选了的文件夹：记书签，拿着权限
+    func remember(_ url: URL) {
+        store.remember(url)
+        let path = Self.normalized(url.path)
+        if accessing[path] == nil {
+            _ = url.startAccessingSecurityScopedResource()
+            accessing[path] = url
+        }
+    }
+
+    /// 没有权限的文件夹请用户授权（对话框里显示这个文件夹，用户按「許可」）。都有权限时 true
+    func ensureAccess(paths: [String], parent: NSWindow?) -> Bool {
+        for path in paths where !startAccess(path: path) {
+            // 無いフォルダーは許可を求めない（OK の確かめで「検索対象フォルダーが正しくありません。」）
+            if Self.doesNotExist(path) { continue }
+            let message = String(format: NSLocalizedString("「%@」を検索するには、このフォルダーへのアクセスを許可してください。", comment: "Grep のフォルダーの許可"), path)
+            guard let url = Self.choose(path, message, parent) else { return false }
+            remember(url)
+            if !startAccess(path: path) { return false }
+        }
+        return true
+    }
+
+    /// 文件（Grep 的结果、タグジャンプ）所在的文件夹的权限
+    @discardableResult
+    func startAccess(file: String) -> Bool {
+        startAccess(path: (file as NSString).deletingLastPathComponent)
+    }
+
+    /// 無いフォルダー（沙盒で読めないだけのときは false）
+    static func doesNotExist(_ path: String) -> Bool {
+        var st = stat()
+        return stat(path, &st) != 0 && errno == ENOENT
+    }
+
+    static func normalized(_ path: String) -> String {
+        var p = (path as NSString).standardizingPath
+        while p.count > 1 && p.hasSuffix("/") { p.removeLast() }
+        return p
+    }
+
+    /// folder 是 path 本身或上层
+    static func contains(_ folder: String, _ path: String) -> Bool {
+        let f = normalized(folder), p = normalized(path)
+        return p == f || p.hasPrefix(f == "/" ? f : f + "/")
     }
 }
