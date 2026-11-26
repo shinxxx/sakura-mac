@@ -29,6 +29,7 @@ DIALOGS = [
 # アウトライン解析（第 42 步。原版 CDlgFuncList）
 OUTLINE_DIALOGS = [
     "IDD_FUNCLIST",
+    "IDD_FILETREE",	# ファイルツリー設定（第 43 步。原版 CDlgFileTree）
 ]
 
 # Grep・Grep置換（第 43 步。原版 CDlgGrep、CDlgGrepReplace、CDlgGrepRunning）

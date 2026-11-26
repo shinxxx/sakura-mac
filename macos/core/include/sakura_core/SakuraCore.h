@@ -1347,6 +1347,100 @@ struct TagJumpTarget {
 */
 std::optional<TagJumpTarget> FindTagJump(const Document& document, std::int32_t line);
 
+// ----- ファイルツリー（第 43 步。原版 CDlgFuncList::LoadFileTreeSetting・SetTreeFile・SetTreeFileSub、CDlgFileTree）-----
+
+//! 项目的种类（原版 EFileTreeItemType，值相同）
+enum class FileTreeItemType : std::int32_t {
+	Grep = 0,		//!< フォルダーの中（ワイルドカードで絞る。展開すると枚举）
+	File = 1,		//!< ファイル
+	Folder = 2,		//!< 项目的分组（ラベルだけ）
+};
+
+//! 一个项目（原版 SFileTreeItem）
+struct FileTreeItem {
+	FileTreeItemType type = FileTreeItemType::Grep;
+	Text path;					//!< フォルダー・ファイルのパス（%MYDOC% 等、<iniroot>、相对路径可以）
+	Text label;					//!< ラベル（空：Grep・ファイルはパス、Folder は「Folder」）
+	std::int32_t depth = 0;		//!< 層（0 开始）
+	Text file = u"*.*";	//!< Grep：対象ファイル（Grep 对话框的格式，! # 也可以）
+	bool ignoreHidden = true;	//!< Grep：隠しファイルを除く
+	bool ignoreReadOnly = false;	//!< Grep：読み取り専用を除く
+	bool ignoreSystem = false;	//!< Grep：システムファイルを除く（Mac 没有系统属性，不影响）
+};
+
+//! 设置从哪里来（原版 EFileTreeSettingFrom，值相同）
+enum class FileTreeSettingFrom : std::int32_t { Common = 0, Type = 1, File = 2 };
+
+//! 现在的设置（原版 CFileTreeSetting + LoadFileTreeSetting 的 IniDirPath）
+struct FileTreeSetting {
+	FileTreeSettingFrom origin = FileTreeSettingFrom::Common;	//!< 共通設定 / タイプ別設定（ドッキング配置の「タイプ別」）
+	FileTreeSettingFrom loadedFrom = FileTreeSettingFrom::Common;	//!< 各フォルダーの設定ファイル から读入时是 File
+	bool project = true;			//!< 各フォルダーの設定を読み込む
+	Text defaultProjectIni;			//!< デフォルト設定ファイル名
+	Text loadedIni;					//!< 读入的设置文件（空：共通設定・タイプ別設定 的项目）
+	Text iniFolder;					//!< 各フォルダーの設定ファイル 的文件夹（<iniroot>）
+	std::vector<FileTreeItem> items;
+};
+
+//! 共通設定・タイプ別設定 能记的项目数（原版 SFileTree::m_aItems 的大小）
+constexpr std::int32_t kFileTreeMaxItems = 20;
+
+/*!
+	读设置（原版 CDlgFuncList::LoadFileTreeSetting）。
+	各フォルダーの設定を読み込む 开着时从 folder 往上找共通設定的「szFileTreeDefIniName」（_sakurafiletree.ini）；
+	没有时读 デフォルト設定ファイル名（相对路径从设置文件的文件夹）；再没有时用 共通設定 或 タイプ別設定（typeIndex）的项目。
+	@param folder 原版是当前文件夹。Mac 版是编辑中的文件的文件夹
+*/
+FileTreeSetting LoadFileTreeSetting(std::int32_t typeIndex, const Text& folder);
+
+/*!
+	「読み込み」按钮（原版 CDlgFileTree IDC_BUTTON_LOAD）：defaultProjectIni 的文件读到 setting。读不了时 setting 不变，返回 false
+*/
+bool LoadFileTreeDefaultIni(FileTreeSetting& setting, const Text& defaultProjectIni);
+
+//! 树的一个根（原版 SetTreeFile 加的项目）
+struct FileTreeRoot {
+	std::int32_t itemIndex = 0;	//!< setting.items 的番号
+	FileTreeItemType type = FileTreeItemType::Grep;
+	Text label;					//!< 显示的文字
+	Text path;					//!< 展开后的绝对路径（Grep・ファイル）
+	std::int32_t depth = 0;		//!< 層（Folder 的下面）
+};
+
+/*!
+	树的项目（原版 SetTreeFile）：路径展开 %…%（ExpandMetaToFolder）、<iniroot>（设置文件读入时）、相对路径（folder 开始）。
+	太长时路径是「<Error:Long Path>」
+*/
+std::vector<FileTreeRoot> FileTreeRoots(const FileTreeSetting& setting, const Text& folder);
+
+//! 一个文件夹的内容（原版 SetTreeFileSub）
+struct FileTreeListing {
+	bool wildcardError = false;		//!< 対象ファイル 不对（原版显示「<Wild Card Error>」）
+	std::vector<Text> folders;		//!< 下一层的文件夹的名字（除外フォルダー 以外）
+	std::vector<Text> files;		//!< 文件的名字（対象ファイル 中的）
+};
+
+/*!
+	Grep 项目的文件夹 folder 的内容（原版 SetTreeFileSub：CGrepEnumFilterFolders・CGrepEnumFilterFiles）。
+	顺序与 Windows 相同（Grep 的枚举）。文件夹必须能访问（沙盒的授权由界面层先做）
+*/
+FileTreeListing ListFileTree(const FileTreeItem& item, const Text& folder);
+
+/*!
+	设置对话框的「OK」（原版 CDlgFileTree::GetData）：project・defaultProjectIni 写到共通設定 或 タイプ別設定；
+	读入了设置文件时项目写回那个文件，否则写到 共通設定・タイプ別設定（kFileTreeMaxItems 个以内）。
+	@param typeIndex origin 是 Type 时的类型
+	@param[out] truncated 项目太多，后面的没有记（原版「最大 20 個…」的消息）
+	@return 错误的消息（写设置文件失败。空：成功）
+*/
+Text SaveFileTreeSetting(const FileTreeSetting& setting, std::int32_t typeIndex, bool& truncated);
+
+//! インポート（原版 CImpExpFileTree::Import）。读不了时 nullopt
+std::optional<std::vector<FileTreeItem>> ImportFileTree(const Text& path);
+
+//! エクスポート（原版 CImpExpFileTree::Export）。返回错误的消息（空：成功）
+Text ExportFileTree(const Text& path, const std::vector<FileTreeItem>& items);
+
 // ---------------------------------------------------------------------------
 // 文档
 // ---------------------------------------------------------------------------

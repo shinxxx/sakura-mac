@@ -96,3 +96,42 @@ Windows 的 `FindFirstFile`（NTFS）按名字的大写的 UTF-16 顺序返回�
   「Grep実行中」、タグジャンプ（Enter・双击・タグジャンプバック・各形式・编辑中的文档）、Grep置換、貼り付ける文字、文件夹的授权。
 - 界面测试 `testGrepAndTagJump`（菜单打开对话框、输入、检索、结果、Enter 打开文件、タグジャンプバック）、
   `testSandboxedGrepFolderAfterRestart`（只在 run-tests.sh：沙盒的 App 检索沙盒外的文件夹，第一次按「許可」，重启后不问就能检索、从结果打开文件）。
+
+## ファイルツリー（第 3 个 PR）
+
+原版 アウトライン解析 的「ファイルツリー」（F_FILETREE：`CDlgFuncList::SetTreeFile`・`SetTreeFileSub`・`LoadFileTreeSetting`）和
+「ファイルツリー設定」（`CDlgFileTree`、`CImpExpFileTree`）。
+
+| 部分 | 文件 | 内容 |
+|---|---|---|
+| 设置・枚举 | `macos/core/api/FileTree.cpp`（`SakuraCore.h` 的 `LoadFileTreeSetting`・`FileTreeRoots`・`ListFileTree`・`SaveFileTreeSetting`・`ImportFileTree`・`ExportFileTree`） | 读设置（各フォルダーの設定ファイル 往上找、デフォルト設定ファイル、共通設定・タイプ別設定）、路径的展开（`%MYDOC%` 等、`<iniroot>`、相对路径）、文件夹的内容（原版的 `CGrepEnumFilterFolders`・`CGrepEnumFilterFiles`，顺序与 Windows 相同）、保存、设置文件的格式（原版 `CImpExpFileTree`，相同） |
+| 窗口 | `macos/app/Sources/FileTreeOutline.swift`、`OutlineWindow.swift` | アウトライン的窗口显示树：Grep 的项目展开时读文件夹（原版 TVN_ITEMEXPANDING），空的文件夹去掉 [+]，双击・Enter 打开文件，「設定」按钮 |
+| 设置对话框 | `macos/app/Sources/FileTreeDialog.swift` | 布局照原版 IDD_FILETREE（`OutlineDialogs.json`）。上⇒・下⇒・>>・更新・削除・↑↓→←、ファイル挿入、パスの一括置換、「▼」的路径变量、読み込み、インポート・エクスポート；OK 写到 共通設定・タイプ別設定（20 个以内）或读入的设置文件 |
+
+与原版相同的地方：设置的来源（「設定: 共通設定」「設定: タイプ別設定」「+ファイル」「設定: ファイル名」）、ドッキング配置「タイプ別」时用タイプ別設定、
+项目的种类（Grep・ファイル・フォルダー）和能输入的栏、子のあるフォルダーをフォルダー以外に「更新」できない、
+共通設定・タイプ別設定に保存するとき 20 个を超えたら追加できない・切り捨て（「最大数(20)を超えたため切り捨てました」）、
+対象ファイル 的格式错误时「<Wild Card Error>」、「すべて展開」（64 層まで）、再表示（「更新」・設定の OK）还是ファイルツリー。
+
+与原版不同的地方：
+
+- 沙盒：只能显示授权过的文件夹。没有权限的文件夹展开时出「開く」对话框（按「許可」，Grep 共用 `FolderAccess` 的书签，重启后不再问）；
+  打开树的时候（原版先读 Grep 项目的内容）只读已经有权限的，不问；「すべて展開」不问（没权限的不展开）。
+  「ファイル挿入」・デフォルト設定ファイル 选的文件记书签（`setting-file-bookmarks.plist`），重启后也能读。
+- 各フォルダーの設定ファイル 往上找的起点：原版是当前文件夹，Mac 版是编辑中的文件的文件夹（新文件时是主文件夹）。沙盒里没有权限的上层文件夹读不到。
+- 打开文件：原版在没改过的空窗口时在这个窗口打开（IsAcceptLoad），Mac 版与タグジャンプ相同（打开着的文件移到那个窗口，否则开新窗口）。
+- Grep 项目的设置：原版用树的项目番号找设置（`GetTreeFileFullName` 的 nItem），前面有フォルダー的项目时会取错别的项目的设置（原版的错误）；Mac 版用那个项目自己的设置。
+- 「▼」的路径变量：名字与原版相同，Mac 版的 `%MYDOC%` 等是主文件夹下的 書類・ミュージック・ムービー・デスクトップ（第 21 步）。
+- 打开时项目超过 20 个的消息：原版每超过一个出一次，Mac 版出一次。
+- システムファイル：Mac 没有系统属性，选项不影响结果。
+
+### 测试
+
+- 核心库 `test-mac-filetree.cpp`（11 个）：初始值、各フォルダーの設定ファイル（往上找、`<iniroot>`、关掉时不找、设置文件名）、デフォルト設定ファイル、
+  タイプ別設定、路径的展开、文件夹的内容（顺序、対象ファイル・除外、隠しファイル・読み取り専用、错误）、保存（共通設定 20 个、设置文件）、
+  インポート・エクスポート（文件的内容与原版的格式相同）、アウトライン解析的结果。
+- App `FileTreeTests`：窗口（项目、展开时读、空的文件夹、打开文件、「<Wild Card Error>」、すべて展開、「設定」后重读）、
+  设置对话框（外观、初始值、种类的切换、各按钮、20 个的限制、设置文件、読み込み・インポート・エクスポート、路径变量・一括置換・ファイル挿入）。
+- 界面测试 `testFileTree`：菜单打开ファイルツリー，「設定」里指定文件夹，展开，双击打开文件。
+- 截图 `DialogScreenshotTests`：Grep・Grep置換・Grep実行中・ファイルツリー設定・ファイルツリー 的画面写成 PNG（`$TMPDIR/sakura-dialog-shots/`），对照原版查看。
+  ファイルツリー設定 的「...」「▼(3)」原版是紧挨着的小按钮，Mac 的圆角按钮会重叠，改成与アウトライン的 ▼・■ 相同的四角按钮（「▼」，(3) 放在提示里）。

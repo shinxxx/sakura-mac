@@ -92,6 +92,7 @@ enum CommandTable {
         // 第 42 步：アウトライン解析（OutlineWindow.swift）
         30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
         30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)
+        30990: #selector(EditorTextView.showFileTree(_:)),			// F_FILETREE ファイルツリー
         30988: #selector(EditorTextView.funcListNext(_:)),			// F_FUNCLIST_NEXT 次の関数リストマークへ
         30989: #selector(EditorTextView.funcListPrev(_:)),			// F_FUNCLIST_PREV 前の関数リストマークへ
 

@@ -65,4 +65,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-command-settings.cpp" # 第 41 步：キー割り当て・メインメニュー・ツールバー・カスタムメニュー
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-outline.cpp"          # 第 42 步：アウトライン解析（样本在 data/outline/，与 Windows 版的结果比较）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-grep.cpp"             # 第 43 步：Grep・Grep置換（原版 test-grep-cmdline.cpp 移到 Mac 版）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-filetree.cpp"         # 第 43 步：ファイルツリー
 )
