@@ -1,0 +1,12 @@
+﻿int main(int argc, char* argv[]) {
+	if (a[i] < b) { return (x + (y * z)); }
+	/* (コメント) と "(文字列)" も区別しない */
+}
+「かぎ（括弧）の『入れ子』」【】
+≪《〈｛〔［“〝〟”］〕｝〉》≫ ＜＞
+｢半角｣ (𠮷) ((unmatched
+unmatched)) ]
+
+{ multi
+  ( line
+  ) }

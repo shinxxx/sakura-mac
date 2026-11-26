@@ -4944,6 +4944,135 @@ bool Document::HasFuncListMark(std::int32_t line) const
 	return pcDocLine && CFuncListManager().GetLineFuncList(pcDocLine);
 }
 
+// ----- 対括弧（第 44 步。原版 view/CEditView_Paint_Bracket.cpp） -----
+
+namespace {
+
+//! 対括弧の対応表（原版 g_aKakkos）
+struct KakkoPair { WCHAR open; WCHAR close; };
+constexpr KakkoPair kKakkos[] = {
+	// 半角
+	{ u'(', u')' }, { u'[', u']' }, { u'{', u'}' }, { u'<', u'>' }, { u'｢', u'｣' },
+	// 全角
+	{ u'【', u'】' }, { u'『', u'』' }, { u'「', u'」' }, { u'＜', u'＞' }, { u'≪', u'≫' }, { u'《', u'》' },
+	{ u'（', u'）' }, { u'〈', u'〉' }, { u'｛', u'｝' }, { u'〔', u'〕' }, { u'［', u'］' }, { u'“', u'”' }, { u'〝', u'〟' },
+};
+
+} // namespace
+
+bool IsBracketChar(char16_t ch)
+{
+	// 原版 CEditView::IsBracket
+	for (const auto& k : kKakkos) {
+		if (ch == static_cast<char16_t>(k.open) || ch == static_cast<char16_t>(k.close)) return true;
+	}
+	return false;
+}
+
+std::optional<Document::BracketMatch> Document::FindBracketPair(const Position& caret, bool checkPrev,
+																 std::optional<BracketSearchArea> area) const
+{
+	// 原版 CEditView::SearchBracket・SearchBracketForward・SearchBracketBackward。
+	// area が無いのは mode の bit0（表示領域外を調べる）が 1 のとき
+	auto& d = *m_impl;
+	CLogicPoint ptPos = ToLogic(caret);
+	const CDocLine* pLine = d.lines.GetLine(ptPos.GetY2());
+	CLogicInt len;
+	const WCHAR* cline = CDocLine::GetDocLineStrWithEOL_Safe(pLine, &len);
+	if (cline == nullptr) return std::nullopt;	// 最後の行に本文がない場合
+	if (ptPos.x > len) return std::nullopt;
+
+	auto forward = [&](CLogicPoint pt, WCHAR upChar, WCHAR dnChar) -> std::optional<Position> {
+		CLayoutPoint ptColLine;
+		d.layout.LogicToLayout(pt, &ptColLine);
+		std::int64_t nSearchNum = area ? std::int64_t(area->bottom) - ptColLine.GetY2() : 0;
+		const CDocLine* ci = d.lines.GetLine(pt.GetY2());
+		CLogicInt l;
+		const WCHAR* line = ci->GetDocLineStrWithEOL(&l);
+		const WCHAR* lineend = line + l;
+		const WCHAR* cPos = line + pt.x;
+		int level = 0;
+		for (;;) {
+			while (cPos < lineend) {
+				const WCHAR* nPos = CNativeW::GetCharNext(line, l, cPos);
+				if (nPos - cPos > 1) { cPos = nPos; continue; }
+				if (upChar == *cPos) ++level;
+				else if (dnChar == *cPos) --level;
+				if (level == 0) {
+					pt.x = CLogicInt(int(cPos - line));
+					return FromLogic(pt);
+				}
+				cPos = nPos;
+			}
+			nSearchNum--;
+			if (nSearchNum < 0 && area) break;	// 表示領域の終端
+			pt.y++;
+			ci = ci->GetNextLine();
+			if (ci == nullptr) break;
+			line = ci->GetDocLineStrWithEOL(&l);
+			cPos = line;
+			lineend = line + l;
+		}
+		return std::nullopt;
+	};
+	auto backward = [&](CLogicPoint pt, WCHAR dnChar, WCHAR upChar) -> std::optional<Position> {
+		CLayoutPoint ptColLine;
+		d.layout.LogicToLayout(pt, &ptColLine);
+		std::int64_t nSearchNum = area ? std::int64_t(ptColLine.GetY2()) - area->top : 0;
+		const CDocLine* ci = d.lines.GetLine(pt.GetY2());
+		CLogicInt l;
+		const WCHAR* line = ci->GetDocLineStrWithEOL(&l);
+		const WCHAR* cPos = line + pt.x;
+		int level = 1;
+		for (;;) {
+			while (cPos > line) {
+				const WCHAR* pPos = CNativeW::GetCharPrev(line, l, cPos);
+				if (cPos - pPos > 1) { cPos = pPos; continue; }
+				if (upChar == *pPos) ++level;
+				else if (dnChar == *pPos) --level;
+				if (level == 0) {
+					pt.x = CLogicInt(int(pPos - line));
+					return FromLogic(pt);
+				}
+				cPos = pPos;
+			}
+			nSearchNum--;
+			if (nSearchNum < 0 && area) break;	// 表示領域の先頭
+			pt.y--;
+			ci = ci->GetPrevLine();
+			if (ci == nullptr) break;
+			line = ci->GetDocLineStrWithEOL(&l);
+			cPos = line + l;
+		}
+		return std::nullopt;
+	};
+	auto search = [&](CLogicPoint pt) -> std::optional<std::optional<Position>> {
+		for (const auto& k : kKakkos) {
+			if (k.open == cline[pt.x]) return forward(pt, k.open, k.close);
+			if (k.close == cline[pt.x]) return backward(pt, k.open, k.close);
+		}
+		return std::nullopt;	// 括弧ではない
+	};
+
+	if (ptPos.x < len) {
+		if (auto r = search(ptPos)) {
+			if (!*r) return std::nullopt;
+			return BracketMatch{ **r, FromLogic(ptPos) };
+		}
+	}
+	if (!checkPrev) return std::nullopt;	// カーソルの前方を調べない場合
+	// 括弧が見つからなかったら，カーソルの直前の文字を調べる
+	if (ptPos.x <= 0) return std::nullopt;
+	const WCHAR* bPos = CNativeW::GetCharPrev(cline, ptPos.x, cline + ptPos.x);
+	if (cline + ptPos.x - bPos != 1) return std::nullopt;
+	ptPos.x = CLogicInt(int(bPos - cline));
+	if (auto r = search(ptPos)) {
+		if (!*r) return std::nullopt;
+		return BracketMatch{ **r, FromLogic(ptPos) };
+	}
+	return std::nullopt;
+}
+
 // ----- フォントサイズ（第 34 步） -----
 
 std::optional<FontZoom> ZoomFontSize(double basePointSize, double zoom, std::int32_t steps, double unit)

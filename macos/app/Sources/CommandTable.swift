@@ -89,6 +89,8 @@ enum CommandTable {
         30940: #selector(EditorTextView.tagJump(_:)),				// F_TAGJUMP タグジャンプ
         30941: #selector(EditorTextView.tagJumpBack(_:)),			// F_TAGJUMPBACK タグジャンプバック
         30945: #selector(EditorTextView.tagJumpClose(_:)),			// F_TAGJUMP_CLOSE 閉じてタグジャンプ
+        // 第 44 步：編集支援（BracketPair.swift 等）
+        30960: #selector(EditorTextView.bracketPair(_:)),			// F_BRACKETPAIR 対括弧の検索
         // 第 42 步：アウトライン解析（OutlineWindow.swift）
         30930: #selector(EditorTextView.showOutline(_:)),			// F_OUTLINE アウトライン解析
         30931: #selector(EditorTextView.toggleOutline(_:)),			// F_OUTLINE_TOGGLE アウトライン解析(toggle)

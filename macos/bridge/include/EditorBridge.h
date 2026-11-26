@@ -1308,6 +1308,18 @@ NS_SWIFT_NAME(EditorDocument)
 //! 当作没有修改（Grep 结束时，原版 SetModified(false,false)）
 - (void)setUnmodified;
 
+// ----- 編集支援（第 44 步） -----
+
+/*!
+	対括弧の検索（原版 SearchBracket）。找到时返回 YES：pair 是对应的括弧，bracket 是光标处（或光标前面）的括弧。
+	checkPrev：光标后面不是括弧时看前面的字。areaTop ≤ areaBottom 时只找到表示領域（排版行）的边（強調表示），
+	areaTop > areaBottom 时找整个文件（F_BRACKETPAIR）
+*/
+- (BOOL)findBracketPairAt:(ECPosition)caret checkPrev:(BOOL)checkPrev areaTop:(NSInteger)areaTop areaBottom:(NSInteger)areaBottom
+	pair:(ECPosition *)outPair bracket:(ECPosition *)outBracket NS_SWIFT_NAME(findBracketPair(at:checkPrev:areaTop:areaBottom:pair:bracket:));
+//! 対括弧の対応表にある括弧か
++ (BOOL)isBracketCharacter:(unichar)ch NS_SWIFT_NAME(isBracket(_:));
+
 @end
 
 NS_ASSUME_NONNULL_END

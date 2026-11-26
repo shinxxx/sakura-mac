@@ -291,6 +291,24 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abc XYf", "F6 之后方向键选择，输入替换选择范围")
     }
 
+    // MARK: - 第 44 步：編集支援
+
+    /// 検索 >「対括弧の検索」：カーソルが対応する括弧へ移る、もう一度で戻る
+    func testBracketPair() {
+        editor.typeText("f(a(b)c)d")
+        key(XCUIKeyboardKey.leftArrow.rawValue, .command)	// 行頭
+        key(XCUIKeyboardKey.rightArrow.rawValue)
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["対括弧の検索"].click()
+        editor.typeText("X")
+        XCTAssertEqual(text, "f(a(b)cX)d", "閉じ括弧の前へ移った")
+        menu.click()
+        menu.menuItems["対括弧の検索"].click()
+        editor.typeText("Y")
+        XCTAssertEqual(text, "fY(a(b)cX)d", "開き括弧の前へ戻った")
+    }
+
     /// 設定 >「Windows のキー割り当てを使う」：⌃ 是 Ctrl（⌃A すべて選択）。再选一次回到 Mac 方案
     func testWindowsKeyScheme() {
         editor.typeText("abc")

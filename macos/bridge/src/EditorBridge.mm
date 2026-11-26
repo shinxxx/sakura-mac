@@ -2335,6 +2335,23 @@ static ECSearchResult *InvalidViewResult()
 
 - (void)setUnmodified { _doc->SetUnmodified(); }
 
+// ----- 編集支援（第 44 步） -----
+
+- (BOOL)findBracketPairAt:(ECPosition)caret checkPrev:(BOOL)checkPrev areaTop:(NSInteger)areaTop areaBottom:(NSInteger)areaBottom
+	pair:(ECPosition *)outPair bracket:(ECPosition *)outBracket
+{
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.column)) return NO;
+	std::optional<core::Document::BracketSearchArea> area;
+	if (areaTop <= areaBottom) area = core::Document::BracketSearchArea{ ClampInt32(areaTop), ClampInt32(areaBottom) };
+	const auto r = _doc->FindBracketPair(ToCore(caret), checkPrev == YES, area);
+	if (!r) return NO;
+	if (outPair) *outPair = FromCore(r->pair);
+	if (outBracket) *outBracket = FromCore(r->bracket);
+	return YES;
+}
+
++ (BOOL)isBracketCharacter:(unichar)ch { return core::IsBracketChar(static_cast<char16_t>(ch)) ? YES : NO; }
+
 - (nullable ECTagJumpTarget *)tagJumpAtLine:(NSInteger)line
 {
 	const auto target = core::FindTagJump(*_doc, ClampInt32(line));
