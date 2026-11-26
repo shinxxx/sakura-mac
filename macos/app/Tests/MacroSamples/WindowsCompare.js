@@ -132,8 +132,18 @@ put("replace.one", docText());
 // ----- 大文字小文字を区別しない名前・括弧の省略・Editor なし -----
 clear();
 Editor.InsText("hello world");
-put("lowercase", editor.getlinecount(0));
-put("global", GetLineCount(0));
+//! 原版で例外になるかもしれないもの（例外のときは名前を書く）
+function tryPut(name, f) {
+	try {
+		put(name, f());
+	} catch (e) {
+		put(name, "error");
+	}
+}
+tryPut("lowercase.method", function () { return Editor.getlinecount(0); });
+tryPut("lowercase.object", function () { return typeof editor; });
+tryPut("global", function () { return GetLineCount(0); });
+tryPut("global.lowercase", function () { return getlinecount(0); });
 Editor.GoFileTop();
 SelectWord;
 put("parenless", IsTextSelected + " " + GetSelectedString(0));
