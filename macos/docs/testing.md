@@ -87,3 +87,12 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 - App 的 `KeyBindTests`、`MainMenuSettingsTests`、`CustomMenuToolbarTests` 与共通設定相同，大多用假的设置（节是 `KeyBind`、`MainMenu`、`CustMenu`、`Toolbar`）；`testOKAppliesToCore` 用真的核心库，结束时改回去。
 - 文件的选择、消息换成测试用的（`TypeSettingsPages.chooseImportFile`、`chooseExportFile`、`showMessage`）。详见 [phase3-command-settings.md](phase3-command-settings.md)。
 - 设置窗口的外观：`PropLayoutTests` 确认所有设置页和对话框里没有被截断的文字、字号没有缩小、控件不重叠。
+
+## 编辑辅助功能（第 44 步）
+
+- 核心库 `test-mac-edit-support.cpp` 的 `*WindowsComparison` 把结果写成文字，与 `data/editsupport/expected/` 比较；CI 的 `edit-support-windows`
+  在 Windows 上用官方版 sakura.exe 的宏和 GNU diff 做同样的操作，与同一个 `expected/` 比较。`SAKURA_EDITSUPPORT_UPDATE=1` 时写出 `expected/`（改了样本以后）。
+- 差分的样本由 `macos/tools/editsupport/make_diff_samples.py` 生成。
+- App 的 `ISearchTests.testMigemo` 用仓库里的测试用词典（`externals/cmigemo-dict` 的 zip，App 不附带）。
+- 对话框（DIFF差分表示、ファイル内容比較、タグジャンプ一覧）、ファイル的选择换成测试用的（`DiffDialogController.runModal`・`chooseFile`、
+  `CompareDialogController.runModal`、`TagJumpListDialogController.runModal`），比较的对象窗口换成测试用的（`EditingDocument.all`）。

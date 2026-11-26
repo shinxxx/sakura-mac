@@ -818,6 +818,8 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     var onClick: ((_ row: Int, _ column: Int) -> Void)?
     var onDoubleClick: ((_ row: Int, _ column: Int) -> Void)?
     var onRightClick: ((_ row: Int, _ column: Int) -> Void)?
+    /// 列の文字の寄せ（原版 LVCFMT_LEFT・CENTER・RIGHT。指定のない列は左）
+    var columnAlignments: [NSTextAlignment] = []
     private var notifying = true
 
     init(header: Bool) {
@@ -893,6 +895,7 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         let label = NSTextField(labelWithString: text)
         label.font = PropPage.font
         label.lineBreakMode = .byClipping	// 原版の ListBox・TreeView は省略記号を付けず切る
+        if columnAlignments.indices.contains(column) { label.alignment = columnAlignments[column] }
         return label
     }
 

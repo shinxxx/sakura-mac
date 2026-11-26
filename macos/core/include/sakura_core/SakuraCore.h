@@ -1403,6 +1403,61 @@ Text MigemoQuery(const Text& key);
 //! 対括弧の対応表にある括弧か（原版 CEditView::IsBracket，第 44 步）
 bool IsBracketChar(char16_t ch);
 
+// ----- タグジャンプ一覧（tags ファイル。第 44 步。macos/core/api/TagJumpList.cpp） -----
+
+//! タグジャンプ一覧の一項目（原版 CDlgTagJumpList の一覧の列）
+struct TagJumpListItem {
+	Text keyword;		//!< キーワード
+	Text file;			//!< ファイル名（tags に書いてあるまま）
+	std::int32_t line = 0;	//!< 行番号
+	Text kind;			//!< 種類（拡張子と種類の文字から。原版 GetNameByType）
+	Text note;			//!< 備考
+	std::int32_t depth = 0;	//!< さかのぼった階層
+	bool hasBaseDir = false;	//!< 基準ディレクトリの指定あり（原版：階層を「(n)」と表示）
+};
+
+/*!
+	タグジャンプ一覧の検索（原版 CDlgTagJumpList の検索の部分）。基準ファイル（編集中のファイル）のフォルダーから
+	上の階層へ tags を探す（共通設定『検索』のタグジャンプの設定と tags の !_TAG_ 指定に従う）。50 件ずつのページ
+*/
+class TagJumpList {
+public:
+	//! direct：ダイレクトタグジャンプ（完全一致、大小を区別）。false はキーワード指定（前方一致）
+	TagJumpList(const Text& baseFilePath, bool direct);
+	~TagJumpList();
+	TagJumpList(const TagJumpList&) = delete;
+	TagJumpList& operator=(const TagJumpList&) = delete;
+
+	//! ダイレクトタグジャンプの検索（原版 FindDirectTagJump）。ヒットした数
+	std::int32_t FindDirect(const Text& keyword);
+	//! キーワードで検索（原版 FindNext）。newFind：新しい条件（次・前のページのときは NextPage・PrevPage）
+	void Find(const Text& keyword, bool icase, bool partialMatch, bool newFind);
+	void NextPage(const Text& keyword, bool icase, bool partialMatch);
+	void PrevPage(const Text& keyword, bool icase, bool partialMatch);
+
+	const std::vector<TagJumpListItem>& Items() const;
+	//! 最も期待に近い候補（原版 SearchBestTag）。候補がないとき -1
+	std::int32_t BestIndex() const;
+	bool HasNextPage() const;
+	bool HasPrevPage() const;
+	std::int32_t Capacity() const;
+	struct Target {
+		Text path;
+		std::int32_t line = 0;
+	};
+	//! 候補のファイルのフルパスと行（原版 GetFullPathAndLine）
+	std::optional<Target> FullPathAndLine(std::int32_t index) const;
+	//! 基準のフォルダー（一覧の下の表示。原版 SetTextDir）
+	Text BaseDirectory() const;
+
+private:
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
+};
+//! キーワード指定タグジャンプの履歴（原版 CRecentTagjumpKeyword）
+std::vector<Text> TagJumpKeywordHistory();
+void AddTagJumpKeyword(const Text& keyword);
+
 // ----- タグジャンプ（第 43 步。原版 CViewCommander::Command_TagJumpNoMessage 中 Grep 的结果、エラーメッセージ 的部分）-----
 
 //! タグジャンプ 的目标

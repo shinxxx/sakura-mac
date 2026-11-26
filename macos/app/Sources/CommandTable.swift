@@ -89,6 +89,9 @@ enum CommandTable {
         30940: #selector(EditorTextView.tagJump(_:)),				// F_TAGJUMP タグジャンプ
         30941: #selector(EditorTextView.tagJumpBack(_:)),			// F_TAGJUMPBACK タグジャンプバック
         30945: #selector(EditorTextView.tagJumpClose(_:)),			// F_TAGJUMP_CLOSE 閉じてタグジャンプ
+        30944: #selector(EditorTextView.directTagJump(_:)),		// F_DIRECT_TAGJUMP ダイレクトタグジャンプ（第 44 步，TagJumpList.swift）
+        30946: #selector(EditorTextView.tagJumpKeyword(_:)),		// F_TAGJUMP_KEYWORD キーワードを指定してタグジャンプ
+        // F_TAGJUMP_LIST（30942）は原版にも処理がない。F_TAGS_MAKE（30943）は ctags（GPL）を附带しないので Mac 版にない（変灰）
         // 第 44 步：編集支援（BracketPair.swift 等）
         30950: #selector(EditorTextView.compareFiles(_:)),			// F_COMPARE ファイル内容比較（DiffCommands.swift）
         30960: #selector(EditorTextView.bracketPair(_:)),			// F_BRACKETPAIR 対括弧の検索

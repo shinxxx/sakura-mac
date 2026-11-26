@@ -9,6 +9,8 @@
 	- DIFF差分表示：Mac 版自己实现的差分（Diff.cpp）的塊が GNU diff と同じ、行の印（原版 AnalyzeDiffInfo）、次・前の差分
 	- ファイル内容比較（原版 Commander_COMPARE_core）
 	- 入力補完（GetLeftWord、補完ファイル・編集中データ・強調キーワードの候補）、キーワードヘルプ（KeySearchCore）
+	- タグジャンプ一覧（原版 CDlgTagJumpList の検索：上の階層の tags、タグジャンプモード、二分探索・線形探索、
+	  前方一致・部分一致・大小、ページ、最も近い候補、!_TAG_S_SEARCH_NEXT・!_TAG_S_FILE_BASEDIR）
 
 	与 Windows 官方版的对照：data/editsupport/ 的样本用同样的操作得到的结果与 data/editsupport/expected/ 的文件相同。
 	expected 的文件和 Windows 官方版（CI 的 edit-support-windows：macos/tools/editsupport/windows-edit-support.js
@@ -785,4 +787,165 @@ TEST_F(MacEditSupportTest, KeywordHelp)
 	}
 	fs::remove(dict1);
 	fs::remove(dict2);
+}
+
+// ----- タグジャンプ一覧 -----
+
+namespace {
+
+struct TagsTree {
+	fs::path root;
+	explicit TagsTree(const char* name) : root(fs::path(std::getenv("HOME")) / name)
+	{
+		fs::remove_all(root);
+		fs::create_directories(root / "src");
+	}
+	~TagsTree() { fs::remove_all(root); }
+	void Write(const fs::path& rel, const std::string& text) const
+	{
+		std::ofstream out(root / rel, std::ios::binary);
+		out << text;
+	}
+	Text Path(const fs::path& rel) const { return (root / rel).u16string(); }
+};
+
+const char* kSortedHeader = "!_TAG_FILE_FORMAT\t2\t/extended format/\n!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/\n";
+
+std::string Keywords(const TagJumpList& list)
+{
+	std::string s;
+	for (const auto& item : list.Items()) {
+		if (!s.empty()) s += ",";
+		s += std::string(item.keyword.begin(), item.keyword.end()) + "@" + std::to_string(item.depth);
+	}
+	return s;
+}
+
+class TagJumpMode {
+public:
+	TagJumpMode(int direct, int keyword)
+	{
+		m_direct = GetCommonSetting(u"Common", u"nTagJumpMode").value_or(u"1");
+		m_keyword = GetCommonSetting(u"Common", u"nTagJumpModeKeyword").value_or(u"3");
+		SetCommonSetting(u"Common", u"nTagJumpMode", TypeSetting::ToText16(std::to_string(direct)));
+		SetCommonSetting(u"Common", u"nTagJumpModeKeyword", TypeSetting::ToText16(std::to_string(keyword)));
+	}
+	~TagJumpMode()
+	{
+		SetCommonSetting(u"Common", u"nTagJumpMode", m_direct);
+		SetCommonSetting(u"Common", u"nTagJumpModeKeyword", m_keyword);
+	}
+
+private:
+	Text m_direct, m_keyword;
+};
+
+} // namespace
+
+// ダイレクトタグジャンプ：編集中のファイルのフォルダーから上へ tags を探す。タグジャンプモード 1（ヒットしたら次は探さない）・3（必ず次も）
+TEST_F(MacEditSupportTest, TagJumpDirect)
+{
+	TagsTree t("tagjump-direct");
+	t.Write("tags", std::string(kSortedHeader) + "Alpha\tsrc/a.c\t10;\"\tf\nBeta\tsrc/b.cpp\t20;\"\tc\tclass:X\nbeta\tsrc/b.cpp\t25;\"\tf\n");
+	t.Write("src/tags", std::string(kSortedHeader) + "Alpha\ta.c\t5;\"\tf\n");
+	{
+		TagJumpMode mode(1, 3);
+		TagJumpList list(t.Path("src/main.c"), true);
+		EXPECT_EQ(1, list.FindDirect(u"Alpha"));
+		EXPECT_EQ("Alpha@0", Keywords(list));
+		const auto target = list.FullPathAndLine(0);
+		ASSERT_TRUE(target);
+		EXPECT_EQ(t.Path("src/a.c"), target->path);
+		EXPECT_EQ(5, target->line);
+		EXPECT_EQ(u"function", list.Items()[0].kind);
+		EXPECT_EQ(t.Path("src/"), list.BaseDirectory());
+	}
+	{
+		TagJumpMode mode(3, 3);
+		TagJumpList list(t.Path("src/main.c"), true);
+		EXPECT_EQ(2, list.FindDirect(u"Alpha"));
+		EXPECT_EQ("Alpha@0,Alpha@1", Keywords(list));
+		EXPECT_EQ(t.Path("src/a.c"), list.FullPathAndLine(1)->path) << "1 つ上の階層の tags の src/a.c";
+		EXPECT_EQ(10, list.FullPathAndLine(1)->line);
+		EXPECT_EQ(1, list.FindDirect(u"Beta")) << "大小を区別";
+		EXPECT_EQ(u"class", list.Items()[0].kind);
+		EXPECT_EQ(u"class:X", list.Items()[0].note);
+		EXPECT_EQ(0, list.FindDirect(u"Gamma"));
+	}
+	{
+		TagJumpMode mode(0, 3);
+		TagJumpList list(t.Path("src/main.c"), true);
+		EXPECT_EQ(0, list.FindDirect(u"Alpha")) << "モード 0：tags を探さない";
+	}
+}
+
+// キーワード指定：前方一致（既定）、大文字小文字の同一視、文字列の途中にマッチ、最も近い候補
+TEST_F(MacEditSupportTest, TagJumpKeyword)
+{
+	TagsTree t("tagjump-keyword");
+	t.Write("tags", std::string(kSortedHeader) + "Beta\tsrc/b.cpp\t20;\"\tc\nBetter\tsrc/main.c\t3;\"\tv\nalphaBeta\tother/x.c\t1;\"\tf\nbeta\tsrc/b.cpp\t25;\"\tf\n");
+	TagJumpMode mode(1, 3);
+	TagJumpList list(t.Path("src/main.c"), false);
+	list.Find(u"Be", false, false, true);
+	EXPECT_EQ("Beta@1,Better@1", Keywords(list));
+	EXPECT_EQ(1, list.BestIndex()) << "編集中のファイルと同じ src/main.c";
+	list.Find(u"be", true, false, true);
+	EXPECT_EQ("Beta@1,Better@1,beta@1", Keywords(list));
+	list.Find(u"eta", false, true, true);
+	EXPECT_EQ("Beta@1,alphaBeta@1,beta@1", Keywords(list));
+	list.Find(u"", false, false, true);
+	EXPECT_TRUE(list.Items().empty());
+	EXPECT_EQ(-1, list.BestIndex());
+}
+
+// 50 件ずつのページ、大きな tags の二分探索、ソートされていない tags は線形探索
+TEST_F(MacEditSupportTest, TagJumpPagingAndBinarySearch)
+{
+	TagsTree t("tagjump-paging");
+	std::string tags = kSortedHeader;
+	for (int i = 0; i < 60; ++i) tags += "Same\tsrc/f" + std::to_string(100 + i) + ".c\t" + std::to_string(i + 1) + ";\"\tf\n";
+	for (int i = 0; i < 3000; ++i) tags += "Word" + std::to_string(10000 + i) + "\tsrc/w.c\t" + std::to_string(i + 1) + ";\"\tv\n";
+	t.Write("tags", tags);
+	TagJumpMode mode(1, 3);
+	TagJumpList list(t.Path("src/main.c"), false);
+	list.Find(u"Same", false, false, true);
+	EXPECT_EQ(50u, list.Items().size());
+	EXPECT_TRUE(list.HasNextPage());
+	EXPECT_FALSE(list.HasPrevPage());
+	list.NextPage(u"Same", false, false);
+	EXPECT_EQ(10u, list.Items().size());
+	EXPECT_FALSE(list.HasNextPage());
+	EXPECT_TRUE(list.HasPrevPage());
+	EXPECT_EQ(51, list.FullPathAndLine(0)->line);
+	TagJumpList direct(t.Path("src/main.c"), true);
+	EXPECT_EQ(1, direct.FindDirect(u"Word12345"));
+	EXPECT_EQ(2346, direct.FullPathAndLine(0)->line);
+	// ソートされていない
+	t.Write("tags", "!_TAG_FILE_SORTED\t0\t/unsorted/\nZeta\tz.c\t1;\"\tf\nAlpha\ta.c\t2;\"\tf\n");
+	TagJumpList unsorted(t.Path("main.c"), true);
+	EXPECT_EQ(1, unsorted.FindDirect(u"Alpha"));
+}
+
+// 独自拡張：!_TAG_S_SEARCH_NEXT（次に探すフォルダー）、!_TAG_S_FILE_BASEDIR（ファイル名の基準）
+TEST_F(MacEditSupportTest, TagJumpExtensions)
+{
+	TagsTree t("tagjump-ext");
+	fs::create_directories(t.root / "lib");
+	t.Write("src/tags", std::string(kSortedHeader) + "!_TAG_S_SEARCH_NEXT\t3\t" + (t.root / "lib").string() + "\n");
+	t.Write("lib/tags", std::string(kSortedHeader) + "!_TAG_S_FILE_BASEDIR\t" + (t.root / "lib" / "inc").string() + "\nLibFunc\tlibfunc.h\t7;\"\tp\n");
+	TagJumpMode mode(1, 3);
+	TagJumpList list(t.Path("src/main.c"), true);
+	EXPECT_EQ(1, list.FindDirect(u"LibFunc"));
+	EXPECT_TRUE(list.Items()[0].hasBaseDir);
+	EXPECT_EQ(t.Path("lib/inc/libfunc.h"), list.FullPathAndLine(0)->path);
+}
+
+TEST_F(MacEditSupportTest, TagJumpKeywordHistory)
+{
+	AddTagJumpKeyword(u"first");
+	AddTagJumpKeyword(u"second");
+	const auto h = TagJumpKeywordHistory();
+	ASSERT_GE(h.size(), 2u);
+	EXPECT_EQ(u"second", h[0]);
+	EXPECT_EQ(u"first", h[1]);
 }

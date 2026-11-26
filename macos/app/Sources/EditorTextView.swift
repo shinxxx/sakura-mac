@@ -2110,7 +2110,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         // 第 32 步：検索メニュー（SearchCommands.swift）、第 34 步：移動・選択（CursorCommands.swift）、モード・設定（ModeCommands.swift）
         default:
             return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem)
-                ?? validateISearchMenuItem(menuItem) ?? validateDiffMenuItem(menuItem) ?? validateKeywordHelpMenuItem(menuItem) ?? true
+                ?? validateISearchMenuItem(menuItem) ?? validateDiffMenuItem(menuItem) ?? validateKeywordHelpMenuItem(menuItem)
+                ?? validateTagJumpMenuItem(menuItem) ?? true
         }
     }
 

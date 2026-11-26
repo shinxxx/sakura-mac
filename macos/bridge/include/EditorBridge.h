@@ -661,6 +661,9 @@ NS_SWIFT_NAME(EditorCore)
 	NS_SWIFT_NAME(windowListLabel(path:untitledId:modified:encoding:grepKey:index:));
 //! ファイル名の似ている度合い（原版 FileMatchScoreSepExt）
 + (NSInteger)fileMatchScore:(NSString *)file1 with:(NSString *)file2 NS_SWIFT_NAME(fileMatchScore(_:_:));
+//! キーワード指定タグジャンプの履歴（第 44 步）
+@property (class, readonly, copy) NSArray<NSString *> *tagJumpKeywordHistory;
++ (void)addTagJumpKeyword:(NSString *)keyword NS_SWIFT_NAME(addTagJumpKeyword(_:));
 //! MIGEMO の準備（第 44 步：インクリメンタルサーチ。辞書は共通設定『支援』の「辞書」）
 + (ECMigemoStatus)prepareMigemo;
 //! 辞書の設定が変わったとき：次の prepareMigemo で読み直す
@@ -1085,6 +1088,39 @@ NS_SWIFT_NAME(FileTreeCore)
 + (nullable NSArray<ECFileTreeItem *> *)importFromPath:(NSString *)path NS_SWIFT_NAME(importItems(path:));
 + (NSString *)exportItems:(NSArray<ECFileTreeItem *> *)items toPath:(NSString *)path NS_SWIFT_NAME(exportItems(_:path:));
 - (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! タグジャンプ一覧の一項目（sakura::core::TagJumpListItem）
+NS_SWIFT_NAME(TagJumpListItem)
+@interface ECTagJumpListItem : NSObject
+@property (readonly, copy) NSString *keyword;
+@property (readonly, copy) NSString *file;
+@property (readonly) NSInteger line;
+@property (readonly, copy) NSString *kind;
+@property (readonly, copy) NSString *note;
+@property (readonly) NSInteger depth;
+@property (readonly) BOOL hasBaseDir;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! タグジャンプ一覧の検索（sakura::core::TagJumpList：原版 CDlgTagJumpList の検索の部分）
+NS_SWIFT_NAME(TagJumpSearch)
+@interface ECTagJumpList : NSObject
+//! direct：ダイレクトタグジャンプ（完全一致）。NO はキーワード指定（前方一致）
+- (instancetype)initWithBaseFilePath:(NSString *)path direct:(BOOL)direct NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
+//! ダイレクトタグジャンプの検索。ヒットした数
+- (NSInteger)findDirect:(NSString *)keyword NS_SWIFT_NAME(findDirect(_:));
+- (void)find:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial newFind:(BOOL)newFind NS_SWIFT_NAME(find(_:ignoreCase:partialMatch:newFind:));
+- (void)nextPage:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial NS_SWIFT_NAME(nextPage(_:ignoreCase:partialMatch:));
+- (void)prevPage:(NSString *)keyword ignoreCase:(BOOL)icase partialMatch:(BOOL)partial NS_SWIFT_NAME(prevPage(_:ignoreCase:partialMatch:));
+@property (readonly, copy) NSArray<ECTagJumpListItem *> *items;
+@property (readonly) NSInteger bestIndex;
+@property (readonly) BOOL hasNextPage;
+@property (readonly) BOOL hasPrevPage;
+@property (readonly, copy) NSString *baseDirectory;
+//! 候補のファイルのフルパス（ないとき nil）と行
+- (nullable NSString *)fullPathAtIndex:(NSInteger)index line:(NSInteger *)line NS_SWIFT_NAME(fullPath(at:line:));
 @end
 
 //! キーワードヘルプの結果（sakura::core::Document::KeywordHelp）
