@@ -573,6 +573,10 @@ OutlineResult BuildOutlineView(CFuncInfoArr& arr, int nOutlineType, int nListTyp
 	case OUTLINE_CLSTREE:
 		SetTreeJava(arr, tree, true, result.clipText);
 		break;
+	case OUTLINE_FILETREE:
+		// 原版 SetTreeFile：ツリーの項目はフォルダーの中身。Mac 版は界面层が作る（FileTreeRoots・ListFileTree）
+		result.title = LS(F_FILETREE);
+		break;
 	default:
 		result.isTree = false;
 		switch (nListType) {

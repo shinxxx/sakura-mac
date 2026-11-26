@@ -1118,6 +1118,42 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(documentWindow(app, "a.txt").textViews["editor"].value as? String, "alpha HIT\nnone\n")
     }
 
+    /// 第 43 步：検索 > ファイルツリー。「設定」でフォルダーを指定（ファイルツリー設定の「更新」「OK」）、
+    /// ツリーでフォルダーを開いて、ファイルをダブルクリックで開く
+    func testFileTree() throws {
+        let dir = try makeGrepFolder()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let menu = app.menuBars.menuBarItems["検索"]
+        menu.click()
+        menu.menuItems["ファイルツリー"].click()
+        let panel = app.dialogs["ファイルツリー"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 5), "ファイルツリーが開いた")
+        panel.buttons["設定(S)"].click()
+        let dialog = app.dialogs["ファイルツリー設定"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5), "ファイルツリー設定")
+        let savedInputSource = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+        if let ascii = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() { TISSelectInputSource(ascii) }
+        defer { if let savedInputSource { TISSelectInputSource(savedInputSource) } }
+        let path = dialog.textFields["IDC_EDIT_PATH"]
+        path.click()
+        path.typeKey("a", modifierFlags: .command)
+        path.typeText(dir.path)
+        let label = dialog.textFields["IDC_EDIT_LABEL"]
+        label.click()
+        label.typeText("UITREE")
+        dialog.buttons["更新(P)"].click()
+        dialog.buttons["OK"].click()
+        let tree = panel.outlines["IDC_TREE_FL_outline"]
+        let root = tree.staticTexts["UITREE"]
+        XCTAssertTrue(root.waitForExistence(timeout: 5), "設定のラベルで表示")
+        // フォルダーを開く（開閉の三角）
+        tree.outlineRows.firstMatch.disclosureTriangles.firstMatch.click()
+        XCTAssertTrue(tree.staticTexts["sub"].waitForExistence(timeout: 5), "フォルダーの中")
+        tree.staticTexts["a.txt"].doubleClick()
+        XCTAssertTrue(documentWindow(app, "a.txt").waitForExistence(timeout: 10), "ファイルを開いた")
+        XCTAssertEqual(documentWindow(app, "a.txt").textViews["editor"].value as? String, "alpha HIT\nnone\n")
+    }
+
     /// 文件的窗口（标题是「文件名 – 编码」）
     private func documentWindow(_ app: XCUIApplication, _ name: String) -> XCUIElement {
         app.windows.matching(NSPredicate(format: "title == %@ OR title BEGINSWITH %@", name, name + " ")).firstMatch

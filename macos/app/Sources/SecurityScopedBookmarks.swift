@@ -166,11 +166,13 @@ final class FolderAccess {
     }
 
     /// 没有权限的文件夹请用户授权（对话框里显示这个文件夹，用户按「許可」）。都有权限时 true
-    func ensureAccess(paths: [String], parent: NSWindow?) -> Bool {
+    /// purpose：对话框的消息（nil 是 Grep 的「検索するには」）
+    func ensureAccess(paths: [String], parent: NSWindow?, message purpose: String? = nil) -> Bool {
         for path in paths where !startAccess(path: path) {
             // 無いフォルダーは許可を求めない（OK の確かめで「検索対象フォルダーが正しくありません。」）
             if Self.doesNotExist(path) { continue }
-            let message = String(format: NSLocalizedString("「%@」を検索するには、このフォルダーへのアクセスを許可してください。", comment: "Grep のフォルダーの許可"), path)
+            let format = purpose ?? NSLocalizedString("「%@」を検索するには、このフォルダーへのアクセスを許可してください。", comment: "Grep のフォルダーの許可")
+            let message = String(format: format, path)
             guard let url = Self.choose(path, message, parent) else { return false }
             remember(url)
             if !startAccess(path: path) { return false }

@@ -990,6 +990,79 @@ NS_SWIFT_NAME(GrepCore)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+// ----- ファイルツリー（第 43 步。sakura::core::FileTreeSetting 等）-----
+
+typedef NS_ENUM(NSInteger, ECFileTreeItemType) {
+	ECFileTreeItemTypeGrep NS_SWIFT_NAME(grep) = 0,
+	ECFileTreeItemTypeFile NS_SWIFT_NAME(file) = 1,
+	ECFileTreeItemTypeFolder NS_SWIFT_NAME(folder) = 2,
+} NS_SWIFT_NAME(FileTreeItemType);
+
+typedef NS_ENUM(NSInteger, ECFileTreeSettingFrom) {
+	ECFileTreeSettingFromCommon NS_SWIFT_NAME(common) = 0,
+	ECFileTreeSettingFromType NS_SWIFT_NAME(type) = 1,
+	ECFileTreeSettingFromFile NS_SWIFT_NAME(file) = 2,
+} NS_SWIFT_NAME(FileTreeSettingFrom);
+
+//! 一个项目（sakura::core::FileTreeItem）
+NS_SWIFT_NAME(FileTreeItem)
+@interface ECFileTreeItem : NSObject <NSCopying>
+@property ECFileTreeItemType type;
+@property (copy) NSString *path;
+@property (copy) NSString *label;
+@property NSInteger depth;
+@property (copy) NSString *file;			//!< 初始值 *.*
+@property BOOL ignoreHidden;				//!< 初始值 YES
+@property BOOL ignoreReadOnly;
+@property BOOL ignoreSystem;
+@end
+
+//! 现在的设置（sakura::core::FileTreeSetting）
+NS_SWIFT_NAME(FileTreeSetting)
+@interface ECFileTreeSetting : NSObject
+@property ECFileTreeSettingFrom origin;
+@property ECFileTreeSettingFrom loadedFrom;
+@property BOOL project;
+@property (copy) NSString *defaultProjectIni;
+@property (copy) NSString *loadedIni;
+@property (copy) NSString *iniFolder;
+@property (copy) NSArray<ECFileTreeItem *> *items;
+@end
+
+//! 树的一个根（sakura::core::FileTreeRoot）
+NS_SWIFT_NAME(FileTreeRoot)
+@interface ECFileTreeRoot : NSObject
+@property (readonly) NSInteger itemIndex;
+@property (readonly) ECFileTreeItemType type;
+@property (readonly, copy) NSString *label;
+@property (readonly, copy) NSString *path;
+@property (readonly) NSInteger depth;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 一个文件夹的内容（sakura::core::FileTreeListing）
+NS_SWIFT_NAME(FileTreeListing)
+@interface ECFileTreeListing : NSObject
+@property (readonly) BOOL wildcardError;
+@property (readonly, copy) NSArray<NSString *> *folders;
+@property (readonly, copy) NSArray<NSString *> *files;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+NS_SWIFT_NAME(FileTreeCore)
+@interface ECFileTree : NSObject
+@property (class, readonly) NSInteger maxItems;
++ (ECFileTreeSetting *)loadSettingForType:(NSInteger)typeIndex folder:(NSString *)folder NS_SWIFT_NAME(load(typeIndex:folder:));
++ (BOOL)loadDefaultIni:(NSString *)path into:(ECFileTreeSetting *)setting NS_SWIFT_NAME(loadDefaultIni(_:into:));
++ (NSArray<ECFileTreeRoot *> *)rootsOf:(ECFileTreeSetting *)setting folder:(NSString *)folder NS_SWIFT_NAME(roots(_:folder:));
++ (ECFileTreeListing *)listItem:(ECFileTreeItem *)item folder:(NSString *)folder NS_SWIFT_NAME(list(_:folder:));
+//! 返回错误的消息（空：成功）
++ (NSString *)saveSetting:(ECFileTreeSetting *)setting typeIndex:(NSInteger)typeIndex truncated:(BOOL *)truncated NS_SWIFT_NAME(save(_:typeIndex:truncated:));
++ (nullable NSArray<ECFileTreeItem *> *)importFromPath:(NSString *)path NS_SWIFT_NAME(importItems(path:));
++ (NSString *)exportItems:(NSArray<ECFileTreeItem *> *)items toPath:(NSString *)path NS_SWIFT_NAME(exportItems(_:path:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 

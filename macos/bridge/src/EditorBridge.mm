@@ -1379,6 +1379,14 @@ static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHis
 - (instancetype)initWithTarget:(const core::TagJumpTarget&)target;
 @end
 
+@interface ECFileTreeRoot ()
+- (instancetype)initWithRoot:(const core::FileTreeRoot&)root;
+@end
+
+@interface ECFileTreeListing ()
+- (instancetype)initWithListing:(const core::FileTreeListing&)listing;
+@end
+
 @implementation ECGrepOptions
 
 - (instancetype)init
@@ -1525,6 +1533,232 @@ static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHis
 		_column = target.column;
 	}
 	return self;
+}
+
+@end
+
+// ----- ファイルツリー -----
+
+@implementation ECFileTreeItem
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		_type = ECFileTreeItemTypeGrep;
+		_path = @"";
+		_label = @"";
+		_file = @"*.*";
+		_ignoreHidden = YES;
+	}
+	return self;
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+	ECFileTreeItem *item = [[ECFileTreeItem allocWithZone:zone] init];
+	item.type = _type;
+	item.path = _path;
+	item.label = _label;
+	item.depth = _depth;
+	item.file = _file;
+	item.ignoreHidden = _ignoreHidden;
+	item.ignoreReadOnly = _ignoreReadOnly;
+	item.ignoreSystem = _ignoreSystem;
+	return item;
+}
+
+@end
+
+namespace {
+
+ECFileTreeItem *ToFileTreeItem(const core::FileTreeItem& item)
+{
+	ECFileTreeItem *result = [[ECFileTreeItem alloc] init];
+	result.type = static_cast<ECFileTreeItemType>(item.type);
+	result.path = ToNSString(item.path);
+	result.label = ToNSString(item.label);
+	result.depth = item.depth;
+	result.file = ToNSString(item.file);
+	result.ignoreHidden = item.ignoreHidden;
+	result.ignoreReadOnly = item.ignoreReadOnly;
+	result.ignoreSystem = item.ignoreSystem;
+	return result;
+}
+
+core::FileTreeItem FromFileTreeItem(ECFileTreeItem *item)
+{
+	core::FileTreeItem result;
+	result.type = static_cast<core::FileTreeItemType>(item.type);
+	result.path = ToText(item.path);
+	result.label = ToText(item.label);
+	result.depth = static_cast<std::int32_t>(item.depth);
+	result.file = ToText(item.file);
+	result.ignoreHidden = item.ignoreHidden;
+	result.ignoreReadOnly = item.ignoreReadOnly;
+	result.ignoreSystem = item.ignoreSystem;
+	return result;
+}
+
+NSArray<ECFileTreeItem *> *ToFileTreeItems(const std::vector<core::FileTreeItem>& items)
+{
+	NSMutableArray<ECFileTreeItem *> *result = [NSMutableArray array];
+	for (const auto& item : items) [result addObject:ToFileTreeItem(item)];
+	return result;
+}
+
+std::vector<core::FileTreeItem> FromFileTreeItems(NSArray<ECFileTreeItem *> *items)
+{
+	std::vector<core::FileTreeItem> result;
+	for (ECFileTreeItem *item in items) result.push_back(FromFileTreeItem(item));
+	return result;
+}
+
+} // namespace
+
+@interface ECFileTreeSetting ()
+- (instancetype)initWithSetting:(const core::FileTreeSetting&)setting;
+- (void)assign:(const core::FileTreeSetting&)setting;
+- (core::FileTreeSetting)coreSetting;
+@end
+
+@implementation ECFileTreeSetting
+
+- (instancetype)init
+{
+	self = [super init];
+	if (self) {
+		_project = YES;
+		_defaultProjectIni = @"";
+		_loadedIni = @"";
+		_iniFolder = @"";
+		_items = @[];
+	}
+	return self;
+}
+
+- (instancetype)initWithSetting:(const core::FileTreeSetting&)setting
+{
+	self = [super init];
+	if (self) {
+		[self assign:setting];
+	}
+	return self;
+}
+
+- (void)assign:(const core::FileTreeSetting&)setting
+{
+	_origin = static_cast<ECFileTreeSettingFrom>(setting.origin);
+	_loadedFrom = static_cast<ECFileTreeSettingFrom>(setting.loadedFrom);
+	_project = setting.project;
+	_defaultProjectIni = ToNSString(setting.defaultProjectIni);
+	_loadedIni = ToNSString(setting.loadedIni);
+	_iniFolder = ToNSString(setting.iniFolder);
+	_items = ToFileTreeItems(setting.items);
+}
+
+- (core::FileTreeSetting)coreSetting
+{
+	core::FileTreeSetting setting;
+	setting.origin = static_cast<core::FileTreeSettingFrom>(_origin);
+	setting.loadedFrom = static_cast<core::FileTreeSettingFrom>(_loadedFrom);
+	setting.project = _project;
+	setting.defaultProjectIni = ToText(_defaultProjectIni);
+	setting.loadedIni = ToText(_loadedIni);
+	setting.iniFolder = ToText(_iniFolder);
+	setting.items = FromFileTreeItems(_items);
+	return setting;
+}
+
+@end
+
+@implementation ECFileTreeRoot
+
+- (instancetype)initWithRoot:(const core::FileTreeRoot&)root
+{
+	self = [super init];
+	if (self) {
+		_itemIndex = root.itemIndex;
+		_type = static_cast<ECFileTreeItemType>(root.type);
+		_label = ToNSString(root.label);
+		_path = ToNSString(root.path);
+		_depth = root.depth;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECFileTreeListing
+
+- (instancetype)initWithListing:(const core::FileTreeListing&)listing
+{
+	self = [super init];
+	if (self) {
+		_wildcardError = listing.wildcardError;
+		NSMutableArray<NSString *> *folders = [NSMutableArray array];
+		for (const auto& name : listing.folders) [folders addObject:ToNSString(name)];
+		NSMutableArray<NSString *> *files = [NSMutableArray array];
+		for (const auto& name : listing.files) [files addObject:ToNSString(name)];
+		_folders = folders;
+		_files = files;
+	}
+	return self;
+}
+
+@end
+
+@implementation ECFileTree
+
++ (NSInteger)maxItems
+{
+	return core::kFileTreeMaxItems;
+}
+
++ (ECFileTreeSetting *)loadSettingForType:(NSInteger)typeIndex folder:(NSString *)folder
+{
+	return [[ECFileTreeSetting alloc] initWithSetting:core::LoadFileTreeSetting(static_cast<std::int32_t>(typeIndex), ToText(folder))];
+}
+
++ (BOOL)loadDefaultIni:(NSString *)path into:(ECFileTreeSetting *)setting
+{
+	core::FileTreeSetting s = [setting coreSetting];
+	const bool ok = core::LoadFileTreeDefaultIni(s, ToText(path));
+	[setting assign:s];
+	return ok;
+}
+
++ (NSArray<ECFileTreeRoot *> *)rootsOf:(ECFileTreeSetting *)setting folder:(NSString *)folder
+{
+	NSMutableArray<ECFileTreeRoot *> *roots = [NSMutableArray array];
+	for (const auto& root : core::FileTreeRoots([setting coreSetting], ToText(folder))) {
+		[roots addObject:[[ECFileTreeRoot alloc] initWithRoot:root]];
+	}
+	return roots;
+}
+
++ (ECFileTreeListing *)listItem:(ECFileTreeItem *)item folder:(NSString *)folder
+{
+	return [[ECFileTreeListing alloc] initWithListing:core::ListFileTree(FromFileTreeItem(item), ToText(folder))];
+}
+
++ (NSString *)saveSetting:(ECFileTreeSetting *)setting typeIndex:(NSInteger)typeIndex truncated:(BOOL *)truncated
+{
+	bool t = false;
+	const auto error = core::SaveFileTreeSetting([setting coreSetting], static_cast<std::int32_t>(typeIndex), t);
+	if (truncated) *truncated = t;
+	return ToNSString(error);
+}
+
++ (NSArray<ECFileTreeItem *> *)importFromPath:(NSString *)path
+{
+	const auto items = core::ImportFileTree(ToText(path));
+	return items ? ToFileTreeItems(*items) : nil;
+}
+
++ (NSString *)exportItems:(NSArray<ECFileTreeItem *> *)items toPath:(NSString *)path
+{
+	return ToNSString(core::ExportFileTree(ToText(path), FromFileTreeItems(items)));
 }
 
 @end

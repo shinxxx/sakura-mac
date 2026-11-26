@@ -22,6 +22,8 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     let treeView = OutlineTreeView()
     let listView = OutlineListView()
     private let treeData = OutlineTreeData()
+    /// ファイルツリーのデータ（F_FILETREE のときツリーに使う）
+    let fileTreeData = FileTreeData()
     private let listData = OutlineListData()
 
     /// 解析结果（原版 m_pcFuncInfoArr）
@@ -195,7 +197,8 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         page.setEnabled("IDC_CHECK_bFunclistSetFocusOnJump", !autoClose)
         // 空行をどう扱うかのチェックボックスはブックマーク一覧のときだけ表示する
         page.showEnable("IDC_CHECK_bMarkUpBlankLineEnable", show: result.listType == .bookmark && !isDocking, enable: result.listType == .bookmark)
-        page.control("IDC_BUTTON_SETTING")?.isHidden = true
+        // 「設定」ボタンはファイルツリーのときだけ（原版 SetData の OUTLINE_FILETREE）
+        page.control("IDC_BUTTON_SETTING")?.isHidden = result.listType != .fileTree
         page.setEnabled("IDC_BUTTON_COPY", true)
 
         // ツリー表示の時だけソート基準コンボボックスを表示
@@ -208,7 +211,15 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         syncColor()	// 色はツリー・リストを作る前に（作り直すと選択が消える）
         page.control("IDC_TREE_FL")?.isHidden = !result.isTree
         page.control("IDC_LIST_FL")?.isHidden = result.isTree
-        if result.isTree {
+        if result.listType == .fileTree {
+            fileTreeData.window = isDocking ? view?.window : window
+            fileTreeData.load(FileTreeDialogController.loadSetting(typeIndex: typeIndex, folder: fileTreeFolder), folder: fileTreeFolder)
+            treeView.dataSource = fileTreeData
+            treeView.delegate = fileTreeData
+            treeView.reloadData()
+        } else if result.isTree {
+            treeView.dataSource = treeData
+            treeView.delegate = treeData
             treeData.load(result.tree)
             treeView.reloadData()
             treeData.expandInitial(treeView)
@@ -284,6 +295,8 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
             cancel()
         case "IDC_BUTTON_COPY":
             copyToPasteboard()
+        case "IDC_BUTTON_SETTING":
+            showFileTreeSettings()
         default:
             break
         }
@@ -355,6 +368,10 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
 
     /// 選んでいる項目へカーソルを移動する。checkAutoClose：「自動的に閉じる」「フォーカスを移す」を見る
     func jump(checkAutoClose: Bool = true) {
+        if result.listType == .fileTree {
+            jumpToFile(checkAutoClose: checkAutoClose)
+            return
+        }
         guard let item = selectedItem, let view else { return }
         // 別のファイルの項目（ファイルツリー、タグジャンプ付きのプラグイン）は Mac 版にはまだない
         guard item.fileName.isEmpty else { return }
@@ -403,7 +420,49 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
 
     /// 再解析（原版 HandleCommand( F_OUTLINE, true, SHOW_RELOAD )）
     func reload() {
-        view?.outlineCommand(action: .reload, type: outlineType == .bookmark ? .bookmark : .default)
+        view?.outlineCommand(action: .reload, type: Self.redrawType(outlineType))
+    }
+
+    /// 再表示の種別（原版 GetOutlineTypeRedraw）：ブックマーク・ファイルツリーはそのまま、ほかは標準
+    static func redrawType(_ type: OutlineType) -> OutlineType {
+        type == .bookmark || type == .fileTree ? type : .default
+    }
+
+    // MARK: - ファイルツリー（原版 OnJump の m_sJumpFile、IDC_BUTTON_SETTING）
+
+    /// 相対パスの起点
+    var fileTreeFolder: String {
+        view?.fileTreeBaseFolder ?? GrepDialogController.homeFolder
+    }
+
+    /// ファイルを開く（原版 TagJumpTimer → TagJumpSub：開いていればその窓口、無ければ開く）
+    private func jumpToFile(checkAutoClose: Bool) {
+        guard let path = fileTreeData.selectedFile(treeView) else { return }
+        let folder = (path as NSString).deletingLastPathComponent
+        // 「ファイル挿入」で選んだファイルは書签で開ける（開いている間は権限を持ったまま）
+        let bookmarked = BookmarkStore.settingFiles.resolve(path: path)?.startAccessingSecurityScopedResource() ?? false
+        if !bookmarked, !FolderAccess.shared.startAccess(file: path), !FolderAccess.doesNotExist(folder) {
+            guard FolderAccess.shared.ensureAccess(paths: [folder], parent: isDocking ? view?.window : window,
+                                                   message: FileTreeData.accessMessage) else { return }
+        }
+        EditorTextView.openForTagJump(URL(fileURLWithPath: path)) { [weak self] document, error in
+            guard let opened = (document as? SakuraDocument)?.editorWindowController?.textView else {
+                if let error { NSApp.presentError(error) }
+                return
+            }
+            opened.window?.makeKeyAndOrderFront(nil)
+            // 原版 OnTimer：アウトライン ダイアログを自動的に閉じる（フローティングのとき）
+            guard let self, checkAutoClose, !self.isDocking, Self.commonBool("bAutoCloseDlgFuncList") else { return }
+            self.close()
+        }
+    }
+
+    /// 「設定」ボタン（原版 IDC_BUTTON_SETTING）：ファイルツリー設定。OK なら読み直す（HandleCommand( F_FILETREE, SHOW_RELOAD )）
+    func showFileTreeSettings() {
+        guard let view, let dialog = FileTreeDialogController(typeIndex: typeIndex, folder: fileTreeFolder) else { return }
+        if dialog.runModal(parent: isDocking ? view.window : window) {
+            view.outlineCommand(action: .reload, type: .fileTree)
+        }
     }
 
     // MARK: - メニュー（原版 DoMenu）
@@ -476,7 +535,13 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     @objc func menuUpdate(_ sender: Any?) { reload() }
     @objc func menuCopy(_ sender: Any?) { copyToPasteboard() }
     @objc func menuClose(_ sender: Any?) { close() }
-    @objc func menuExpandAll(_ sender: Any?) { treeView.expandItem(nil, expandChildren: true) }
+    @objc func menuExpandAll(_ sender: Any?) {
+        if result.listType == .fileTree {
+            fileTreeData.expandAll(treeView)
+        } else {
+            treeView.expandItem(nil, expandChildren: true)
+        }
+    }
     @objc func menuCollapseAll(_ sender: Any?) { treeView.collapseItem(nil, collapseChildren: true) }
 
     // MARK: - 窗口
@@ -745,8 +810,8 @@ final class OutlineTreeView: NSOutlineView {
         guard let column = outlineTableColumn else { return }
         var width: CGFloat = 0
         for row in 0..<numberOfRows {
-            guard let item = item(atRow: row) as? OutlineTreeItem else { continue }
-            let text = item.node.label as NSString
+            guard let label = (item(atRow: row) as? OutlineTreeItem)?.node.label ?? (item(atRow: row) as? FileTreeNode)?.label else { continue }
+            let text = label as NSString
             let indent = CGFloat(level(forRow: row) + 1) * indentationPerLevel + 16
             width = max(width, indent + ceil(text.size(withAttributes: [.font: PropPage.font]).width) + 8)
         }
@@ -1011,7 +1076,7 @@ extension EditorTextView {
     /// タイプ別設定が変わった（原版 PM_CHANGESETTING_TYPE）：アウトラインを開いていれば、解析方法が変わったときは再解析
     func outlineTypeSettingsChanged() {
         guard let panel = outlinePanel, panel.isOpen else { return }
-        let type = document.resolveOutlineType(panel.outlineType == .bookmark ? .bookmark : .default)
+        let type = document.resolveOutlineType(OutlineWindowController.redrawType(panel.outlineType))
         guard type != panel.outlineType else {
             panel.redraw()	// 描画更新（変更されたカラーの適用）のみ
             return
