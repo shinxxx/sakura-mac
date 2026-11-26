@@ -31,9 +31,6 @@ targets:
         PRODUCT_MODULE_NAME: SakuraMac
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
-      configs:
-        Release:
-          ONLY_ACTIVE_ARCH: NO
     dependencies:
       - target: EditorBridge
     scheme:
@@ -73,9 +70,6 @@ targets:
         OTHER_LDFLAGS: -lsakura_core_api -lsakura_core -lbregonig -lonigmo -lcmigemo
         # 脚本要读写仓库里的 build/ 目录
         ENABLE_USER_SCRIPT_SANDBOXING: NO
-      configs:
-        Release:
-          ONLY_ACTIVE_ARCH: NO
 
   # 单元测试：桥接层（第 24 步）、自绘视图的输入法接口（第 25 步）、文档和窗口（第 26 步）。
   # 测试不启动 App，要测的源文件直接编进测试

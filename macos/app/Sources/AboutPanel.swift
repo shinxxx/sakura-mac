@@ -28,11 +28,7 @@ final class AboutPanel: NSObject, NSWindowDelegate {
         var lines = ["\(appName) for Mac Ver. \(version) (\(build))"]
         lines.append("")
         lines.append("      macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
-        #if arch(arm64)
-        lines.append("      Architecture: arm64")
-        #else
-        lines.append("      Architecture: x86_64")
-        #endif
+        lines.append("      Architecture: arm64")	// 只支持 Apple 芯片（Config/App.xcconfig 的 ARCHS）
         return lines.joined(separator: "\n") + "\n"
     }
 
