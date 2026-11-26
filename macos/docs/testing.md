@@ -30,6 +30,7 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 需要 Xcode、CMake、XcodeGen（`brew install xcodegen cmake`）。不需要开发者账号：测试用本机签名（ad-hoc）。
 `xcode-select` 指向 Command Line Tools 时，脚本自动改用 `/Applications` 里的 Xcode（只在这次运行里，不改系统设置）。
 界面测试运行时会真的打开窗口、操作键盘，这期间不要动鼠标和键盘。
+App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/tools/check-arch.sh`，Mac 版只支持 Apple 芯片；结果里的「架构：只含 arm64」）。
 
 `testSandboxedFileReopensFromRecentFilesAfterRestart`（第 31 步）只在 run-tests.sh 里运行（CI 上跳过）：
 为界面测试编译的 App 被 Xcode 加了「整个磁盘可以读」的沙盒例外（`temporary-exception.files.absolute-path.read-only = /`），

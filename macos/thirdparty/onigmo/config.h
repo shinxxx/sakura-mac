@@ -3,7 +3,7 @@
 
 	Onigmo 在 Windows 上用 win32/config.h，在其他平台上本来由 configure 生成 config.h。
 	Mac 版用 CMake 直接编译 Onigmo 的源码，所以在这里给出 configure 会生成的内容中用得到的部分。
-	只支持 64 位（arm64 / x86_64），与 Mac 版的目标一致。
+	只支持 64 位。Mac 版只支持 Apple 芯片（arm64）。
 */
 /*
 	Copyright (C) 2026, Sakura Editor Organization

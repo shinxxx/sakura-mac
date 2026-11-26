@@ -106,6 +106,17 @@ XCODEBUILD=(xcodebuild
     -derivedDataPath build
     CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=)
 if "${XCODEBUILD[@]}" build-for-testing > "$OUT/app-build.log" 2>&1; then
+    # 只含 arm64（Mac 版只支持 Apple 芯片）：App、桥接层框架、核心库
+    DEBUG_APP="$ROOT/macos/app/build/Build/Products/Debug/Sakura Editor for Mac.app"
+    if ! "$ROOT/macos/tools/check-arch.sh" "$DEBUG_APP/Contents/MacOS/Sakura Editor for Mac" \
+        "$DEBUG_APP/Contents/Frameworks/EditorBridge.framework/EditorBridge" \
+        "$ROOT"/build/xcode-core/Debug/*.a "$ROOT"/build/mac-core/*.a > "$OUT/arch.log" 2>&1; then
+        FAILED=1
+        say "架构的检查失败（应该只含 arm64）："
+        tee -a "$SUMMARY" < "$OUT/arch.log"
+    else
+        say "架构：只含 arm64"
+    fi
     if [ "$RUN_UI" = 1 ]; then
         prepare_sandbox_app
     fi
