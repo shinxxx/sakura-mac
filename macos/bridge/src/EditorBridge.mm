@@ -1410,6 +1410,10 @@ static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHis
 - (instancetype)initWithTarget:(const core::TagJumpTarget&)target;
 @end
 
+@interface ECExpandParameterView ()
+- (core::ExpandParameterView)coreView;
+@end
+
 @interface ECFileTreeRoot ()
 - (instancetype)initWithRoot:(const core::FileTreeRoot&)root;
 @end

@@ -326,6 +326,7 @@ final class FindPanelController: SearchPanelBase {
     /// 該当行マーク（原版 IDC_BUTTON_SETMARK → F_BOOKMARK_PATTERN）。検索ダイアログを自動的に閉じる
     @objc func markLines(_ sender: Any?) {
         guard getData() > 0 else { return }
+        view?.recordKeyMacro(MacroHost.Code.bookmarkPattern)	// 第 45 步
         view?.bookmarkPattern(nil)
         if EditorCore.searchSettings.autoCloseFind { close() }
     }
@@ -333,6 +334,7 @@ final class FindPanelController: SearchPanelBase {
     private func search(next: Bool) {
         let result = getData()
         if result > 0 {
+            view?.recordKeyMacro(next ? MacroHost.Code.searchNext : MacroHost.Code.searchPrev)	// 第 45 步
             if next { view?.searchNextCommand() } else { view?.searchPrevCommand() }
             registerSearchStart()
             if EditorCore.searchSettings.autoCloseFind { close() }
@@ -550,6 +552,7 @@ final class ReplacePanelController: SearchPanelBase {
     /// 該当行マーク（原版 IDC_BUTTON_SETMARK → F_BOOKMARK_PATTERN）
     @objc func markLines(_ sender: Any?) {
         guard getData() > 0 else { return }
+        view?.recordKeyMacro(MacroHost.Code.bookmarkPattern)	// 第 45 步
         view?.bookmarkPattern(nil)
     }
 
@@ -557,6 +560,7 @@ final class ReplacePanelController: SearchPanelBase {
         let result = getData()
         if result > 0 {
             registerSearchStart()
+            view?.recordKeyMacro(next ? MacroHost.Code.searchNext : MacroHost.Code.searchPrev)	// 第 45 步
             if next { view?.searchNextCommand() } else { view?.searchPrevCommand() }
         } else if result == 0 {
             EditorTextView.showMessage(NSLocalizedString("文字列を指定してください。", comment: "STR_DLGREPLC_STR"))
@@ -567,6 +571,7 @@ final class ReplacePanelController: SearchPanelBase {
         let result = getData()
         if result > 0 {
             registerSearchStart()
+            view?.recordKeyMacro(MacroHost.Code.replace, replace: (text2, replaceOptions))	// 第 45 步
             if view?.replaceCommand(text2, options: replaceOptions) == false {
                 // 剪贴板是空的：「クリップボードから貼り付ける」を外す（原版 Command_REPLACE）
                 pasteCheck.state = .off
@@ -581,6 +586,7 @@ final class ReplacePanelController: SearchPanelBase {
         let result = getData()
         if result > 0 {
             registerSearchStart()
+            view?.recordKeyMacro(MacroHost.Code.replaceAll, replace: (text2, replaceOptions))	// 第 45 步
             guard let count = view?.replaceAllCommand(text2, options: replaceOptions) else {
                 pasteCheck.state = .off
                 updateEnabled()
@@ -715,8 +721,10 @@ final class JumpDialogController: NSObject {
             EditorTextView.showMessage(NSLocalizedString("正しく行番号を入力してください。", comment: "STR_DLGJUMP1"))
         }
         // 原版：行番号が正しくなくても指定行へジャンプは実行する（行番号 0 は 1 行目）
-        view?.jumpCommand(EditorJumpOptions(lineNumber: lineNumber, lineNumIsCRLF: EditorCore.searchSettings.jumpLineNumIsCRLF,
-                                            plsql: plsql, plsqlBlockFirstLine: plsqlFirstLine))
+        let options = EditorJumpOptions(lineNumber: lineNumber, lineNumIsCRLF: EditorCore.searchSettings.jumpLineNumIsCRLF,
+                                        plsql: plsql, plsqlBlockFirstLine: plsqlFirstLine)
+        view?.recordKeyMacro(MacroHost.Code.jump, jump: options)	// 第 45 步
+        view?.jumpCommand(options)
     }
 
     @objc private func cancel(_ sender: Any?) {

@@ -96,3 +96,12 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 - App 的 `ISearchTests.testMigemo` 用仓库里的测试用词典（`externals/cmigemo-dict` 的 zip，App 不附带）。
 - 对话框（DIFF差分表示、ファイル内容比較、タグジャンプ一覧）、ファイル的选择换成测试用的（`DiffDialogController.runModal`・`chooseFile`、
   `CompareDialogController.runModal`、`TagJumpListDialogController.runModal`），比较的对象窗口换成测试用的（`EditingDocument.all`）。
+
+## マクロ（第 45 步）
+
+- 核心库 `test-mac-macro.cpp`：関数表、キーマクロ（.mac）の読み書き（原版の書式、エスケープ、読み込みエラーのメッセージ）、ExpandParameter、Cookie、JScript の前処理。
+- App 的 `KeyMacroTests`：記録（入力・矢印キー等の選択子・キー割り当て・ダイアログ）→ RecKey.mac → 実行（一つの取り消し単位）、保存・読み込み、
+  読み込みエラーのメッセージ、記録する引数（原版 AddLParam）、MacroHost の命令・関数。
+  ファイルの選択・エラーとメッセージボックスは換えてある（`EditorTextView.chooseKeyMacroSaveURL`・`chooseKeyMacroOpenURL`、`MacroHost.showError`・`messageBox`・`inputBox`）。
+  RecKey.mac はテストの設定フォルダー（マクロ用フォルダーの既定）に書いて、終わったら消す。
+- 界面测试 `testKeyMacroRecordAndExecute`：メニューで記録開始 → 入力・矢印キー → 記録終了 → 実行 → 一回の ⌘Z で戻る。タイトルの【キーマクロの記録中】も確かめる。詳しくは [phase3-macro.md](phase3-macro.md)。

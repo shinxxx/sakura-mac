@@ -146,6 +146,9 @@ targets:
       - path: Sources/TagJumpList.swift
       - path: Resources/EditSupportDialogs.json
         buildPhase: resources
+      # 第 45 步：マクロ
+      - path: Sources/MacroHost.swift
+      - path: Sources/KeyMacro.swift
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder
