@@ -99,9 +99,16 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 
 ## マクロ（第 45 步）
 
+- CI 的 `macro-windows` 在 Windows 上用官方版 sakura.exe 执行 `Tests/MacroSamples/WindowsCompare.js`，与 `WindowsCompare.txt` 比较；Mac 版由 `JSMacroTests.testWindowsCompare` 执行同一个宏、比较同一个文件。详见 [phase3-macro.md](phase3-macro.md)。
+
 - 核心库 `test-mac-macro.cpp`：関数表、キーマクロ（.mac）の読み書き（原版の書式、エスケープ、読み込みエラーのメッセージ）、ExpandParameter、Cookie、JScript の前処理。
 - App 的 `KeyMacroTests`：記録（入力・矢印キー等の選択子・キー割り当て・ダイアログ）→ RecKey.mac → 実行（一つの取り消し単位）、保存・読み込み、
   読み込みエラーのメッセージ、記録する引数（原版 AddLParam）、MacroHost の命令・関数。
   ファイルの選択・エラーとメッセージボックスは換えてある（`EditorTextView.chooseKeyMacroSaveURL`・`chooseKeyMacroOpenURL`、`MacroHost.showError`・`messageBox`・`inputBox`）。
   RecKey.mac はテストの設定フォルダー（マクロ用フォルダーの既定）に書いて、終わったら消す。
 - 界面测试 `testKeyMacroRecordAndExecute`：メニューで記録開始 → 入力・矢印キー → 記録終了 → 実行 → 一回の ⌘Z で戻る。タイトルの【キーマクロの記録中】も確かめる。詳しくは [phase3-macro.md](phase3-macro.md)。
+- App 的 `JSMacroTests`（PR B）：原版のヘルプの JScript のサンプル（`Tests/MacroSamples/`）と CopyDirPath.js を実行して結果を確かめる。
+  WScript.Shell の Popup は `JSMacroRunner.popup`、キャンセルの窓口は `JSMacroRunner.cancelPanelDidShow` で差し替える。登録マクロ・自動実行は本物の核心库の設定を変え、終わったら戻す。
+  `CommonSettingsTests.testMacroPage`：共通設定『マクロ』。
+- 界面测试 `testJScriptMacroFromMenu`（名前を指定してマクロ実行、Popup、エラー）、`testRegisteredMacroAndCancelDialog`（共通設定で登録 → 登録済みマクロ、キャンセルの窓口）。
+  キャンセルの窓口はスクリプトの実行中なのでアクセシビリティの一覧に出てこない：画面の写真で確かめて Esc でキャンセルする。

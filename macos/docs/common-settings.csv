@@ -272,20 +272,20 @@
 支援,IDC_BUTTON_OPENMDLL,PUSHBUTTON,(3)...,,,×（同上）
 支援,IDC_EDIT_MIGEMO_DICT,EDITTEXT,辞書(I),m_sHelper.m_szMigemoDict,Common/szMigemoDict,×（同上）
 支援,IDC_BUTTON_OPENMDICT,PUSHBUTTON,(4)...,,,×（同上）
-マクロ,IDC_MACRODIR,EDITTEXT,マクロフォルダー,m_sMacro.m_szMACROFOLDER,Folders/szMACROFOLDER,第 45 步
-マクロ,IDC_MACRODIRREF,PUSHBUTTON,...,,,第 45 步
-マクロ,IDC_PYTHONDIR,EDITTEXT,Pythonフォルダー,m_sMacro.m_szPythonDirectory,,第 45 步
-マクロ,IDC_PYTHONDIRREF,PUSHBUTTON,...,,,第 45 步
-マクロ,IDC_MACROLIST,SysListView32,List1,,,第 45 步
-マクロ,IDC_MACRONAME,EDITTEXT,名前(N),m_sMacro.m_MacroTable,,第 45 步
-マクロ,IDC_MACROPATH,COMBOBOX,File,m_sMacro.m_MacroTable,,第 45 步
-マクロ,IDC_CHECK_RELOADWHENEXECUTE,AUTOCHECKBOX,マクロを実行するたびにファイルを読み込みなおす（L）,,,第 45 步
-マクロ,IDC_MACROCANCELTIMER,EDITTEXT,キャンセル確認待ち時間,m_sMacro.m_nMacroCancelTimer,,第 45 步
-マクロ,IDC_CHECK_MacroOnOpened,AUTOCHECKBOX,新規／開ファイル後(O),,,第 45 步
-マクロ,IDC_CHECK_MacroOnTypeChanged,AUTOCHECKBOX,タイプ変更後(T),,,第 45 步
-マクロ,IDC_CHECK_MacroOnSave,AUTOCHECKBOX,ファイル保存前(S),,,第 45 步
-マクロ,IDC_COMBO_MACROID,COMBOBOX,Id:,,,第 45 步
-マクロ,IDC_MACRO_REG,PUSHBUTTON,設定(A),,,第 45 步
+マクロ,IDC_MACRODIR,EDITTEXT,マクロフォルダー,m_sMacro.m_szMACROFOLDER,Folders/szMACROFOLDER,○（第 45 步）
+マクロ,IDC_MACRODIRREF,PUSHBUTTON,...,,,○（第 45 步）
+マクロ,IDC_PYTHONDIR,EDITTEXT,Pythonフォルダー,m_sMacro.m_szPythonDirectory,,×（Python マクロは Mac 版にない：项目负责人决定）
+マクロ,IDC_PYTHONDIRREF,PUSHBUTTON,...,,,×（Python マクロは Mac 版にない：项目负责人决定）
+マクロ,IDC_MACROLIST,SysListView32,List1,,,○（第 45 步）
+マクロ,IDC_MACRONAME,EDITTEXT,名前(N),m_sMacro.m_MacroTable,,○（第 45 步）
+マクロ,IDC_MACROPATH,COMBOBOX,File,m_sMacro.m_MacroTable,,○（第 45 步）
+マクロ,IDC_CHECK_RELOADWHENEXECUTE,AUTOCHECKBOX,マクロを実行するたびにファイルを読み込みなおす（L）,,,○（第 45 步）
+マクロ,IDC_MACROCANCELTIMER,EDITTEXT,キャンセル確認待ち時間,m_sMacro.m_nMacroCancelTimer,,○（第 45 步）
+マクロ,IDC_CHECK_MacroOnOpened,AUTOCHECKBOX,新規／開ファイル後(O),,,○（第 45 步）
+マクロ,IDC_CHECK_MacroOnTypeChanged,AUTOCHECKBOX,タイプ変更後(T),,,○（第 45 步）
+マクロ,IDC_CHECK_MacroOnSave,AUTOCHECKBOX,ファイル保存前(S),,,○（第 45 步）
+マクロ,IDC_COMBO_MACROID,COMBOBOX,Id:,,,○（第 45 步）
+マクロ,IDC_MACRO_REG,PUSHBUTTON,設定(A),,,○（第 45 步）
 プラグイン,IDC_CHECK_PluginEnable,AUTOCHECKBOX,プラグインを有効にする(E),m_sPlugin.m_bEnablePlugin,,×（DLL のプラグインは Mac 版では使えない）
 プラグイン,IDC_PLUGIN_INST_ZIP,PUSHBUTTON,ZIPプラグインを導入(Z),,,×（DLL のプラグインは Mac 版では使えない）
 プラグイン,IDC_PLUGIN_OpenFolder,PUSHBUTTON,フォルダーを開く(F),,,×（DLL のプラグインは Mac 版では使えない）

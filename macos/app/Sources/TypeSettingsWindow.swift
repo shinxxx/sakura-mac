@@ -105,6 +105,7 @@ extension EditorTextView {
             if document.changeTypeTemporarily(result.index) {
                 typeSettingsReloaded()
                 refreshOutline()	// 第 42 步：タイプが変わった（原版 CEditDoc::OnChangeType → Refresh）
+                MacroCommands.runAuto("nMacroOnTypeChanged", view: self)	// 第 45 步：タイプ変更後の自動実行マクロ
             }
         } else {
             TypeSettingsWindowController.show(typeIndex: result.index)

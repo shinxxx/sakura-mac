@@ -4,8 +4,9 @@
 
 1. **核心库（commit 3f5a72a）**：原版 CSMacroMgr 的関数表、CKeyMacroMgr 的キーマクロ文件（.mac）的读写、CSakuraEnvironment::ExpandParameter、
    CCookieManager、JScript 的前处理，移到 `macos/core/api/Macro.cpp`；桥接层 `MacroCore`、`MacroCall`、`ExpandParameterView` 等。
-2. **PR A（这个 PR）**：キーマクロ的记录・保存・读取・执行，宏命令和函数的执行（`MacroHost.swift`）。
-3. **PR B（以后）**：JScript 宏（JavaScriptCore），Editor 对象用同一个 `MacroHost`。
+2. **PR A（#54）**：キーマクロ的记录・保存・读取・执行，宏命令和函数的执行（`MacroHost.swift`）。
+3. **PR B**：JScript 宏（JavaScriptCore，`JSMacro.swift`），名前を指定してマクロ実行・登録済みマクロ・自動実行（`MacroCommands.swift`），
+   共通設定『マクロ』页。Editor 对象用同一个 `MacroHost`。
 
 ## キーマクロ（PR A）
 
@@ -50,10 +51,10 @@ MessageBox・ErrorMsg・WarnMsg・InfoMsg・OkCancelBox・YesNoBox、StatusMsg�
 
 **命令：没有处理的（什么也不做，宏继续）**
 
-InsBoxText、SetFontSize、TextWrapMethod，以及还没有移植的功能（印刷、外部命令 ExecCommand、TraceOut、PutFile・InsFile、FileOpen2・FileSaveAs、Grep・GrepReplace、Diff、
-SetQuoteString、TopMost、ChangeType 等）、ChgTabWidth・ChgWrapColumn（作为命令）、
+InsBoxText、SetFontSize，以及还没有移植的功能（印刷、外部命令 ExecCommand、TraceOut、PutFile・InsFile、FileOpen2・FileSaveAs、Grep・GrepReplace、Diff、
+TopMost 等）、ChgTabWidth・ChgWrapColumn（作为命令）、
 COMMITUNDOBUFFER・ADDREFUNDOBUFFER・SETUNDOBUFFER・APPENDUNDOBUFFERCURSOR（Mac 版的撤销按编辑的组管理，整个宏是一个撤销单位）、
-ExecExternalMacro（PR B）。
+（PR B 补上了：TextWrapMethod、SetMsgQuoteStr、ChangeType、ExecExternalMacro、CopyPath・CopyFilename・CopyDirPath。）
 
 **函数（返回值）**
 
@@ -61,12 +62,64 @@ GetFilename、GetSaveFilename、GetSelectedString、ExpandParameter、GetLineStr
 GetSelectLineFrom・GetSelectColumnFrom・GetSelectLineTo・GetSelectColumnTo、IsInsMode、GetCharCode、GetLineCode、IsPossibleUndo・IsPossibleRedo、
 CompareVersion、MessageBox 系、InputBox、GetClipboard、SetClipboard、LayoutToLogicLineNum・LogicToLayoutLineNum・LineColumnToIndex・LineIndexToColumn、
 GetCookie・GetCookieDefault・SetCookie・DeleteCookie・GetCookieNames、SetDrawSwitch・GetDrawSwitch、IsShownStatus（Mac 版没有状态栏，总是 0）、
-IsTextSelectingLock、GetViewLines、GetViewColumns、GetViewTop、MacroSleep。
+IsTextSelectingLock、GetViewLines、GetViewColumns、GetViewTop、MacroSleep；PR B：ChangeWrapColumn、FileOpenDialog・FileSaveDialog（过滤器不用）・FolderDialog。
 桁（列）与原版相同是半角单位（Mac 版的排版位置是点，除以半角一字的宽度）。
 
-**函数：还没有的（失败）**：ChangeTabWidth、ChangeWrapColumn、IsCurTypeExt、IsSameTypeExt、FileOpenDialog・FileSaveDialog・FolderDialog、
-GetStrWidth・GetStrLayoutLength・GetDefaultCharLength、IsIncludeClipboardFormat・GetClipboardByFormat・SetClipboardByFormat、GetLineAttribute、CreateMenu、ChangeInsSpace。
-（JScript 宏用得多的会在 PR B 补上。）
+**函数：还没有的（失败）**：ChangeTabWidth（核心库还没有临时改 TAB 幅的接口）、IsCurTypeExt・IsSameTypeExt（还没有按扩展名找类型的接口）、
+GetStrWidth・GetStrLayoutLength・GetDefaultCharLength、GetLineAttribute、CreateMenu（宏里的弹出菜单）、ChangeInsSpace：以后。
+IsIncludeClipboardFormat・GetClipboardByFormat・SetClipboardByFormat：不支持（Windows 剪贴板格式的名字）。
+
+## JScript 宏（PR B）
+
+原版用 Windows Script Host 的 JScript 引擎，把「Editor」对象作为全局成员加进去（AddNamedItem SCRIPTITEM_GLOBALMEMBERS），
+所以 `InsText('a')` 和 `Editor.InsText('a')` 都能用，名字不分大小写（GetIDsOfNames 的 _wcsicmp）。Mac 版用 JavaScriptCore（`JSMacro.swift`）：
+
+| 项目 | Mac 版 | 说明 |
+|---|---|---|
+| 读入 | ✅ | `MacroCore.loadSourceFile`（BOM 付き UTF-8・UTF-8・Shift_JIS 等，与原版相同），再 `MacroCore.prepareJScript` 给没有括号的调用（`GetFilename`、`SelectWord;`、`while (IsPossibleUndo)`）加 `()`（JScript 的 DISPATCH_PROPERTYGET 也执行） |
+| 全局的名字 | 🔶 | JavaScriptCore 的全局对象不能换原型，所以把脚本整个包在 `with (Proxy) { … }` 里（同一行开始，行号不变）。Proxy 用 `MacroCore.findFunctionIgnoreCase` 查名字。脚本自己声明的名字（var、function）优先 |
+| 命令 | ✅ | 参数全部变成字符串（原版 VariantChangeType VT_BSTR：整数、`1.5`、`True`/`False`、null・undefined 是空），交给 MacroHost.handleCommand，返回 undefined |
+| 函数 | ✅ | 数值・字符串・真假（-1/0）交给 MacroHost.handleFunction。失败（原版 E_FAIL）是 JavaScript 的例外「エラーを特定できません」 |
+| 错误 | 🔶 | 原版 MacroError 的消息框「[Line n] 说明」。标题是「JScript 実行時エラー」「JScript コンパイル エラー」（原版是 Microsoft JScript 的）；说明是 JavaScriptCore 的英文（例：Can't find variable: Foo），原版是 JScript 的日文 |
+| ActiveXObject | 🔶 | 只有 `WScript.Shell` 的 `Popup(文字, 秒, 标题, 种类)`（帮助的样例用）：NSAlert，秒数到了返回 -1。其它 ProgID（FileSystemObject 等）是「オートメーション サーバーはオブジェクトを作成できません」 |
+| 取消 | 🔶 | 脚本在别的线程运行，编辑的操作在主线程。超过共通設定「キャンセル確認待ち時間」显示原版 IDD_MACRORUNNING 的「マクロ実行中・・・」窗口，按キャンセル（Esc）以后，下一次调用命令・函数时是「マクロの実行を中断しました。」的例外。JavaScriptCore 没有从外面停止脚本的公开方法，不调用命令・函数的死循环停不了（按キャンセル 2 秒后放弃等待，线程留着） |
+| 撤销 | ✅ | 整个宏是一个撤销单位。宏里的 Undo 先结束这个单位再撤销（帮助的样例 SampleIsPossibleUndo） |
+| 记录 | ✅ | 键盘宏记录中，宏里的命令不记录（原版 FA_NONRECORD），名前を指定してマクロ実行 本身记录为 `ExecExternalMacro('路径')` |
+
+### 名前を指定してマクロ実行・登録済みマクロ・自動実行（`MacroCommands.swift`）
+
+| 命令 | 编号 | Mac 版 | 说明 |
+|---|---|---|---|
+| F_EXECEXTMACRO | 31254 | 🔶 | NSOpenPanel（マクロ用フォルダー）。按扩展名：.mac 键盘宏、.js JScript；.vbs .vbe .jse .wsf .wsc .pls .ppa .py 显示「このマクロ（.vbs）は Mac 版では実行できません。」（VBScript・PPA 依赖 Windows；Python 宏不做，项目负责人决定）。宏里 `ExecExternalMacro(代码, 'js')` 也可以 |
+| F_USERMACRO_0+n | 31600～31649 | ✅ | ツール > 登録済みマクロ（名字，没有名字时文件名）。读过的宏记住，「マクロを実行するたびにファイルを読み込みなおす」时每次读；改了共通設定时忘掉（原版 UnloadAll）。读不了时「マクロ n (文件) の実行に失敗しました。」 |
+| 自動実行 | — | ✅ | 新規／開ファイル後（窗口第一次显示时）、タイプ変更後（タイプ別設定一覧 的一時適用、ChangeType、另存为后类型变了）、ファイル保存前（GetSaveFilename 是保存的路径）。按着 Shift 时不执行，自动执行里的命令不记录 |
+| F_COPYPATH・F_COPYFNAME・F_COPYDIRPATH | 30620・30622・30631 | ✅ | tools/macro/CopyDirPath 用（无题时蜂鸣） |
+
+### 共通設定『マクロ』（原版 CPropComMacro）
+
+布局按原版 IDD_PROP_MACRO。一览总是 50 行（番号、マクロ名、ファイル名、実行時に読み込み on/off、自動実行 O・T・S），选一行时下面的名前・File・Id・复选框跟着变，
+［設定(A)］把下面的内容放进 Id 的那一行（自動実行 各只有一个宏）。File 的候选是マクロフォルダー里的文件。OK 时写 sakura.ini 的
+`[Macro]` `Name[000]`・`File[000]`・`ReloadWhenExecute[000]`・`nMacroOnOpened`・`nMacroOnTypeChanged`・`nMacroOnSave`・`nMacroCancelTimer` 和 `[Folders]` `szMACROFOLDER`（末尾加 `/`）。
+Python フォルダー 变灰（Python 宏不做）。列宽按原版的比例，但让 5 列都能看见（原版的「実行時に読み込み」标题也是截断的）。
+
+### 帮助的样例（完成标志）
+
+`help/macro/source/sample/*.html` 的 JScript 部分（12 个，放在 `macos/app/Tests/MacroSamples/`）和 `tools/macro/CopyDirPath/CopyDirPath.js` 都在 App 单元测试 `JSMacroTests` 里执行并确认结果：
+SampleChar、SampleExpandParameter、SampleGetCharCode、SampleGetFilename、SampleGetLineCode、SampleGetLineCount、SampleGetLineStr、SampleGetSelectedString、
+SampleGetSelectxxx、SampleIsInsMode、SampleIsPossibleUndo、SampleIsTextSelected、CopyDirPath。
+其余样例是 VBScript・PPA（SampleBookmarkPattern、SampleChangeTabWidth、SampleFileSaveAs、SampleGrep、SampleReplaceAll、SampleSearchNext）或键盘宏（SampleGoLineTop），Mac 版不用 VBScript・PPA。
+
+### 与 Windows 官方版的对照（CI `macro-windows`）
+
+同一个 JScript 宏 `macos/app/Tests/MacroSamples/WindowsCompare.js` 在两边执行，比较最后的文档：
+- Windows：CI 的 `macro-windows` 用 `macos/tools/macro/windows-macro.ps1` 让官方发布的 sakura.exe（v2.4.3）以 `-M=` 执行，把文档写成 UTF-8；
+- Mac：App 单元测试 `JSMacroTests.testWindowsCompare` 执行同一个宏；
+- 两边都与 `WindowsCompare.txt`（Windows 的结果）比较。内容：插入・Enter・行数・行内容、光标移动・MoveCursor・Jump、SelectWord・SelectLine、Delete・DeleteBack、
+  SearchNext・SearchPrev（单词、大小写、正则）、ReplaceAll 的 6 种标志・Replace、`Editor.getlinecount` 之类的小写名字（`editor` 这个对象名在原版也是 undefined）、
+  省略括号、ExpandParameter、GetFilename、Cookie 9 项、LayoutToLogicLineNum・LogicToLayoutLineNum、CompareVersion。
+
+**和原版不同、不比较的**：GetSelectColmFrom・GetSelectColmTo・LineIndexToColumn・LineColumnToIndex。原版 2.4 的布局列是按字体宽度的单位
+（CI 的 Windows 上一个半角字为 7），随字体变化；Mac 版是字符单位（帮助的样例 SampleGetSelectxxx 的「5byte」是按字符单位写的）。
 
 ## 测试
 

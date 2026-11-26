@@ -748,7 +748,11 @@ extension OutlineWindowController {
             if NSEvent.pressedMouseButtons & 1 == 0 {
                 timer.invalidate()
                 overlay.orderOut(nil)
-                if let last, last.0.isDocking { self.drop(side: last.0, rect: last.1) }
+                // ドロップ先は離した場所で決める（原版と同じ）。前回の 0.05 秒ごとの結果を使うと、
+                // 速いドラッグでは最後の位置を取る前にボタンが離され、端で離してもドッキングしなかった
+                let result = self.dropRect(dragStart: start, drop: p, forceFloat: NSEvent.modifierFlags.contains(.control))
+                if result.0.isDocking { self.drop(side: result.0, rect: result.1) }
+                _ = last
                 return
             }
             let result = self.dropRect(dragStart: start, drop: p, forceFloat: NSEvent.modifierFlags.contains(.control))

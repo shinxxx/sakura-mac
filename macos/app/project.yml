@@ -78,6 +78,12 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+        excludes:
+          - "MacroSamples/**"
+      # 第 45 步：原版のヘルプのマクロのサンプル（JScript の部分）と tools/macro/CopyDirPath.js
+      - path: Tests/MacroSamples
+        type: folder
+        buildPhase: resources
       - path: Sources/EditorTextView.swift
       - path: Sources/EditorWindowController.swift
       - path: Sources/SakuraDocument.swift
@@ -149,6 +155,8 @@ targets:
       # 第 45 步：マクロ
       - path: Sources/MacroHost.swift
       - path: Sources/KeyMacro.swift
+      - path: Sources/JSMacro.swift
+      - path: Sources/MacroCommands.swift
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

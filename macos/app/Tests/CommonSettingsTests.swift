@@ -212,8 +212,8 @@ final class CommonSettingsTests: XCTestCase {
         XCTAssertFalse(helper.isEnabled("IDC_EDIT_MIGEMO_DLL"))
         XCTAssertTrue(helper.isEnabled("IDC_CHECK_m_bHokanKey_TAB"))
 
-        // 以后的步骤的页：全部变灰，下边有说明
-        let (keyController, keybind) = try open("マクロ")
+        // Mac 版にない页（プラグイン）：全部变灰，下边有说明（マクロ は第 45 步で移植した）
+        let (keyController, keybind) = try open("プラグイン")
         defer { keyController.cancel(nil) }
         for control in keybind.definition.controls where control.id != "IDC_STATIC" && control.kind != "icon" && control.kind != "group" {
             XCTAssertFalse(keybind.isEnabled(control.id), control.id)
@@ -660,5 +660,62 @@ final class CommonSettingsTests: XCTestCase {
         XCTAssertEqual(WindowsDateFormat.time(date, type: 0, format: ""), "9:07:03")
         // 日付の書式の中の時刻の記号はそのまま（Windows と同じ）
         XCTAssertEqual(WindowsDateFormat.date(date, type: 1, format: "dd HH"), "05 HH")
+    }
+
+    // MARK: - マクロ（第 45 步。原版 CPropComMacro）
+
+    func testMacroPage() throws {
+        store.values["Macro/Name[002]"] = "二"
+        store.values["Macro/File[002]"] = "two.js"
+        store.values["Macro/ReloadWhenExecute[002]"] = "1"
+        store.values["Macro/nMacroOnOpened"] = "2"
+        store.values["Macro/nMacroOnTypeChanged"] = "-1"
+        store.values["Macro/nMacroOnSave"] = "-1"
+        store.values["Macro/nMacroCancelTimer"] = "10"
+        store.values["Folders/szMACROFOLDER"] = "/tmp/macro/"
+        let (controller, page) = try open("マクロ")
+        let list = try XCTUnwrap(page.list("IDC_MACROLIST"))
+        XCTAssertEqual(list.table.tableColumns.map(\.title), ["番号", "マクロ名", "ファイル名", "実行時に読み込み", "自動実行"])
+        XCTAssertEqual(50, list.rows.count)
+        // 全部の列が見える（列の幅と間隔の合計が一覧の幅に入る）
+        let scroll = try XCTUnwrap(page.control("IDC_MACROLIST"))
+        let total = list.table.tableColumns.reduce(0) { $0 + $1.width + list.table.intercellSpacing.width }
+        XCTAssertLessThanOrEqual(total, scroll.frame.width - NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy))
+        XCTAssertEqual(["2", "二", "two.js", "on", "O"], list.rows[2])
+        XCTAssertEqual(["0", "", "", "off", ""], list.rows[0])
+        XCTAssertEqual("/tmp/macro/", page.text("IDC_MACRODIR"))
+        XCTAssertEqual("10", page.text("IDC_MACROCANCELTIMER"))
+        XCTAssertFalse(page.isEnabled("IDC_PYTHONDIR"), "Python マクロは Mac 版にない")
+        XCTAssertEqual(50, page.itemTitles("IDC_COMBO_MACROID").count)
+
+        // 行を選ぶと下の欄へ
+        list.select(2)
+        XCTAssertEqual("二", page.text("IDC_MACRONAME"))
+        XCTAssertEqual("two.js", page.text("IDC_MACROPATH"))
+        XCTAssertTrue(page.isChecked("IDC_CHECK_RELOADWHENEXECUTE"))
+        XCTAssertTrue(page.isChecked("IDC_CHECK_MacroOnOpened"))
+        XCTAssertEqual(2, page.selectedIndex("IDC_COMBO_MACROID"))
+
+        // 設定：Id 5 に。自動実行（開いた後）は一つだけなので 2 から 5 に移る
+        page.select("IDC_COMBO_MACROID", 5)
+        page.setText("IDC_MACRONAME", "五")
+        page.setText("IDC_MACROPATH", "five.mac")
+        page.setChecked("IDC_CHECK_RELOADWHENEXECUTE", false)
+        page.setChecked("IDC_CHECK_MacroOnSave", true)
+        page.onButton?("IDC_MACRO_REG")
+        XCTAssertEqual(["5", "五", "five.mac", "off", "OS"], list.rows[5])
+        XCTAssertEqual("", list.rows[2][4])
+
+        page.setText("IDC_MACRODIR", "/tmp/m2")
+        page.setText("IDC_MACROCANCELTIMER", "3")
+        controller.ok(nil)
+        XCTAssertEqual(store.values["Macro/Name[005]"], "五")
+        XCTAssertEqual(store.values["Macro/File[005]"], "five.mac")
+        XCTAssertEqual(store.values["Macro/ReloadWhenExecute[005]"], "0")
+        XCTAssertEqual(store.values["Macro/nMacroOnOpened"], "5")
+        XCTAssertEqual(store.values["Macro/nMacroOnSave"], "5")
+        XCTAssertEqual(store.values["Macro/nMacroCancelTimer"], "3")
+        XCTAssertEqual(store.values["Folders/szMACROFOLDER"], "/tmp/m2/", "最後に区切りを付ける")
+        XCTAssertEqual(store.values["Macro/File[002]"], "two.js")
     }
 }
