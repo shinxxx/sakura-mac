@@ -312,8 +312,8 @@ TEST_F(MacEditSupportTest, BookmarkWindowsComparison)
 	const int n = m_doc->LineCount();
 	std::string out;
 	auto marks = [&](const char* title) { out += std::string(title) + ": " + MarkedLines(*m_doc) + "\n"; };
-	// 宏の MoveCursor(y, 2)：行の長さで止まる
-	auto col = [&](int y) { return std::min(1, static_cast<int>(m_doc->GetLine(y).size())); };
+	// 宏の MoveCursor(y, 2) のあとのカーソル（Windows 版では空の行でも $x は 2）
+	auto col = [&](int) { return 1; };
 	auto walk = [&](const char* title, bool searchAll) {
 		std::string s;
 		for (int y = 0; y < n; ++y) {
