@@ -27,6 +27,13 @@ function writeResult(name, lines) {
 	s.Close();
 }
 
+//! 進み具合（止まったときにどこまで進んだか分かるように）
+function progress(text) {
+	var f = fso.OpenTextFile("@OUT@\\progress.txt", 8, true);
+	f.WriteLine(text);
+	f.Close();
+}
+
 function caret() {
 	return Editor.ExpandParameter("$y") + ":" + Editor.ExpandParameter("$x");
 }
@@ -138,6 +145,7 @@ sections.push(function () {
 			for (var side = 0; side < 2; side++) {
 				// side 0：新ファイルを開いて旧ファイルと比べる、side 1：旧ファイルを開いて新ファイルと（0x20）
 				var flags = DIFF_FLAGS[f] | (side ? 0x20 : 0);
+				progress(names[c] + " " + hex(flags));
 				Editor.FileOpen(dir + (side ? "old.txt" : "new.txt"));
 				Editor.Diff(dir + (side ? "new.txt" : "old.txt"), flags);
 				var n = Editor.GetLineCount(0);

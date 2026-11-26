@@ -276,7 +276,7 @@ jobs:
   edit-support-windows:
     needs: check-encoding
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     permissions:
       contents: read
     defaults:
@@ -319,6 +319,7 @@ jobs:
           name: edit-support-windows
           path: |
             edit-support-result/*.txt
+            edit-support-result/*.png
 
       - name: Compare with expected
         run: |

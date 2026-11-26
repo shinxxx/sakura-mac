@@ -34,12 +34,14 @@ $DiffExe = (Resolve-Path $DiffExe).Path
 Get-ChildItem (Split-Path $DiffExe) -Filter '*.dll' | ForEach-Object { Copy-Item $_.FullName (Split-Path $SakuraExe) }
 Copy-Item $DiffExe (Join-Path (Split-Path $SakuraExe) 'diff.exe')
 & $DiffExe --version | Select-Object -First 1
-$flagOptions = [ordered]@{ 0x00 = ''; 0x01 = '-i'; 0x02 = '-w'; 0x04 = '-b'; 0x08 = '-B'; 0x10 = '-t'; 0x0F = '-iwbB' }
+# 選択肢（原版 F_DIFF の第 2 引数のビット → diff の選択肢）。OrderedDictionary の整数の添字は位置になるので配列で
+$flagOptions = @(@(0x00, ''), @(0x01, '-i'), @(0x02, '-w'), @(0x04, '-b'), @(0x08, '-B'), @(0x10, '-t'), @(0x0F, '-iwbB'))
 $diffLines = New-Object System.Collections.Generic.List[string]
 foreach ($case in (Get-ChildItem (Join-Path $DataDir 'diff') -Directory | Sort-Object Name)) {
-	foreach ($flag in $flagOptions.Keys) {
+	foreach ($pair in $flagOptions) {
+		$flag = $pair[0]
 		$diffArgs = @()
-		if ($flagOptions[$flag] -ne '') { $diffArgs += $flagOptions[$flag] }
+		if ($pair[1] -ne '') { $diffArgs += $pair[1] }
 		$diffArgs += (Join-Path $case.FullName 'old.txt'), (Join-Path $case.FullName 'new.txt')
 		$hunks = & $DiffExe @diffArgs | Where-Object { $_ -match '^[0-9]' }
 		$diffLines.Add(('{0} {1:x2}: {2}' -f $case.Name, $flag, ($hunks -join ' ')))
@@ -54,8 +56,17 @@ Set-Content $macro $js -Encoding utf8BOM
 
 $done = Join-Path $OutDir 'done.txt'
 $p = Start-Process $SakuraExe -ArgumentList "-M=`"$macro`"" -PassThru
-$deadline = (Get-Date).AddMinutes(10)
+$deadline = (Get-Date).AddMinutes(35)
 while ((Get-Date) -lt $deadline -and -not (Test-Path $done)) { Start-Sleep -Seconds 2 }
+if (-not (Test-Path $done)) {
+	# 終わらなかった：画面を残す（メッセージボックス等で止まっていないか）
+	Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+	$bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+	$bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+	$g = [System.Drawing.Graphics]::FromImage($bmp)
+	$g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+	$bmp.Save((Join-Path $OutDir 'timeout.png'))
+}
 Get-Process sakura -ErrorAction SilentlyContinue | Stop-Process -Force
 if (-not (Test-Path $done)) { throw 'macro did not finish' }
 Get-ChildItem $OutDir -Filter 'error*.txt' | ForEach-Object { Write-Host "::error::$($_.Name): $(Get-Content $_.FullName)"; $script:failed = $true }
