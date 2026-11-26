@@ -303,6 +303,7 @@ final class FileModeCommandTests: XCTestCase {
     func testAboutPanel() throws {
         XCTAssertEqual(CommandTable.selector(for: 31455), #selector(NSApplication.showSakuraAbout(_:)))
         XCTAssertTrue(AboutPanel.versionText.hasPrefix("サクラエディタ for Mac Ver. "))
+        XCTAssertTrue(AboutPanel.versionText.contains("Architecture: arm64"), "只支持 Apple 芯片")
         XCTAssertEqual(AboutPanel.originalAuthor, "原作者: たけ(竹パンダ) さん")
         XCTAssertEqual(AboutPanel.copyright, "Copyright (C) 1998-2022  by Norio Nakatani & Collaborators")
         let description = AboutPanel.descriptionText
