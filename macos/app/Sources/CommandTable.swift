@@ -169,6 +169,10 @@ enum CommandTable {
         31251: #selector(EditorTextView.saveKeyMacro(_:)),			// F_SAVEKEYMACRO キーマクロの保存
         31252: #selector(EditorTextView.loadKeyMacro(_:)),			// F_LOADKEYMACRO キーマクロの読み込み
         31253: #selector(EditorTextView.execKeyMacro(_:)),			// F_EXECKEYMACRO キーマクロの実行
+        31254: #selector(EditorTextView.execExternalMacro(_:)),	// F_EXECEXTMACRO 名前を指定してマクロ実行（MacroCommands.swift）
+        30620: #selector(EditorTextView.copyPathCommand(_:)),		// F_COPYPATH このファイルのパス名をコピー
+        30622: #selector(EditorTextView.copyPathCommand(_:)),		// F_COPYFNAME このファイル名をコピー
+        30631: #selector(EditorTextView.copyPathCommand(_:)),		// F_COPYDIRPATH このファイルのフォルダー名をコピー
 
         // ヘルプ（第 34 步：AboutPanel.swift，原版的内容）
         31455: #selector(NSApplication.showSakuraAbout(_:)),		// F_ABOUT バージョン情報
@@ -178,7 +182,10 @@ enum CommandTable {
     static func selector(for code: Int) -> Selector? {
         if let selector = selectors[code] { return selector }
         if EditorTextView.cursorCommands[code] != nil { return #selector(EditorTextView.cursorCommandAction(_:)) }
-        if (30385...30392).contains(code) { return #selector(EditorTextView.wheelCommandAction(_:)) }	// F_WHEELUP～F_WHEELPAGERIGHT
+        if (30385...30392).contains(code) { return #selector(EditorTextView.wheelCommandAction(_:)) }
+        if (MacroCommands.userMacroCode..<MacroCommands.userMacroCode + MacroCommands.maxCount).contains(code) {
+            return #selector(EditorTextView.userMacro(_:))	// F_USERMACRO_0 + n 登録済みマクロ（第 45 步）
+        }	// F_WHEELUP～F_WHEELPAGERIGHT
         return nil
     }
 

@@ -105,3 +105,8 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
   ファイルの選択・エラーとメッセージボックスは換えてある（`EditorTextView.chooseKeyMacroSaveURL`・`chooseKeyMacroOpenURL`、`MacroHost.showError`・`messageBox`・`inputBox`）。
   RecKey.mac はテストの設定フォルダー（マクロ用フォルダーの既定）に書いて、終わったら消す。
 - 界面测试 `testKeyMacroRecordAndExecute`：メニューで記録開始 → 入力・矢印キー → 記録終了 → 実行 → 一回の ⌘Z で戻る。タイトルの【キーマクロの記録中】も確かめる。詳しくは [phase3-macro.md](phase3-macro.md)。
+- App 的 `JSMacroTests`（PR B）：原版のヘルプの JScript のサンプル（`Tests/MacroSamples/`）と CopyDirPath.js を実行して結果を確かめる。
+  WScript.Shell の Popup は `JSMacroRunner.popup`、キャンセルの窓口は `JSMacroRunner.cancelPanelDidShow` で差し替える。登録マクロ・自動実行は本物の核心库の設定を変え、終わったら戻す。
+  `CommonSettingsTests.testMacroPage`：共通設定『マクロ』。
+- 界面测试 `testJScriptMacroFromMenu`（名前を指定してマクロ実行、Popup、エラー）、`testRegisteredMacroAndCancelDialog`（共通設定で登録 → 登録済みマクロ、キャンセルの窓口）。
+  キャンセルの窓口はスクリプトの実行中なのでアクセシビリティの一覧に出てこない：画面の写真で確かめて Esc でキャンセルする。

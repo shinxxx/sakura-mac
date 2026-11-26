@@ -377,6 +377,10 @@ public:
 			ShareData_IO_Statusbar(profile);
 		} else if (section == LTEXT("Other")) {
 			ShareData_IO_Other(profile);	// 第 44 步：DIFF差分表示の選択肢（nDiffFlgOpt）、キーワード指定タグジャンプの設定と履歴
+		} else if (section == LTEXT("Macro")) {
+			::ShareData_IO_Macro(profile, GetDllShareData().m_Common.m_sMacro);	// 第 45 步：共通設定 > マクロ（登録マクロ、自動実行、キャンセル確認待ち時間）
+		} else if (section == LTEXT("Folders")) {
+			ShareData_IO_Folders(profile);	// 第 45 步：マクロ用フォルダー（szMACROFOLDER）
 		} else {
 			return false;
 		}

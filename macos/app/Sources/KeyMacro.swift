@@ -197,9 +197,9 @@ extension EditorTextView {
     func runKeyMacro(_ calls: [MacroCall], path: String = "") {
         let previousPath = MacroHost.currentMacroPath
         MacroHost.currentMacroPath = path
-        document.beginEdit()
+        MacroHost.beginMacroEdit(document)
         for call in calls where !MacroHost.execute(call, view: self) { break }
-        document.endEdit()
+        MacroHost.endMacroEdit(document)
         MacroHost.currentMacroPath = previousPath
         contentDidChange(keepCaches: true)	// 各命令が画面を直している。選択は残す
     }

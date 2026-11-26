@@ -43,7 +43,8 @@ enum MacroHost {
         static let jump = 30921, bookmarkPattern = 30975
         static let chgCharset = 31010, setFontSize = 31121
         static let recKeyMacro = 31250, saveKeyMacro = 31251, loadKeyMacro = 31252, execKeyMacro = 31253, execExtMacro = 31254
-        static let chgmodEol = 32800, insBoxText = 32806, moveCursor = 32807, moveCursorLayout = 32808
+        static let chgmodEol = 32800, setQuoteString = 32801, textWrapMethod = 32805, insBoxText = 32806, moveCursor = 32807, moveCursorLayout = 32808
+        static let changeType = 32811
         static let statusMsg = 32809, msgBeep = 32810
         static let commitUndoBuffer = 32813, addRefUndoBuffer = 32814, setUndoBuffer = 32815, appendUndoBufferCursor = 32816
         static let clipboardEmpty = 32817, setViewTop = 32818, setViewLeft = 32819
@@ -55,6 +56,7 @@ enum MacroHost {
         static let chgWrapColumn = 40017, getSaveFilename = 40018, isCurTypeExt = 40019, isSameTypeExt = 40020
         static let inputBox = 40021, messageBox = 40023, errorMsg = 40024, warnMsg = 40025, infoMsg = 40026
         static let okCancelBox = 40027, yesNoBox = 40028, compareVersion = 40029, macroSleep = 40030
+        static let fileOpenDialog = 40031, fileSaveDialog = 40032, folderDialog = 40033
         static let getClipboard = 40034, setClipboard = 40035
         static let layoutToLogicLineNum = 40036, logicToLayoutLineNum = 40037, lineColumnToIndex = 40038, lineIndexToColumn = 40039
         static let getCookie = 40040, getCookieDefault = 40041, setCookie = 40042, deleteCookie = 40043, getCookieNames = 40044
@@ -116,8 +118,42 @@ enum MacroHost {
         return String(utf16CodeUnits: utf16, count: utf16.count)
     }
 
+    /// ファイルを開く・保存のダイアログ（FileOpenDialog・FileSaveDialog。単体テストで差し替える）。引数は保存か、既定のファイル名
+    static var fileDialog: (Bool, String) -> String? = { save, initial in
+        let panel: NSSavePanel = save ? NSSavePanel() : NSOpenPanel()
+        if !initial.isEmpty {
+            let url = URL(fileURLWithPath: initial)
+            panel.directoryURL = initial.hasSuffix("/") ? url : url.deletingLastPathComponent()
+            if !initial.hasSuffix("/") { panel.nameFieldStringValue = url.lastPathComponent }
+        }
+        return panel.runModal() == .OK ? panel.url?.path : nil
+    }
+
     /// 実行中のマクロのファイル（ExpandParameter の $M）
     static var currentMacroPath = ""
+
+    /// マクロの実行中に開いている編集のまとまり（文書ごと）。マクロ全体を一つの取り消し単位にする
+    private static var editDepth: [ObjectIdentifier: Int] = [:]
+
+    static func beginMacroEdit(_ document: EditorDocument) {
+        editDepth[ObjectIdentifier(document), default: 0] += 1
+        document.beginEdit()
+    }
+
+    static func endMacroEdit(_ document: EditorDocument) {
+        document.endEdit()
+        let key = ObjectIdentifier(document)
+        editDepth[key, default: 1] -= 1
+        if editDepth[key] == 0 { editDepth[key] = nil }
+    }
+
+    /// 元に戻す・やり直しはまとまりを閉じてから（原版はマクロの中でも直前までの編集を取り消せる。ヘルプのサンプル SampleIsPossibleUndo）
+    private static func undoRedo(_ code: Int, view: EditorTextView) {
+        let depth = editDepth[ObjectIdentifier(view.document)] ?? 0
+        for _ in 0..<depth { view.document.endEdit() }
+        _ = CommandTable.perform(code, from: view)
+        for _ in 0..<depth { view.document.beginEdit() }
+    }
 
     // MARK: - 命令（原版 CMacro::HandleCommand）
 
@@ -224,6 +260,30 @@ enum MacroHost {
             view.scroll(NSPoint(x: x, y: view.visibleRect.minY))
         case Code.commitUndoBuffer, Code.addRefUndoBuffer, Code.setUndoBuffer, Code.appendUndoBufferCursor:
             break	// Mac 版の取り消しは編集のまとまりで管理する（マクロ全体が一つの取り消し単位）
+        case Code.setQuoteString:
+            // 共通設定: 引用符の設定（原版 Command_SET_QUOTESTRING）
+            guard let quote = arg(0) else {
+                return error(NSLocalizedString("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO04"))
+            }
+            EditorCore.setCommonSetting(quote, section: "Common", key: "szInyouKigou")
+        case Code.textWrapMethod:
+            // テキストの折り返し方法：0 折り返さない、1 指定桁、2 右端（原版 WRAP_NO_TEXT_WRAP 等）
+            let commands = [0: 31141, 1: 31142, 2: 31143]
+            if let c = commands[int(0)] { _ = CommandTable.perform(c, from: view) }
+        case Code.changeType:
+            // タイプ別設定一時適用（原版 Command_CHANGETYPE：引数は番号 + 1。0 は今のタイプ）
+            let n = int(0)
+            let index = n == 0 ? view.document.typeIndex : n - 1
+            if index >= 0 && index < EditorCore.typeSettings.count && view.document.changeTypeTemporarily(index) {
+                view.typeSettingsReloaded()
+                view.refreshOutline()
+                MacroCommands.runAuto("nMacroOnTypeChanged", view: view)	// 原版 CEditDoc::OnChangeType
+            }
+        case 30210, 30211:	// F_UNDO、F_REDO
+            undoRedo(code, view: view)
+        case Code.execExtMacro:
+            // 名前を指定してマクロ実行（引数：ファイル名かコード、言語の拡張子）。引数がなければパネル
+            if let path = arg(0) { view.execExternalMacro(path: path, type: arg(1)) } else { _ = CommandTable.perform(code, from: view) }
         case Code.recKeyMacro, Code.saveKeyMacro, Code.loadKeyMacro, Code.execKeyMacro:
             _ = CommandTable.perform(code, from: view)
         default:
@@ -332,8 +392,10 @@ enum MacroHost {
         let document = view.document
 
         switch code {
-        case Code.getFilename, Code.getSaveFilename:
+        case Code.getFilename:
             return .string(document.path)
+        case Code.getSaveFilename:
+            return .string(MacroCommands.saveFilePath ?? document.path)	// 保存前の自動実行マクロでは保存先
         case Code.getSelected:
             return .string(view.macroSelectedText)
         case Code.expandParameter:
@@ -434,6 +496,24 @@ enum MacroHost {
             return .int(old ? 1 : 0)
         case Code.getDrawSwitch:
             return .int(view.macroDrawSwitch ? 1 : 0)
+        case Code.chgWrapColumn:
+            // 折り返し桁を取得、設定する（原版：MINLINEKETAS 10 ～ MAXLINEKETAS 10240 なら指定桁で折り返す）
+            guard args.count == 1, let n = int(0) else { return nil }
+            let current = document.viewSettings.wrapColumns
+            if (10...10240).contains(n) {
+                _ = document.setWrap(.settingWidth, columns: n)
+                view.contentDidChange()
+            }
+            return .int(current)
+        case Code.fileOpenDialog, Code.fileSaveDialog:
+            let initial = args.count >= 1 ? (str(0) ?? "") : ""
+            if (initial as NSString).length >= 260 { return nil }
+            return .string(fileDialog(code == Code.fileSaveDialog, initial) ?? "")
+        case Code.folderDialog:
+            let message = args.count >= 1 ? (str(0) ?? "") : ""
+            let initial = args.count >= 2 ? (str(1) ?? "") : ""
+            if (initial as NSString).length >= 260 { return nil }
+            return .string(CommonSettingsPages.chooseFolder(message, initial) ?? "")
         case Code.isShownStatus:
             return .int(0)	// Mac 版にはステータスバーがない
         case Code.isTextSelectingLock:
@@ -539,6 +619,12 @@ enum MacroHost {
 extension EditorTextView {
     /// 文字入力（原版 Command_WCHAR、Command_IME_CHAR）：CR・LF は改行、TAB は TAB 入力、ほかは一文字入力
     func macroInsertCharacter(_ value: Int, code: Int) {
+        var value = value, code = code
+        // CharIme の上位バイトが 0 なら Char と同じ（原版 Command_IME_CHAR）
+        if code == MacroHost.Code.imeChar && value & 0xff00 == 0 {
+            value &= 0xff
+            code = MacroHost.Code.wchar
+        }
         if code == MacroHost.Code.wchar && (value == 0x0D || value == 0x0A) {
             insertNewline(nil)
             return

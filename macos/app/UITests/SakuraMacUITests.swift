@@ -416,7 +416,7 @@ final class SakuraMacUITests: XCTestCase {
     }
 
     /// 画面の記録（第 45 步の確認用）：ウィンドウ・パネルの画面を結果に残す（run-tests.sh の後に取り出す）
-    private func keepScreenshot(_ element: XCUIElement, _ name: String) {
+    private func keepScreenshot(_ element: XCUIScreenshotProviding, _ name: String) {
         let shot = XCTAttachment(screenshot: element.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
@@ -475,6 +475,111 @@ final class SakuraMacUITests: XCTestCase {
         keepScreenshot(app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.windows.firstMatch, "step45-open-error")
         app.buttons["OK"].firstMatch.click()
         XCTAssertEqual(normalizedText, "abc", "一行も実行しない")
+    }
+
+    /// 第 45 步の UI 用のマクロファイル（テストプログラムの容器。App からは沙盒の外だが UI テストの App は読める）
+    private func writeMacro(_ name: String, _ source: String) throws -> URL {
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("\(UUID().uuidString.prefix(8))-\(name)")
+        try source.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    /// 開くパネルでパスを入れて開く（⇧⌘G）
+    private func choose(_ url: URL, in panel: XCUIElement) {
+        XCTAssertTrue(panel.waitForExistence(timeout: 5), "開くパネル")
+        panel.typeKey("g", modifierFlags: [.command, .shift])
+        sleep(1)
+        app.typeText(url.path)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+    }
+
+    /// ツール > 名前を指定してマクロ実行（第 45 步）：JScript のマクロを選んで実行。WScript.Shell の Popup、スクリプトのエラーのメッセージ
+    func testJScriptMacroFromMenu() throws {
+        let ok = try writeMacro("ok.js", "InsText('JS!');\nvar sh = new ActiveXObject('WScript.Shell');\nsh.Popup('マクロから ' + GetLineStr(1), 0, 'Popup のテスト', 0);\n")
+        let bad = try writeMacro("bad.js", "InsText('?');\n\nNoSuchFunction();\n")
+        defer {
+            try? FileManager.default.removeItem(at: ok)
+            try? FileManager.default.removeItem(at: bad)
+        }
+        let tools = app.menuBars.menuBarItems["ツール"]
+        tools.click()
+        tools.menuItems["名前を指定してマクロ実行..."].click()
+        choose(ok, in: app.dialogs.firstMatch)
+        let popup = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", "マクロから JS!")).firstMatch
+        XCTAssertTrue(popup.waitForExistence(timeout: 10), "Popup")
+        keepScreenshot(app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.windows.firstMatch, "step45-js-popup")
+        app.buttons["OK"].firstMatch.click()
+        XCTAssertTrue(waitFor { self.text == "JS!" }, "マクロの結果：\(text)")
+
+        tools.click()
+        tools.menuItems["名前を指定してマクロ実行..."].click()
+        choose(bad, in: app.dialogs.firstMatch)
+        let error = app.staticTexts.matching(NSPredicate(format: "value BEGINSWITH %@", "[Line 3]")).firstMatch
+        XCTAssertTrue(error.waitForExistence(timeout: 10), "エラーの行番号")
+        keepScreenshot(app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.windows.firstMatch, "step45-js-error")
+        app.buttons["OK"].firstMatch.click()
+        XCTAssertTrue(waitFor { self.text == "JS!?" }, "エラーの前までは実行：\(text)")
+        key("z", .command)
+        XCTAssertTrue(waitFor { self.text == "JS!" }, "一回の元に戻す")
+    }
+
+    /// 共通設定 > マクロ で登録 → ツール > 登録済みマクロ に出て実行できる。キャンセル確認待ち時間を過ぎるとキャンセルの窓口（第 45 步）
+    func testRegisteredMacroAndCancelDialog() throws {
+        let hello = try writeMacro("hello.js", "InsText('hello');\n")
+        let loop = try writeMacro("loop.js", "while (true) { GetLineCount(0); }\n")
+        defer {
+            try? FileManager.default.removeItem(at: hello)
+            try? FileManager.default.removeItem(at: loop)
+        }
+        key(",", .command)
+        let window = app.windows["CommonSettings"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "共通設定窗口")
+        window.staticTexts["CommonSettingsPage_マクロ"].click()
+        let name = window.textFields["IDC_MACRONAME"]
+        XCTAssertTrue(name.waitForExistence(timeout: 2), "マクロ 页")
+        func register(_ id: Int, _ title: String, _ url: URL) {
+            let idPopup = window.popUpButtons["IDC_COMBO_MACROID"]
+            idPopup.click()
+            window.menuItems[String(id)].click()
+            name.click()
+            name.typeKey("a", modifierFlags: .command)
+            name.typeText(title)
+            let path = window.comboBoxes["IDC_MACROPATH"]
+            path.click()
+            path.typeKey("a", modifierFlags: .command)
+            path.typeText(url.path)
+            window.buttons["IDC_MACRO_REG"].click()
+        }
+        register(1, "こんにちは", hello)
+        register(2, "無限ループ", loop)
+        let timer = window.textFields["IDC_MACROCANCELTIMER"]
+        timer.click()
+        timer.typeKey("a", modifierFlags: .command)
+        timer.typeText("1")
+        keepScreenshot(window, "step45-macro-settings")
+        window.buttons["CommonSettingsOK"].click()
+        XCTAssertFalse(window.waitForExistence(timeout: 1), "OK で閉じる")
+
+        let tools = app.menuBars.menuBarItems["ツール"]
+        tools.click()
+        tools.menuItems["登録済みマクロ"].hover()
+        tools.menuItems["こんにちは"].click()
+        XCTAssertTrue(waitFor { self.text == "hello" }, "登録マクロの結果：\(text)")
+
+        tools.click()
+        tools.menuItems["登録済みマクロ"].hover()
+        tools.menuItems["無限ループ"].click()
+        // キャンセルの窓口（スクリプトの実行中はアクセシビリティの一覧に出てこないので、画面で確かめて Esc でキャンセル）
+        sleep(3)
+        keepScreenshot(XCUIScreen.main, "step45-cancel-dialog")
+        app.typeKey(.escape, modifierFlags: [])
+        let aborted = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", "マクロの実行を中断しました。")).firstMatch
+        XCTAssertTrue(aborted.waitForExistence(timeout: 10), "中断のメッセージ")
+        app.buttons["OK"].firstMatch.click()
     }
 
     /// 検索 > ダイレクトタグジャンプ：カーソル位置の単語を tags ファイルで探して、そのファイルのその行へ（第 44 步）

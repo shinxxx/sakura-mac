@@ -45,7 +45,9 @@ enum MainMenuBuilder {
             case .separator:
                 parent.addItem(.separator())
             case .special:
-                break	// 29001 ウィンドウリスト 由 macOS 列出；29004～29006（カスタムメニュー、マクロ、プラグイン）在阶段 4 以后
+                // 29001 ウィンドウリスト 由 macOS 列出；29005 登録済みマクロリスト は開くときに作る（第 45 步）；
+                // 29004 カスタムメニュー、29006 プラグイン は以后
+                if entry.command == 29005 { parent.delegate = UserMacroMenu.shared }
             @unknown default:
                 break
             }

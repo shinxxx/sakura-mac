@@ -12,7 +12,7 @@ import EditorBridge
 /// ファイル名表示（置換リスト も）、バックアップ、書式、検索、支援（タブバー・支援 的フォント も）。
 /// 強調キーワード は第 40 步（KeywordSettingsPage.swift）、キー割り当て・メインメニュー・ツールバー・カスタムメニュー は第 41 步
 /// （KeyBindPage.swift、MainMenuPage.swift、CustomMenuToolbarPages.swift）。以后的步骤：
-/// マクロ（第 45 步）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
+/// マクロ（第 45 步，下の MacroPage）。プラグイン 是 DLL，Mac 版没有（偏离项 9）。
 protocol CommonSettingsPageLogic {
     /// 数值框的范围（原版 SetUpDownRange）
     var ranges: [String: ClosedRange<Int>] { get }
@@ -64,6 +64,7 @@ enum CommonSettingsPages {
         case "IDD_PROP_MAINMENU": return MainMenuPage()		// 第 41 步
         case "IDD_PROP_CUSTMENU": return CustomMenuPage()		// 第 41 步
         case "IDD_PROP_TOOLBAR": return ToolbarPage()			// 第 41 步
+        case "IDD_PROP_MACRO": return MacroPage()				// 第 45 步
         default: return nil
         }
     }
@@ -1093,5 +1094,160 @@ final class FontPicker: NSObject {
 
     @objc private func cancelClicked(_ sender: Any?) {
         NSApp.stopModal(withCode: .cancel)
+    }
+}
+
+// MARK: - マクロ（CPropComMacro.cpp。第 45 步）
+
+/// 共通設定『マクロ』：登録マクロの一覧（番号、マクロ名、ファイル名、実行時に読み込み、自動実行）、マクロ用フォルダー、キャンセル確認待ち時間。
+/// 一覧は原版と同じく 50 行いつも表示し、下の「名前」「File」「Id」で選んで［設定］で一覧に入れる。OK で [Macro] の Name[000]・File[000]・
+/// ReloadWhenExecute[000]・nMacroOnOpened 等と [Folders] の szMACROFOLDER に書く。Python フォルダーは Mac 版にない（Python マクロは使えない）
+final class MacroPage: CommonSettingsPageLogic {
+    private let list = idc("MACROLIST")
+    private let idCombo = idc("COMBO_MACROID")
+    /// 前回選択していた行（原版 nLastPos_Macro）
+    private var lastPosition = -1
+
+    var unavailable: Set<String> { [idc("PYTHONDIR"), idc("PYTHONDIRREF")] }
+    var ranges: [String: ClosedRange<Int>] { [idc("MACROCANCELTIMER"): 0...9999] }
+
+    func setData(_ page: PropPage, _ values: CommonSettingsValues) {
+        guard let listView = page.list(list) else { return }
+        if listView.table.tableColumns.count < 5, let scroll = page.control(list) {
+            // 原版 InitDialog：幅は 40:200:150:40:40 の割合。Mac 版は列の間隔とスクロールバーを引いた幅に全部の列が入るように（自動実行の列が隠れない）
+            let spacing = listView.table.intercellSpacing.width * 5
+            let width = scroll.frame.width - NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) - spacing - 4
+            listView.setColumns([NSLocalizedString("番号", comment: "STR_PROPCOMMACR_LIST1"),
+                                 NSLocalizedString("マクロ名", comment: "STR_PROPCOMMACR_LIST2"),
+                                 NSLocalizedString("ファイル名", comment: "STR_PROPCOMMACR_LIST3"),
+                                 NSLocalizedString("実行時に読み込み", comment: "STR_PROPCOMMACR_LIST4"),
+                                 NSLocalizedString("自動実行", comment: "STR_PROPCOMMACR_LIST5")],
+                                widths: [40, 200, 150, 40, 40].map { (CGFloat($0) * width / 470).rounded(.down) })
+        }
+        let opened = values.int("nMacroOnOpened", section: "Macro")
+        let typeChanged = values.int("nMacroOnTypeChanged", section: "Macro")
+        let onSave = values.int("nMacroOnSave", section: "Macro")
+        var rows: [[String]] = []
+        for i in 0..<MacroCommands.maxCount {
+            var auto = ""
+            if i == opened { auto += "O" }
+            if i == typeChanged { auto += "T" }
+            if i == onSave { auto += "S" }
+            rows.append([String(i), values.string(MacroCommands.key("Name", i), section: "Macro"),
+                         values.string(MacroCommands.key("File", i), section: "Macro"),
+                         values.bool(MacroCommands.key("ReloadWhenExecute", i), section: "Macro") ? "on" : "off", auto])
+        }
+        listView.setRows(rows)
+        page.setItems(idCombo, (0..<MacroCommands.maxCount).map { String($0) }, selected: 0)
+        page.setText(idc("MACRODIR"), values.string("szMACROFOLDER", section: "Folders"))
+        page.setInt(idc("MACROCANCELTIMER"), values.int("nMacroCancelTimer", section: "Macro"))
+        lastPosition = -1
+        fillFiles(page)
+    }
+
+    func getData(_ page: PropPage, _ values: CommonSettingsValues) {
+        guard let rows = page.list(list)?.rows else { return }
+        var opened = -1, typeChanged = -1, onSave = -1
+        for (i, row) in rows.enumerated() where i < MacroCommands.maxCount {
+            values.set(row[1], MacroCommands.key("Name", i), section: "Macro")
+            values.set(row[2], MacroCommands.key("File", i), section: "Macro")
+            values.set(row[3] == "on", MacroCommands.key("ReloadWhenExecute", i), section: "Macro")
+            if row[4].contains("O") { opened = i }
+            if row[4].contains("T") { typeChanged = i }
+            if row[4].contains("S") { onSave = i }
+        }
+        values.set(opened, "nMacroOnOpened", section: "Macro")
+        values.set(typeChanged, "nMacroOnTypeChanged", section: "Macro")
+        values.set(onSave, "nMacroOnSave", section: "Macro")
+        // マクロフォルダーの最後に区切りがなければ付ける（原版 AddLastChar '\\'）
+        var folder = page.text(idc("MACRODIR"))
+        if !folder.isEmpty && !folder.hasSuffix("/") { folder += "/" }
+        values.set(folder, "szMACROFOLDER", section: "Folders")
+        values.set(Int(MacroHost.wtoi(page.text(idc("MACROCANCELTIMER")))), "nMacroCancelTimer", section: "Macro")
+    }
+
+    func changed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues) {
+        switch id {
+        case list: selectionChanged(page)	// 原版 CheckListPosition_Macro
+        case idc("MACRODIR"): fillFiles(page)
+        default: break
+        }
+    }
+
+    func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
+        switch id {
+        case idc("MACRODIRREF"):	// マクロディレクトリ参照（原版 SelectBaseDir_Macro）
+            let current = page.text(idc("MACRODIR"))
+            let initial = current.hasPrefix("/") ? current
+                : ((EditorCore.settingsFilePath as NSString).deletingLastPathComponent as NSString).appendingPathComponent(current)
+            if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("Macroディレクトリの選択", comment: "STR_PROPCOMMACR_SEL_DIR"), initial) {
+                page.setText(idc("MACRODIR"), folder.hasSuffix("/") ? folder : folder + "/")
+                FolderAccess.shared.remember(URL(fileURLWithPath: folder, isDirectory: true))	// 沙盒：一覧を読めるように
+                fillFiles(page)
+            }
+        case idc("MACRO_REG"):	// 設定（原版 SetMacro2List_Macro）
+            setMacro(page)
+        default:
+            break
+        }
+    }
+
+    /// 一覧の行を選んだ：下の入力欄へ（原版 CheckListPosition_Macro）
+    private func selectionChanged(_ page: PropPage) {
+        guard let listView = page.list(list) else { return }
+        let current = listView.selectedRow
+        guard current != -1, current != lastPosition else { return }
+        lastPosition = current
+        let row = listView.rows[current]
+        page.select(idCombo, current)
+        page.setText(idc("MACRONAME"), row[1])
+        page.setText(idc("MACROPATH"), row[2])
+        page.setChecked(idc("CHECK_RELOADWHENEXECUTE"), row[3] == "on")
+        page.setChecked(idc("CHECK_MacroOnOpened"), row[4].contains("O"))
+        page.setChecked(idc("CHECK_MacroOnTypeChanged"), row[4].contains("T"))
+        page.setChecked(idc("CHECK_MacroOnSave"), row[4].contains("S"))
+    }
+
+    /// 下の入力欄を Id の行に入れる。自動実行は一つのマクロだけ（原版 SetMacro2List_Macro）
+    private func setMacro(_ page: PropPage) {
+        guard let listView = page.list(list) else { return }
+        let index = page.selectedIndex(idCombo)
+        var rows = listView.rows
+        guard rows.indices.contains(index) else { return }
+        rows[index][1] = String(page.text(idc("MACRONAME")).prefix(63))	// MACRONAME_MAX - 1
+        rows[index][2] = page.text(idc("MACROPATH"))
+        rows[index][3] = page.isChecked(idc("CHECK_RELOADWHENEXECUTE")) ? "on" : "off"
+        func owner(_ c: Character) -> Int { rows.firstIndex { $0[4].contains(c) } ?? -1 }
+        var opened = owner("O"), typeChanged = owner("T"), onSave = owner("S")
+        func update(_ value: inout Int, _ id: String) {
+            if page.isChecked(idc(id)) { value = index } else if value == index { value = -1 }
+        }
+        update(&opened, "CHECK_MacroOnOpened")
+        update(&typeChanged, "CHECK_MacroOnTypeChanged")
+        update(&onSave, "CHECK_MacroOnSave")
+        for i in rows.indices {
+            var auto = ""
+            if i == opened { auto += "O" }
+            if i == typeChanged { auto += "T" }
+            if i == onSave { auto += "S" }
+            rows[i][4] = auto
+        }
+        let selected = listView.selectedRow
+        listView.setRows(rows)
+        if selected != -1 { listView.select(selected) }
+    }
+
+    /// File の候補：マクロフォルダーのファイル（原版 OnFileDropdown_Macro。フォルダーは除く）
+    private func fillFiles(_ page: PropPage) {
+        var folder = page.text(idc("MACRODIR"))
+        if !folder.hasPrefix("/") {
+            folder = ((EditorCore.settingsFilePath as NSString).deletingLastPathComponent as NSString).appendingPathComponent(folder)
+        }
+        FolderAccess.shared.startAccess(path: folder)
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: folder)) ?? []).filter { name in
+            var isDir: ObjCBool = false
+            return !name.hasPrefix(".") && FileManager.default.fileExists(atPath: (folder as NSString).appendingPathComponent(name), isDirectory: &isDir) && !isDir.boolValue
+        }.sorted()	// CBS_SORT
+        page.setItems(idc("MACROPATH"), names, selected: -1)
     }
 }

@@ -156,9 +156,18 @@ final class SakuraDocument: NSDocument {
                 return
             }
             nextSaveSettings = confirmed
+            // 第 45 步：保存前の自動実行マクロ（原版 CDocFileOperation::DoSaveFlow → RunAutoMacro(nMacroOnSave)）
+            let typeBefore = editor.typeIndex
+            if let view = (windowControllers.first as? EditorWindowController)?.textView {
+                MacroCommands.runAuto("nMacroOnSave", view: view, savePath: url.path)
+            }
             writeConfirmed(to: url, ofType: typeName, for: saveOperation) { [self] error in
                 nextSaveSettings = nil
                 if error == nil {
+                    // タイプが変わったら（名前を付けて保存で拡張子が変わった等）タイプ変更後の自動実行マクロ（原版 CEditDoc::OnChangeType）
+                    if editor.typeIndex != typeBefore, let view = (windowControllers.first as? EditorWindowController)?.textView {
+                        MacroCommands.runAuto("nMacroOnTypeChanged", view: view)
+                    }
                     // 第 43 步：保存すると Grep の窓口ではなくなる（原版 CGrepAgent::OnAfterSave）
                     if isGrepMode {
                         isGrepMode = false
@@ -409,8 +418,16 @@ final class SakuraDocument: NSDocument {
         controller.textView.refreshOutline()
     }
 
+    /// 開いた後の自動実行マクロを実行した（第 45 步）
+    private var ranOpenedMacro = false
+
     override func showWindows() {
         super.showWindows()
+        // 第 45 步：新規／開いた後の自動実行マクロ（原版 CNormalProcess・CDocFileOperation → RunAutoMacro(nMacroOnOpened)）
+        if !ranOpenedMacro, let view = (windowControllers.first as? EditorWindowController)?.textView {
+            ranOpenedMacro = true
+            MacroCommands.runAuto("nMacroOnOpened", view: view)
+        }
         if lostSomeOnLoad {
             lostSomeOnLoad = false
             showLostSomeMessage()

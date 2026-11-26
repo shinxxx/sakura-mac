@@ -262,3 +262,31 @@ TEST_F(MacCommonSettingTest, KeywordSetEditorCleanImportExport)
 	EXPECT_FALSE(editor->Import(set2, (dir / "none.kwd").u16string(), message));
 	EXPECT_NE(Text::npos, message.find(u"ファイルを開けませんでした"));
 }
+
+//! 第 45 步：共通設定 > マクロ（[Macro] 節の Name[000]・File[000]・ReloadWhenExecute[000]、自動実行、キャンセル確認待ち時間）、[Folders] の szMACROFOLDER
+TEST_F(MacCommonSettingTest, MacroSection)
+{
+	EXPECT_EQ(u"-1", GetCommonSetting(u"Macro", u"nMacroOnOpened"));
+	ASSERT_TRUE(SetCommonSettings(u"Macro", {
+		{ u"Name[003]", u"テスト" }, { u"File[003]", u"test.js" }, { u"ReloadWhenExecute[003]", u"1" },
+		{ u"nMacroOnOpened", u"3" }, { u"nMacroOnSave", u"3" }, { u"nMacroCancelTimer", u"5" },
+	}));
+	const auto& m = Common().m_sMacro;
+	EXPECT_STREQ(LTEXT("テスト"), m.m_MacroTable[3].m_szName);
+	EXPECT_STREQ(LTEXT("test.js"), m.m_MacroTable[3].m_szFile);
+	EXPECT_TRUE(m.m_MacroTable[3].m_bReloadWhenExecute);
+	EXPECT_EQ(3, m.m_nMacroOnOpened);
+	EXPECT_EQ(-1, m.m_nMacroOnTypeChanged);
+	EXPECT_EQ(3, m.m_nMacroOnSave);
+	EXPECT_EQ(5, m.m_nMacroCancelTimer);
+	EXPECT_EQ(u"test.js", GetCommonSetting(u"Macro", u"File[003]"));
+	// 空の項目は書かない（原版 ShareData_IO_Macro）
+	EXPECT_FALSE(GetCommonSetting(u"Macro", u"File[004]").has_value());
+	// 消す
+	ASSERT_TRUE(SetCommonSettings(u"Macro", { { u"Name[003]", u"" }, { u"File[003]", u"" } }));
+	EXPECT_STREQ(LTEXT(""), m.m_MacroTable[3].m_szFile);
+
+	ASSERT_TRUE(SetCommonSetting(u"Folders", u"szMACROFOLDER", u"/tmp/macro/"));
+	EXPECT_EQ(u"/tmp/macro/", GetCommonSetting(u"Folders", u"szMACROFOLDER"));
+	EXPECT_STREQ(LTEXT("/tmp/macro/"), m.m_szMACROFOLDER);
+}
