@@ -332,6 +332,54 @@ jobs:
           }
           exit $ng
 
+  # 第 45 步：同じ JScript マクロを官方发布的 sakura.exe で実行し、Mac 版の App 単元テスト（JSMacroTests.testWindowsCompare）と同じ期待値と比べる
+  macro-windows:
+    needs: check-encoding
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download Sakura Editor (official release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+          "Sakura Editor $($rel.tagName) ($($asset.name))"
+
+      - name: Run macro
+        run: |
+          $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
+          ./macos/tools/macro/windows-macro.ps1 -SakuraExe $exe -Macro macos/app/Tests/MacroSamples/WindowsCompare.js -OutDir macro-result
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macro-windows
+          path: |
+            macro-result/*.txt
+            macro-result/*.png
+            macro-result/macro.js
+
+      - name: Compare with expected
+        run: |
+          $expected = 'macos/app/Tests/MacroSamples/WindowsCompare.txt'
+          if (-not (Test-Path $expected)) { Get-Content macro-result/WindowsCompare.txt; Write-Host "::error::no expected file"; exit 1 }
+          git diff --no-index --exit-code -- $expected macro-result/WindowsCompare.txt
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::differs from Windows"; exit 1 }
+
   wchar16-test-windows:
     needs: check-encoding
     runs-on: windows-latest

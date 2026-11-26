@@ -188,6 +188,25 @@ final class JSMacroTests: XCTestCase {
         XCTAssertEqual(["選択されたテキストはありません。", "選択中の文字列は\n\nabc"], popups.map(\.text))
     }
 
+    /// Windows 版との比較（第 45 步）：CI の macro-windows が官方发布的 sakura.exe で同じマクロを実行して同じ期待値と比べる
+    /// （macos/tools/macro/windows-macro.ps1）。無題の空の文書で実行し、最後の文書を比べる
+    func testWindowsCompare() throws {
+        let expectedPath = try XCTUnwrap(Bundle(for: Self.self).path(forResource: "WindowsCompare", ofType: "txt", inDirectory: "MacroSamples"))
+        let expected = try String(contentsOfFile: expectedPath, encoding: .utf8)
+        try runSample("WindowsCompare")
+        // 期待値は行を LF でつないだもの（最後の空行を除く）
+        var lines = text.components(separatedBy: "\n")
+        if lines.last == "" { lines.removeLast() }
+        let actual = lines.joined(separator: "\n")
+        let expectedLines = expected.components(separatedBy: "\n")
+        let actualLines = actual.components(separatedBy: "\n")
+        for i in 0..<max(expectedLines.count, actualLines.count) {
+            let e = i < expectedLines.count ? expectedLines[i] : "<なし>"
+            let a = i < actualLines.count ? actualLines[i] : "<なし>"
+            XCTAssertEqual(e, a, "行 \(i + 1)")
+        }
+    }
+
     func testCopyDirPath() throws {
         let url = tempDir.appendingPathComponent("b.txt")
         try "x".write(to: url, atomically: true, encoding: .utf8)
