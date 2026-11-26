@@ -81,6 +81,7 @@
 #include "recent/CMRUFile.h"
 #include "recent/CMRUFolder.h"
 #include "env/CFileNameManager.h"
+#include "macro/CCookieManager.h"
 #include "charset/charset.h"
 #include "util/file.h"
 #include "util/zoom.h"
@@ -1782,6 +1783,7 @@ struct Document::Impl {
 	std::unique_ptr<CRegexKeyword> regexKeyword;	//!< 正規表現キーワード（第 33 步，原版 CEditView::m_cRegexKeyword）
 	bool typeLocked = false;	//!< タイプ別設定一覧の一時適用（原版 CDocType::m_nSettingTypeLocked。第 40 步）
 	bool diffUse = false;		//!< DIFF差分表示実施中（原版 CDiffManager::m_bIsDiffUse。第 44 步）
+	CCookieManager cookie;		//!< マクロの Cookie（原版 CEditDoc::m_cCookie。第 45 步）
 
 	~Impl()
 	{
@@ -1998,6 +2000,7 @@ struct Document::Impl {
 		lines.DeleteAllLine();
 		modified = false;
 		++changeCount;
+		cookie.DeleteAll(LTEXT("document"));	// 原版 CEditDoc::InitDoc
 	}
 };
 
@@ -5576,6 +5579,268 @@ std::optional<FontZoom> ZoomFontSize(double basePointSize, double zoom, std::int
 		return std::nullopt;
 	}
 	return FontZoom{ nPointSize / 10.0, nNewZoom };
+}
+
+// ----- マクロ（第 45 步） -----
+
+namespace {
+
+//! 条件分岐の読み飛ばし（原版 CSakuraEnvironment::_ExParam_SkipCond）
+const WCHAR* ExParamSkipCond(const WCHAR* pszSource, int part)
+{
+	if (part == 0) return pszSource;
+	int nest = 0;	// 入れ子のレベル
+	bool next = true;	// 継続フラグ
+	const WCHAR* p;
+	for (p = pszSource; next && *p != LCHAR('\0'); ++p) {
+		if (*p == LCHAR('$') && p[1] != LCHAR('\0')) { // $が末尾なら無視
+			switch (*(++p)) {
+			case LCHAR('{'):	// 入れ子の開始
+				++nest;
+				break;
+			case LCHAR('}'):
+				if (nest == 0) next = false;	//	終了ポイントに達した
+				else --nest;
+				break;
+			case LCHAR(':'):
+				if (nest == 0 && --part == 0) next = false;	// 入れ子でない場合のみ
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	return p;
+}
+
+Text SysStringText(const SysString& s)
+{
+	return s.Data ? Text(s.Data, SysStringLen(s.Data)) : Text();
+}
+
+} // namespace
+
+Text Document::ExpandParameter(const Text& source, const ExpandParameterView& view) const
+{
+	// 原版 CSakuraEnvironment::ExpandParameter（文書は CEditDoc::GetInstance(0)、画面は GetMainWindow()->GetActiveView()）。
+	// Mac 版はパスの区切りが「/」
+	const auto& d = *m_impl;
+	const Text NO_TITLE(LS(STR_NO_TITLE1));		// (無題)
+	const Text PRINT_PREVIEW_ONLY(LS(STR_PREVIEW_ONLY));	// (印刷プレビューでのみ使用できます)
+	const Text NOT_SAVED(LS(STR_NOT_SAVED));	// (保存されていません)
+	const Text& path = d.info.path;
+	const bool validPath = !path.empty();
+	const auto fileNameStart = path.rfind(u'/') == Text::npos ? 0 : path.rfind(u'/') + 1;
+	const Text fileName = path.substr(fileNameStart);
+
+	auto evaluate = [&](WCHAR c) -> int {
+		// 原版 _ExParam_Evaluate
+		switch (c) {
+		case LCHAR('R'): return view.viewMode ? 0 : view.readOnly ? 1 : 2;	// ビューモード、上書き禁止、上記以外
+		case LCHAR('w'): return view.grepMode ? 0 : view.outputMode ? 1 : 2;	// Grepモード/Output Mode
+		case LCHAR('M'): return view.recordingKeyMacro ? 0 : 1;	// キーボードマクロの記録中
+		case LCHAR('U'): return d.modified ? 0 : 1;	// 更新
+		case LCHAR('N'): return validPath ? 1 : 0;	// 新規/(無題)
+		case LCHAR('I'): return view.minimized ? 0 : 1;	// アイコン化されているか
+		default: return 0;
+		}
+	};
+	auto transform = [](const Text& p) {
+		WCHAR szText[1024] = {};
+		CFileNameManager::getInstance()->TransformFileName_MakeCache();
+		CFileNameManager::getInstance()->GetTransformFileNameFast(p.c_str(), szText, 1023, nullptr, false);
+		return Text(szText);
+	};
+
+	Text q;
+	const WCHAR* p = source.c_str();
+	while (*p != LCHAR('\0')) {
+		if (*p != LCHAR('$')) {
+			q += *p++;
+			continue;
+		}
+		switch (*(++p)) {
+		case LCHAR('$'):	//	 $$ -> $
+			q += *p++;
+			break;
+		case LCHAR('A'):	//アプリ名
+			q += view.appName;
+			++p;
+			break;
+		case LCHAR('F'):	//	開いているファイルの名前（フルパス）
+		case LCHAR('/'):	//	開いているファイルの名前（フルパス。パスの区切りが/）
+			q += validPath ? path : NO_TITLE;
+			++p;
+			break;
+		case LCHAR('f'):	//	開いているファイルの名前（ファイル名+拡張子のみ）
+			q += validPath ? fileName : NO_TITLE;
+			++p;
+			break;
+		case LCHAR('g'):	//	開いているファイルの名前（拡張子を除くファイル名のみ）
+			if (!validPath) {
+				q += NO_TITLE;
+			}
+			else {
+				//	後ろから.を探す。先頭まで行ってしまった⇔.が無かった
+				const auto dot = fileName.rfind(u'.');
+				q += (dot == Text::npos || dot == 0) ? fileName : fileName.substr(0, dot);
+			}
+			++p;
+			break;
+		case LCHAR('N'):	//	開いているファイルの名前(簡易表示)
+			q += validPath ? transform(path) : NO_TITLE;
+			++p;
+			break;
+		case LCHAR('n'):	// 無題の通し番号
+			if (!validPath && !view.grepMode && !view.outputMode && 0 < view.untitledNumber) {
+				WCHAR b[16] = {};
+				_itow(view.untitledNumber, b, 10);
+				q += b;
+			}
+			++p;
+			break;
+		case LCHAR('E'):	// 開いているファイルのあるフォルダーの名前(簡易表示)
+			q += validPath ? transform(path.substr(0, fileNameStart)) : NO_TITLE;
+			++p;
+			break;
+		case LCHAR('e'):	// 開いているファイルのあるフォルダーの名前
+			q += validPath ? path.substr(0, fileNameStart) : NO_TITLE;
+			++p;
+			break;
+		case LCHAR('B'):	// タイプ別設定の名前（基本は表示しない）
+			if (d.typeConfig.m_nIdx > 0) q += Text(d.typeConfig.m_szTypeName.c_str());
+			++p;
+			break;
+		case LCHAR('b'):	// 開いているファイルの拡張子
+			if (validPath) {
+				const auto dot = fileName.rfind(u'.');
+				if (dot != Text::npos) q += fileName.substr(dot + 1);
+			}
+			++p;
+			break;
+		case LCHAR('Q'):	// 印刷ページ設定の名前
+			{
+				int idx = d.typeConfig.m_nCurrentPrintSetting;
+				if (idx < 0 || int(std::size(GetDllShareData().m_PrintSettingArr)) <= idx) idx = 0;
+				q += Text(GetDllShareData().m_PrintSettingArr[idx].m_szPrintSettingName);
+				++p;
+			}
+			break;
+		case LCHAR('C'):	//	現在選択中のテキスト
+			q += view.selectedText;
+			++p;
+			break;
+		case LCHAR('x'):	//	現在の物理桁位置(先頭からのバイト数1開始)
+			q += [&] { WCHAR b[16] = {}; _itow(view.caret.column + 1, b, 10); return Text(b); }();
+			++p;
+			break;
+		case LCHAR('y'):	//	現在の物理行位置(1開始)
+			q += [&] { WCHAR b[16] = {}; _itow(view.caret.line + 1, b, 10); return Text(b); }();
+			++p;
+			break;
+		case LCHAR('d'):	//	共通設定の日付書式
+			q += view.date;
+			++p;
+			break;
+		case LCHAR('t'):	//	共通設定の時刻書式
+			q += view.time;
+			++p;
+			break;
+		case LCHAR('p'):	//	現在のページ
+		case LCHAR('P'):	//	総ページ
+			q += PRINT_PREVIEW_ONLY;	// 印刷プレビューは後のステップ
+			++p;
+			break;
+		case LCHAR('D'):	//	タイムスタンプ
+			q += view.fileDate.empty() ? NOT_SAVED : view.fileDate;
+			++p;
+			break;
+		case LCHAR('T'):	//	タイムスタンプ
+			q += view.fileTime.empty() ? NOT_SAVED : view.fileTime;
+			++p;
+			break;
+		case LCHAR('V'):	// バージョン
+			q += view.version;
+			++p;
+			break;
+		case LCHAR('h'):	//	Grep Key文字列 MAX 32文字
+			{
+				CNativeW cmemDes;
+				LimitStringLengthW(view.grepKey.c_str(), view.grepKey.size(), 32, cmemDes);
+				if (int(view.grepKey.size()) > cmemDes.GetStringLength()) cmemDes.AppendString(LTEXT("..."));
+				q.append(cmemDes.GetStringPtr(), cmemDes.GetStringLength());
+				++p;
+			}
+			break;
+		case LCHAR('S'):	//	サクラエディタのフルパス
+			q += view.appPath;
+			++p;
+			break;
+		case LCHAR('I'):	//	iniファイルのフルパス
+			q += SettingsFilePath();
+			++p;
+			break;
+		case LCHAR('M'):	//	現在実行しているマクロファイルパス
+			q += view.macroPath;
+			++p;
+			break;
+		case LCHAR('{'):	// 条件分岐 ${cond?string1$:string2$:string3$}
+			{
+				const int cond = evaluate(p[1]);
+				while (*p != LCHAR('?') && *p != LCHAR('\0')) ++p;
+				if (*p == LCHAR('\0')) break;
+				p = ExParamSkipCond(p + 1, cond);
+			}
+			break;
+		case LCHAR(':'):	// 条件分岐の中間：末尾までSKIP
+			p = ExParamSkipCond(p + 1, -1);
+			break;
+		case LCHAR('}'):	// 条件分岐の末尾
+			++p;
+			break;
+		case LCHAR('<'):	// $<LongName>：profile（Mac 版はプロファイルがない。空）
+			{
+				++p;
+				while (*p != LCHAR('>') && *p != LCHAR('\0')) ++p;
+				if (*p == LCHAR('\0')) break;
+				++p; // skip '>'
+			}
+			break;
+		case LCHAR('\0'):	// 末尾の $（原版：'$' と終端を書いて抜ける）
+			q += LCHAR('$');
+			break;
+		default:
+			q += LCHAR('$');
+			q += *p++;
+			break;
+		}
+	}
+	return q;
+}
+
+Text Document::GetCookie(const Text& scope, const Text& name) const
+{
+	return SysStringText(m_impl->cookie.GetCookie(scope.c_str(), name.c_str()));
+}
+
+Text Document::GetCookieDefault(const Text& scope, const Text& name, const Text& defaultValue) const
+{
+	return SysStringText(m_impl->cookie.GetCookieDefault(scope.c_str(), name.c_str(), defaultValue.c_str(), int(defaultValue.size())));
+}
+
+std::int32_t Document::SetCookie(const Text& scope, const Text& name, const Text& value)
+{
+	return m_impl->cookie.SetCookie(scope.c_str(), name.c_str(), value.c_str(), int(value.size()));
+}
+
+std::int32_t Document::DeleteCookie(const Text& scope, const Text& name)
+{
+	return m_impl->cookie.DeleteCookie(scope.c_str(), name.c_str());
+}
+
+Text Document::GetCookieNames(const Text& scope) const
+{
+	return SysStringText(m_impl->cookie.GetCookieNames(scope.c_str()));
 }
 
 } // namespace sakura::core
