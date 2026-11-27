@@ -55,12 +55,12 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     /// 「継承情報を統一」の確認（単体テストで差し替える）。OK なら true
     static var confirmHandler: ((String) -> Bool)?
 
-    static let sortTitles = [
+    static var sortTitles: [String] { [
         L10n.tr("デフォルト", comment: "STR_DLGFNCLST_SORTTYPE1"),
         L10n.tr("デフォルト(降順)", comment: "STR_DLGFNCLST_SORTTYPE1_2"),
         L10n.tr("アルファベット順", comment: "STR_DLGFNCLST_SORTTYPE2"),
         L10n.tr("アルファベット(降順)", comment: "STR_DLGFNCLST_SORTTYPE2_2"),
-    ]
+    ] }
 
     init?(view: EditorTextView, result: OutlineResult, outlineType: OutlineType) {
         guard let definition = PropDialogs.load("OutlineDialogs")?.dialog("IDD_FUNCLIST") else { return nil }

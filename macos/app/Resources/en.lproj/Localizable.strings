@@ -531,7 +531,7 @@
 /* STR_DLGWINSZ_MAXIMIZE */
 "最大化" = "Maximize";
 /* STR_FILETREE_MAXCOUNT */
-"最大数(%d)を超えたため切り捨てました" = "最大数(%d)を超えたため切り捨てました";
+"最大数(%d)を超えたため切り捨てました" = "Truncated because the maximum number (%d) was exceeded";
 /* STR_ERR_CEDITVIEW_CMD11 */
 "最後まで置換しました。" = "Replaced all occurrences to end of file.";
 /* ファイル > 最近使ったファイル（34006） */
@@ -591,7 +591,7 @@
 /* STR_CODECHECKER_EOL_UNIFY */
 "現在の入力改行コード %@ に統一しますか？" = "Do you want to unify them to the current line ending (%@)?";
 /* STR_DLGFNCLST_UNIFY */
-"現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n" = "現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n";
+"現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n" = "Copies the docking layout of the current window to all common settings and type settings.\n(The windows that are open now are also unified.)\n";
 /* STR_PROPCOMKEYWORD_DEL */
 "現在の設定では強調キーワードとして表示できないキーワードを削除しますか？" = "Delete undisplayable Keywords from the current input ?";
 /* STR_PROPCOMMACR_LIST1 */

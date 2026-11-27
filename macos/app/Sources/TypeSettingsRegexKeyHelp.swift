@@ -202,11 +202,11 @@ final class TypeRegexPage: CommonSettingsPageLogic {
 // MARK: - キーワードヘルプ（CPropTypesKeyHelp.cpp）
 
 /// 右クリックメニュー（原版 nKeyHelpRMenuType。値は EKeyHelpRMenuType）
-let keyHelpMenuTypes: NamedValues = [
+var keyHelpMenuTypes: NamedValues { [
     (0, L10n.tr("表示しない", comment: "STR_KEYHELP_RMENU_NONE")),
     (1, L10n.tr("先頭に表示", comment: "STR_KEYHELP_RMENU_TOP")),
     (2, L10n.tr("末尾に表示", comment: "STR_KEYHELP_RMENU_BOTTOM")),
-]
+] }
 
 final class TypeKeyHelpPage: CommonSettingsPageLogic {
     static let maxFiles = 20	// MAX_KEYHELP_FILE

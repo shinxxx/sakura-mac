@@ -449,7 +449,7 @@ final class FileTreeDialogController: NSObject {
     }
 
     /// 「▼」（原版 IDC_BUTTON_PATH_MENU）：パスの変数を入れる
-    static let pathMenu: [(title: String, value: String)] = [
+    static var pathMenu: [(title: String, value: String)] { [
         (L10n.tr("INIルート(I)", comment: "STR_FILETREE_MENU_ROOT"), "<iniroot>"),
         (L10n.tr("マイ ドキュメント(Y)", comment: "STR_FILETREE_MENU_MYDOC"), "%MYDOC%"),
         (L10n.tr("マイ ミュージック(M)", comment: "STR_FILETREE_MENU_MYMUSIC"), "%MYMUSIC%"),
@@ -458,7 +458,7 @@ final class FileTreeDialogController: NSObject {
         (L10n.tr("Temp(T)", comment: "STR_FILETREE_MENU_TEMP"), "%TEMP%"),
         (L10n.tr("sakura(S)", comment: "STR_FILETREE_MENU_SAKURA"), "%SAKURA%"),
         (L10n.tr("sakuraデータ(A)", comment: "STR_FILETREE_MENU_SAKURADATA"), "%SAKURADATA%"),
-    ]
+    ] }
 
     func makePathMenu() -> NSMenu {
         let menu = NSMenu()

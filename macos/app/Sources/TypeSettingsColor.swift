@@ -91,13 +91,13 @@ final class ColorSwatchView: NSView {
 // MARK: - 文字列エスケープ、縦線
 
 /// 文字列エスケープ（原版 StringLitteralArr。値は EStringLiteralType）
-let stringLiterals: NamedValues = [
+var stringLiterals: NamedValues { [
     (0, L10n.tr("C/C++言語風 \\\"", comment: "STR_STRINGESC_CPP")),
     (1, L10n.tr("PL/SQL風    \"\"", comment: "STR_STRINGESC_PLSQL")),
     (2, L10n.tr("HTML/XML風  =\"\"", comment: "STR_STRINGESC_HTML")),
     (3, L10n.tr("C#風        @\"\"", comment: "STR_STRINGESC_CSHARP")),
     (4, L10n.tr("Python風    \"\"\"", comment: "STR_STRINGESC_PYTHON")),
-]
+] }
 
 /// 縦線桁指定（原版 CPropTypesColor の SetData / GetData）。値は m_nVertLineIdx：
 /// 「桁」は正の数、「Step(Begin, End)」は -Begin、End、Step の 3 つ

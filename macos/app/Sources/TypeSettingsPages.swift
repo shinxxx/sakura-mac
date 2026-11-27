@@ -213,36 +213,36 @@ typealias NamedValues = [(value: Int, title: String)]
 // MARK: - スクリーン（CPropTypesScreen.cpp）
 
 /// 折り返し方法（原版 WrapMethodArr）
-let wrapMethods: NamedValues = [
+var wrapMethods: NamedValues { [
     (0, L10n.tr("折り返さない", comment: "STR_WRAP_METHOD_NO_WRAP")),
     (1, L10n.tr("指定桁で折り返す", comment: "STR_WRAP_METHOD_SPEC_WIDTH")),
     (2, L10n.tr("右端で折り返す", comment: "STR_WRAP_METHOD_WIN_WIDTH")),
-]
+] }
 /// TAB表示（原版 TabArrowArr）
-let tabArrows: NamedValues = [
+var tabArrows: NamedValues { [
     (0, L10n.tr("文字指定", comment: "STR_TAB_SYMBOL_CHARA")),
     (1, L10n.tr("短い矢印", comment: "STR_TAB_SYMBOL_SHORT_ARROW")),
     (2, L10n.tr("長い矢印", comment: "STR_TAB_SYMBOL_LONG_ARROW")),
-]
+] }
 /// TSVモード（原版 TsvModeArr）
-let tsvModes: NamedValues = [
+var tsvModes: NamedValues { [
     (0, L10n.tr("通常", comment: "STR_TSV_MODE_NONE")),
     (1, "TSV"),
     (2, "CSV"),
-]
+] }
 /// スマートインデント（原版 SmartIndentArr）
-let smartIndents: NamedValues = [
+var smartIndents: NamedValues { [
     (0, L10n.tr("なし", comment: "STR_SMART_INDENT_NONE")),
     (1, "C/C++"),
-]
+] }
 /// 折り返し行インデント（原版 IndentTypeArr）
-let wrapIndents: NamedValues = [
+var wrapIndents: NamedValues { [
     (0, L10n.tr("なし", comment: "STR_WRAP_INDENT_NONE")),
     (1, "tx2x"),
     (2, L10n.tr("論理行先頭", comment: "STR_WRAP_INDENT_BOL")),
-]
+] }
 /// アウトライン解析方法・標準ルール（原版 OlmArr。値は EOutlineType）
-let outlineMethods: NamedValues = [
+var outlineMethods: NamedValues { [
     (1, "C/C++"),		// OUTLINE_C_CPP
     (0, "C"),			// OUTLINE_C
     (16, "C++"),		// OUTLINE_CPP
@@ -259,7 +259,7 @@ let outlineMethods: NamedValues = [
     (15, "XML"),		// OUTLINE_XML
     (11, "TeX"),		// OUTLINE_TEX
     (3, L10n.tr("テキスト", comment: "STR_OUTLINE_TEXT")),	// OUTLINE_TEXT
-]
+] }
 /// アウトライン解析：ルールファイル（OUTLINE_FILE）
 let outlineRuleFile = 12
 
@@ -445,25 +445,25 @@ struct TypeScreenPage: CommonSettingsPageLogic {
 // MARK: - ウィンドウ（CPropTypesWindow.cpp）
 
 /// 起動時のIME：ON/OFF状態（原版 ImeSwitchArr）
-let imeSwitches: NamedValues = [
+var imeSwitches: NamedValues { [
     (0, L10n.tr("そのまま", comment: "STR_IME_SWITCH_DONTSET")),
     (1, L10n.tr("常にON", comment: "STR_IME_SWITCH_ON")),
     (2, L10n.tr("常にOFF", comment: "STR_IME_SWITCH_OFF")),
-]
+] }
 /// 起動時のIME：入力モード（原版 ImeStateArr）
-let imeStates: NamedValues = [
+var imeStates: NamedValues { [
     (0, L10n.tr("標準設定", comment: "STR_IME_STATE_DEF")),
     (1, L10n.tr("全角", comment: "STR_IME_STATE_FULL")),
     (2, L10n.tr("全角ひらがな", comment: "STR_IME_STATE_FULLHIRA")),
     (3, L10n.tr("全角カタカナ", comment: "STR_IME_STATE_FULLKATA")),
     (4, L10n.tr("無変換", comment: "STR_IME_STATE_NO")),
-]
+] }
 /// 改行コード（原版 aszEolStr、aeEolType）
 let defaultEols: NamedValues = [
     (1, "CR+LF"), (2, "LF (UNIX)"), (3, "CR (Mac)"), (4, "NEL"), (5, "LS"), (6, "PS"),
 ]
 /// 背景画像の表示位置（原版 STR_IMAGE_POS1～9。値は EBackgroundImagePos）
-let backgroundImagePositions: NamedValues = [
+var backgroundImagePositions: NamedValues { [
     (0, L10n.tr("左上", comment: "STR_IMAGE_POS1")),
     (1, L10n.tr("右上", comment: "STR_IMAGE_POS2")),
     (2, L10n.tr("左下", comment: "STR_IMAGE_POS3")),
@@ -473,7 +473,7 @@ let backgroundImagePositions: NamedValues = [
     (6, L10n.tr("中央下", comment: "STR_IMAGE_POS7")),
     (7, L10n.tr("中央左", comment: "STR_IMAGE_POS8")),
     (8, L10n.tr("中央右", comment: "STR_IMAGE_POS9")),
-]
+] }
 
 struct TypeWindowPage: CommonSettingsPageLogic {
     static let lineNumWidthRange = 2...11	// LINENUMWIDTH_MIN、LINENUMWIDTH_MAX

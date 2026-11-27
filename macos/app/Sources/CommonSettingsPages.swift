@@ -165,14 +165,14 @@ func idc(_ name: String) -> String { "IDC_" + name }
 // MARK: - 全般（CPropComGeneral.cpp）
 
 /// 组合起来用滚轮时（原版 SpecialScrollModeArr）
-private let specialScrollModes: [(value: Int, title: String)] = [
+private var specialScrollModes: [(value: Int, title: String)] { [
     (0, L10n.tr("組み合わせなし", comment: "STR_SCROLL_WITH_NO_KEY")),
     (2, L10n.tr("マウス中ボタン", comment: "STR_SCROLL_WITH_MID_BTN")),			// MOUSEFUNCTION_CENTER
     (3, L10n.tr("マウスサイドボタン1", comment: "STR_SCROLL_WITH_SIDE_1_BTN")),	// MOUSEFUNCTION_LEFTSIDE
     (4, L10n.tr("マウスサイドボタン2", comment: "STR_SCROLL_WITH_SIDE_2_BTN")),	// MOUSEFUNCTION_RIGHTSIDE
     (17, L10n.tr("CONTROLキー", comment: "STR_SCROLL_WITH_CTRL_KEY")),			// VK_CONTROL
     (16, L10n.tr("SHIFTキー", comment: "STR_SCROLL_WITH_SHIFT_KEY")),			// VK_SHIFT
-]
+] }
 
 struct GeneralPage: CommonSettingsPageLogic {
     static let maxMRU = 36	// MAX_MRU、MAX_OPENFOLDER
@@ -464,11 +464,11 @@ struct EditPage: CommonSettingsPageLogic {
 // MARK: - ファイル（CPropComFile.cpp）
 
 /// 排他制御（原版 ShareModeArr）
-private let shareModes: [(value: Int, title: String)] = [
+private var shareModes: [(value: Int, title: String)] { [
     (0, L10n.tr("しない", comment: "STR_EXCLU_NO_EXCLUSIVE")),
     (1, L10n.tr("上書きを禁止する", comment: "STR_EXCLU_DENY_WRITE")),
     (2, L10n.tr("読み書きを禁止する", comment: "STR_EXCLU_DENY_READWRITE")),
-]
+] }
 
 /// 自動保存（m_sBackup の bBackUpType2_Opt1 の BKUP_AUTO ビット、間隔は bBackUpType2_Opt3）
 private let backupAutoBit = 64
@@ -880,12 +880,12 @@ struct FormatPage: CommonSettingsPageLogic {
 // MARK: - 検索（CPropComGrep.cpp）
 
 /// タグファイルの検索（原版 TagJumpMode1Arr、TagJumpMode2Arr）
-private let tagJumpModes: [(value: Int, title: String)] = [
+private var tagJumpModes: [(value: Int, title: String)] { [
     (0, L10n.tr("次のファイルを検索しない", comment: "STR_TAGJUMP_0")),
     (1, L10n.tr("ヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_1")),
     (2, L10n.tr("完全一致でヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_2")),
     (3, L10n.tr("次のファイルを検索する", comment: "STR_TAGJUMP_3")),
-]
+] }
 
 struct GrepPage: CommonSettingsPageLogic {
     private let checks: [(id: String, key: String)] = [

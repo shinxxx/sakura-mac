@@ -196,8 +196,9 @@ final class PropFlippedView: NSView {
 final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     /// 对话框单位 → 点（縦）
     static let scale: CGFloat = 1.6
-    /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）
-    static var scaleX: CGFloat = 1.95
+    /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）。
+    /// 英語・中国語は原版の語言包の枠（日本語と同じ大きさ）に長い文字が入るので、もっと広く（第 48 步）
+    static var scaleX: CGFloat { L10n.language == "ja" ? 1.95 : 2.3 }
     static let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
 
     let definition: PropDialogs.Page

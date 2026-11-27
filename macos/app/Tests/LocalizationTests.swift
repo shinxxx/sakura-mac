@@ -275,11 +275,18 @@ final class LocalizationTests: XCTestCase {
                     for (where_, text) in Self.texts(in: page.view, page: page) where Self.hasJapanese(text, language: language) {
                         problems.append("\(language) \(controller.pageName(index)) \(where_) \(text)")
                     }
-                    problems += PropLayoutTests.truncated(page).map { "\(language) \(controller.pageName(index)) 切れ: \($0)" }
+                    problems += Self.truncated(page).map { "\(language) \(controller.pageName(index)) 切れ: \($0)" }
                 }
             }
         }
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
+    }
+
+    /// 英語・中国語のページで切れている文字。
+    /// 閉じた下拉框は除く：原版の語言包でも枠（日本語と同じ大きさ）に入らない項目がある（例：「Wrap at right side of window」）。
+    /// 原版の Windows 版も選んだ項目の後ろが切れて表示され、開いたメニューには全部の文字が出る（Mac 版も同じ）
+    static func truncated(_ page: PropPage) -> [String] {
+        PropLayoutTests.truncated(page).filter { !$0.contains(" 下拉框 ") }
     }
 
     func testTypeSettingsPagesAreTranslated() throws {
@@ -295,7 +302,7 @@ final class LocalizationTests: XCTestCase {
                     for (where_, text) in Self.texts(in: page.view, page: page) where Self.hasJapanese(text, language: language) {
                         problems.append("\(language) \(controller.pageName(index)) \(where_) \(text)")
                     }
-                    problems += PropLayoutTests.truncated(page).map { "\(language) \(controller.pageName(index)) 切れ: \($0)" }
+                    problems += Self.truncated(page).map { "\(language) \(controller.pageName(index)) 切れ: \($0)" }
                 }
             }
         }

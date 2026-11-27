@@ -29,8 +29,8 @@ enum L10n {
     }
 
     static func defaultLanguage() -> String {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil,
-           Bundle.main.bundleURL.pathExtension != "app" {
+        // 单元测试（App 是测试的宿主时也一样。界面测试启动的 App 里没有 XCTest，按启动参数）
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || NSClassFromString("XCTestCase") != nil {
             return "ja"
         }
         return Bundle.preferredLocalizations(from: languages, forPreferences: nil).first ?? "ja"

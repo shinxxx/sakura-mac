@@ -14,10 +14,10 @@ final class AboutPanel: NSObject, NSWindowDelegate {
     static let shared = AboutPanel()
 
     /// 原版 STR_DLGABOUT_APPNAME
-    static let appName = L10n.tr("サクラエディタ", comment: "STR_DLGABOUT_APPNAME")
+    static var appName: String { L10n.tr("サクラエディタ", comment: "STR_DLGABOUT_APPNAME") }
     /// 原版 S_COPYRIGHT（sakura_rc.rc2）
     static let copyright = "Copyright (C) 1998-2022  by Norio Nakatani & Collaborators"
-    static let originalAuthor = L10n.tr("原作者: たけ(竹パンダ) さん", comment: "IDD_ABOUT")
+    static var originalAuthor: String { L10n.tr("原作者: たけ(竹パンダ) さん", comment: "IDD_ABOUT") }
     static let projectURL = URL(string: "https://sakura-editor.github.io/")!
 
     /// 版本的部分（原版 IDC_EDIT_VER。「情報をコピー」复制这一段）

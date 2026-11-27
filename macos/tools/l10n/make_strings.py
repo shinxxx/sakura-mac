@@ -22,6 +22,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")
 SOURCES = os.path.join(ROOT, "macos", "app", "Sources")
 RESOURCES = os.path.join(ROOT, "macos", "app", "Resources")
 TRANSLATIONS = os.path.join(os.path.dirname(__file__), "translations.json")
+SUPPLEMENT = os.path.join(os.path.dirname(__file__), "rc_supplement.json")
 LANGS = [("en", "sakura_lang/sakura_rc_en-US.rc", "en.lproj"), ("zh", "sakura_lang/sakura_rc_zh-CN.rc", "zh-Hans.lproj")]
 
 SWIFT_STRING = r'"((?:[^"\\]|\\.)*)"'
@@ -117,23 +118,41 @@ def rc_map(lang_path):
     return exact, approx
 
 
+def has_japanese(s, lang):
+    """英文里的假名・汉字，中文里的假名（・ U+30FB 是符号，不算）"""
+    for ch in s:
+        c = ord(ch)
+        if 0x3040 <= c <= 0x30FA or 0x30FC <= c <= 0x30FF or 0xFF66 <= c <= 0xFF9F:
+            return True
+        if lang == "en" and 0x3400 <= c <= 0x9FFF:
+            return True
+    return False
+
+
 def strings_escape(s):
     return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
 
 
 def translate(keys):
     manual = json.load(open(TRANSLATIONS, encoding="utf-8")) if os.path.exists(TRANSLATIONS) else {}
+    # 语言包里没有翻译的字符串编号的补充（与核心库共用。comment 是字符串编号时用）
+    supplement = json.load(open(SUPPLEMENT, encoding="utf-8"))
     results, missing = {}, []
     for lang, path, _ in LANGS:
         exact, approx = rc_map(path)
+        extra = supplement.get("en" if lang == "en" else "zh", {})
         table = {}
         for key in keys:
             value = manual.get(key, {}).get(lang)
             if value is None:
+                value = extra.get(keys[key])
+            if value is None:
                 value = exact.get(key)
             if value is None and loose(key) in approx:
                 value = approx[loose(key)]
-                # 快捷字母：日文的键有「(X)」时中文也加（英文的习惯是没有）
+            if value is not None and has_japanese(value, lang):
+                # 语言包里这个文字还是日文（没有翻译）
+                value = None
             if value is None:
                 missing.append((lang, key))
                 continue
