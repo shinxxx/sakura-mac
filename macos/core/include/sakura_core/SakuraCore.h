@@ -1707,6 +1707,8 @@ struct ExpandParameterView {
 	Text appName;					//!< $A アプリ名（原版 STR_GSTR_APPNAME。sakura_rc.rc2 の文字列は核心库にないので界面層から）
 	Text appPath;					//!< $S サクラエディタのフルパス（Mac 版は App のパス）
 	Text version;					//!< $V バージョン
+	std::int32_t printPage = 0;		//!< $p 印刷のページ（1 から。0：印刷プレビューの外。第 47 步）
+	std::int32_t printPageCount = 0;	//!< $P 印刷の総ページ数
 };
 
 // ---------------------------------------------------------------------------
@@ -1768,6 +1770,196 @@ bool BackupBeforeSave(const Text& target, BackupHandler& handler, const BackupTi
 
 //! 保存の前にバックアップを作るか（BackupBeforeSave がファイルを作ろうとするか：設定が on でファイルがある）
 bool IsBackupNeeded(const Text& target);
+
+// ---------------------------------------------------------------------------
+// 印刷（第 47 步：印刷・印刷プレビュー・印刷ページ設定。macos/core/api/Print.cpp）
+// 原版 CPrint（用紙、印字可能桁・行）、CPrintPreview（印刷用の排版、ページの描画）、CDlgPrintSetting（入力値の範囲）。
+// 長さの単位は原版と同じ 1/10 mm。座標は用紙の左上が原点、下向きが正（原版は MM_LOMETRIC で上向きが正）。
+// 描画（Core Text）、プレビューの画面、プリンター（NSPrintOperation）は界面層。
+// ---------------------------------------------------------------------------
+
+//! 印刷ページ設定の数（原版 MAX_PRINTSETTINGARR）
+constexpr std::int32_t PrintSettingCount = 8;
+
+//! 用紙の向き（原版 DMORIENT_PORTRAIT・DMORIENT_LANDSCAPE）
+enum class PaperOrientation : std::int16_t { Portrait = 1, Landscape = 2 };
+
+//! ヘッダー・フッターのフォント（原版 m_lfHeader・m_nHeaderPointSize）。faceName が空：指定なし（本文の半角・全角フォント）
+struct PrintFont {
+	Text faceName;
+	std::int32_t pointSize = 0;	//!< 1/10 ポイント
+	bool bold = false;
+	bool italic = false;
+};
+
+//! 印刷ページ設定の一つ（原版 PRINTSETTING。sakura.ini の [Print] 節）
+struct PrintSetting {
+	Text name;						//!< 印刷設定の名前（32 文字まで）
+	Text fontHan;					//!< 半角フォント
+	Text fontZen;					//!< 全角フォント
+	std::int32_t fontHeight = 24;	//!< フォント高（1/10 mm）
+	std::int32_t fontWidth = 12;	//!< フォント幅（1/10 mm）。原版は (高さ + 1) / 2
+	std::int32_t columns = 1;		//!< 段数
+	std::int32_t columnSpace = 70;	//!< 段の隙間（1/10 mm）
+	std::int32_t lineSpacing = 30;	//!< 行送り（文字の高さに対する %）
+	std::int32_t marginTop = 100;	//!< 余白（1/10 mm）
+	std::int32_t marginBottom = 200;
+	std::int32_t marginLeft = 200;
+	std::int32_t marginRight = 100;
+	PaperOrientation orientation = PaperOrientation::Portrait;
+	std::int16_t paperSize = 9;		//!< 用紙サイズ（原版 DMPAPER_*。9 は A4）
+	bool colorPrint = false;		//!< カラー印刷
+	bool wordWrap = true;			//!< 英文ワードラップ
+	bool kinsokuHead = false;		//!< 行頭禁則
+	bool kinsokuTail = false;		//!< 行末禁則
+	bool kinsokuRet = false;		//!< 改行ぶら下げ
+	bool kinsokuKuto = false;		//!< 句読点ぶら下げ
+	bool lineNumber = false;		//!< 行番号を印刷
+	Text header[3];					//!< ヘッダー（左寄せ・中央寄せ・右寄せ。100 文字まで）
+	Text footer[3];					//!< フッター
+	PrintFont headerFont;
+	PrintFont footerFont;
+	Text printerName;				//!< プリンター（原版 m_mdmDevMode.m_szPrinterDeviceName。空：既定のプリンター）
+};
+
+//! 印刷ページ設定（共有の設定。原版 DLLSHAREDATA::m_PrintSettingArr）
+PrintSetting GetPrintSetting(std::int32_t index);
+/*!
+	印刷ページ設定を変える。ヘッダー・フッターのフォントは、名前・大きさ・太さ・斜体のほかの LOGFONT の値を残す。
+	保存は Shutdown のとき（ほかの設定と同じ）
+*/
+void SetPrintSetting(std::int32_t index, const PrintSetting& setting);
+
+//! 用紙（原版 PAPER_INFO。CPrint::m_paperInfoArr の順）
+struct PaperInfo {
+	std::int16_t id = 0;		//!< DMPAPER_*
+	std::int32_t width = 0;		//!< 幅（1/10 mm、縦向き）
+	std::int32_t height = 0;	//!< 高さ
+	Text name;					//!< 名前（「A4 (210 x 297 mm)」など）
+};
+std::vector<PaperInfo> PaperList();
+
+//! 用紙の幅・高さ（1/10 mm、向きを反映）
+struct PaperSize {
+	std::int32_t width = 0;
+	std::int32_t height = 0;
+};
+//! 原版 CPrint::GetPaperSize。表にない用紙は nullopt
+std::optional<PaperSize> GetPaperSize(std::int16_t paperId, PaperOrientation orientation);
+
+//! 行あたりの文字数（原版 CPrint::CalculatePrintableColumns。lineNumberColumns は行番号の桁数）
+std::int32_t PrintableColumns(const PrintSetting& setting, std::int32_t paperWidth, std::int32_t lineNumberColumns);
+//! 縦方向の行数（原版 CPrint::CalculatePrintableLines）
+std::int32_t PrintableLines(const PrintSetting& setting, std::int32_t paperHeight);
+//! ヘッダー・フッターの高さ（行送りこみ。使わないとき 0。原版 CPrint::CalcHeaderHeight・CalcFooterHeight）
+std::int32_t PrintHeaderHeight(const PrintSetting& setting);
+std::int32_t PrintFooterHeight(const PrintSetting& setting);
+
+//! 印刷ページ設定ダイアログの数値の欄（原版 CDlgPrintSetting の sDataRange）
+enum class PrintSettingField : std::int32_t {
+	FontHeight,		//!< フォント高（1/10 mm）7～200
+	LineSpacing,	//!< 行送り（%）0～150
+	Columns,		//!< 段数 1～4
+	ColumnSpace,	//!< 段の隙間（mm）0～30
+	MarginTop,		//!< 余白（mm）0～50
+	MarginBottom,
+	MarginLeft,
+	MarginRight,
+};
+//! 範囲（最小・最大）
+std::pair<std::int32_t, std::int32_t> PrintSettingRange(PrintSettingField field);
+//! 原版 DataCheckAndCorrect：範囲の外の値を範囲の端に
+std::int32_t CorrectPrintSettingValue(PrintSettingField field, std::int32_t value);
+/*!
+	ダイアログの欄の値を設定に入れる（原版 CDlgPrintSetting::GetData の数値の部分）。
+	範囲に直し（DataCheckAndCorrect）、フォント幅はフォント高から（(高さ + 1) / 2）、段の隙間と余白は mm → 1/10 mm
+*/
+void SetPrintSettingField(PrintSetting& setting, PrintSettingField field, std::int32_t value);
+//! ダイアログに出す値（mm の欄は 1/10 mm → mm）
+std::int32_t GetPrintSettingField(const PrintSetting& setting, PrintSettingField field);
+//! 「144.5pt」の欄（原版 CDlgPrintSetting::CalcPrintableLineAndColumn の IDC_STATIC_FONTSIZE）
+Text PrintFontSizeText(std::int32_t fontHeight);
+//! ヘッダー・フッターのフォントの欄（原版 CDlgPrintSetting::SetFontName）。フォントがないとき空
+Text PrintFontLabel(const PrintFont& font);
+
+/*!
+	Windows のフォント名 → Mac のフォント（ファミリー名）。原版の既定「ＭＳ 明朝」などは Mac にないので、
+	近いフォントで測って描く。表にない名前はそのまま
+*/
+Text MacFontFace(const Text& face);
+
+//! 印刷のページのテキスト（原版 Print_DrawBlock・行番号の ExtTextOut 一回分）
+struct PrintRun {
+	std::int32_t x = 0;			//!< 1 文字目の左端（1/10 mm）
+	std::int32_t baseline = 0;	//!< ベースライン（1/10 mm）
+	Text text;
+	std::vector<std::int32_t> dx;	//!< 各 UTF-16 の文字の送り幅（原版 ExtTextOut の lpDx。サロゲートの後半などは 0）
+	bool zen = false;			//!< 全角フォント（原版 nKind == 1）
+	bool tab = false;			//!< TAB（カラー印刷で下線があるときだけ。下線だけ引く）
+	std::uint32_t color = 0;	//!< 文字色 0xRRGGBB（カラー印刷でないとき 0：黒）
+	bool bold = false;
+	bool underline = false;
+};
+
+//! ヘッダー・フッターを指定のフォントで描く一つ（原版 DrawHeaderFooter の bFontSetting の部分）
+struct PrintAlignedText {
+	Text text;					//!< 展開した文字（TAB は空白に）
+	std::int32_t align = 0;		//!< 0：左寄せ、1：中央寄せ、2：右寄せ
+	std::int32_t left = 0;		//!< 左端・右端（1/10 mm）。中央寄せは (left + right - 幅) / 2、右寄せは right - 幅
+	std::int32_t right = 0;
+	std::int32_t top = 0;		//!< ヘッダー：文字の上端。フッター：文字の下端（上端は bottom - 文字の高さ tmHeight）
+	bool footer = false;
+	PrintFont font;
+};
+
+//! 行番号の区切りの縦線（原版 DrawPageText の MoveToEx・LineTo）
+struct PrintRule {
+	std::int32_t x = 0;
+	std::int32_t top = 0;
+	std::int32_t bottom = 0;
+};
+
+//! 印刷の一ページ
+struct PrintPage {
+	std::vector<PrintRun> runs;					//!< 本文・行番号、フォントの指定がないヘッダー・フッター
+	std::vector<PrintAlignedText> alignedTexts;	//!< フォントの指定があるヘッダー・フッター
+	std::vector<PrintRule> rules;
+};
+
+class Document;
+struct PrintSourceMac;
+
+/*!
+	印刷用の排版（原版 CPrintPreview の m_pLayoutMgr_Print と OnChangePrintSetting・DrawPageText）。
+	文書の文字を印刷ページ設定の桁数で折り返し、ページに分ける。文書が変わったら作り直す。文書より先に破棄すること
+*/
+class PrintLayout {
+public:
+	~PrintLayout();
+	PrintLayout(const PrintLayout&) = delete;
+	PrintLayout& operator=(const PrintLayout&) = delete;
+
+	//! 使った印刷ページ設定（用紙が表になかったときは A4 縦に直したもの。原版 GetPrintMetrics の失敗時）
+	const PrintSetting& Setting() const;
+	PaperSize Paper() const;
+	std::int32_t Columns() const;			//!< 行あたりの文字数（原版 m_bPreview_EnableColumns）
+	std::int32_t Lines() const;				//!< 縦方向の行数（原版 m_bPreview_EnableLines）
+	std::int32_t LineNumberColumns() const;	//!< 行番号の桁数（原版 m_nPreview_LineNumberColumns）
+	std::int32_t PageCount() const;			//!< 全ページ数（原版 m_nAllPageNum）
+	//! 印字できる領域がない（原版：「印刷できる領域がありません」でプレビューを終える）
+	bool IsEmpty() const;
+	/*!
+		ページ（0 から）の描画（原版 OnPaint・OnPrint の DrawHeaderFooter・DrawPageText）。
+		ヘッダー・フッターの $p $P はこの中で入れる。view はそれ以外の展開に使う
+	*/
+	PrintPage GetPage(std::int32_t page, const ExpandParameterView& view) const;
+
+private:
+	friend std::unique_ptr<PrintLayout> CreatePrintLayoutMac(const PrintSourceMac& source, const PrintSetting& setting);
+	PrintLayout();
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
+};
 
 class Document {
 public:
@@ -2393,6 +2585,17 @@ public:
 	std::int32_t DeleteCookie(const Text& scope, const Text& name);
 	//! 名前を「,」でつないで
 	Text GetCookieNames(const Text& scope) const;
+
+	// ----- 印刷（第 47 步） -----
+	//! この文書の印刷ページ設定の番号（タイプ別設定の m_nCurrentPrintSetting）
+	std::int32_t PrintSettingIndex() const;
+	/*!
+		印刷ページ設定の番号を変える（原版 CEditWnd::OnPrintPageSetting：タイプ別設定に書く）。
+		変わったとき true。同じタイプのほかの文書は ApplyTypeSettingChange で読み直す（原版 PM_CHANGESETTING_TYPE）
+	*/
+	bool SetPrintSettingIndex(std::int32_t index);
+	//! 印刷用の排版を作る（原版 CPrintPreview::OnChangePrintSetting）
+	std::unique_ptr<PrintLayout> CreatePrintLayout(const PrintSetting& setting) const;
 
 private:
 	Document();

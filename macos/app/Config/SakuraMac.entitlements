@@ -11,5 +11,8 @@
 	<!-- 用安全书签记住“最近打开的文件”的访问权限 -->
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
+	<!-- 第 47 步：印刷（プリンターに出す・PDF に保存する） -->
+	<key>com.apple.security.print</key>
+	<true/>
 </dict>
 </plist>

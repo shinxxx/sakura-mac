@@ -22,6 +22,7 @@
 */
 #include "StdAfx.h"
 #include "sakura_core/SakuraCore.h"
+#include "PrintSource.h"
 
 #include "Funccode_enum.h"
 #include "agent/CSearchAgent.h"
@@ -5750,9 +5751,24 @@ Text Document::ExpandParameter(const Text& source, const ExpandParameterView& vi
 			q += view.time;
 			++p;
 			break;
-		case LCHAR('p'):	//	現在のページ
+		case LCHAR('p'):	//	現在のページ（第 47 步：印刷・印刷プレビューのヘッダー・フッター）
+			if (0 < view.printPage) {
+				WCHAR b[16] = {};
+				_itow(view.printPage, b, 10);
+				q += b;
+			} else {
+				q += PRINT_PREVIEW_ONLY;
+			}
+			++p;
+			break;
 		case LCHAR('P'):	//	総ページ
-			q += PRINT_PREVIEW_ONLY;	// 印刷プレビューは後のステップ
+			if (0 < view.printPage) {
+				WCHAR b[16] = {};
+				_itow(view.printPageCount, b, 10);
+				q += b;
+			} else {
+				q += PRINT_PREVIEW_ONLY;
+			}
 			++p;
 			break;
 		case LCHAR('D'):	//	タイムスタンプ
@@ -5845,6 +5861,46 @@ std::int32_t Document::DeleteCookie(const Text& scope, const Text& name)
 Text Document::GetCookieNames(const Text& scope) const
 {
 	return SysStringText(m_impl->cookie.GetCookieNames(scope.c_str()));
+}
+
+// ---------------------------------------------------------------------------
+// 印刷（第 47 步。排版と描画は api/Print.cpp）
+// ---------------------------------------------------------------------------
+
+std::int32_t Document::PrintSettingIndex() const
+{
+	const int idx = m_impl->typeConfig.m_nCurrentPrintSetting;
+	return (idx < 0 || PrintSettingCount <= idx) ? 0 : idx;
+}
+
+bool Document::SetPrintSettingIndex(std::int32_t index)
+{
+	// 原版 CEditWnd::OnPrintPageSetting：現在選択されているページ設定の番号が変更されたら、タイプ別設定に書く
+	auto& d = *m_impl;
+	if (index < 0 || PrintSettingCount <= index) return false;
+	if (d.typeConfig.m_nCurrentPrintSetting == index) return false;
+	const CTypeConfig type(d.info.typeIndex);
+	auto config = std::make_unique<STypeConfig>();
+	if (CDocTypeManager().GetTypeConfig(type, *config)) {
+		config->m_nCurrentPrintSetting = index;
+		CDocTypeManager().SetTypeConfig(type, *config);
+	}
+	d.typeConfig.m_nCurrentPrintSetting = index;	// 今の設定にも反映
+	return true;
+}
+
+std::unique_ptr<PrintLayout> Document::CreatePrintLayout(const PrintSetting& setting) const
+{
+	auto& d = *m_impl;
+	PrintSourceMac source;
+	source.doc = this;
+	source.lines = &d.lines;
+	source.type = &d.typeConfig;
+	source.tabSpace = d.layout.GetTabSpaceKetas();
+	source.tsvMode = d.layout.m_tsvInfo.m_nTsvMode;
+	Impl* impl = m_impl.get();
+	source.activateColors = [impl] { impl->ActivateColors(); };
+	return CreatePrintLayoutMac(source, setting);
 }
 
 } // namespace sakura::core

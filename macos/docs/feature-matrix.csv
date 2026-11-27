@@ -21,9 +21,9 @@
 命令,文件操作,F_FILESAVEALL,30120,すべて上書き保存,全部保存,直接移植,MVP,
 命令,文件操作,F_FILESAVE_QUIET,30121,上書き保存(限定動作),保存（限定动作）,直接移植,MVP,
 命令,文件操作,F_FILE_REOPEN_LATIN1,30122,Latin1で開き直す,以Latin1重新打开,直接移植,MVP,
-命令,文件操作,F_PRINT,30150,印刷,打印...,需要改造,追平,改用 NSPrintOperation
-命令,文件操作,F_PRINT_PREVIEW,30151,印刷プレビュー,打印预览...,需要改造,追平,改用 NSPrintOperation
-命令,文件操作,F_PRINT_PAGESETUP,30152,印刷ページ設定,页面设置...,需要改造,追平,改用 NSPrintOperation
+命令,文件操作,F_PRINT,30150,印刷,打印...,需要改造,追平,第 47 步：先打开印刷プレビュー再用系统的印刷面板（NSPrintOperation），排版与原版相同（与 Windows 官方版对照），印刷后关闭预览
+命令,文件操作,F_PRINT_PREVIEW,30151,印刷プレビュー,打印预览...,需要改造,追平,第 47 步：窗口内换成操作栏和用纸（PrintPreview.swift）；菜单栏不能去掉，预览中文档的功能变灰；没有打印机也能预览
+命令,文件操作,F_PRINT_PAGESETUP,30152,印刷ページ設定,页面设置...,需要改造,追平,第 47 步：原版的对话框（PrintSettingDialog.swift），8 个设置都与原版相同存在 sakura.ini；打印机只记名字
 命令,文件操作,F_OPEN_HfromtoC,30162,同名のC/C++ヘッダー(ソース)を開く,打开同名C/C++头文件...,需要改造,追平,沙盒下需要该文件夹的访问权限
 命令,文件操作,F_ACTIVATE_SQLPLUS,30170,Oracle SQL*Plusをアクティブ表示,激活SQL*Plus,沙盒下不可行,可选,依赖 Windows 版 SQL*Plus 的窗口消息
 命令,文件操作,F_PLSQL_COMPILE_ON_SQLPLUS,30171,Oracle SQL*Plusで実行,在SQL*Plus上执行,沙盒下不可行,可选,依赖 Windows 版 SQL*Plus 的窗口消息

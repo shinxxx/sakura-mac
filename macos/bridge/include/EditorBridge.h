@@ -16,6 +16,7 @@
 	SPDX-License-Identifier: Zlib
 */
 #import <Foundation/Foundation.h>
+#import <CoreText/CoreText.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -1287,6 +1288,170 @@ NS_SWIFT_NAME(BackupCore)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+// ----- 印刷（第 47 步：sakura::core の Print.cpp。原版 CPrint・CPrintPreview・CDlgPrintSetting） -----
+
+//! 用紙の向き（原版 DMORIENT_*）
+typedef NS_ENUM(NSInteger, ECPaperOrientation) {
+	ECPaperOrientationPortrait = 1,
+	ECPaperOrientationLandscape = 2,
+} NS_SWIFT_NAME(PaperOrientation);
+
+//! 印刷ページ設定ダイアログの数値の欄（sakura::core::PrintSettingField）
+typedef NS_ENUM(NSInteger, ECPrintSettingField) {
+	ECPrintSettingFieldFontHeight = 0,	//!< フォント高（1/10 mm）
+	ECPrintSettingFieldLineSpacing,		//!< 行送り（%）
+	ECPrintSettingFieldColumns,			//!< 段数
+	ECPrintSettingFieldColumnSpace,		//!< 段の隙間（mm）
+	ECPrintSettingFieldMarginTop,		//!< 余白（mm）
+	ECPrintSettingFieldMarginBottom,
+	ECPrintSettingFieldMarginLeft,
+	ECPrintSettingFieldMarginRight,
+} NS_SWIFT_NAME(PrintSettingField);
+
+//! ヘッダー・フッターのフォント。faceName が空：指定なし
+NS_SWIFT_NAME(PrintFontSetting)
+@interface ECPrintFont : NSObject <NSCopying>
+@property (copy) NSString *faceName;
+@property NSInteger pointSize;	//!< 1/10 ポイント
+@property BOOL bold;
+@property BOOL italic;
+@end
+
+//! 印刷ページ設定の一つ（sakura::core::PrintSetting。長さは 1/10 mm）
+NS_SWIFT_NAME(PrintSetting)
+@interface ECPrintSetting : NSObject <NSCopying>
+@property (copy) NSString *name;
+@property (copy) NSString *fontHan;
+@property (copy) NSString *fontZen;
+@property NSInteger fontHeight;
+@property NSInteger fontWidth;
+@property NSInteger columns;		//!< 段数
+@property NSInteger columnSpace;
+@property NSInteger lineSpacing;	//!< %
+@property NSInteger marginTop;
+@property NSInteger marginBottom;
+@property NSInteger marginLeft;
+@property NSInteger marginRight;
+@property ECPaperOrientation orientation;
+@property NSInteger paperSize;		//!< DMPAPER_*
+@property BOOL colorPrint;
+@property BOOL wordWrap;
+@property BOOL kinsokuHead;
+@property BOOL kinsokuTail;
+@property BOOL kinsokuRet;
+@property BOOL kinsokuKuto;
+@property BOOL lineNumber;
+@property (copy) NSArray<NSString *> *headers;	//!< 左・中央・右
+@property (copy) NSArray<NSString *> *footers;
+@property (copy) ECPrintFont *headerFont;
+@property (copy) ECPrintFont *footerFont;
+@property (copy) NSString *printerName;		//!< 空：既定のプリンター
+- (BOOL)isEqualToSetting:(ECPrintSetting *)other NS_SWIFT_NAME(isEqual(to:));
+@end
+
+//! 用紙（原版 PAPER_INFO）
+NS_SWIFT_NAME(PaperInfo)
+@interface ECPaperInfo : NSObject
+@property (readonly) NSInteger paperID;
+@property (readonly) NSInteger width;		//!< 1/10 mm（縦向き）
+@property (readonly) NSInteger height;
+@property (readonly, copy) NSString *name;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! ページのテキスト一つ（sakura::core::PrintRun。座標は 1/10 mm、用紙の左上から下向き）
+NS_SWIFT_NAME(PrintRun)
+@interface ECPrintRun : NSObject
+@property (readonly) NSInteger x;
+@property (readonly) NSInteger baseline;
+@property (readonly, copy) NSString *text;
+@property (readonly, copy) NSArray<NSNumber *> *dx;	//!< 各 UTF-16 の送り幅
+@property (readonly) BOOL zen;
+@property (readonly) BOOL tab;
+@property (readonly) uint32_t color;	//!< 0xRRGGBB
+@property (readonly) BOOL bold;
+@property (readonly) BOOL underline;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! フォント指定のヘッダー・フッター（sakura::core::PrintAlignedText）
+NS_SWIFT_NAME(PrintAlignedText)
+@interface ECPrintAlignedText : NSObject
+@property (readonly, copy) NSString *text;
+@property (readonly) NSInteger align;	//!< 0 左、1 中央、2 右
+@property (readonly) NSInteger left;
+@property (readonly) NSInteger right;
+@property (readonly) NSInteger top;		//!< ヘッダー：上端、フッター：下端
+@property (readonly) BOOL footer;
+@property (readonly, copy) ECPrintFont *font;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 行番号の区切りの縦線
+NS_SWIFT_NAME(PrintRule)
+@interface ECPrintRule : NSObject
+@property (readonly) NSInteger x;
+@property (readonly) NSInteger top;
+@property (readonly) NSInteger bottom;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+NS_SWIFT_NAME(PrintPage)
+@interface ECPrintPage : NSObject
+@property (readonly, copy) NSArray<ECPrintRun *> *runs;
+@property (readonly, copy) NSArray<ECPrintAlignedText *> *alignedTexts;
+@property (readonly, copy) NSArray<ECPrintRule *> *rules;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 印刷用の排版（sakura::core::PrintLayout）。文書が変わったら作り直す
+NS_SWIFT_NAME(PrintLayout)
+@interface ECPrintLayout : NSObject
+@property (readonly, copy) ECPrintSetting *setting;
+@property (readonly) NSInteger paperWidth;
+@property (readonly) NSInteger paperHeight;
+@property (readonly) NSInteger columns;
+@property (readonly) NSInteger lines;
+@property (readonly) NSInteger lineNumberColumns;
+@property (readonly) NSInteger pageCount;
+@property (readonly) BOOL isEmpty;
+//! ページ（0 から）。$p $P はこの中で入れる
+- (ECPrintPage *)pageAt:(NSInteger)page view:(ECExpandParameterView *)view NS_SWIFT_NAME(page(_:view:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+//! 印刷ページ設定・用紙・桁数（sakura::core の関数）
+NS_SWIFT_NAME(PrintCore)
+@interface ECPrint : NSObject
+@property (class, readonly) NSInteger settingCount;
++ (ECPrintSetting *)settingAt:(NSInteger)index NS_SWIFT_NAME(setting(at:));
++ (void)setSetting:(ECPrintSetting *)setting at:(NSInteger)index NS_SWIFT_NAME(setSetting(_:at:));
+@property (class, readonly, copy) NSArray<ECPaperInfo *> *papers;
+//! 用紙の幅・高さ（1/10 mm、向きを反映）。表にないとき NO
++ (BOOL)paperSize:(NSInteger)paperID orientation:(ECPaperOrientation)orientation width:(NSInteger *)width height:(NSInteger *)height
+	NS_SWIFT_NAME(paperSize(_:orientation:width:height:));
++ (NSInteger)printableColumns:(ECPrintSetting *)setting paperWidth:(NSInteger)paperWidth lineNumberColumns:(NSInteger)lineNumberColumns
+	NS_SWIFT_NAME(printableColumns(_:paperWidth:lineNumberColumns:));
++ (NSInteger)printableLines:(ECPrintSetting *)setting paperHeight:(NSInteger)paperHeight NS_SWIFT_NAME(printableLines(_:paperHeight:));
++ (NSInteger)headerHeight:(ECPrintSetting *)setting NS_SWIFT_NAME(headerHeight(_:));
++ (NSInteger)footerHeight:(ECPrintSetting *)setting NS_SWIFT_NAME(footerHeight(_:));
++ (NSRange)rangeOfField:(ECPrintSettingField)field NS_SWIFT_NAME(range(of:));
++ (NSInteger)correctValue:(NSInteger)value field:(ECPrintSettingField)field NS_SWIFT_NAME(correct(_:field:));
++ (void)setField:(ECPrintSettingField)field value:(NSInteger)value in:(ECPrintSetting *)setting NS_SWIFT_NAME(setField(_:value:in:));
++ (NSInteger)field:(ECPrintSettingField)field of:(ECPrintSetting *)setting NS_SWIFT_NAME(field(_:of:));
++ (NSString *)fontSizeText:(NSInteger)fontHeight NS_SWIFT_NAME(fontSizeText(_:));
++ (NSString *)fontLabel:(ECPrintFont *)font NS_SWIFT_NAME(fontLabel(_:));
+//! Windows のフォント名 → Mac のフォント（ファミリー名）
++ (NSString *)macFontFace:(NSString *)face NS_SWIFT_NAME(macFontFace(_:));
+/*!
+	印刷のフォント：Windows のフォント名を Mac のフォントにして（macFontFace）、PostScript 名・フルネーム・ファミリー名で探す
+	（文字幅のキャッシュと同じ探し方）。size はポイント（印刷は 1/10 mm をそのまま）
+*/
++ (CTFontRef)createFontNamed:(NSString *)name size:(CGFloat)size bold:(BOOL)bold italic:(BOOL)italic
+	CF_RETURNS_RETAINED NS_SWIFT_NAME(font(named:size:bold:italic:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 
@@ -1611,6 +1776,14 @@ NS_SWIFT_NAME(EditorDocument)
 //! 0：成功、1：scope が違う、2：名前が違う、5：ない
 - (NSInteger)deleteCookie:(NSString *)scope name:(NSString *)name NS_SWIFT_NAME(deleteCookie(scope:name:));
 - (NSString *)cookieNames:(NSString *)scope NS_SWIFT_NAME(cookieNames(scope:));
+
+// ----- 印刷（第 47 步） -----
+//! この文書の印刷ページ設定の番号（タイプ別設定）
+@property (readonly) NSInteger printSettingIndex;
+//! 印刷ページ設定の番号を変える（タイプ別設定に書く）。変わったとき YES
+- (BOOL)changePrintSettingIndex:(NSInteger)index NS_SWIFT_NAME(changePrintSettingIndex(_:));
+//! 印刷用の排版を作る（排版は文書を持っておく）
+- (ECPrintLayout *)makePrintLayout:(ECPrintSetting *)setting NS_SWIFT_NAME(makePrintLayout(_:));
 
 @end
 

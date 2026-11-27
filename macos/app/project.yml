@@ -162,6 +162,11 @@ targets:
       - path: Sources/FileUpdateQueryDialog.swift
       - path: Resources/FileSafetyDialogs.json
         buildPhase: resources
+      # 第 47 步：印刷・印刷プレビュー・印刷ページ設定
+      - path: Sources/PrintPreview.swift
+      - path: Sources/PrintSettingDialog.swift
+      - path: Resources/PrintDialogs.json
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

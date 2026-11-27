@@ -431,7 +431,52 @@ final class SakuraDocument: NSDocument {
     // MARK: - 菜单
 
     override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
-        validateFileCommand(item) ?? super.validateUserInterfaceItem(item)	// 第 34 步：FileCommands.swift
+        // 第 47 步：印刷プレビュー中は印刷の機能だけ（原版 HandleCommand は F_PRINT_PREVIEW 以外を受け付けず、メニューも消す）
+        if isPrintPreview {
+            switch item.action {
+            case #selector(printCommand(_:)), #selector(printPreviewCommand(_:)), #selector(printPageSetupCommand(_:)):
+                return true
+            default:
+                return false
+            }
+        }
+        return validateFileCommand(item) ?? super.validateUserInterfaceItem(item)	// 第 34 步：FileCommands.swift
+    }
+
+    // MARK: - 印刷（第 47 步。PrintPreview.swift、PrintSettingDialog.swift）
+
+    /// 印刷プレビュー中
+    var isPrintPreview: Bool {
+        editorWindowController?.printPreview != nil
+    }
+
+    /// F_PRINT 印刷（原版 Command_PRINT：プレビューを開いてから印刷）。
+    /// プレビュー中は操作バーの「印刷」と同じ（原版はプレビュー中は受け付けないが、Mac は ⌘P で印刷できるように）
+    @objc func printCommand(_ sender: Any?) {
+        guard let controller = editorWindowController else { return }
+        if controller.printPreview == nil { controller.togglePrintPreview() }
+        controller.printPreview?.print()
+    }
+
+    /// F_PRINT_PREVIEW 印刷プレビュー（オン／オフ）
+    @objc func printPreviewCommand(_ sender: Any?) {
+        editorWindowController?.togglePrintPreview()
+    }
+
+    /// F_PRINT_PAGESETUP 印刷ページ設定
+    @objc func printPageSetupCommand(_ sender: Any?) {
+        editorWindowController?.showPrintSetting()
+    }
+
+    /// 印刷プレビュー中に窓を閉じる操作はプレビューを閉じる（原版 WM_SYSCOMMAND の SC_CLOSE）
+    override func shouldCloseWindowController(_ windowController: NSWindowController, delegate: Any?,
+                                              shouldClose shouldCloseSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        if let controller = windowController as? EditorWindowController, let preview = controller.printPreview {
+            preview.close()
+            if let delegate { Self.reply(delegate, shouldCloseSelector, false, contextInfo) }
+            return
+        }
+        super.shouldCloseWindowController(windowController, delegate: delegate, shouldClose: shouldCloseSelector, contextInfo: contextInfo)
     }
 
     // MARK: - 窗口
