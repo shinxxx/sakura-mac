@@ -167,7 +167,7 @@ set(SAKURA_CORE_EXTRA_SOURCES
   sakura_core/func/CKeyBind.cpp           # 按键分配的默认值和查找（Windows 的加速键表不用）
   sakura_core/func/Funccode.cpp           # 第 41 步：功能的分类和一览（共通設定的「種別」「機能」）。功能的可用・打勾在编辑画面
   sakura_core/func/CFuncLookup.cpp        # 第 41 步：功能的名字和分类（DLL 插件没有）
-  sakura_core/print/CPrint.cpp            # 只编译打印设置的默认值和用纸表，打印本身在之后的打印步骤
+  sakura_core/print/CPrint.cpp            # 打印设置的默认值、用纸表、印字可能桁・行（第 47 步的 api/Print.cpp 使用）。打印机的部分是 Windows 专用
   sakura_core/typeprop/CImpExpManager.cpp # 第 40 步：设置的导入・导出（文件格式与原版相同）。选文件、消息、确认对话框由界面层做
 )
 list(TRANSFORM SAKURA_CORE_EXTRA_SOURCES PREPEND "${SAKURA_ROOT}/")
@@ -289,6 +289,7 @@ add_library(sakura_core_api STATIC
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Diff.cpp"           # 第 44 步：DIFF差分表示 的差分（原版は diff.exe）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/TagJumpList.cpp"    # 第 44 步：タグジャンプ一覧（原版 CDlgTagJumpList の検索の部分）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Backup.cpp"         # 第 46 步：バックアップ（原版 CBackupAgent の FormatBackUpPath・MakeBackUp）
+  "${CMAKE_CURRENT_SOURCE_DIR}/api/Print.cpp"          # 第 47 步：印刷（原版 CPrint の用紙・桁と行、CPrintPreview の印刷用の排版とページの描画）
   "${CMAKE_CURRENT_SOURCE_DIR}/api/Macro.cpp")         # 第 45 步：マクロの関数表、キーマクロの読み書き、JScript の前処理
 target_include_directories(sakura_core_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(sakura_core_api PRIVATE sakura_core "-framework CoreFoundation")   # 第 42 步：アウトライン的アルファベット順（lstrcmpi 的代替）

@@ -1,0 +1,7 @@
+# 印刷の Windows 官方版との対照（计划第 47 步）。名前<TAB>設定（キー=値;…）。sample.txt を印刷する
+# キー：height 文字の高さ、spacing 行送り(%)、columns 段数、colspace 段の隙間、mt mb ml mr 余白（長さは 1/10 mm）、
+#   paper 用紙(DMPAPER_*)、orient 1 縦 2 横、wrap 英文ワードラップ、linenum 行番号、kh kt kr kk 禁則、h0-h2 ヘッダー、f0-f2 フッター
+default	
+numbered	height=40;spacing=50;linenum=1;h2=$p/$P;f0=$f;f1=
+columns	paper=11;orient=2;columns=2;colspace=100;height=30;linenum=1;wrap=0;kh=1;kt=1;kr=1;kk=1;h0=;h1=中央 $f;f1=- $p -
+tight	paper=13;mt=0;mb=0;ml=0;mr=0;height=20;spacing=0;columns=3;colspace=0;h0=;f1=

@@ -9,7 +9,8 @@
 原版的 rc 改了以后重新运行：python3 make_prop_dialogs.py
 （输出 macos/app/Resources/CommonSettingsDialogs.json、TypeSettingsDialogs.json、
 第 42 步的アウトライン解析 OutlineDialogs.json、第 43 步的 Grep GrepDialogs.json、
-第 44 步的编辑辅助功能 EditSupportDialogs.json、第 46 步的ファイルの更新 FileSafetyDialogs.json）
+第 44 步的编辑辅助功能 EditSupportDialogs.json、第 46 步的ファイルの更新 FileSafetyDialogs.json、
+第 47 步的印刷 PrintDialogs.json）
 """
 import json
 import os
@@ -50,6 +51,13 @@ EDIT_SUPPORT_DIALOGS = [
 # ファイルの安全機能（第 46 步。原版 CDlgFileUpdateQuery）
 FILE_SAFETY_DIALOGS = [
     "IDD_FILEUPDATEQUERY",
+]
+
+# 印刷（第 47 步。原版 CDlgPrintSetting、CPrintPreview の操作バー、印刷中の CDlgCancel）
+PRINT_DIALOGS = [
+    "IDD_PRINTSETTING",
+    "IDD_PRINTPREVIEWBAR",
+    "IDD_PRINTING",
 ]
 
 # 从タイプ別設定的页打开的对话框（第 40 步）
@@ -114,6 +122,9 @@ def controls(lines, dialog):
             mc = re.match(r'\s*"(\w+)"\s*,(.*)$', rest)
             cls, rest = (mc.group(1), mc.group(2)) if mc else ("", rest)
         parts = [p.strip() for p in rest.split(",")]
+        if word == "ICON" and not raw and parts and not re.fullmatch(r"-?\d+", parts[0]):
+            # ICON 图标名,ID,x,y,…（第 47 步的 IDI_PRINTER）：文字是图标的名字
+            raw, cid, parts = cid, parts[0], parts[1:]
         # 样式在前（CONTROL），位置是 4 个数；LTEXT 等是位置在前，后面是样式
         nums = [p for p in parts if re.fullmatch(r"-?\d+", p)]
         if len(nums) < 4:
@@ -211,6 +222,7 @@ def main():
     write(lines, [], GREP_DIALOGS, os.path.join(out_dir, "GrepDialogs.json"))
     write(lines, [], EDIT_SUPPORT_DIALOGS, os.path.join(out_dir, "EditSupportDialogs.json"))
     write(lines, [], FILE_SAFETY_DIALOGS, os.path.join(out_dir, "FileSafetyDialogs.json"))
+    write(lines, [], PRINT_DIALOGS, os.path.join(out_dir, "PrintDialogs.json"))
 
 
 if __name__ == "__main__":

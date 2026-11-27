@@ -1620,6 +1620,75 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(contentInApp(bak), Self.testFileContent + "X", ".bak は保存の前の内容")
     }
 
+    // MARK: - 第 47 步：印刷
+
+    /// ファイル > 印刷プレビュー：操作バー（ページ・倍率・戻る）、印刷ページ設定
+    func testPrintPreviewAndPageSetup() {
+        editor.typeText((1 ... 120).map { "line \($0)" }.joined(separator: "\n"))
+        let file = app.menuBars.menuBarItems["ファイル"]
+        let window = app.windows.firstMatch
+        file.click()
+        file.menuItems["印刷プレビュー"].click()
+        let pageNumber = window.staticTexts["IDC_STATIC_PAGENUM"]
+        XCTAssertTrue(pageNumber.waitForExistence(timeout: 5), "操作バー")
+        XCTAssertFalse(editor.exists, "編集画面は隠れる")
+        let pages = (pageNumber.value as? String ?? "").components(separatedBy: "/").last ?? ""
+        XCTAssertEqual(pageNumber.value as? String, "1/" + pages)
+        XCTAssertNotEqual(pages, "1頁", "120 行は 2 ページ以上")
+        XCTAssertEqual(window.staticTexts["IDC_STATIC_ZOOM"].value as? String, "100 %")
+        XCTAssertFalse(window.buttons["IDC_BUTTON_PREVPAGE"].isEnabled)
+        keepScreenshot(window, "step47-print-preview")
+        window.buttons["IDC_BUTTON_NEXTPAGE"].click()
+        XCTAssertEqual(pageNumber.value as? String, "2/" + pages)
+        XCTAssertTrue(window.buttons["IDC_BUTTON_PREVPAGE"].isEnabled)
+        window.buttons["IDC_BUTTON_ZOOMUP"].click()
+        XCTAssertEqual(window.staticTexts["IDC_STATIC_ZOOM"].value as? String, "110 %")
+        // プレビュー中は文書の機能は使えない、印刷プレビューは使える
+        file.click()
+        XCTAssertFalse(file.menuItems["上書き保存"].isEnabled, "プレビュー中は使えない")
+        XCTAssertTrue(file.menuItems["印刷プレビュー"].isEnabled)
+        file.typeKey(.escape, modifierFlags: [])
+
+        // ページ設定（キャンセル）
+        window.buttons["IDC_BUTTON_PRINTSETTING"].click()
+        // 閉じるボタンのない NSPanel は dialog として見えることがある
+        let dialog = app.descendants(matching: .any).matching(identifier: "PrintSettingDialog").firstMatch
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5), "印刷ページ設定")
+        XCTAssertTrue(dialog.popUpButtons["IDC_COMBO_SETTINGNAME"].exists)
+        XCTAssertTrue(dialog.staticTexts["IDC_STATIC_ENABLECOLUMNS"].exists)
+        keepScreenshot(dialog, "step47-print-setting")
+        dialog.buttons["IDCANCEL"].click()
+        XCTAssertFalse(dialog.waitForExistence(timeout: 1))
+
+        // 印刷のパネルはここでは開かない：プリンターのない CI では、閉じた後にシステムの通知の対話框
+        // （UserNotificationCenter）が残り、後の測試の操作を邪魔する。印刷は App の測試 testPrintOperation で確かめる
+
+        // 戻る
+        window.buttons["IDCANCEL"].click()
+        XCTAssertTrue(editor.waitForExistence(timeout: 5), "編集画面に戻る")
+        XCTAssertFalse(pageNumber.exists)
+
+        // ファイル > 印刷ページ設定...（プレビューでないとき）
+        file.click()
+        file.menuItems["印刷ページ設定..."].click()
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
+        dialog.typeKey(.escape, modifierFlags: [])
+        XCTAssertFalse(dialog.waitForExistence(timeout: 1), "Esc で閉じる")
+    }
+
+    /// 印刷プレビュー中に ⌘W はプレビューを閉じる（窓は閉じない。原版の SC_CLOSE）
+    func testCloseInPrintPreview() {
+        editor.typeText("abc")
+        let file = app.menuBars.menuBarItems["ファイル"]
+        file.click()
+        file.menuItems["印刷プレビュー"].click()
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.staticTexts["IDC_STATIC_PAGENUM"].waitForExistence(timeout: 5))
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(editor.waitForExistence(timeout: 5), "編集画面に戻る")
+        XCTAssertEqual(text, "abc")
+    }
+
     /// UITesting.testFileContent と同じ
     private static let testFileContent = "line1\nline2\nline3\nline4\n"
 

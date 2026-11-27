@@ -51,6 +51,37 @@ final class EditorWindowController: NSWindowController {
         fatalError("init(coder:) is not supported")
     }
 
+    // MARK: - 印刷プレビュー（第 47 步。PrintPreview.swift）
+
+    /// 印刷プレビュー中（原版 m_pPrintPreview）
+    private(set) var printPreview: PrintPreviewController?
+
+    /// 印刷プレビューのオン／オフ（原版 PrintPreviewModeONOFF）
+    func togglePrintPreview() {
+        if let printPreview {
+            printPreview.close()
+            return
+        }
+        guard let preview = PrintPreviewController(windowController: self) else { return }
+        printPreview = preview
+        preview.open()
+    }
+
+    func printPreviewDidClose(_ preview: PrintPreviewController) {
+        if printPreview === preview { printPreview = nil }
+        textView.needsDisplay = true
+    }
+
+    /// 印刷ページ設定（原版 CEditWnd::OnPrintPageSetting）。プレビュー中は行番号の桁数を排版から、そうでないときは 3
+    @discardableResult
+    func showPrintSetting() -> Bool {
+        let columns = printPreview?.layout.map { max(3, $0.lineNumberColumns) } ?? 3
+        guard let dialog = PrintSettingDialog(currentIndex: editorDocument.printSettingIndex, lineNumberColumns: columns) else { return false }
+        guard PrintPreviewController.runPrintSettingDialog(dialog, window) else { return false }
+        dialog.apply(to: editorDocument)
+        return true
+    }
+
     /// 标题与原版相同：文件名（无题时是「(無題)」），修改过时加「(更新)」；副标题显示编码
     override func windowTitle(forDocumentDisplayName displayName: String) -> String {
         if #available(macOS 11.0, *), let window {

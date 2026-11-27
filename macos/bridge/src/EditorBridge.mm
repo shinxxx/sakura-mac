@@ -20,6 +20,7 @@
 #include <cmath>
 #include <memory>
 #include <mutex>
+#include <tuple>
 #include <type_traits>
 
 namespace core = sakura::core;
@@ -178,6 +179,40 @@ std::u16string g_fontFace;
 std::int32_t g_fontSize = 0;
 
 //! 字体名和大小对应的 CTFont（调用方 CFRelease）
+/*!
+	名前のフォント。PostScript 名・フルネームのほか、ファミリー名（印刷の「Hiragino Mincho ProN」など。第 47 步）でも探す。
+	CTFontCreateWithName は見つからないとき別のフォントを返すので、名前が合わないときはファミリー名で作り直す
+*/
+CTFontRef CreateFontByName(CFStringRef name, CGFloat size)
+{
+	CTFontRef font = CTFontCreateWithName(name, size, nullptr);
+	auto matches = [&](CFStringRef attribute) {
+		CFStringRef value = static_cast<CFStringRef>(CTFontCopyAttribute(font, attribute));
+		const bool same = value && CFStringCompare(value, name, kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+		if (value) CFRelease(value);
+		return same;
+	};
+	if (matches(kCTFontNameAttribute) || matches(kCTFontDisplayNameAttribute) || matches(kCTFontFamilyNameAttribute)) {
+		return font;
+	}
+	const void* keys[] = { kCTFontFamilyNameAttribute };
+	const void* values[] = { name };
+	CFDictionaryRef attributes = CFDictionaryCreate(nullptr, keys, values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	CTFontDescriptorRef descriptor = CTFontDescriptorCreateWithAttributes(attributes);
+	CFRelease(attributes);
+	// ファミリーにあるとき（mandatory 属性で照合）だけ使う。ないときは初めのまま（Core Text の代わりのフォント）
+	CFSetRef mandatory = CFSetCreate(nullptr, keys, 1, &kCFTypeSetCallBacks);
+	CTFontDescriptorRef matched = CTFontDescriptorCreateMatchingFontDescriptor(descriptor, mandatory);
+	CFRelease(mandatory);
+	CFRelease(descriptor);
+	if (matched) {
+		CFRelease(font);
+		font = CTFontCreateWithFontDescriptor(matched, size, nullptr);
+		CFRelease(matched);
+	}
+	return font;
+}
+
 CTFontRef CopyFont(const char16_t* faceName, std::int32_t size)
 {
 	std::lock_guard lock(g_fontMutex);
@@ -186,7 +221,7 @@ CTFontRef CopyFont(const char16_t* faceName, std::int32_t size)
 		g_fontFace = faceName;
 		g_fontSize = size;
 		CFStringRef name = CFStringCreateWithCharacters(nullptr, reinterpret_cast<const UniChar *>(g_fontFace.data()), static_cast<CFIndex>(g_fontFace.size()));
-		g_font = CTFontCreateWithName(name, size, nullptr);
+		g_font = CreateFontByName(name, size);
 		CFRelease(name);
 	}
 	return static_cast<CTFontRef>(CFRetain(g_font));
@@ -1414,6 +1449,16 @@ static_assert(ECGrepHistoryExcludeFolder == static_cast<NSInteger>(core::GrepHis
 - (core::ExpandParameterView)coreView;
 @end
 
+@interface ECPrintSetting ()
+- (instancetype)initWithCore:(const core::PrintSetting&)setting;
+- (core::PrintSetting)coreSetting;
+@end
+
+@interface ECPrintLayout ()
+//! layout の持ち主になる。owner（文書）は排版より長く持っておく
+- (instancetype)initWithLayout:(core::PrintLayout *)layout owner:(id)owner;
+@end
+
 @interface ECFileTreeRoot ()
 - (instancetype)initWithRoot:(const core::FileTreeRoot&)root;
 @end
@@ -2577,6 +2622,18 @@ static ECSearchResult *InvalidViewResult()
 
 // ----- マクロ（第 45 步） -----
 
+// ----- 印刷（第 47 步） -----
+- (NSInteger)printSettingIndex { return _doc->PrintSettingIndex(); }
+- (BOOL)changePrintSettingIndex:(NSInteger)index
+{
+	if (!FitsInt32(index)) return NO;
+	return _doc->SetPrintSettingIndex(static_cast<std::int32_t>(index)) ? YES : NO;
+}
+- (ECPrintLayout *)makePrintLayout:(ECPrintSetting *)setting
+{
+	return [[ECPrintLayout alloc] initWithLayout:_doc->CreatePrintLayout([setting coreSetting]).release() owner:self];
+}
+
 - (NSString *)expandParameter:(NSString *)source view:(ECExpandParameterView *)view
 {
 	return ToNSString(_doc->ExpandParameter(ToText(source), [view coreView]));
@@ -2822,4 +2879,342 @@ core::BackupTime ToBackupTime(NSDate *date)
 	return core::BackupBeforeSave(ToText(target), h) ? YES : NO;
 }
 + (BOOL)isNeededFor:(NSString *)target { return core::IsBackupNeeded(ToText(target)) ? YES : NO; }
+@end
+
+// ----- 印刷（第 47 步） -----
+
+static_assert(ECPaperOrientationPortrait == static_cast<NSInteger>(core::PaperOrientation::Portrait));
+static_assert(ECPaperOrientationLandscape == static_cast<NSInteger>(core::PaperOrientation::Landscape));
+static_assert(ECPrintSettingFieldFontHeight == static_cast<NSInteger>(core::PrintSettingField::FontHeight));
+static_assert(ECPrintSettingFieldMarginRight == static_cast<NSInteger>(core::PrintSettingField::MarginRight));
+
+namespace {
+std::int32_t ToInt32(NSInteger v)
+{
+	return static_cast<std::int32_t>(std::clamp<NSInteger>(v, INT32_MIN, INT32_MAX));
+}
+core::PrintFont ToCoreFont(ECPrintFont *f)
+{
+	core::PrintFont r;
+	if (!f) return r;
+	r.faceName = ToText(f.faceName);
+	r.pointSize = ToInt32(f.pointSize);
+	r.bold = f.bold == YES;
+	r.italic = f.italic == YES;
+	return r;
+}
+ECPrintFont *FromCoreFont(const core::PrintFont& f)
+{
+	ECPrintFont *r = [[ECPrintFont alloc] init];
+	r.faceName = ToNSString(f.faceName);
+	r.pointSize = f.pointSize;
+	r.bold = f.bold ? YES : NO;
+	r.italic = f.italic ? YES : NO;
+	return r;
+}
+NSArray<NSNumber *> *IntArray(const std::vector<std::int32_t>& v)
+{
+	NSMutableArray<NSNumber *> *a = [NSMutableArray arrayWithCapacity:v.size()];
+	for (auto x : v) [a addObject:@(x)];
+	return a;
+}
+core::PrintSettingField ToCoreField(ECPrintSettingField f)
+{
+	return static_cast<core::PrintSettingField>(std::clamp<NSInteger>(f, ECPrintSettingFieldFontHeight, ECPrintSettingFieldMarginRight));
+}
+} // namespace
+
+@implementation ECPrintFont
+- (instancetype)init
+{
+	if ((self = [super init])) _faceName = @"";
+	return self;
+}
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+	ECPrintFont *c = [[ECPrintFont allocWithZone:zone] init];
+	c.faceName = _faceName;
+	c.pointSize = _pointSize;
+	c.bold = _bold;
+	c.italic = _italic;
+	return c;
+}
+@end
+
+@implementation ECPrintSetting
+- (instancetype)init
+{
+	return [self initWithCore:core::PrintSetting{}];
+}
+- (instancetype)initWithCore:(const core::PrintSetting&)s
+{
+	if ((self = [super init])) {
+		_name = ToNSString(s.name);
+		_fontHan = ToNSString(s.fontHan);
+		_fontZen = ToNSString(s.fontZen);
+		_fontHeight = s.fontHeight;
+		_fontWidth = s.fontWidth;
+		_columns = s.columns;
+		_columnSpace = s.columnSpace;
+		_lineSpacing = s.lineSpacing;
+		_marginTop = s.marginTop;
+		_marginBottom = s.marginBottom;
+		_marginLeft = s.marginLeft;
+		_marginRight = s.marginRight;
+		_orientation = static_cast<ECPaperOrientation>(s.orientation);
+		_paperSize = s.paperSize;
+		_colorPrint = s.colorPrint ? YES : NO;
+		_wordWrap = s.wordWrap ? YES : NO;
+		_kinsokuHead = s.kinsokuHead ? YES : NO;
+		_kinsokuTail = s.kinsokuTail ? YES : NO;
+		_kinsokuRet = s.kinsokuRet ? YES : NO;
+		_kinsokuKuto = s.kinsokuKuto ? YES : NO;
+		_lineNumber = s.lineNumber ? YES : NO;
+		_headers = @[ ToNSString(s.header[0]), ToNSString(s.header[1]), ToNSString(s.header[2]) ];
+		_footers = @[ ToNSString(s.footer[0]), ToNSString(s.footer[1]), ToNSString(s.footer[2]) ];
+		_headerFont = FromCoreFont(s.headerFont);
+		_footerFont = FromCoreFont(s.footerFont);
+		_printerName = ToNSString(s.printerName);
+	}
+	return self;
+}
+- (core::PrintSetting)coreSetting
+{
+	core::PrintSetting s;
+	s.name = ToText(_name);
+	s.fontHan = ToText(_fontHan);
+	s.fontZen = ToText(_fontZen);
+	s.fontHeight = ToInt32(_fontHeight);
+	s.fontWidth = ToInt32(_fontWidth);
+	s.columns = ToInt32(_columns);
+	s.columnSpace = ToInt32(_columnSpace);
+	s.lineSpacing = ToInt32(_lineSpacing);
+	s.marginTop = ToInt32(_marginTop);
+	s.marginBottom = ToInt32(_marginBottom);
+	s.marginLeft = ToInt32(_marginLeft);
+	s.marginRight = ToInt32(_marginRight);
+	s.orientation = _orientation == ECPaperOrientationLandscape ? core::PaperOrientation::Landscape : core::PaperOrientation::Portrait;
+	s.paperSize = static_cast<std::int16_t>(std::clamp<NSInteger>(_paperSize, INT16_MIN, INT16_MAX));
+	s.colorPrint = _colorPrint == YES;
+	s.wordWrap = _wordWrap == YES;
+	s.kinsokuHead = _kinsokuHead == YES;
+	s.kinsokuTail = _kinsokuTail == YES;
+	s.kinsokuRet = _kinsokuRet == YES;
+	s.kinsokuKuto = _kinsokuKuto == YES;
+	s.lineNumber = _lineNumber == YES;
+	for (NSUInteger i = 0; i < 3; ++i) {
+		s.header[i] = i < _headers.count ? ToText(_headers[i]) : core::Text();
+		s.footer[i] = i < _footers.count ? ToText(_footers[i]) : core::Text();
+	}
+	s.headerFont = ToCoreFont(_headerFont);
+	s.footerFont = ToCoreFont(_footerFont);
+	s.printerName = ToText(_printerName);
+	return s;
+}
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+	return [[ECPrintSetting allocWithZone:zone] initWithCore:[self coreSetting]];
+}
+- (BOOL)isEqualToSetting:(ECPrintSetting *)other
+{
+	const core::PrintSetting a = [self coreSetting];
+	const core::PrintSetting b = [other coreSetting];
+	auto font = [](const core::PrintFont& x) { return std::tie(x.faceName, x.pointSize, x.bold, x.italic); };
+	auto key = [&](const core::PrintSetting& x) {
+		return std::tie(x.name, x.fontHan, x.fontZen, x.fontHeight, x.fontWidth, x.columns, x.columnSpace, x.lineSpacing,
+			x.marginTop, x.marginBottom, x.marginLeft, x.marginRight, x.orientation, x.paperSize, x.colorPrint, x.wordWrap,
+			x.kinsokuHead, x.kinsokuTail, x.kinsokuRet, x.kinsokuKuto, x.lineNumber, x.header[0], x.header[1], x.header[2],
+			x.footer[0], x.footer[1], x.footer[2], x.printerName);
+	};
+	return (key(a) == key(b) && font(a.headerFont) == font(b.headerFont) && font(a.footerFont) == font(b.footerFont)) ? YES : NO;
+}
+@end
+
+@implementation ECPaperInfo
+- (instancetype)initWithInfo:(const core::PaperInfo&)info
+{
+	if ((self = [super init])) {
+		_paperID = info.id;
+		_width = info.width;
+		_height = info.height;
+		_name = ToNSString(info.name);
+	}
+	return self;
+}
+@end
+
+@implementation ECPrintRun
+- (instancetype)initWithRun:(const core::PrintRun&)r
+{
+	if ((self = [super init])) {
+		_x = r.x;
+		_baseline = r.baseline;
+		_text = ToNSString(r.text);
+		_dx = IntArray(r.dx);
+		_zen = r.zen ? YES : NO;
+		_tab = r.tab ? YES : NO;
+		_color = r.color;
+		_bold = r.bold ? YES : NO;
+		_underline = r.underline ? YES : NO;
+	}
+	return self;
+}
+@end
+
+@implementation ECPrintAlignedText
+- (instancetype)initWithText:(const core::PrintAlignedText&)t
+{
+	if ((self = [super init])) {
+		_text = ToNSString(t.text);
+		_align = t.align;
+		_left = t.left;
+		_right = t.right;
+		_top = t.top;
+		_footer = t.footer ? YES : NO;
+		_font = FromCoreFont(t.font);
+	}
+	return self;
+}
+@end
+
+@implementation ECPrintRule
+- (instancetype)initWithRule:(const core::PrintRule&)r
+{
+	if ((self = [super init])) {
+		_x = r.x;
+		_top = r.top;
+		_bottom = r.bottom;
+	}
+	return self;
+}
+@end
+
+@implementation ECPrintPage
+- (instancetype)initWithPage:(const core::PrintPage&)page
+{
+	if ((self = [super init])) {
+		NSMutableArray *runs = [NSMutableArray arrayWithCapacity:page.runs.size()];
+		for (const auto& r : page.runs) [runs addObject:[[ECPrintRun alloc] initWithRun:r]];
+		NSMutableArray *texts = [NSMutableArray array];
+		for (const auto& t : page.alignedTexts) [texts addObject:[[ECPrintAlignedText alloc] initWithText:t]];
+		NSMutableArray *rules = [NSMutableArray array];
+		for (const auto& r : page.rules) [rules addObject:[[ECPrintRule alloc] initWithRule:r]];
+		_runs = runs;
+		_alignedTexts = texts;
+		_rules = rules;
+	}
+	return self;
+}
+@end
+
+@implementation ECPrintLayout {
+	std::unique_ptr<core::PrintLayout> _layout;
+	id _owner;	//!< 文書（排版は文書の行を指している）
+}
+- (instancetype)initWithLayout:(core::PrintLayout *)layout owner:(id)owner
+{
+	if ((self = [super init])) {
+		_layout.reset(layout);
+		_owner = owner;
+	}
+	return self;
+}
+- (void)dealloc
+{
+	_layout.reset();	// 文書より先に
+	_owner = nil;
+}
+- (ECPrintSetting *)setting { return [[ECPrintSetting alloc] initWithCore:_layout->Setting()]; }
+- (NSInteger)paperWidth { return _layout->Paper().width; }
+- (NSInteger)paperHeight { return _layout->Paper().height; }
+- (NSInteger)columns { return _layout->Columns(); }
+- (NSInteger)lines { return _layout->Lines(); }
+- (NSInteger)lineNumberColumns { return _layout->LineNumberColumns(); }
+- (NSInteger)pageCount { return _layout->PageCount(); }
+- (BOOL)isEmpty { return _layout->IsEmpty() ? YES : NO; }
+- (ECPrintPage *)pageAt:(NSInteger)page view:(ECExpandParameterView *)view
+{
+	return [[ECPrintPage alloc] initWithPage:_layout->GetPage(ToInt32(page), [view coreView])];
+}
+@end
+
+@implementation ECPrint
++ (NSInteger)settingCount { return core::PrintSettingCount; }
++ (ECPrintSetting *)settingAt:(NSInteger)index
+{
+	return [[ECPrintSetting alloc] initWithCore:core::GetPrintSetting(ToInt32(index))];
+}
++ (void)setSetting:(ECPrintSetting *)setting at:(NSInteger)index
+{
+	if (index < 0 || core::PrintSettingCount <= index) return;
+	core::SetPrintSetting(static_cast<std::int32_t>(index), [setting coreSetting]);
+}
++ (NSArray<ECPaperInfo *> *)papers
+{
+	NSMutableArray *a = [NSMutableArray array];
+	for (const auto& p : core::PaperList()) [a addObject:[[ECPaperInfo alloc] initWithInfo:p]];
+	return a;
+}
++ (BOOL)paperSize:(NSInteger)paperID orientation:(ECPaperOrientation)orientation width:(NSInteger *)width height:(NSInteger *)height
+{
+	const auto r = core::GetPaperSize(static_cast<std::int16_t>(std::clamp<NSInteger>(paperID, INT16_MIN, INT16_MAX)),
+		orientation == ECPaperOrientationLandscape ? core::PaperOrientation::Landscape : core::PaperOrientation::Portrait);
+	if (!r) return NO;
+	if (width) *width = r->width;
+	if (height) *height = r->height;
+	return YES;
+}
++ (NSInteger)printableColumns:(ECPrintSetting *)setting paperWidth:(NSInteger)paperWidth lineNumberColumns:(NSInteger)lineNumberColumns
+{
+	return core::PrintableColumns([setting coreSetting], ToInt32(paperWidth), ToInt32(lineNumberColumns));
+}
++ (NSInteger)printableLines:(ECPrintSetting *)setting paperHeight:(NSInteger)paperHeight
+{
+	return core::PrintableLines([setting coreSetting], ToInt32(paperHeight));
+}
++ (NSInteger)headerHeight:(ECPrintSetting *)setting { return core::PrintHeaderHeight([setting coreSetting]); }
++ (NSInteger)footerHeight:(ECPrintSetting *)setting { return core::PrintFooterHeight([setting coreSetting]); }
++ (NSRange)rangeOfField:(ECPrintSettingField)field
+{
+	const auto r = core::PrintSettingRange(ToCoreField(field));
+	return NSMakeRange(static_cast<NSUInteger>(r.first), static_cast<NSUInteger>(r.second - r.first + 1));
+}
++ (NSInteger)correctValue:(NSInteger)value field:(ECPrintSettingField)field
+{
+	return core::CorrectPrintSettingValue(ToCoreField(field), ToInt32(value));
+}
++ (void)setField:(ECPrintSettingField)field value:(NSInteger)value in:(ECPrintSetting *)setting
+{
+	core::PrintSetting s = [setting coreSetting];
+	core::SetPrintSettingField(s, ToCoreField(field), ToInt32(value));
+	setting.fontHeight = s.fontHeight;
+	setting.fontWidth = s.fontWidth;
+	setting.lineSpacing = s.lineSpacing;
+	setting.columns = s.columns;
+	setting.columnSpace = s.columnSpace;
+	setting.marginTop = s.marginTop;
+	setting.marginBottom = s.marginBottom;
+	setting.marginLeft = s.marginLeft;
+	setting.marginRight = s.marginRight;
+}
++ (NSInteger)field:(ECPrintSettingField)field of:(ECPrintSetting *)setting
+{
+	return core::GetPrintSettingField([setting coreSetting], ToCoreField(field));
+}
++ (NSString *)fontSizeText:(NSInteger)fontHeight { return ToNSString(core::PrintFontSizeText(ToInt32(fontHeight))); }
++ (NSString *)fontLabel:(ECPrintFont *)font { return ToNSString(core::PrintFontLabel(ToCoreFont(font))); }
++ (NSString *)macFontFace:(NSString *)face { return ToNSString(core::MacFontFace(ToText(face))); }
++ (CTFontRef)createFontNamed:(NSString *)name size:(CGFloat)size bold:(BOOL)bold italic:(BOOL)italic
+{
+	NSString *face = ToNSString(core::MacFontFace(ToText(name)));
+	CTFontRef font = CreateFontByName((__bridge CFStringRef)face, size);
+	const CTFontSymbolicTraits traits = (bold ? kCTFontTraitBold : 0) | (italic ? kCTFontTraitItalic : 0);
+	if (traits) {
+		if (CTFontRef styled = CTFontCreateCopyWithSymbolicTraits(font, size, nullptr, traits, traits)) {
+			CFRelease(font);
+			font = styled;
+		}
+	}
+	return font;
+}
 @end

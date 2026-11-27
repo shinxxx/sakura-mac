@@ -35,6 +35,10 @@ enum CommandTable {
         30120: #selector(SakuraDocumentController.saveAllQuietly(_:)),	// F_FILESAVEALL すべて上書き保存
         30121: #selector(SakuraDocument.saveQuietly(_:)),			// F_FILESAVE_QUIET 上書き保存(限定動作)
         30122: #selector(SakuraDocument.reopenWithEncoding(_:)),	// F_FILE_REOPEN_LATIN1
+        // 第 47 步：印刷（PrintPreview.swift）
+        30150: #selector(SakuraDocument.printCommand(_:)),			// F_PRINT 印刷
+        30151: #selector(SakuraDocument.printPreviewCommand(_:)),	// F_PRINT_PREVIEW 印刷プレビュー
+        30152: #selector(SakuraDocument.printPageSetupCommand(_:)),	// F_PRINT_PAGESETUP 印刷ページ設定
         30195: #selector(NSApplication.terminate(_:)),				// F_EXITALL サクラエディタの全終了
 
         // 編集（第 25、28、29 步）

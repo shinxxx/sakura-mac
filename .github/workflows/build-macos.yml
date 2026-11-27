@@ -425,6 +425,57 @@ jobs:
           git diff --no-index --exit-code -- macos/core/tests/data/backup/expected.txt backup-result/backup.txt
           if ($LASTEXITCODE -ne 0) { Write-Host "::error::differs from Windows"; exit 1 }
 
+  # 第 47 步：Windows の官方版で印刷（Microsoft Print to PDF）し、PDF の文字の位置を Mac 版の排版
+  # （macos/core/tests/data/print/expected.txt）と比べる（差は 0.2 mm まで）
+  print-windows:
+    needs: check-encoding
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download Sakura Editor (official release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+          "Sakura Editor $($rel.tagName) ($($asset.name))"
+
+      - name: Print to PDF
+        run: |
+          $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
+          ./macos/tools/print/windows-print.ps1 -SakuraExe $exe -DataDir macos/core/tests/data/print -OutDir print-result
+
+      - name: Extract characters
+        run: |
+          pip install pdfminer.six==20250506
+          $pdfs = Get-ChildItem print-result -Filter *.pdf | ForEach-Object { "$($_.BaseName)=$($_.FullName)" }
+          python macos/tools/print/print_pdf_chars.py @pdfs > print-result/print.txt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: print-windows
+          path: print-result/*.*
+
+      - name: Compare with expected
+        run: |
+          python macos/tools/print/compare_print.py macos/core/tests/data/print/expected.txt print-result/print.txt
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::differs from Windows"; exit 1 }
+
   wchar16-test-windows:
     needs: check-encoding
     runs-on: windows-latest
