@@ -1247,6 +1247,46 @@ NS_SWIFT_NAME(MacroCore)
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+//! バックアップの確認の答え（第 46 步。sakura::core::BackupAnswer）
+typedef NS_ENUM(NSInteger, ECBackupAnswer) {
+	ECBackupAnswerYes = 0,
+	ECBackupAnswerNo = 1,
+	ECBackupAnswerCancel = 2,
+} NS_SWIFT_NAME(BackupAnswer);
+
+//! バックアップの作成の結果（sakura::core::BackupResult：原版 MakeBackUp の戻り値）
+typedef NS_ENUM(NSInteger, ECBackupResult) {
+	ECBackupResultNotCreated = 0,	//!< 作らなかった（保存は続ける）
+	ECBackupResultCreated = 1,
+	ECBackupResultInterrupt = 2,	//!< 保存を中断する
+	ECBackupResultFileError = 3,	//!< コピーの失敗
+} NS_SWIFT_NAME(BackupResult);
+
+//! バックアップの作成中のメッセージボックス・ごみ箱（sakura::core::BackupHandler。界面層が実装する）
+NS_SWIFT_NAME(BackupHandler)
+@protocol ECBackupHandler <NSObject>
+//! 確認（MB_ICONQUESTION）。title が空のときはアプリ名。withCancel：はい・いいえ・キャンセル（NO は はい・いいえ）
+- (ECBackupAnswer)confirmWithTitle:(NSString *)title message:(NSString *)message withCancel:(BOOL)withCancel NS_SWIFT_NAME(confirm(title:message:withCancel:));
+//! 削除・移動の失敗（原版 MessageBox(path, 「削除失敗」)）
+- (void)showErrorWithTitle:(NSString *)title message:(NSString *)message NS_SWIFT_NAME(showError(title:message:));
+//! ごみ箱へ
+- (BOOL)moveToTrash:(NSString *)path NS_SWIFT_NAME(moveToTrash(_:));
+@end
+
+//! バックアップ（第 46 步。sakura::core::FormatBackupPath・MakeBackup・BackupBeforeSave：原版 CBackupAgent）
+NS_SWIFT_NAME(BackupCore)
+@interface ECBackup : NSObject
+//! バックアップファイルのパス。date：「保存時の日付・時刻」に使う時刻（nil は今）。作れないとき nil
++ (nullable NSString *)formatPathFor:(NSString *)target date:(nullable NSDate *)date NS_SWIFT_NAME(formatPath(for:date:));
+//! バックアップの作成（原版 MakeBackUp）
++ (ECBackupResult)makeBackupOf:(NSString *)target handler:(id<ECBackupHandler>)handler NS_SWIFT_NAME(makeBackup(of:handler:));
+//! 保存の前のバックアップ（原版 OnPreBeforeSave）。保存を続けるとき YES
++ (BOOL)backupBeforeSave:(NSString *)target handler:(id<ECBackupHandler>)handler NS_SWIFT_NAME(backupBeforeSave(_:handler:));
+//! 保存の前にバックアップを作るか（設定が on でファイルがある）
++ (BOOL)isNeededFor:(NSString *)target NS_SWIFT_NAME(isNeeded(for:));
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorDocument)
 @interface ECDocument : NSObject
 

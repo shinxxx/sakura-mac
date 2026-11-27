@@ -1,0 +1,18 @@
+# 第 46 步：バックアップファイル名の Windows 官方版との対照（CI の backup-windows と test-mac-backup.cpp の BackupWindowsComparison が使う）
+# 名前<TAB>保存の回数<TAB>共通設定（Common 節の 項目=値 を ; で区切る。@DIR@ はこのケースのフォルダー）
+# どのケースも bBackUp=1 bBackUpDialog=0 bBackUpDustBox=0 bBackUpFolder=0 bBackUpPathAdvanced=0 から。
+# 保存 k 回目の前に test.txt の更新日時を 2026-01-0k 10:20:3k（現地時刻）にして、内容を「k」にして上書き保存する（最初の内容は「0」）。
+
+bak	2	nBackUpType=1
+bak-retain-ext	2	nBackUpType=5
+serial	5	nBackUpType=3;bBackUpType2_Opt2=6422531
+serial-retain-ext	4	nBackUpType=6;bBackUpType2_Opt2=7864322
+serial-count1	3	nBackUpType=3;bBackUpType2_Opt2=6422529
+lastwrite-all	2	nBackUpType=4;bBackUpType2_Opt1=63
+lastwrite-month-day	2	nBackUpType=4;bBackUpType2_Opt1=24
+lastwrite-hour-sec	2	nBackUpType=4;bBackUpType2_Opt1=5
+folder	2	nBackUpType=1;bBackUpFolder=1;szBackUpFolder=@DIR@/bk
+folder-serial	3	nBackUpType=6;bBackUpType2_Opt2=6422530;bBackUpFolder=1;szBackUpFolder=@DIR@/old
+advanced-filetime	2	bBackUpPathAdvanced=1;bBackUpType2_Opt4=4;szBackUpPathAdvanced=$0_%Y%m%d_%H%M%S.*
+advanced-folder-name	2	bBackUpPathAdvanced=1;bBackUpType2_Opt4=4;szBackUpPathAdvanced=$1-$0.*.?%y%%
+advanced-star	2	bBackUpPathAdvanced=1;bBackUpType2_Opt4=4;szBackUpPathAdvanced=bk_$0_*

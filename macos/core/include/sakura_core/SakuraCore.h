@@ -1709,6 +1709,66 @@ struct ExpandParameterView {
 	Text version;					//!< $V バージョン
 };
 
+// ---------------------------------------------------------------------------
+// バックアップ（第 46 步：ファイルの安全機能。macos/core/api/Backup.cpp）
+// 原版 CBackupAgent::OnPreBeforeSave・MakeBackUp・FormatBackUpPath。
+// 設定は共通設定『バックアップ』（m_sBackup）。メッセージボックスとごみ箱は界面層（BackupHandler）が行う。
+// ---------------------------------------------------------------------------
+
+//! バックアップの作成の結果（原版 MakeBackUp の戻り値）
+enum class BackupResult : std::int32_t {
+	NotCreated = 0,	//!< 作成しなかった（元のファイルに書けない、確認で「いいえ」、削除・移動の失敗）。保存は続ける
+	Created = 1,	//!< 作成した
+	Interrupt = 2,	//!< 保存を中断する（確認で「キャンセル」、パスが作れず「いいえ」）
+	FileError = 3,	//!< コピーの失敗
+};
+
+//! 確認のメッセージボックスの答え（IDYES・IDNO・IDCANCEL）
+enum class BackupAnswer : std::int32_t { Yes, No, Cancel };
+
+//! 日付・時刻（現地時刻。原版 SYSTEMTIME の年月日時分秒）
+struct BackupTime {
+	std::int32_t year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+};
+
+//! バックアップの作成中のメッセージボックス・ごみ箱（界面層が実装する）
+struct BackupHandler {
+	virtual ~BackupHandler() = default;
+	/*!
+		確認のメッセージボックス（原版 MYMESSAGEBOX・TopConfirmMessage。MB_ICONQUESTION | MB_TOPMOST）。
+		withCancel：MB_YESNOCANCEL（false は MB_YESNO）
+	*/
+	virtual BackupAnswer Confirm(const Text& title, const Text& message, bool withCancel) = 0;
+	//! 情報のメッセージボックス（原版 ::MessageBox(hwnd, path, 「削除失敗」, MB_OK)）
+	virtual void ShowError(const Text& title, const Text& message) = 0;
+	//! ファイルをごみ箱へ（原版 SHFileOperation FO_DELETE FOF_ALLOWUNDO）。失敗しても何もしない（原版も同じ）
+	virtual bool MoveToTrash(const Text& path) = 0;
+};
+
+/*!
+	バックアップファイルのパス（原版 CBackupAgent::FormatBackUpPath）。共通設定『バックアップ』の書式。
+	now：「保存時の日付・時刻」に使う時刻（nullptr は今の時刻）。テストで時刻を決めるのに使う。
+	原版と違うところ：パスの区切りは '/'。「指定フォルダー」の相対パスは対象ファイルのフォルダーから（原版はカレントフォルダー）。
+	パスが長すぎるときなど作れないとき nullopt
+*/
+std::optional<Text> FormatBackupPath(const Text& target, const BackupTime* now = nullptr);
+
+/*!
+	バックアップの作成（原版 CBackupAgent::MakeBackUp）。target の書き込みができないときは作らない（NotCreated）。
+	確認（作成前に確認する）、連番の世代の移動と削除、フォルダーの作成（一段だけ）、コピー（更新日時も残す）、ごみ箱。
+*/
+BackupResult MakeBackup(const Text& target, BackupHandler& handler, const BackupTime* now = nullptr);
+
+/*!
+	保存の前のバックアップ（原版 CBackupAgent::OnPreBeforeSave）：target のファイルがあって「保存時にバックアップを作成する」なら作る。
+	コピーに失敗したら「バックアップの作成に失敗しました．元ファイルへの上書きを継続して行いますか．」を確かめる。
+	保存を続けるとき true、中断するとき false
+*/
+bool BackupBeforeSave(const Text& target, BackupHandler& handler, const BackupTime* now = nullptr);
+
+//! 保存の前にバックアップを作るか（BackupBeforeSave がファイルを作ろうとするか：設定が on でファイルがある）
+bool IsBackupNeeded(const Text& target);
+
 class Document {
 public:
 	//! 新文档（无题，空的一行）。核心库需要已经启动（Startup）
