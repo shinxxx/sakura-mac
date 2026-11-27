@@ -1,0 +1,15 @@
+name: probe-print
+on:
+  push:
+    branches: [claude/project-thread-g14oi6]
+jobs:
+  probe:
+    runs-on: windows-latest
+    steps:
+      - run: |
+          Get-Printer | Format-Table -AutoSize | Out-String -Width 300
+          Get-PrinterDriver | Format-Table -AutoSize | Out-String -Width 300
+          Get-WindowsOptionalFeature -Online | Where-Object { $_.FeatureName -like '*Print*' -or $_.FeatureName -like '*XPS*' } | Format-Table -AutoSize | Out-String -Width 300
+          Get-WindowsFeature *print* , *xps* | Format-Table -AutoSize | Out-String -Width 300
+        shell: pwsh
+        continue-on-error: true
