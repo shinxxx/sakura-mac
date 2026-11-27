@@ -104,6 +104,20 @@ Mac 側は測試の文字幅（半角は高さの半分、全角はその倍：M
 - プレビュー中の ⌘P は印刷（原版はプレビュー中の印刷はボタンだけ）。
 - ヘルプボタンは変灰。
 
+## 截图
+
+![印刷プレビュー（界面测试）](images/step47/01-print-preview.png)
+界面测试 step47-print-preview：从菜单打开印刷プレビュー，显示 2 页中的第 1 页，A4 縦，页眉是文件名「(無題)」。
+
+![印刷ページ設定（界面测试）](images/step47/02-print-setting-dialog.png)
+界面测试 step47-print-setting：从印刷プレビュー的「ページ設定」打开的印刷ページ設定对话框，初始设置「印刷設定 1」。
+
+![印刷ページ設定（单元测试）](images/step47/03-print-setting-dialog-unit.png)
+单元测试 testPrintScreenshots：印刷ページ設定对话框，打开了「行番号を印刷」，页眉三栏是 $f／印刷のテスト／$p/$P。
+
+![印刷プレビュー（单元测试）](images/step47/04-print-preview-unit.png)
+单元测试 testPrintScreenshots：按上面的设置生成的预览，带行号，页眉左中右分别是文件名、「印刷のテスト」、「1/1」。
+
 ## 测试
 
 - 核心库 `test-mac-print.cpp`（18 个）：既定の設定、設定の読み書き（sakura.ini）、範囲と補正、フォントの表示、用紙、桁数と行数、
