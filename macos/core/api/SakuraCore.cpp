@@ -195,18 +195,85 @@ Result FromConvertResult(EConvertResult r)
 // 启动和结束
 // ---------------------------------------------------------------------------
 
+namespace {
+
+//! App が選んだ界面の言語（第 48 步）
+UILanguage g_uiLanguage = UILanguage::Japanese;
+
+//! 言語 → 内蔵の文字列表の番号（sakura::platform）と原版の言語 DLL の名前
+struct UILanguageInfo { const char* name; const WCHAR* dll; };
+UILanguageInfo InfoOf(UILanguage language)
+{
+	switch (language) {
+	case UILanguage::English: return { "en", LTEXT("sakura_lang_en_US.dll") };
+	case UILanguage::Chinese: return { "zh", LTEXT("sakura_lang_zh_CN.dll") };
+	default:                  return { "ja", LTEXT("") };
+	}
+}
+
+std::size_t ResourceLanguageIndex(UILanguage language)
+{
+	const std::string_view name = InfoOf(language).name;
+	for (std::size_t i = 0; i < sakura::platform::ResourceLanguageCount(); ++i) {
+		if (name == sakura::platform::ResourceLanguageName(i)) return i;
+	}
+	return 0;
+}
+
+/*!
+	共通設定の言語を g_uiLanguage にする。原版 CControlTray の MYWM_CHANGESETTING（言語が変わったとき）と同じ順序：
+	旧言語の文字列を集める → 言語を選ぶ → 設定の中の旧言語の文字列を新言語に置き換える。
+*/
+void ApplyUILanguage()
+{
+	const std::size_t target = ResourceLanguageIndex(g_uiLanguage);
+	if (sakura::platform::GetResourceLanguage() != target) {
+		std::vector<sakura::wstring> values;
+		g_shareData->ConvertLangValues(values, true);
+		sakura::platform::SetResourceLanguage(target);
+		g_shareData->ConvertLangValues(values, false);
+	}
+	GetDllShareData().m_Common.m_sWindow.m_szLanguageDll = InfoOf(g_uiLanguage).dll;
+	g_shareData->RefreshString();
+}
+
+} // namespace
+
+void SetUILanguage(UILanguage language)
+{
+	g_uiLanguage = language;
+	if (IsStarted()) {
+		ApplyUILanguage();
+	} else {
+		sakura::platform::SetResourceLanguage(ResourceLanguageIndex(language));
+	}
+}
+
+UILanguage GetUILanguage() { return g_uiLanguage; }
+
+Text ResourceString(std::uint32_t id)
+{
+	sakura::wstring s;
+	sakura::platform::LoadResourceString(id, s);
+	return Text(s);
+}
+
 bool Startup()
 {
 	if (g_shareData) return true;
 	g_settingsImportPending = false;
 	// 与原版 CControlProcess::InitializeProcess 相同的顺序
 	CSelectLang::InitializeLanguageEnvironment();
+	// 第 48 步：原版と同じく、まず日本語（sakura.exe 内蔵）で既定値を作る。
+	// sakura.ini を読むとその言語（szLanguageDll）になり、最後にシステムの言語に切り替える
+	sakura::platform::SetResourceLanguage(0);
 	g_shareData = std::make_unique<CShareData>();
 	g_shareData->InitShareData();
-	if (!CShareData_IO::LoadShareData()) {
+	const bool loaded = CShareData_IO::LoadShareData();
+	ApplyUILanguage();
+	if (!loaded) {
 		CShareData_IO::SaveShareData();
 	}
-	g_shareData->RefreshString();
 	// 排版的字体：先用共通设置的字体，界面层再用 SetLayoutFont 换成 Mac 的字体
 	g_layoutFont = GetDllShareData().m_Common.m_sView.m_lf;
 	ApplyLayoutFont();

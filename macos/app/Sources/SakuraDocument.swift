@@ -102,13 +102,13 @@ final class SakuraDocument: NSDocument {
         let previousName = EditorCore.name(ofEncoding: previous)
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = NSLocalizedString("文字コード情報", comment: "STR_ERR_DLGEDITDOC5")
+        alert.messageText = L10n.tr("文字コード情報", comment: "STR_ERR_DLGEDITDOC5")
         alert.informativeText = String(
-            format: NSLocalizedString("%@\n\nこのファイルを文字コード %@ で開こうとしていますが、前回は別の文字コード %@ で開かれています。\n前回と同じ文字コードを使いますか？\n\n・[はい(Y)]  ＝%@\n・[いいえ(N)]＝%@\n",
+            format: L10n.tr("%@\n\nこのファイルを文字コード %@ で開こうとしていますが、前回は別の文字コード %@ で開かれています。\n前回と同じ文字コードを使いますか？\n\n・[はい(Y)]  ＝%@\n・[いいえ(N)]＝%@\n",
                                       comment: "STR_ERR_DLGEDITDOC6"),
             path, currentName, previousName, previousName, currentName)
-        alert.addButton(withTitle: NSLocalizedString("はい", comment: "メッセージボックス"))
-        alert.addButton(withTitle: NSLocalizedString("いいえ", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("はい", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("いいえ", comment: "メッセージボックス"))
         NSSound.beep()	// 原版 ConfirmBeep
         return alert.runModal() == .alertFirstButtonReturn
     }
@@ -235,7 +235,7 @@ final class SakuraDocument: NSDocument {
         case .lostSome:
             // 原版 CCodeChecker::OnFinalSave
             DispatchQueue.main.async { [self] in
-                showMessage(NSLocalizedString("一部の文字情報が、セーブ時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_SAVE"))
+                showMessage(L10n.tr("一部の文字情報が、セーブ時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_SAVE"))
             }
             return
         default:
@@ -292,8 +292,8 @@ final class SakuraDocument: NSDocument {
         }
         let newLineEol = editor.newLineEol
         let alert = Self.yesNoCancelAlert(
-            message: NSLocalizedString("改行コードが混在しています。", comment: "STR_CODECHECKER_EOL_UNIFY"),
-            information: String(format: NSLocalizedString("現在の入力改行コード %@ に統一しますか？", comment: "STR_CODECHECKER_EOL_UNIFY"),
+            message: L10n.tr("改行コードが混在しています。", comment: "STR_CODECHECKER_EOL_UNIFY"),
+            information: String(format: L10n.tr("現在の入力改行コード %@ に統一しますか？", comment: "STR_CODECHECKER_EOL_UNIFY"),
                                 Self.eolName(newLineEol)))
         present(alert) { response in
             switch response {
@@ -313,18 +313,18 @@ final class SakuraDocument: NSDocument {
                                    completion: @escaping (NSApplication.ModalResponse) -> Void) {
         let place: String
         if check.lostColumn < 0 {
-            place = String(format: NSLocalizedString("最初の場所 %ld行 文字[%@]", comment: "STR_CODECHECKER_CONFORM_LOSESOME"),
-                           check.lostLine + 1, NSLocalizedString("不明", comment: "STR_ERR_CSHAREDATA22"))
+            place = String(format: L10n.tr("最初の場所 %ld行 文字[%@]", comment: "STR_CODECHECKER_CONFORM_LOSESOME"),
+                           check.lostLine + 1, L10n.tr("不明", comment: "STR_ERR_CSHAREDATA22"))
         } else {
-            place = String(format: NSLocalizedString("最初の場所 %ld行 %ld桁 文字[%@]%@", comment: "STR_CODECHECKER_CONFORM_LOSESOME"),
+            place = String(format: L10n.tr("最初の場所 %ld行 %ld桁 文字[%@]%@", comment: "STR_CODECHECKER_CONFORM_LOSESOME"),
                            check.lostLine + 1, check.lostColumn + 1, check.lostCharacter, check.lostCharCode)
         }
         let alert = Self.yesNoCancelAlert(
-            message: String(format: NSLocalizedString("文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。",
+            message: String(format: L10n.tr("文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。",
                                                       comment: "STR_CODECHECKER_CONFORM_LOSESOME"),
                             EditorCore.name(ofEncoding: encoding)),
-            information: NSLocalizedString("保存処理を続行しますか？", comment: "STR_CODECHECKER_CONFORM_LOSESOME") + "\n" + place + "\n"
-                + NSLocalizedString("キャンセル=該当位置に移動", comment: "STR_CODECHECKER_CONFORM_LOSESOME"))
+            information: L10n.tr("保存処理を続行しますか？", comment: "STR_CODECHECKER_CONFORM_LOSESOME") + "\n" + place + "\n"
+                + L10n.tr("キャンセル=該当位置に移動", comment: "STR_CODECHECKER_CONFORM_LOSESOME"))
         present(alert, completion: completion)
     }
 
@@ -334,9 +334,9 @@ final class SakuraDocument: NSDocument {
         alert.alertStyle = .warning
         alert.messageText = message
         alert.informativeText = information
-        alert.addButton(withTitle: NSLocalizedString("はい", comment: "メッセージボックス"))
-        alert.addButton(withTitle: NSLocalizedString("いいえ", comment: "メッセージボックス"))
-        let cancel = alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("はい", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("いいえ", comment: "メッセージボックス"))
+        let cancel = alert.addButton(withTitle: L10n.tr("キャンセル", comment: "メッセージボックス"))
         cancel.keyEquivalent = "\u{1b}"
         return alert
     }
@@ -350,7 +350,7 @@ final class SakuraDocument: NSDocument {
         case .nel: return "NEL"
         case .lineSeparator: return "LS"
         case .paragraphSeparator: return "PS"
-        default: return NSLocalizedString("改行無", comment: "IDS_EOLTYPENAME_0")
+        default: return L10n.tr("改行無", comment: "IDS_EOLTYPENAME_0")
         }
     }
 
@@ -400,7 +400,7 @@ final class SakuraDocument: NSDocument {
     override func canClose(withDelegate delegate: Any, shouldClose shouldCloseSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
         if grepRunner != nil {
             windowControllers.first?.window?.makeKeyAndOrderFront(nil)
-            GrepDialogController.showMessage(NSLocalizedString("Grepの処理中です。\n", comment: "STR_GREP_RUNNINNG")
+            GrepDialogController.showMessage(L10n.tr("Grepの処理中です。\n", comment: "STR_GREP_RUNNINNG")
                 .trimmingCharacters(in: .newlines), windowControllers.first?.window)
             Self.reply(delegate, shouldCloseSelector, false, contextInfo)
             return
@@ -423,7 +423,7 @@ final class SakuraDocument: NSDocument {
                 let key = grepKey as NSString
                 return key.length > 32 ? key.substring(to: 32) + "..." : grepKey
             }
-            return fileURL == nil ? "(無題)" : super.displayName
+            return fileURL == nil ? L10n.tr("(無題)", comment: "無題の文書の名前（原版 STR_NO_TITLE1）") : super.displayName
         }
         set { super.displayName = newValue }
     }
@@ -512,7 +512,7 @@ final class SakuraDocument: NSDocument {
 
     /// 读入时有的字符不能用这个编码表示（原版 CCodeChecker::OnFinalLoad）
     func showLostSomeMessage() {
-        showMessage(NSLocalizedString("一部の文字情報が、ロード時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_ROAD"))
+        showMessage(L10n.tr("一部の文字情報が、ロード時の変換により失われました", comment: "STR_CODECHECKER_LOSESOME_ROAD"))
     }
 
     /// 内容变化后，让窗口的标题（「(更新)」）和关闭按钮的标记跟上

@@ -221,31 +221,31 @@ final class FindPanelController: SearchPanelBase {
     private var searchAllCheck: NSButton!
 
     init(view: EditorTextView) {
-        super.init(view: view, title: NSLocalizedString("検索", comment: "IDD_FIND"), size: DialogBuilder.size(284, 93))
+        super.init(view: view, title: L10n.tr("検索", comment: "IDD_FIND"), size: DialogBuilder.size(284, 93))
         let b = builder
-        b.label(NSLocalizedString("条件", comment: "IDD_FIND"), 5, 6, 28)
+        b.label(L10n.tr("条件", comment: "IDD_FIND"), 5, 6, 28)
         combo = b.combo(34, 4, 183, id: "findText")
-        wordCheck = b.check(NSLocalizedString("単語単位で探す", comment: "IDD_FIND"), 5, 21, 180, id: "findWord")
-        caseCheck = b.check(NSLocalizedString("英大文字と小文字を区別する", comment: "IDD_FIND"), 5, 32, 180, id: "findCase")
-        regexCheck = b.check(NSLocalizedString("正規表現", comment: "IDD_FIND"), 5, 43, 56, id: "findRegex",
+        wordCheck = b.check(L10n.tr("単語単位で探す", comment: "IDD_FIND"), 5, 21, 180, id: "findWord")
+        caseCheck = b.check(L10n.tr("英大文字と小文字を区別する", comment: "IDD_FIND"), 5, 32, 180, id: "findCase")
+        regexCheck = b.check(L10n.tr("正規表現", comment: "IDD_FIND"), 5, 43, 56, id: "findRegex",
                              target: self, action: #selector(regexChanged(_:)))
         versionLabel = b.label("", 62, 44, 155, id: "findRegexVersion")
-        notifyCheck = b.check(NSLocalizedString("見つからないときにメッセージを表示", comment: "IDD_FIND"), 5, 54, 210, id: "findNotify")
-        autoCloseCheck = b.check(NSLocalizedString("検索ダイアログを自動的に閉じる", comment: "IDD_FIND"), 5, 65, 210, id: "findAutoClose")
-        searchAllCheck = b.check(NSLocalizedString("先頭（末尾）から再検索する", comment: "IDD_FIND"), 5, 76, 210, id: "findSearchAll")
-        b.button(NSLocalizedString("上検索", comment: "IDD_FIND"), 221, 4, 58, id: "findPrev",
+        notifyCheck = b.check(L10n.tr("見つからないときにメッセージを表示", comment: "IDD_FIND"), 5, 54, 210, id: "findNotify")
+        autoCloseCheck = b.check(L10n.tr("検索ダイアログを自動的に閉じる", comment: "IDD_FIND"), 5, 65, 210, id: "findAutoClose")
+        searchAllCheck = b.check(L10n.tr("先頭（末尾）から再検索する", comment: "IDD_FIND"), 5, 76, 210, id: "findSearchAll")
+        b.button(L10n.tr("上検索", comment: "IDD_FIND"), 221, 4, 58, id: "findPrev",
                  target: self, action: #selector(searchPrev(_:)))
-        let next = b.button(NSLocalizedString("下検索", comment: "IDD_FIND"), 221, 20, 58, id: "findNext",
+        let next = b.button(L10n.tr("下検索", comment: "IDD_FIND"), 221, 20, 58, id: "findNext",
                             target: self, action: #selector(searchNext(_:)))
         next.keyEquivalent = "\r"
         // 該当行マーク（第 44 步：ブックマーク）
-        b.button(NSLocalizedString("該当行マーク", comment: "IDD_FIND"), 221, 38, 58, id: "findMark",
+        b.button(L10n.tr("該当行マーク", comment: "IDD_FIND"), 221, 38, 58, id: "findMark",
                  target: self, action: #selector(markLines(_:)))
-        let cancel = b.button(NSLocalizedString("キャンセル", comment: "IDD_FIND"), 221, 57, 58, id: "findCancel",
+        let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_FIND"), 221, 57, 58, id: "findCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
         // ヘルプは HTML ヘルプの移植（後のステップ）まで使えない
-        let help = b.button(NSLocalizedString("ヘルプ", comment: "IDD_FIND"), 221, 73, 58, id: "findHelp", target: nil, action: nil)
+        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_FIND"), 221, 73, 58, id: "findHelp", target: nil, action: nil)
         help.isEnabled = false
         window?.initialFirstResponder = combo
     }
@@ -339,7 +339,7 @@ final class FindPanelController: SearchPanelBase {
             registerSearchStart()
             if EditorCore.searchSettings.autoCloseFind { close() }
         } else if result == 0 {
-            EditorTextView.showMessage(NSLocalizedString("検索条件を指定してください。", comment: "STR_DLGFIND1"))
+            EditorTextView.showMessage(L10n.tr("検索条件を指定してください。", comment: "STR_DLGFIND1"))
         }
     }
 }
@@ -371,53 +371,53 @@ final class ReplacePanelController: SearchPanelBase {
     private(set) var replaceCount = 0
 
     init(view: EditorTextView) {
-        super.init(view: view, title: NSLocalizedString("置換", comment: "IDD_REPLACE"), size: DialogBuilder.size(298, 149))
+        super.init(view: view, title: L10n.tr("置換", comment: "IDD_REPLACE"), size: DialogBuilder.size(298, 149))
         let b = builder
-        b.label(NSLocalizedString("置換前", comment: "IDD_REPLACE"), 5, 6, 37)
+        b.label(L10n.tr("置換前", comment: "IDD_REPLACE"), 5, 6, 37)
         combo = b.combo(43, 4, 191, id: "replaceText")
-        b.label(NSLocalizedString("置換後", comment: "IDD_REPLACE"), 5, 21, 37)
+        b.label(L10n.tr("置換後", comment: "IDD_REPLACE"), 5, 21, 37)
         combo2 = b.combo(43, 19, 191, id: "replaceText2")
-        pasteCheck = b.check(NSLocalizedString("クリップボードから貼り付ける", comment: "IDD_REPLACE"), 5, 41, 148, id: "replacePaste",
+        pasteCheck = b.check(L10n.tr("クリップボードから貼り付ける", comment: "IDD_REPLACE"), 5, 41, 148, id: "replacePaste",
                              target: self, action: #selector(pasteChanged(_:)))
-        wordCheck = b.check(NSLocalizedString("単語単位で探す", comment: "IDD_REPLACE"), 5, 52, 148, id: "replaceWord")
-        caseCheck = b.check(NSLocalizedString("英大文字と小文字を区別する", comment: "IDD_REPLACE"), 5, 63, 148, id: "replaceCase")
-        regexCheck = b.check(NSLocalizedString("正規表現", comment: "IDD_REPLACE"), 5, 74, 148, id: "replaceRegex",
+        wordCheck = b.check(L10n.tr("単語単位で探す", comment: "IDD_REPLACE"), 5, 52, 148, id: "replaceWord")
+        caseCheck = b.check(L10n.tr("英大文字と小文字を区別する", comment: "IDD_REPLACE"), 5, 63, 148, id: "replaceCase")
+        regexCheck = b.check(L10n.tr("正規表現", comment: "IDD_REPLACE"), 5, 74, 148, id: "replaceRegex",
                              target: self, action: #selector(optionChanged(_:)))
         versionLabel = b.label("", 15, 85, 138, id: "replaceRegexVersion")
-        consecutiveCheck = b.check(NSLocalizedString("「すべて置換」は置換の繰返し", comment: "IDD_REPLACE"), 5, 95, 148, id: "replaceConsecutive")
-        notifyCheck = b.check(NSLocalizedString("見つからないときにメッセージを表示", comment: "IDD_REPLACE"), 5, 107, 150, id: "replaceNotify")
-        autoCloseCheck = b.check(NSLocalizedString("置換ダイアログを自動的に閉じる", comment: "IDD_REPLACE"), 5, 118, 150, id: "replaceAutoClose")
-        searchAllCheck = b.check(NSLocalizedString("先頭（末尾）から再検索する", comment: "IDD_REPLACE"), 5, 129, 150, id: "replaceSearchAll")
+        consecutiveCheck = b.check(L10n.tr("「すべて置換」は置換の繰返し", comment: "IDD_REPLACE"), 5, 95, 148, id: "replaceConsecutive")
+        notifyCheck = b.check(L10n.tr("見つからないときにメッセージを表示", comment: "IDD_REPLACE"), 5, 107, 150, id: "replaceNotify")
+        autoCloseCheck = b.check(L10n.tr("置換ダイアログを自動的に閉じる", comment: "IDD_REPLACE"), 5, 118, 150, id: "replaceAutoClose")
+        searchAllCheck = b.check(L10n.tr("先頭（末尾）から再検索する", comment: "IDD_REPLACE"), 5, 129, 150, id: "replaceSearchAll")
 
-        b.group(NSLocalizedString("置換対象", comment: "IDD_REPLACE"), 156, 37, 78, 62)
-        let targets = [(NSLocalizedString("選択文字", comment: "IDD_REPLACE"), "replaceTargetSelection"),
-                       (NSLocalizedString("選択始点挿入", comment: "IDD_REPLACE"), "replaceTargetInsert"),
-                       (NSLocalizedString("選択終点追加", comment: "IDD_REPLACE"), "replaceTargetAdd"),
-                       (NSLocalizedString("行削除", comment: "IDD_REPLACE"), "replaceTargetDeleteLine")]
+        b.group(L10n.tr("置換対象", comment: "IDD_REPLACE"), 156, 37, 78, 62)
+        let targets = [(L10n.tr("選択文字", comment: "IDD_REPLACE"), "replaceTargetSelection"),
+                       (L10n.tr("選択始点挿入", comment: "IDD_REPLACE"), "replaceTargetInsert"),
+                       (L10n.tr("選択終点追加", comment: "IDD_REPLACE"), "replaceTargetAdd"),
+                       (L10n.tr("行削除", comment: "IDD_REPLACE"), "replaceTargetDeleteLine")]
         for (i, (title, id)) in targets.enumerated() {
             targetRadios.append(b.radio(title, 162, 49 + CGFloat(i) * 12, 68, id: id, target: self, action: #selector(targetChanged(_:))))
         }
-        b.group(NSLocalizedString("範囲", comment: "IDD_REPLACE"), 156, 103, 78, 37)
-        selectedAreaRadio = b.radio(NSLocalizedString("選択範囲", comment: "IDD_REPLACE"), 162, 115, 68, id: "replaceSelectedArea",
+        b.group(L10n.tr("範囲", comment: "IDD_REPLACE"), 156, 103, 78, 37)
+        selectedAreaRadio = b.radio(L10n.tr("選択範囲", comment: "IDD_REPLACE"), 162, 115, 68, id: "replaceSelectedArea",
                                     target: self, action: #selector(areaChanged(_:)))
-        allAreaRadio = b.radio(NSLocalizedString("ファイル全体", comment: "IDD_REPLACE"), 162, 127, 68, id: "replaceAllArea",
+        allAreaRadio = b.radio(L10n.tr("ファイル全体", comment: "IDD_REPLACE"), 162, 127, 68, id: "replaceAllArea",
                                target: self, action: #selector(areaChanged(_:)))
 
-        prevButton = b.button(NSLocalizedString("上検索", comment: "IDD_REPLACE"), 237, 4, 56, id: "replacePrev",
+        prevButton = b.button(L10n.tr("上検索", comment: "IDD_REPLACE"), 237, 4, 56, id: "replacePrev",
                               target: self, action: #selector(searchPrev(_:)))
-        nextButton = b.button(NSLocalizedString("下検索", comment: "IDD_REPLACE"), 237, 19, 56, id: "replaceNext",
+        nextButton = b.button(L10n.tr("下検索", comment: "IDD_REPLACE"), 237, 19, 56, id: "replaceNext",
                               target: self, action: #selector(searchNext(_:)))
         nextButton.keyEquivalent = "\r"
-        b.button(NSLocalizedString("該当行マーク", comment: "IDD_REPLACE"), 237, 38, 56, id: "replaceMark",
+        b.button(L10n.tr("該当行マーク", comment: "IDD_REPLACE"), 237, 38, 56, id: "replaceMark",
                  target: self, action: #selector(markLines(_:)))
-        replaceButton = b.button(NSLocalizedString("置換", comment: "IDD_REPLACE"), 237, 57, 56, id: "replaceOne",
+        replaceButton = b.button(L10n.tr("置換", comment: "IDD_REPLACE"), 237, 57, 56, id: "replaceOne",
                                  target: self, action: #selector(replace(_:)))
-        b.button(NSLocalizedString("すべて置換", comment: "IDD_REPLACE"), 237, 73, 56, id: "replaceAll",
+        b.button(L10n.tr("すべて置換", comment: "IDD_REPLACE"), 237, 73, 56, id: "replaceAll",
                  target: self, action: #selector(replaceAll(_:)))
-        let cancel = b.button(NSLocalizedString("キャンセル", comment: "IDD_REPLACE"), 237, 110, 56, id: "replaceCancel",
+        let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_REPLACE"), 237, 110, 56, id: "replaceCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
-        let help = b.button(NSLocalizedString("ヘルプ", comment: "IDD_REPLACE"), 237, 127, 56, id: "replaceHelp", target: nil, action: nil)
+        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_REPLACE"), 237, 127, 56, id: "replaceHelp", target: nil, action: nil)
         help.isEnabled = false
         window?.initialFirstResponder = combo
     }
@@ -495,7 +495,7 @@ final class ReplacePanelController: SearchPanelBase {
     /// 「クリップボードから貼り付ける」：剪贴板是空的时显示消息，不打勾
     @objc private func pasteChanged(_ sender: Any?) {
         if Self.on(pasteCheck) && view?.clipboardText == nil {
-            EditorTextView.showMessage(NSLocalizedString("クリップボードに有効なデータがありません！", comment: "STR_DLGREPLC_CLIPBOARD"))
+            EditorTextView.showMessage(L10n.tr("クリップボードに有効なデータがありません！", comment: "STR_DLGREPLC_CLIPBOARD"))
             pasteCheck.state = .off
         }
         updateEnabled()
@@ -563,7 +563,7 @@ final class ReplacePanelController: SearchPanelBase {
             view?.recordKeyMacro(next ? MacroHost.Code.searchNext : MacroHost.Code.searchPrev)	// 第 45 步
             if next { view?.searchNextCommand() } else { view?.searchPrevCommand() }
         } else if result == 0 {
-            EditorTextView.showMessage(NSLocalizedString("文字列を指定してください。", comment: "STR_DLGREPLC_STR"))
+            EditorTextView.showMessage(L10n.tr("文字列を指定してください。", comment: "STR_DLGREPLC_STR"))
         }
     }
 
@@ -578,7 +578,7 @@ final class ReplacePanelController: SearchPanelBase {
                 updateEnabled()
             }
         } else if result == 0 {
-            EditorTextView.showMessage(NSLocalizedString("文字列を指定してください。", comment: "STR_DLGREPLC_STR"))
+            EditorTextView.showMessage(L10n.tr("文字列を指定してください。", comment: "STR_DLGREPLC_STR"))
         }
     }
 
@@ -593,10 +593,10 @@ final class ReplacePanelController: SearchPanelBase {
                 return
             }
             replaceCount = count
-            EditorTextView.showMessage(String(format: NSLocalizedString("%d箇所を置換しました。", comment: "STR_DLGREPLC_REPLACE"), count))
+            EditorTextView.showMessage(String(format: L10n.tr("%d箇所を置換しました。", comment: "STR_DLGREPLC_REPLACE"), count))
             if EditorCore.searchSettings.autoCloseReplace { close() }
         } else if result == 0 {
-            EditorTextView.showMessage(NSLocalizedString("置換条件を指定してください。", comment: "STR_DLGREPLC_REPSTR"))
+            EditorTextView.showMessage(L10n.tr("置換条件を指定してください。", comment: "STR_DLGREPLC_REPSTR"))
         }
     }
 }
@@ -629,28 +629,28 @@ final class JumpDialogController: NSObject {
         let b = DialogBuilder()
         let size = DialogBuilder.size(252, 121)
         b.content.frame = NSRect(origin: .zero, size: size)
-        b.label(NSLocalizedString("行番号", comment: "IDD_JUMP"), 5, 6, 34)
+        b.label(L10n.tr("行番号", comment: "IDD_JUMP"), 5, 6, 34)
         lineField = b.field(40, 4, 50, id: "jumpLine")
-        layoutRadio = b.radio(NSLocalizedString("折り返し単位の行番号", comment: "IDD_JUMP"), 94, 5, 100, id: "jumpLayout",
+        layoutRadio = b.radio(L10n.tr("折り返し単位の行番号", comment: "IDD_JUMP"), 94, 5, 100, id: "jumpLayout",
                               target: self, action: #selector(unitChanged(_:)))
-        crlfRadio = b.radio(NSLocalizedString("改行単位の行番号", comment: "IDD_JUMP"), 94, 20, 100, id: "jumpCRLF",
+        crlfRadio = b.radio(L10n.tr("改行単位の行番号", comment: "IDD_JUMP"), 94, 20, 100, id: "jumpCRLF",
                             target: self, action: #selector(unitChanged(_:)))
-        b.group(NSLocalizedString("PL/SQLコンパイルエラー行", comment: "IDD_JUMP"), 5, 35, 184, 80)
-        plsqlCheck = b.check(NSLocalizedString("PL/SQLコンパイルエラー行を処理する", comment: "IDD_JUMP"), 10, 50, 170, id: "jumpPlsql",
+        b.group(L10n.tr("PL/SQLコンパイルエラー行", comment: "IDD_JUMP"), 5, 35, 184, 80)
+        plsqlCheck = b.check(L10n.tr("PL/SQLコンパイルエラー行を処理する", comment: "IDD_JUMP"), 10, 50, 170, id: "jumpPlsql",
                              target: self, action: #selector(plsqlChanged(_:)))
-        plsqlLabels.append(b.label(NSLocalizedString("テキストの", comment: "IDD_JUMP"), 15, 66, 32))
+        plsqlLabels.append(b.label(L10n.tr("テキストの", comment: "IDD_JUMP"), 15, 66, 32))
         plsqlField = b.field(47, 64, 30, id: "jumpPlsqlLine")
-        plsqlLabels.append(b.label(NSLocalizedString("行目をブロックの1行目とする", comment: "IDD_JUMP"), 80, 66, 105))
-        plsqlLabels.append(b.label(NSLocalizedString("検出されたPL/SQLパッケージのブロックから選択", comment: "IDD_JUMP"), 15, 82, 170))
+        plsqlLabels.append(b.label(L10n.tr("行目をブロックの1行目とする", comment: "IDD_JUMP"), 80, 66, 105))
+        plsqlLabels.append(b.label(L10n.tr("検出されたPL/SQLパッケージのブロックから選択", comment: "IDD_JUMP"), 15, 82, 170))
         // PL/SQL のブロック一覧はアウトライン解析（後のステップ）の移植まで空
         plsqlBlocks = b.combo(15, 94, 170, id: "jumpPlsqlBlocks")
-        let jump = b.button(NSLocalizedString("ジャンプ", comment: "IDD_JUMP"), 197, 5, 50, id: "jumpOK",
+        let jump = b.button(L10n.tr("ジャンプ", comment: "IDD_JUMP"), 197, 5, 50, id: "jumpOK",
                             target: self, action: #selector(jump(_:)))
         jump.keyEquivalent = "\r"
-        let cancel = b.button(NSLocalizedString("キャンセル", comment: "IDD_JUMP"), 197, 24, 50, id: "jumpCancel",
+        let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_JUMP"), 197, 24, 50, id: "jumpCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
-        let help = b.button(NSLocalizedString("ヘルプ", comment: "IDD_JUMP"), 197, 101, 50, id: "jumpHelp", target: nil, action: nil)
+        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_JUMP"), 197, 101, 50, id: "jumpHelp", target: nil, action: nil)
         help.isEnabled = false
 
         // SetData
@@ -663,7 +663,7 @@ final class JumpDialogController: NSObject {
         updateEnabled()
 
         let panel = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: true)
-        panel.title = NSLocalizedString("指定行へジャンプ", comment: "IDD_JUMP")
+        panel.title = L10n.tr("指定行へジャンプ", comment: "IDD_JUMP")
         panel.contentView = b.content
         panel.initialFirstResponder = lineField
         sheet = panel
@@ -718,7 +718,7 @@ final class JumpDialogController: NSObject {
         if getData() {
             end()
         } else {
-            EditorTextView.showMessage(NSLocalizedString("正しく行番号を入力してください。", comment: "STR_DLGJUMP1"))
+            EditorTextView.showMessage(L10n.tr("正しく行番号を入力してください。", comment: "STR_DLGJUMP1"))
         }
         // 原版：行番号が正しくなくても指定行へジャンプは実行する（行番号 0 は 1 行目）
         let options = EditorJumpOptions(lineNumber: lineNumber, lineNumIsCRLF: EditorCore.searchSettings.jumpLineNumIsCRLF,

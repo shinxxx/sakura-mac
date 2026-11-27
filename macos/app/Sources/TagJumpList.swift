@@ -38,15 +38,15 @@ final class TagJumpListDialogController: NSObject, NSWindowDelegate, NSComboBoxD
         window.delegate = self
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.onButton = { [weak self] id in self?.buttonClicked(id) }
         page.onChange = { [weak self] id in self?.controlChanged(id) }
         if let list = page.list("IDC_LIST_TAGJUMP") {
             // 列（原版 OnInitDialog：幅は一覧の幅の 20・7・8・9・35・21%）
             let width = list.table.enclosingScrollView?.contentSize.width ?? 600
-            list.setColumns([NSLocalizedString("キーワード", comment: "STR_DLGTAGJMP_LIST1"), NSLocalizedString("階層", comment: "STR_DLGTAGJMP_LIST2"),
-                             NSLocalizedString("行番号", comment: "STR_DLGTAGJMP_LIST3"), NSLocalizedString("種類", comment: "STR_DLGTAGJMP_LIST4"),
-                             NSLocalizedString("ファイル名", comment: "STR_DLGTAGJMP_LIST5"), NSLocalizedString("備考", comment: "STR_DLGTAGJMP_LIST6")],
+            list.setColumns([L10n.tr("キーワード", comment: "STR_DLGTAGJMP_LIST1"), L10n.tr("階層", comment: "STR_DLGTAGJMP_LIST2"),
+                             L10n.tr("行番号", comment: "STR_DLGTAGJMP_LIST3"), L10n.tr("種類", comment: "STR_DLGTAGJMP_LIST4"),
+                             L10n.tr("ファイル名", comment: "STR_DLGTAGJMP_LIST5"), L10n.tr("備考", comment: "STR_DLGTAGJMP_LIST6")],
                             widths: [20, 7, 8, 9, 35, 21].map { width * CGFloat($0) / 100 - 3 })
             list.columnAlignments = [.left, .center, .right, .left, .left, .left]	// 原版 LVCFMT_LEFT・CENTER・RIGHT
             list.onDoubleClick = { [weak self] _, _ in self?.buttonClicked("IDOK") }
@@ -91,8 +91,8 @@ final class TagJumpListDialogController: NSObject, NSWindowDelegate, NSComboBoxD
             [item.keyword, item.hasBaseDir ? "(\(item.depth))" : "\(item.depth)", "\(item.line)", item.kind, item.file, item.note]
         }
         if !initial && items.isEmpty {
-            rows.append([NSLocalizedString("(通知)", comment: "STR_DLGTAGJMP1"), "", "", "",
-                         NSLocalizedString("(候補は見つかりませんでした)", comment: "STR_DLGTAGJMP2"), ""])
+            rows.append([L10n.tr("(通知)", comment: "STR_DLGTAGJMP1"), "", "", "",
+                         L10n.tr("(候補は見つかりませんでした)", comment: "STR_DLGTAGJMP2"), ""])
         }
         page.list("IDC_LIST_TAGJUMP")?.setRows(rows)
         // ダイレクトタグジャンプで、ページングの必要がないときは非表示
@@ -226,7 +226,7 @@ extension EditorTextView {
     @objc func directTagJump(_ sender: Any?) {
         guard !hasMarkedText() else { return }
         if !tagJumpByTagsFile(close: false) {
-            sendStatusMessage(NSLocalizedString("タグジャンプできません", comment: "STR_ERR_TAGJMP1"))
+            sendStatusMessage(L10n.tr("タグジャンプできません", comment: "STR_ERR_TAGJMP1"))
             NSSound.beep()
         }
     }
@@ -274,7 +274,7 @@ extension EditorTextView {
         }
         let folder = (base as NSString).deletingLastPathComponent
         if !FolderAccess.shared.startAccess(path: folder) && !FolderAccess.doesNotExist(folder) {
-            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: NSLocalizedString(
+            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: L10n.tr(
                 "「%@」の tags ファイルを読むには、このフォルダー（またはその上のフォルダー）へのアクセスを許可してください。", comment: "タグジャンプのフォルダーの許可"))
         }
         return base

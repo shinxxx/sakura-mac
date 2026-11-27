@@ -33,8 +33,8 @@ final class FileUpdateQueryDialog: NSObject {
         // 原版 OnInitDialog
         page.setText("IDC_UPDATEDFILENAME", path)
         page.setText("IDC_QUERYRELOADMSG", modified
-                     ? NSLocalizedString("再ロードを行うと変更が失われますがよろしいですか?", comment: "STR_ERR_DLGUPQRY1")
-                     : NSLocalizedString("再ロードしますか?", comment: "STR_ERR_DLGUPQRY2"))
+                     ? L10n.tr("再ロードを行うと変更が失われますがよろしいですか?", comment: "STR_ERR_DLGUPQRY1")
+                     : L10n.tr("再ロードしますか?", comment: "STR_ERR_DLGUPQRY2"))
         // 文字のなかったラベルは、入れた文字の幅にする（ダイアログの幅まで）
         if let label = page.control("IDC_QUERYRELOADMSG") as? NSTextField, let message = page.control("IDC_FILEUPDATEMSG") {
             label.frame.size.width = max(message.frame.width, min(ceil(label.fittingSize.width), page.view.frame.width - label.frame.minX))

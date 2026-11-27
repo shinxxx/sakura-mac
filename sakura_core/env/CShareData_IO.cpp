@@ -183,9 +183,8 @@ bool CShareData_IO::ShareData_IO_2( bool bRead )
 
 	if( bRead ){
 		cProfile.IOProfileData(LTEXT("Common"), LTEXT("szLanguageDll"), StringBufferW(pShareData->m_Common.m_sWindow.m_szLanguageDll));
-#if defined(_WIN32)	// Mac 版：言語 DLL は使わない（移植計画のステップ 21）
+		// Mac 版：言語 DLL の名前に対応する内蔵の文字列表を選ぶ。システムの言語への切り替えは sakura::core::Startup が行う（移植計画のステップ 48）
 		CSelectLang::ChangeLang( pShareData->m_Common.m_sWindow.m_szLanguageDll );
-#endif
 		pcShare->RefreshString();
 	}
 

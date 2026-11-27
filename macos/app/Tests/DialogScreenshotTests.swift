@@ -68,6 +68,32 @@ final class DialogScreenshotTests: XCTestCase {
         try shot(panel.page.view, "IDD_GREPRUNNING")
     }
 
+    /// 第 48 步：英文、中文的共通設定・タイプ別設定（全部的页）和 Grep 对话框（l10n-<语言>-…png）
+    func testLocalizedSettingsShots() throws {
+        for language in LocalizationTests.languages {
+            try LocalizationTests.inLanguage(language) {
+                let common = try XCTUnwrap(CommonSettingsWindowController(store: CommonSettingsTests.FakeStore()))
+                for index in 0..<common.pageCount {
+                    common.showPage(index)
+                    try shot(try XCTUnwrap(common.window?.contentView), String(format: "l10n-%@-common-%02d", language, index))
+                }
+                common.cancel(nil)
+                let types = try XCTUnwrap(TypeSettingsWindowController(store: CommonSettingsTests.FakeStore(), typeIndex: 0))
+                for index in 0..<types.pageCount {
+                    types.showPage(index)
+                    try shot(try XCTUnwrap(types.window?.contentView), String(format: "l10n-%@-type-%02d", language, index))
+                }
+                types.cancel(nil)
+                let view = try makeView()
+                let dialog = try XCTUnwrap(GrepDialogController(replace: false, state: view.grepDialogState,
+                                                                currentFilePath: "", sourceToken: GrepCore.sourceToken(view.grepSourceID)))
+                dialog.window.orderFront(nil)
+                try shot(try XCTUnwrap(dialog.window.contentView), "l10n-\(language)-grep")
+                dialog.window.orderOut(nil)
+            }
+        }
+    }
+
     func testFileTreeDialogs() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("shot-tree-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder.appendingPathComponent("Sub"), withIntermediateDirectories: true)

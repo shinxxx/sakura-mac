@@ -1,0 +1,25 @@
+{
+  "_comment": "第 48 步：原版语言包（sakura_lang/sakura_rc_en-US.rc、sakura_rc_zh-CN.rc）里缺少或没有翻译的字符串的 Mac 版翻译。rc_strings.py 生成字符串表时补上",
+  "en": {
+    "STR_MAXWINDOW": "The maximum number of editor windows is %d.\nNo more windows can be opened at the same time.",
+    "STR_DLGGREP_THISDOC_ERROR": ":HWND: cannot be specified as a target file.",
+    "STR_PROPCOMMACR_SEL_PYTHONDIR": "Select the Python directory",
+    "F_WINMAXIMIZE": "Maximize",
+    "F_WINMINIMIZE": "Minimize",
+    "F_WINRESTORE": "Restore",
+    "IDS_BAD_ALLOC": "Out of memory.\nThe application will exit.",
+    "IDS_UNHANDLED": "An unexpected error occurred.\nThe application will exit.",
+    "STR_DLGFNCLST_UNIFY": "Copies the docking layout of the current window to all common settings and type settings.\n(The windows that are open now are also unified.)\n",
+    "STR_FILETREE_MAXCOUNT": "Truncated because the maximum number (%d) was exceeded"
+  },
+  "zh": {
+    "STR_MAXWINDOW": "编辑窗口数的上限是 %d。\n无法同时打开更多窗口。",
+    "STR_DLGGREP_THISDOC_ERROR": "目标文件中不能指定 :HWND:",
+    "STR_PROPCOMMACR_SEL_PYTHONDIR": "选择 Python 目录",
+    "F_WINMAXIMIZE": "最大化",
+    "F_WINMINIMIZE": "最小化",
+    "F_WINRESTORE": "还原",
+    "IDS_BAD_ALLOC": "内存不足。\n程序将退出。",
+    "IDS_UNHANDLED": "发生了意外的错误。\n程序将退出。"
+  }
+}

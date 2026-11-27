@@ -281,8 +281,8 @@ extension EditorTextView {
         }
         sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
-            ? NSLocalizedString("前方(↓) に変更行が見つかりません。", comment: "STR_MODLINE_NEXT_NOT_FOUND")
-            : NSLocalizedString("後方(↑) に変更行が見つかりません。", comment: "STR_MODLINE_PREV_NOT_FOUND"))
+            ? L10n.tr("前方(↓) に変更行が見つかりません。", comment: "STR_MODLINE_NEXT_NOT_FOUND")
+            : L10n.tr("後方(↑) に変更行が見つかりません。", comment: "STR_MODLINE_PREV_NOT_FOUND"))
     }
 
     // MARK: - 画面的滚动

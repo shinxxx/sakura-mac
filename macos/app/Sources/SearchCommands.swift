@@ -58,8 +58,8 @@ extension EditorTextView {
 
     /// 正则表达式的错误（原版 CBregexp：STR_REGEX_COMPILE_ERR_PREAMBLE）
     static func showRegexpError(_ error: String) {
-        showMessage(NSLocalizedString("正規表現の構文に誤りがあります。", comment: "STR_REGEX_COMPILE_ERR_PREAMBLE"),
-                    informative: NSLocalizedString("詳細：", comment: "STR_REGEX_COMPILE_ERR_PREAMBLE") + error,
+        showMessage(L10n.tr("正規表現の構文に誤りがあります。", comment: "STR_REGEX_COMPILE_ERR_PREAMBLE"),
+                    informative: L10n.tr("詳細：", comment: "STR_REGEX_COMPILE_ERR_PREAMBLE") + error,
                     style: .warning)
     }
 
@@ -248,7 +248,7 @@ extension EditorTextView {
             Self.showRegexpError(result.error)
         default:
             sendSearchStatus(next: true, wrapped: nil)
-            Self.alertNotFound(notFoundMessage ?? String(format: NSLocalizedString(
+            Self.alertNotFound(notFoundMessage ?? String(format: L10n.tr(
                 "前方(↓) に文字列 '%@' が１つも見つかりません。", comment: "STR_ERR_SRNEXT3"), Self.keyName(searchState.key)))
         }
     }
@@ -271,7 +271,7 @@ extension EditorTextView {
             Self.showRegexpError(result.error)
         default:
             sendSearchStatus(next: false, wrapped: nil)
-            Self.alertNotFound(String(format: NSLocalizedString(
+            Self.alertNotFound(String(format: L10n.tr(
                 "後方(↑) に文字列 '%@' が１つも見つかりません。", comment: "STR_ERR_SRPREV3"), Self.keyName(searchState.key)))
         }
     }
@@ -293,7 +293,7 @@ extension EditorTextView {
         var text = replacement
         if options.paste {
             guard let clip = clipboardText else {
-                Self.showMessage(NSLocalizedString("クリップボードに有効なデータがありません！", comment: "STR_ERR_CEDITVIEW_CMD10"))
+                Self.showMessage(L10n.tr("クリップボードに有効なデータがありません！", comment: "STR_ERR_CEDITVIEW_CMD10"))
                 return false
             }
             text = clip
@@ -306,11 +306,11 @@ extension EditorTextView {
         case .invalidPattern:
             Self.showRegexpError(result.error)
         case .notFound:
-            Self.alertNotFound(String(format: NSLocalizedString(
+            Self.alertNotFound(String(format: L10n.tr(
                 "前方(↓) に文字列 '%@' が１つも見つかりません。", comment: "STR_ERR_SRNEXT3"), Self.keyName(searchState.key)))
         default:
             if result.next == .notFound {
-                Self.alertNotFound(NSLocalizedString("最後まで置換しました。", comment: "STR_ERR_CEDITVIEW_CMD11"))
+                Self.alertNotFound(L10n.tr("最後まで置換しました。", comment: "STR_ERR_CEDITVIEW_CMD11"))
             }
         }
         return true
@@ -326,7 +326,7 @@ extension EditorTextView {
         var text = replacement
         if options.paste {
             guard let clip = clipboardText else {
-                Self.showMessage(NSLocalizedString("クリップボードに有効なデータがありません！", comment: "STR_ERR_CEDITVIEW_CMD10"))
+                Self.showMessage(L10n.tr("クリップボードに有効なデータがありません！", comment: "STR_ERR_CEDITVIEW_CMD10"))
                 return nil
             }
             text = clip

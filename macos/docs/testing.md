@@ -124,3 +124,14 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 - 界面测试 `testFileUpdateQueryReload`・`testFileUpdateAutoload`：测试程序在自己的容器里改 App 打开的文件，「ファイルが更新されました」出来，按 再読込(R)／以後未編集で再読込(L)。
   `testBackupOnSave`：共通設定『バックアップ』打开备份，⌘S 后有 .bak；作成前に確認する 时 キャンセル 不保存、はい 保存。
   测试程序读不了 App 容器里的文件（只知道有没有），内容由 App 重新启动后打开来确认。详见 [phase3-file-safety.md](phase3-file-safety.md)。
+
+## 界面本地化（第 48 步）
+
+- 核心库 `test-mac-l10n.cpp`：日文的全部字符串编号英文、中文都有（语言包缺的由 `macos/tools/l10n/rc_supplement.json` 补）、英文里没有日文、中文里没有假名，
+  功能名・主菜单按选的语言，换语言时 タイプ名「基本」・日付書式・szLanguageDll 像原版一样转换。
+- App 的 `LocalizationTests`：源代码里的日文都经过 `L10n.tr`、`L10n.tr` 的文字英文・中文都有翻译、对话框布局 JSON 各语言的控件一致且已翻译、
+  共通設定・タイプ別設定的全部页在英文・中文下没有日文也没有被截断的文字、主菜单、日付・時刻的书式。
+- 界面测试 `testInterfaceFollowsSystemLanguage`：用 `-AppleLanguages (en)`・`(zh-Hans)` 启动，确认菜单、无题的标题、共通設定各页，并保存截图 `l10n-<语言>-<页>`。
+  其他界面测试固定用 `-AppleLanguages (ja)`（按原版的日文写）。
+- `DialogScreenshotTests.testLocalizedSettingsShots`：英文・中文的共通設定・タイプ別設定・Grep 的截图（`$TMPDIR/sakura-dialog-shots/l10n-*.png`）。
+- CI 的 `check-encoding`：重新生成 `Resources/*.lproj` 并确认与提交的一致（`make_prop_dialogs.py`、`make_strings.py --check`）。详见 [phase3-l10n.md](phase3-l10n.md)。

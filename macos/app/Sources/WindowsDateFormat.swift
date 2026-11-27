@@ -12,9 +12,16 @@ import Foundation
 /// - 時刻：h hh（12 時間）、H HH（24 時間）、m mm、s ss、t tt（午前/午後）
 /// - '…' 里的文字原样输出（'' 是一个 '），其他文字也原样输出
 /// 「標準」时：日付是长格式（原版 DATE_LONGDATE），時刻是系统的格式。
-/// 语言与原版的日文版相同，用日文（曜日、午前/午後）。
+/// 曜日、月の名前、午前/午後は界面的语言（第 48 步：日文 ja_JP、英文 en_US、中文 zh_CN。
+/// 原版是 Windows 的地区设置，日文版的 Windows 上是日文）。
 enum WindowsDateFormat {
-    static let locale = Locale(identifier: "ja_JP")
+    static var locale: Locale {
+        switch L10n.language {
+        case "en": return Locale(identifier: "en_US")
+        case "zh-Hans": return Locale(identifier: "zh_CN")
+        default: return Locale(identifier: "ja_JP")
+        }
+    }
 
     private static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -37,8 +44,8 @@ enum WindowsDateFormat {
     /// 時刻。type 0 是標準，其他是 format 的书式
     static func time(_ date: Date, type: Int, format: String) -> String {
         if type == 0 {
-            // Windows の日本語の標準（H:mm:ss）
-            return expand("H:mm:ss", date: date, symbols: "hHmst")
+            // Windows の標準：日本語・中国語は H:mm:ss、英語（米国）は h:mm:ss tt
+            return expand(L10n.language == "en" ? "h:mm:ss tt" : "H:mm:ss", date: date, symbols: "hHmst")
         }
         return expand(format, date: date, symbols: "hHmst")
     }
@@ -125,7 +132,8 @@ enum WindowsDateFormat {
         case "s":
             return n == 1 ? "\(second)" : pad(second)
         case "t":
-            let marker = hour < 12 ? "午前" : "午後"
+            // 午前/午後（英語は AM/PM、中国語は 上午/下午）
+            let marker = hour < 12 ? calendar.amSymbol : calendar.pmSymbol
             return n == 1 ? String(marker.prefix(1)) : marker
         default:
             return String(repeating: ch, count: n)

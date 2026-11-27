@@ -109,7 +109,7 @@ enum MacroCommands {
 
     /// Mac 版で使えない種類のマクロ（.vbs .ppa .py 等）
     static func showUnsupported(_ ext: String, path: String) {
-        MacroHost.showError(AboutPanel.appName, String(format: NSLocalizedString(
+        MacroHost.showError(AboutPanel.appName, String(format: L10n.tr(
             "このマクロ（.%@）は Mac 版では実行できません。\nMac 版で使えるのはキーマクロ（.mac）と JScript（.js）です。\n\n%@",
             comment: "マクロの種類（Mac 版）"), ext, path))
     }
@@ -127,14 +127,14 @@ enum MacroCommands {
                 macro = m
                 loaded[index] = m
             case .encodingError:
-                MacroHost.showError(AboutPanel.appName, String(format: NSLocalizedString(
+                MacroHost.showError(AboutPanel.appName, String(format: L10n.tr(
                     "文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@", comment: "STR_ERR_MACRO_ENCODING"), entry.file))
                 return
             case .unsupported(let ext):
                 showUnsupported(ext, path: path)
                 return
             case .failure:
-                MacroHost.showError(AboutPanel.appName, String(format: NSLocalizedString(
+                MacroHost.showError(AboutPanel.appName, String(format: L10n.tr(
                     "マクロ %d (%@) の実行に失敗しました。", comment: "STR_ERR_MACRO1"), index, entry.file))
                 return
             }
@@ -177,7 +177,7 @@ extension EditorTextView {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = NSLocalizedString("名前を指定してマクロ実行", comment: "F_EXECEXTMACRO")
+        panel.title = L10n.tr("名前を指定してマクロ実行", comment: "F_EXECEXTMACRO")
         return panel.runModal() == .OK ? panel.url : nil
     }
 
@@ -202,12 +202,12 @@ extension EditorTextView {
         case .success(let macro):
             MacroCommands.run(macro, path: isCode ? "" : path, view: self)
         case .encodingError:
-            MacroHost.showError(AboutPanel.appName, String(format: NSLocalizedString(
+            MacroHost.showError(AboutPanel.appName, String(format: L10n.tr(
                 "文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@", comment: "STR_ERR_MACRO_ENCODING"), path))
         case .unsupported(let ext):
             MacroCommands.showUnsupported(ext, path: path)
         case .failure:
-            MacroHost.showError(AboutPanel.appName, String(format: NSLocalizedString(
+            MacroHost.showError(AboutPanel.appName, String(format: L10n.tr(
                 "マクロの読み込みに失敗しました。\n\n%@", comment: "STR_ERR_MACROERR1"), path))
         }
     }

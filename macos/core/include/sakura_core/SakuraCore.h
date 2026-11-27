@@ -56,6 +56,29 @@ bool IsStarted();
 Text SettingsFilePath();
 
 // ---------------------------------------------------------------------------
+// 界面语言（第 48 步）
+// ---------------------------------------------------------------------------
+
+//! 界面字符串的语言。日文是 Windows 版 sakura.exe 内置的，英文、中文是原版的语言包（sakura_lang）
+enum class UILanguage : std::uint8_t {
+	Japanese = 0,
+	English = 1,	//!< sakura_lang_en_US.dll
+	Chinese = 2,	//!< sakura_lang_zh_CN.dll（简体）
+};
+
+/*!
+	选界面的语言（Mac 版跟随系统的语言，App 在 Startup 之前调用）。
+	原版在共通設定「ウィンドウ」的「言語」选语言 DLL；Mac 版把选的语言作为同样的 DLL 名写进 sakura.ini（Common/szLanguageDll），
+	Startup 时 sakura.ini 的语言与这里的不同，就像原版换了语言时一样，把设置里的默认文字（タイプ名、日付書式、印刷設定名等，
+	CShareData::ConvertLangValues）换成新的语言。已经启动时马上换。
+*/
+void SetUILanguage(UILanguage language);
+UILanguage GetUILanguage();
+
+//! 按资源编号读界面字符串（原版的 LS()，当前的语言）。编号不存在时是空
+Text ResourceString(std::uint32_t id);
+
+// ---------------------------------------------------------------------------
 // 导入设置（第 35 步）
 // ---------------------------------------------------------------------------
 
@@ -878,8 +901,8 @@ namespace command {
 }
 
 /*!
-	功能的名字（与原版的菜单、按键分配对话框里的名字相同，日文）。
-	编号不存在时是空。界面的多语言化在第 48 步。
+	功能的名字（与原版的菜单、按键分配对话框里的名字相同）。
+	编号不存在时是空。第 48 步起是当前的界面语言（SetUILanguage）。
 */
 Text CommandName(FunctionCode code);
 

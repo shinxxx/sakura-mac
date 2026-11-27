@@ -568,6 +568,21 @@ static_assert(static_cast<NSInteger>(core::ImportResult::WriteFailed) == ECImpor
 	return core::IsStarted() ? YES : NO;
 }
 
++ (ECUILanguage)uiLanguage
+{
+	return static_cast<ECUILanguage>(core::GetUILanguage());
+}
+
++ (void)setUiLanguage:(ECUILanguage)language
+{
+	core::SetUILanguage(static_cast<core::UILanguage>(language));
+}
+
++ (NSString *)resourceString:(NSInteger)resourceID
+{
+	return ToNSString(core::ResourceString(static_cast<std::uint32_t>(resourceID)));
+}
+
 + (NSString *)settingsFilePath
 {
 	return ToNSString(core::SettingsFilePath());

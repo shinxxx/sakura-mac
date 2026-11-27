@@ -76,7 +76,7 @@ enum CommonSettingsPages {
         alert.informativeText = message
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "共通設定的确认"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "共通設定的确认"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -86,7 +86,7 @@ enum CommonSettingsPages {
         alert.messageText = title
         alert.informativeText = message
         alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "共通設定的确认"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "共通設定的确认"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = initial
         alert.accessoryView = field
@@ -126,7 +126,7 @@ enum CommonSettingsPages {
     }
 
     static var appName: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "サクラエディタ"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Sakura Editor for Mac"
     }
 }
 
@@ -166,12 +166,12 @@ func idc(_ name: String) -> String { "IDC_" + name }
 
 /// 组合起来用滚轮时（原版 SpecialScrollModeArr）
 private let specialScrollModes: [(value: Int, title: String)] = [
-    (0, NSLocalizedString("組み合わせなし", comment: "STR_SCROLL_WITH_NO_KEY")),
-    (2, NSLocalizedString("マウス中ボタン", comment: "STR_SCROLL_WITH_MID_BTN")),			// MOUSEFUNCTION_CENTER
-    (3, NSLocalizedString("マウスサイドボタン1", comment: "STR_SCROLL_WITH_SIDE_1_BTN")),	// MOUSEFUNCTION_LEFTSIDE
-    (4, NSLocalizedString("マウスサイドボタン2", comment: "STR_SCROLL_WITH_SIDE_2_BTN")),	// MOUSEFUNCTION_RIGHTSIDE
-    (17, NSLocalizedString("CONTROLキー", comment: "STR_SCROLL_WITH_CTRL_KEY")),			// VK_CONTROL
-    (16, NSLocalizedString("SHIFTキー", comment: "STR_SCROLL_WITH_SHIFT_KEY")),			// VK_SHIFT
+    (0, L10n.tr("組み合わせなし", comment: "STR_SCROLL_WITH_NO_KEY")),
+    (2, L10n.tr("マウス中ボタン", comment: "STR_SCROLL_WITH_MID_BTN")),			// MOUSEFUNCTION_CENTER
+    (3, L10n.tr("マウスサイドボタン1", comment: "STR_SCROLL_WITH_SIDE_1_BTN")),	// MOUSEFUNCTION_LEFTSIDE
+    (4, L10n.tr("マウスサイドボタン2", comment: "STR_SCROLL_WITH_SIDE_2_BTN")),	// MOUSEFUNCTION_RIGHTSIDE
+    (17, L10n.tr("CONTROLキー", comment: "STR_SCROLL_WITH_CTRL_KEY")),			// VK_CONTROL
+    (16, L10n.tr("SHIFTキー", comment: "STR_SCROLL_WITH_SHIFT_KEY")),			// VK_SHIFT
 ]
 
 struct GeneralPage: CommonSettingsPageLogic {
@@ -229,13 +229,13 @@ struct GeneralPage: CommonSettingsPageLogic {
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
         switch id {
         case idc("BUTTON_CLEAR_MRU_FILE"):
-            guard CommonSettingsPages.confirm(NSLocalizedString("最近使ったファイルの履歴を削除します。\nよろしいですか？", comment: "STR_PROPCOMGEN_FILE1")) else { return }
+            guard CommonSettingsPages.confirm(L10n.tr("最近使ったファイルの履歴を削除します。\nよろしいですか？", comment: "STR_PROPCOMGEN_FILE1")) else { return }
             EditorCore.clearRecentFiles()
-            CommonSettingsPages.inform(NSLocalizedString("最近使ったファイルの履歴を削除しました。", comment: "STR_PROPCOMGEN_FILE2"))
+            CommonSettingsPages.inform(L10n.tr("最近使ったファイルの履歴を削除しました。", comment: "STR_PROPCOMGEN_FILE2"))
         case idc("BUTTON_CLEAR_MRU_FOLDER"):
-            guard CommonSettingsPages.confirm(NSLocalizedString("最近使ったフォルダーの履歴を削除します。\nよろしいですか？", comment: "STR_PROPCOMGEN_DIR1")) else { return }
+            guard CommonSettingsPages.confirm(L10n.tr("最近使ったフォルダーの履歴を削除します。\nよろしいですか？", comment: "STR_PROPCOMGEN_DIR1")) else { return }
             EditorCore.clearRecentFolders()
-            CommonSettingsPages.inform(NSLocalizedString("最近使ったフォルダーの履歴を削除しました。", comment: "STR_PROPCOMGEN_DIR2"))
+            CommonSettingsPages.inform(L10n.tr("最近使ったフォルダーの履歴を削除しました。", comment: "STR_PROPCOMGEN_DIR2"))
         default:
             break
         }
@@ -275,7 +275,7 @@ struct WindowPage: CommonSettingsPageLogic {
         for item in ints { page.setInt(item.id, values.int(item.key)) }
         page.setText(idc("WINCAPTION_ACTIVE"), values.string("szWinCaptionActive"))
         page.setText(idc("WINCAPTION_INACTIVE"), values.string("szWinCaptionInactive"))
-        page.setItems(idc("COMBO_LANGUAGE"), [NSLocalizedString("日本語", comment: "共通設定 > ウィンドウ > 言語")], selected: 0)
+        page.setItems(idc("COMBO_LANGUAGE"), [L10n.tr("日本語", comment: "共通設定 > ウィンドウ > 言語")], selected: 0)
     }
 
     func getData(_ page: PropPage, _ values: CommonSettingsValues) {
@@ -332,14 +332,14 @@ struct TabPage: CommonSettingsPageLogic {
     ]
     /// 閉じるボタン（原版 DispTabCloseArr）
     private let closeButtons: [(value: Int, title: String)] = [
-        (0, NSLocalizedString("なし", comment: "STR_PROPCOMTAB_DISP_NO")),
-        (1, NSLocalizedString("常に表示", comment: "STR_PROPCOMTAB_DISP_ALLWAYS")),
-        (2, NSLocalizedString("自動表示", comment: "STR_PROPCOMTAB_DISP_AUTO")),
+        (0, L10n.tr("なし", comment: "STR_PROPCOMTAB_DISP_NO")),
+        (1, L10n.tr("常に表示", comment: "STR_PROPCOMTAB_DISP_ALLWAYS")),
+        (2, L10n.tr("自動表示", comment: "STR_PROPCOMTAB_DISP_AUTO")),
     ]
     /// 表示位置（原版 TabPosArr。左右は原版でも無効）
     private let positions: [(value: Int, title: String)] = [
-        (0, NSLocalizedString("上", comment: "STR_PROPCOMTAB_TAB_POS_TOP")),
-        (1, NSLocalizedString("下", comment: "STR_PROPCOMTAB_TAB_POS_BOTTOM")),
+        (0, L10n.tr("上", comment: "STR_PROPCOMTAB_TAB_POS_TOP")),
+        (1, L10n.tr("下", comment: "STR_PROPCOMTAB_TAB_POS_BOTTOM")),
     ]
 
     /// タブのフォント（sakura.ini の lfTabFont、lfTabFontPs、lfTabFaceName）
@@ -454,7 +454,7 @@ struct EditPage: CommonSettingsPageLogic {
 
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
         guard id == idc("BUTTON_FILEOPENDIR") else { return }
-        if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("フォルダーを選んでください", comment: "STR_PROPEDIT_SELECT_DIR"),
+        if let folder = CommonSettingsPages.chooseFolder(L10n.tr("フォルダーを選んでください", comment: "STR_PROPEDIT_SELECT_DIR"),
                                                          page.text(idc("EDIT_FILEOPENDIR"))) {
             page.setText(idc("EDIT_FILEOPENDIR"), folder)
         }
@@ -465,9 +465,9 @@ struct EditPage: CommonSettingsPageLogic {
 
 /// 排他制御（原版 ShareModeArr）
 private let shareModes: [(value: Int, title: String)] = [
-    (0, NSLocalizedString("しない", comment: "STR_EXCLU_NO_EXCLUSIVE")),
-    (1, NSLocalizedString("上書きを禁止する", comment: "STR_EXCLU_DENY_WRITE")),
-    (2, NSLocalizedString("読み書きを禁止する", comment: "STR_EXCLU_DENY_READWRITE")),
+    (0, L10n.tr("しない", comment: "STR_EXCLU_NO_EXCLUSIVE")),
+    (1, L10n.tr("上書きを禁止する", comment: "STR_EXCLU_DENY_WRITE")),
+    (2, L10n.tr("読み書きを禁止する", comment: "STR_EXCLU_DENY_READWRITE")),
 ]
 
 /// 自動保存（m_sBackup の bBackUpType2_Opt1 の BKUP_AUTO ビット、間隔は bBackUpType2_Opt3）
@@ -561,8 +561,8 @@ final class FileNamePage: CommonSettingsPageLogic {
         guard let listView = page.list(list) else { return }
         if listView.table.tableColumns.count < 2, let scroll = page.control(list) {
             let width = scroll.frame.width
-            listView.setColumns([NSLocalizedString("置換前", comment: "STR_PROPCOMFNM_LIST1"),
-                                 NSLocalizedString("置換後", comment: "STR_PROPCOMFNM_LIST2")],
+            listView.setColumns([L10n.tr("置換前", comment: "STR_PROPCOMFNM_LIST1"),
+                                 L10n.tr("置換後", comment: "STR_PROPCOMFNM_LIST2")],
                                 widths: [(width * 60 / 100).rounded(), (width * 35 / 100).rounded()])
         }
         let count = min(max(0, values.int("ArrNum", section: "Nickname")), Self.maxCount)
@@ -656,7 +656,7 @@ final class FileNamePage: CommonSettingsPageLogic {
         guard !source.isEmpty, index >= 0 else { return false }
         var rows = listView.rows
         if insert && rows.count >= Self.maxCount {
-            CommonSettingsPages.inform(NSLocalizedString("これ以上登録できません。", comment: "STR_PROPCOMFNM_ERR_REG"))
+            CommonSettingsPages.inform(L10n.tr("これ以上登録できません。", comment: "STR_PROPCOMFNM_ERR_REG"))
             return false
         }
         if insert {
@@ -759,7 +759,7 @@ struct BackupPage: CommonSettingsPageLogic {
 
     func buttonPressed(_ id: String, _ page: PropPage, _ values: CommonSettingsValues, window: NSWindow?) {
         guard id == idc("BUTTON_BACKUP_FOLDER_REF") else { return }
-        if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("バックアップを作成するフォルダーを選んでください", comment: "STR_PROPCOMBK_SEL_FOLDER"),
+        if let folder = CommonSettingsPages.chooseFolder(L10n.tr("バックアップを作成するフォルダーを選んでください", comment: "STR_PROPCOMBK_SEL_FOLDER"),
                                                          page.text(idc("EDIT_BACKUPFOLDER"))) {
             page.setText(idc("EDIT_BACKUPFOLDER"), folder)
         }
@@ -808,7 +808,7 @@ struct BackupPage: CommonSettingsPageLogic {
             if values.bool("bBackUpFolder") {
                 temp = ""
             } else if values.bool("bBackUpDustBox") {
-                temp = NSLocalizedString("(ゴミ箱)", comment: "STR_PROPCOMBK_DUSTBOX") + "\\"
+                temp = L10n.tr("(ゴミ箱)", comment: "STR_PROPCOMBK_DUSTBOX") + "\\"
             } else {
                 temp = ".\\"
             }
@@ -881,10 +881,10 @@ struct FormatPage: CommonSettingsPageLogic {
 
 /// タグファイルの検索（原版 TagJumpMode1Arr、TagJumpMode2Arr）
 private let tagJumpModes: [(value: Int, title: String)] = [
-    (0, NSLocalizedString("次のファイルを検索しない", comment: "STR_TAGJUMP_0")),
-    (1, NSLocalizedString("ヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_1")),
-    (2, NSLocalizedString("完全一致でヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_2")),
-    (3, NSLocalizedString("次のファイルを検索する", comment: "STR_TAGJUMP_3")),
+    (0, L10n.tr("次のファイルを検索しない", comment: "STR_TAGJUMP_0")),
+    (1, L10n.tr("ヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_1")),
+    (2, L10n.tr("完全一致でヒットしたら次のファイルを検索しない", comment: "STR_TAGJUMP_2")),
+    (3, L10n.tr("次のファイルを検索する", comment: "STR_TAGJUMP_3")),
 ]
 
 struct GrepPage: CommonSettingsPageLogic {
@@ -904,7 +904,7 @@ struct GrepPage: CommonSettingsPageLogic {
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.loadChecks(checks, values)
         page.setText(idc("EDIT_REGEXPLIB"), values.string("szRegexpLib"))
-        page.setText(idc("LABEL_REGEXP_VER"), NSLocalizedString("組み込みの bregonig (Onigmo) を使用します", comment: "共通設定 > 検索 > 正規表現ライブラリ（Mac 版）"))
+        page.setText(idc("LABEL_REGEXP_VER"), L10n.tr("組み込みの bregonig (Onigmo) を使用します", comment: "共通設定 > 検索 > 正規表現ライブラリ（Mac 版）"))
         page.loadCombo(idc("COMBO_TAGJUMP"), tagJumpModes1, value: values.int("nTagJumpMode"))
         page.loadCombo(idc("COMBO_KEYWORD_TAGJUMP"), tagJumpModes, value: values.int("nTagJumpModeKeyword"))
     }
@@ -960,7 +960,7 @@ struct HelperPage: CommonSettingsPageLogic {
             let iniFolder = (EditorCore.settingsFilePath as NSString).deletingLastPathComponent
             let current = page.text(idc("EDIT_MIGEMO_DICT"))
             let initial = current.isEmpty || current.hasPrefix("/") ? current : (iniFolder as NSString).appendingPathComponent(current)
-            if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("検索するフォルダーを選んでください", comment: "STR_PROPCOMHELP_MIGEMODIR"), initial) {
+            if let folder = CommonSettingsPages.chooseFolder(L10n.tr("検索するフォルダーを選んでください", comment: "STR_PROPCOMHELP_MIGEMODIR"), initial) {
                 FolderAccess.shared.remember(URL(fileURLWithPath: folder, isDirectory: true))
                 let normalized = FolderAccess.normalized(folder)
                 let relative = FolderAccess.contains(iniFolder, normalized) && normalized != FolderAccess.normalized(iniFolder)
@@ -1063,7 +1063,7 @@ final class FontPicker: NSObject {
         let ok = NSButton(title: "OK", target: self, action: #selector(okClicked(_:)))
         ok.keyEquivalent = "\r"
         ok.frame = NSRect(x: 120, y: 6, width: 90, height: 28)
-        let cancel = NSButton(title: NSLocalizedString("キャンセル", comment: "フォントの選択"), target: self, action: #selector(cancelClicked(_:)))
+        let cancel = NSButton(title: L10n.tr("キャンセル", comment: "フォントの選択"), target: self, action: #selector(cancelClicked(_:)))
         cancel.keyEquivalent = "\u{1b}"
         cancel.frame = NSRect(x: 22, y: 6, width: 90, height: 28)
         accessory.addSubview(cancel)
@@ -1117,11 +1117,11 @@ final class MacroPage: CommonSettingsPageLogic {
             // 原版 InitDialog：幅は 40:200:150:40:40 の割合。Mac 版は列の間隔とスクロールバーを引いた幅に全部の列が入るように（自動実行の列が隠れない）
             let spacing = listView.table.intercellSpacing.width * 5
             let width = scroll.frame.width - NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) - spacing - 4
-            listView.setColumns([NSLocalizedString("番号", comment: "STR_PROPCOMMACR_LIST1"),
-                                 NSLocalizedString("マクロ名", comment: "STR_PROPCOMMACR_LIST2"),
-                                 NSLocalizedString("ファイル名", comment: "STR_PROPCOMMACR_LIST3"),
-                                 NSLocalizedString("実行時に読み込み", comment: "STR_PROPCOMMACR_LIST4"),
-                                 NSLocalizedString("自動実行", comment: "STR_PROPCOMMACR_LIST5")],
+            listView.setColumns([L10n.tr("番号", comment: "STR_PROPCOMMACR_LIST1"),
+                                 L10n.tr("マクロ名", comment: "STR_PROPCOMMACR_LIST2"),
+                                 L10n.tr("ファイル名", comment: "STR_PROPCOMMACR_LIST3"),
+                                 L10n.tr("実行時に読み込み", comment: "STR_PROPCOMMACR_LIST4"),
+                                 L10n.tr("自動実行", comment: "STR_PROPCOMMACR_LIST5")],
                                 widths: [40, 200, 150, 40, 40].map { (CGFloat($0) * width / 470).rounded(.down) })
         }
         let opened = values.int("nMacroOnOpened", section: "Macro")
@@ -1180,7 +1180,7 @@ final class MacroPage: CommonSettingsPageLogic {
             let current = page.text(idc("MACRODIR"))
             let initial = current.hasPrefix("/") ? current
                 : ((EditorCore.settingsFilePath as NSString).deletingLastPathComponent as NSString).appendingPathComponent(current)
-            if let folder = CommonSettingsPages.chooseFolder(NSLocalizedString("Macroディレクトリの選択", comment: "STR_PROPCOMMACR_SEL_DIR"), initial) {
+            if let folder = CommonSettingsPages.chooseFolder(L10n.tr("Macroディレクトリの選択", comment: "STR_PROPCOMMACR_SEL_DIR"), initial) {
                 page.setText(idc("MACRODIR"), folder.hasSuffix("/") ? folder : folder + "/")
                 FolderAccess.shared.remember(URL(fileURLWithPath: folder, isDirectory: true))	// 沙盒：一覧を読めるように
                 fillFiles(page)

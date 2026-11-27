@@ -46,8 +46,8 @@ extension EditorTextView {
         }
         sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
-            ? NSLocalizedString("前方(↓) にブックマークが見つかりません。", comment: "STR_BOOKMARK_NEXT_NOT_FOUND")
-            : NSLocalizedString("後方(↑) にブックマークが見つかりません。", comment: "STR_BOOKMARK_PREV_NOT_FOUND"))
+            ? L10n.tr("前方(↓) にブックマークが見つかりません。", comment: "STR_BOOKMARK_NEXT_NOT_FOUND")
+            : L10n.tr("後方(↑) にブックマークが見つかりません。", comment: "STR_BOOKMARK_PREV_NOT_FOUND"))
     }
 
     /// ブックマークの全解除（F_BOOKMARK_RESET）

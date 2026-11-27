@@ -152,12 +152,17 @@ struct PropDialogs: Decodable {
         let frame: [Double]
         let text: String?
         let flags: [String]?
+        /// IDC_STATIC 的标签的日文的文字（英文、中文的布局。按文字找标签时用，第 48 步）
+        let key: String?
 
         func has(_ flag: String) -> Bool { flags?.contains(flag) ?? false }
     }
 
     struct Page: Decodable {
+        /// 固定的日文名（找页、辅助功能的标识用）
         let name: String
+        /// 显示的页名（原版 STR_PROPCOMMON_* 等，界面的语言。第 48 步）
+        let title: String?
         let dialog: String
         let size: [Double]
         let controls: [Control]
@@ -173,8 +178,8 @@ struct PropDialogs: Decodable {
 
     /// resource：共通設定是 CommonSettingsDialogs，タイプ別設定是 TypeSettingsDialogs（第 40 步）
     static func load(_ resource: String = "CommonSettingsDialogs") -> PropDialogs? {
-        let bundle = Bundle(for: PropPage.self)
-        guard let url = bundle.url(forResource: resource, withExtension: "json"),
+        // 第 48 步：界面的语言的布局（Resources/<语言>.lproj/）
+        guard let url = L10n.resourceURL(resource, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(PropDialogs.self, from: data)
     }
@@ -306,6 +311,7 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
                 view.addSubview(label)
                 register(label, control)
                 if !text.isEmpty { labels[text] = label }
+                if let key = control.key { labels[key] = label }	// 英文、中文也能用日文的文字找（第 48 步）
             case "edit":
                 let field = NSTextField(frame: frame)
                 field.font = Self.font
@@ -464,7 +470,7 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             if control.has("disabled") { setEnabled(control.id, false) }
         }
         for control in definition.controls where control.id == "IDC_STATIC" && control.has("hidden") {
-            if let text = control.text, let label = labels[text] { label.isHidden = true }
+            if let text = control.key ?? control.text, let label = labels[text] { label.isHidden = true }
         }
     }
 
@@ -1147,7 +1153,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
         okButton.keyEquivalent = "\r"
         okButton.frame = NSRect(x: width - margin - 90, y: margin, width: 90, height: 28)
         okButton.setAccessibilityIdentifier(identifierPrefix + "OK")
-        let cancelButton = NSButton(title: NSLocalizedString("キャンセル", comment: "共通設定窗口的按钮"), target: self, action: #selector(cancel(_:)))
+        let cancelButton = NSButton(title: L10n.tr("キャンセル", comment: "共通設定窗口的按钮"), target: self, action: #selector(cancel(_:)))
         cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.frame = NSRect(x: width - margin - 90 - 8 - 90, y: margin, width: 90, height: 28)
         cancelButton.setAccessibilityIdentifier(identifierPrefix + "Cancel")
@@ -1183,7 +1189,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
 
     /// 以后的步骤移植的页的说明
     func laterNote(for dialog: String) -> String {
-        NSLocalizedString("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
+        L10n.tr("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
     }
 
     // MARK: 页
@@ -1198,8 +1204,8 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
             for (id, range) in logic.ranges { page.setRange(id, range) }
             logic.setData(page, values)
             for (id, range) in logic.ranges { page.setRange(id, range) }
-            page.setUnavailable(logic.unavailable, reason: NSLocalizedString("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
-            page.setUnavailable(logic.notYet, reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+            page.setUnavailable(logic.unavailable, reason: L10n.tr("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
+            page.setUnavailable(logic.notYet, reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
             logic.enable(page)
             page.onChange = { [weak self, weak page] id in
                 guard let self, let page else { return }
@@ -1288,7 +1294,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let label = NSTextField(labelWithString: dialogs.pages[row].name)
+        let label = NSTextField(labelWithString: dialogs.pages[row].title ?? dialogs.pages[row].name)
         label.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         label.setAccessibilityIdentifier("\(identifierPrefix)Page_\(dialogs.pages[row].name)")
         return label
@@ -1331,7 +1337,7 @@ final class CommonSettingsWindowController: PropSheetWindowController {
 
     init?(store: CommonSettingsStore = CoreCommonSettingsStore(), page: Int = 0) {
         super.init(dialogs: PropDialogs.load(), values: CommonSettingsValues(store: store),
-                   title: NSLocalizedString("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）"),
+                   title: L10n.tr("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）"),
                    identifierPrefix: "CommonSettings", logic: CommonSettingsPages.logic(for:), page: page)
     }
 
@@ -1388,7 +1394,7 @@ final class CommonSettingsWindowController: PropSheetWindowController {
     override func laterNote(for dialog: String) -> String {
         switch dialog {
         case "IDD_PROP_PLUGIN":
-            return NSLocalizedString("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
+            return L10n.tr("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
         default:
             return super.laterNote(for: dialog)
         }
@@ -1437,10 +1443,10 @@ final class WinSizeDialog: NSObject, NSWindowDelegate {
         self.values = values
         super.init()
         // 原版 OnInitDialog
-        page.setItems("IDC_COMBO_WINTYPE", [NSLocalizedString("普通", comment: "STR_DLGWINSZ_NORMAL"),
-                                            NSLocalizedString("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
-                                            NSLocalizedString("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+        page.setItems("IDC_COMBO_WINTYPE", [L10n.tr("普通", comment: "STR_DLGWINSZ_NORMAL"),
+                                            L10n.tr("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
+                                            L10n.tr("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         setData()
         page.setRange("IDC_EDIT_SX", 0...30000)
         page.setRange("IDC_EDIT_SY", 0...30000)

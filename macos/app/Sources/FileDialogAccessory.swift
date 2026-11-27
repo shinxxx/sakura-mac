@@ -36,7 +36,7 @@ final class FileDialogAccessory: NSObject {
 
     /// 改行コード的选项（原版的顺序）
     static let eolChoices: [(title: String, eol: EditorEol)] = [
-        (NSLocalizedString("変換なし", comment: "保存ダイアログ > 改行コード"), EditorEol.none),
+        (L10n.tr("変換なし", comment: "保存ダイアログ > 改行コード"), EditorEol.none),
         ("CR+LF", .crlf),
         ("LF (UNIX)", .lf),
         ("CR (Mac)", .cr),
@@ -52,7 +52,7 @@ final class FileDialogAccessory: NSObject {
         codePageCheck = NSButton(checkboxWithTitle: "CP", target: nil, action: nil)
         bomCheck = NSButton(checkboxWithTitle: "BOM", target: nil, action: nil)
 
-        let codeLabel = NSTextField(labelWithString: NSLocalizedString("文字コードセット:", comment: "ファイルダイアログ"))
+        let codeLabel = NSTextField(labelWithString: L10n.tr("文字コードセット:", comment: "ファイルダイアログ"))
         let codeRow: [NSView]
         switch mode {
         case .open:
@@ -62,7 +62,7 @@ final class FileDialogAccessory: NSObject {
         }
         let grid = NSGridView(views: [codeRow])
         if mode == .save {
-            let eolLabel = NSTextField(labelWithString: NSLocalizedString("改行コード:", comment: "保存ダイアログ"))
+            let eolLabel = NSTextField(labelWithString: L10n.tr("改行コード:", comment: "保存ダイアログ"))
             grid.addRow(with: [eolLabel, eolPopUp])
         }
         grid.rowSpacing = 8

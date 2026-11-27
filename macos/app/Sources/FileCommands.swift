@@ -37,10 +37,10 @@ extension SakuraDocument {
     static var confirmReload: (String) -> Bool = { path in
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = String(format: NSLocalizedString("%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?",
+        alert.messageText = String(format: L10n.tr("%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?",
                                                              comment: "STR_ERR_CEDITVIEW_CMD29"), path)
-        alert.addButton(withTitle: NSLocalizedString("OK", comment: "メッセージボックス"))
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("OK", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "メッセージボックス"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 

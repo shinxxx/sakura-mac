@@ -24,10 +24,10 @@ final class BackupAlertHandler: NSObject, BackupHandler {
         alert.alertStyle = .informational
         alert.messageText = title.isEmpty ? CommonSettingsPages.appName : title
         alert.informativeText = message
-        alert.addButton(withTitle: NSLocalizedString("はい", comment: "メッセージボックス"))
-        let no = alert.addButton(withTitle: NSLocalizedString("いいえ", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("はい", comment: "メッセージボックス"))
+        let no = alert.addButton(withTitle: L10n.tr("いいえ", comment: "メッセージボックス"))
         if withCancel {
-            let cancel = alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "メッセージボックス"))
+            let cancel = alert.addButton(withTitle: L10n.tr("キャンセル", comment: "メッセージボックス"))
             cancel.keyEquivalent = "\u{1b}"
         } else {
             no.keyEquivalent = "\u{1b}"
@@ -70,7 +70,7 @@ extension SakuraDocument {
             var folder = (backup as NSString).deletingLastPathComponent
             if FolderAccess.doesNotExist(folder) { folder = (folder as NSString).deletingLastPathComponent }
             _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: windowControllers.first?.window,
-                                                 message: NSLocalizedString("バックアップを作成するには、「%@」へのアクセスを許可してください。",
+                                                 message: L10n.tr("バックアップを作成するには、「%@」へのアクセスを許可してください。",
                                                                             comment: "バックアップのフォルダーの許可"))
         }
         return BackupCore.backupBeforeSave(path, handler: Self.backupHandler())
@@ -333,7 +333,7 @@ final class FileSafetyAgent: NSObject {
     /// 「★ファイル更新 %02d:%02d:%02d」（原版 STR_AUTORELOAD_NOFITY。ファイルの更新時刻、現地時刻）
     static func notifyMessage(_ time: Date) -> String {
         let c = Calendar.current.dateComponents([.hour, .minute, .second], from: time)
-        return String(format: NSLocalizedString("★ファイル更新 %02d:%02d:%02d", comment: "STR_AUTORELOAD_NOFITY"),
+        return String(format: L10n.tr("★ファイル更新 %02d:%02d:%02d", comment: "STR_AUTORELOAD_NOFITY"),
                       c.hour ?? 0, c.minute ?? 0, c.second ?? 0)
     }
 

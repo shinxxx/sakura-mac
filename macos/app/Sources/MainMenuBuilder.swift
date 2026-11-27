@@ -106,7 +106,7 @@ enum MainMenuBuilder {
         case MenuCode.file:
             menu.delegate = FileMenuUpdater.shared	// 打开时更新历史的子菜单（第 31 步）
         case MenuCode.window:
-            menu.addItem(withTitle: NSLocalizedString("しまう", comment: "ウィンドウ > しまう（macOS）"),
+            menu.addItem(withTitle: L10n.tr("しまう", comment: "ウィンドウ > しまう（macOS）"),
                          action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
             menu.addItem(.separator())
         case MenuCode.help:
@@ -128,12 +128,12 @@ enum MainMenuBuilder {
         guard let settings = mainMenu.items.first(where: { $0.tag == MenuCode.settings })?.submenu,
               !settings.items.contains(where: { $0.action == #selector(KeySchemeToggle.toggleKeyScheme(_:)) }) else { return }
         settings.addItem(.separator())
-        let toggle = NSMenuItem(title: NSLocalizedString("Windows のキー割り当てを使う", comment: "設定 > キーの方案（Mac 版）"),
+        let toggle = NSMenuItem(title: L10n.tr("Windows のキー割り当てを使う", comment: "設定 > キーの方案（Mac 版）"),
                                 action: #selector(KeySchemeToggle.toggleKeyScheme(_:)), keyEquivalent: "")
         toggle.target = KeySchemeToggle.shared
         settings.addItem(toggle)
         // 第 35 步：Windows 版的 sakura.ini 的导入
-        let importItem = NSMenuItem(title: NSLocalizedString("Windows 版の設定をインポート…", comment: "設定 > 設定のインポート（Mac 版）"),
+        let importItem = NSMenuItem(title: L10n.tr("Windows 版の設定をインポート…", comment: "設定 > 設定のインポート（Mac 版）"),
                                     action: #selector(SettingsImporter.importWindowsSettings(_:)), keyEquivalent: "")
         importItem.target = SettingsImporter.shared
         settings.addItem(importItem)
@@ -161,27 +161,27 @@ enum MainMenuBuilder {
     private static func appMenu() -> NSMenu {
         let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Sakura Editor for Mac"
         let menu = NSMenu(title: name)
-        menu.addItem(withTitle: "\(name) について", action: #selector(NSApplication.showSakuraAbout(_:)), keyEquivalent: "")	// 原版のバージョン情報
+        menu.addItem(withTitle: String(format: L10n.tr("%@ について", comment: "App 菜单（macOS）"), name), action: #selector(NSApplication.showSakuraAbout(_:)), keyEquivalent: "")	// 原版のバージョン情報
         menu.addItem(.separator())
         // 共通設定（第 39 步：CommonSettingsWindow.swift。与 設定 > 共通設定 相同，打开上次的页）。
         // tag 不设功能编号：⌘, 是 macOS 的设置的键，不按键位方案换
-        let settings = NSMenuItem(title: NSLocalizedString("設定…", comment: "App 菜单（macOS）"),
+        let settings = NSMenuItem(title: L10n.tr("設定…", comment: "App 菜单（macOS）"),
                                   action: #selector(NSApplication.showCommonSettings(_:)), keyEquivalent: ",")
         menu.addItem(settings)
         menu.addItem(.separator())
-        let services = NSMenuItem(title: "サービス", action: nil, keyEquivalent: "")
-        let servicesMenu = NSMenu(title: "サービス")
+        let services = NSMenuItem(title: L10n.tr("サービス", comment: "App 菜单（macOS）"), action: nil, keyEquivalent: "")
+        let servicesMenu = NSMenu(title: L10n.tr("サービス", comment: "App 菜单（macOS）"))
         services.submenu = servicesMenu
         NSApp.servicesMenu = servicesMenu
         menu.addItem(services)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "\(name) を隠す", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        let hideOthers = NSMenuItem(title: "ほかを隠す", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        menu.addItem(withTitle: String(format: L10n.tr("%@ を隠す", comment: "App 菜单（macOS）"), name), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = NSMenuItem(title: L10n.tr("ほかを隠す", comment: "App 菜单（macOS）"), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
         hideOthers.keyEquivalentModifierMask = [.command, .option]
         menu.addItem(hideOthers)
-        menu.addItem(withTitle: "すべてを表示", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: L10n.tr("すべてを表示", comment: "App 菜单（macOS）"), action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "\(name) を終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: String(format: L10n.tr("%@ を終了", comment: "App 菜单（macOS）"), name), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
     }
 

@@ -72,13 +72,19 @@ add_custom_command(
 add_custom_target(sakura_version DEPENDS "${GEN_DIR}/version.h")
 
 # 界面字符串：从 sakura_rc.rc 的 STRINGTABLE 生成（Windows 版 sakura.exe 内置的日文字符串）
+# 第 48 步：英文、中文从原版的语言包（sakura_lang）生成
 # 第 21 步起，用户定义类型的资源（MainMenu.ini）的内容也放进同一个文件
 add_custom_command(
   OUTPUT "${GEN_DIR}/sakura_rc_strings.cpp"
   COMMAND Python3::Interpreter "${SAKURA_ROOT}/macos/tools/rc_strings.py"
     "${SAKURA_CORE}/sakura_rc.rc" "${GEN_DIR}/sakura_rc_strings.cpp"
     "${SAKURA_ROOT}/src/main/resources/sakura_rc.h" "${GEN_DIR}/Funccode_define.h"
+    --lang "en=${SAKURA_ROOT}/sakura_lang/sakura_rc_en-US.rc"
+    --lang "zh=${SAKURA_ROOT}/sakura_lang/sakura_rc_zh-CN.rc"
+    --supplement "${SAKURA_ROOT}/macos/tools/l10n/rc_supplement.json"
   DEPENDS "${SAKURA_ROOT}/macos/tools/rc_strings.py" "${SAKURA_CORE}/sakura_rc.rc"
+    "${SAKURA_ROOT}/sakura_lang/sakura_rc_en-US.rc" "${SAKURA_ROOT}/sakura_lang/sakura_rc_zh-CN.rc"
+    "${SAKURA_ROOT}/macos/tools/l10n/rc_supplement.json"
     "${SAKURA_ROOT}/src/main/resources/sakura_rc.h" "${GEN_DIR}/Funccode_define.h"
     "${SAKURA_ROOT}/src/main/resources/MainMenu.ini"   # 第 21 步：用户定义资源（主菜单的默认设置）也嵌入
   VERBATIM)

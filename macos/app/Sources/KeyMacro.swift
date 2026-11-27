@@ -87,7 +87,7 @@ final class KeyMacroRecorder {
     }
 
     /// タイトルに付ける文字（原版 STR_CAPTION_ACTIVE_KEYMACRO。既定のキャプション「${M?  【キーマクロの記録中】$}」）
-    static var recordingCaption: String { "  " + NSLocalizedString("【キーマクロの記録中】", comment: "STR_CAPTION_ACTIVE_KEYMACRO") }
+    static var recordingCaption: String { "  " + L10n.tr("【キーマクロの記録中】", comment: "STR_CAPTION_ACTIVE_KEYMACRO") }
 
     // MARK: - ファイル
 
@@ -117,7 +117,7 @@ extension EditorTextView {
         if let type = UTType(filenameExtension: "mac") { panel.allowedContentTypes = [type] }
         panel.allowsOtherFileTypes = true
         panel.nameFieldStringValue = "RecKey.mac"
-        panel.title = NSLocalizedString("キーマクロの保存", comment: "F_SAVEKEYMACRO")
+        panel.title = L10n.tr("キーマクロの保存", comment: "F_SAVEKEYMACRO")
         return panel.runModal() == .OK ? panel.url : nil
     }
 
@@ -128,7 +128,7 @@ extension EditorTextView {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.title = NSLocalizedString("キーマクロの読み込み", comment: "F_LOADKEYMACRO")
+        panel.title = L10n.tr("キーマクロの読み込み", comment: "F_LOADKEYMACRO")
         return panel.runModal() == .OK ? panel.url : nil
     }
 
@@ -146,7 +146,7 @@ extension EditorTextView {
             let path = KeyMacroRecorder.recordFilePath
             recorder.keyMacroFileName = path
             if !MacroCore.saveKeyMacroFile(path, calls: recorder.calls) {
-                Self.keyMacroError(String(format: NSLocalizedString("マクロファイルを作成できませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD25"), path))
+                Self.keyMacroError(String(format: L10n.tr("マクロファイルを作成できませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD25"), path))
             }
         } else {
             recorder.start(in: window)
@@ -160,7 +160,7 @@ extension EditorTextView {
         guard let url = Self.chooseKeyMacroSaveURL(KeyMacroRecorder.macroFolder, window) else { return }
         BookmarkStore.settingFiles.remember(url)
         if !MacroCore.saveKeyMacroFile(url.path, calls: recorder.calls) {
-            Self.keyMacroError(String(format: NSLocalizedString("マクロファイルを作成できませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD27"), url.path))
+            Self.keyMacroError(String(format: L10n.tr("マクロファイルを作成できませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD27"), url.path))
         }
     }
 
@@ -184,8 +184,8 @@ extension EditorTextView {
             // 文法の誤り（原版 LoadKeyMacro のメッセージボックス）のあと、読み込めなかったこと
             if !result.errorMessage.isEmpty { MacroHost.showError(result.errorTitle, result.errorMessage) }
             let format = result.result == .encodingError
-                ? NSLocalizedString("文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@", comment: "STR_ERR_MACRO_ENCODING")
-                : NSLocalizedString("ファイルを開けませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD28")
+                ? L10n.tr("文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@", comment: "STR_ERR_MACRO_ENCODING")
+                : L10n.tr("ファイルを開けませんでした。\n\n%@", comment: "STR_ERR_CEDITVIEW_CMD28")
             Self.keyMacroError(String(format: format, path))
             return
         }
@@ -256,14 +256,14 @@ extension EditorTextView {
               [#selector(recKeyMacro(_:)), #selector(saveKeyMacro(_:)), #selector(loadKeyMacro(_:)), #selector(execKeyMacro(_:))].contains(action),
               codes.contains(menuItem.tag) else { return nil }
         let names: [Int: (String, String)] = [
-            MacroHost.Code.recKeyMacro: (NSLocalizedString("キーマクロの記録開始", comment: "F_RECKEYMACRO_REC"),
-                                         NSLocalizedString("キーマクロの記録終了", comment: "F_RECKEYMACRO_APPE")),
-            MacroHost.Code.saveKeyMacro: (NSLocalizedString("キーマクロの保存", comment: "F_SAVEKEYMACRO_REC"),
-                                          NSLocalizedString("キーマクロの記録終了&保存", comment: "F_SAVEKEYMACRO_APPE")),
-            MacroHost.Code.loadKeyMacro: (NSLocalizedString("キーマクロの読み込み", comment: "F_LOADKEYMACRO_REC"),
-                                          NSLocalizedString("キーマクロの記録終了&読み込み", comment: "F_LOADKEYMACRO_APPE")),
-            MacroHost.Code.execKeyMacro: (NSLocalizedString("キーマクロの実行", comment: "F_EXECKEYMACRO_REC"),
-                                          NSLocalizedString("キーマクロの記録終了&実行", comment: "F_EXECKEYMACRO_APPE")),
+            MacroHost.Code.recKeyMacro: (L10n.tr("キーマクロの記録開始", comment: "F_RECKEYMACRO_REC"),
+                                         L10n.tr("キーマクロの記録終了", comment: "F_RECKEYMACRO_APPE")),
+            MacroHost.Code.saveKeyMacro: (L10n.tr("キーマクロの保存", comment: "F_SAVEKEYMACRO_REC"),
+                                          L10n.tr("キーマクロの記録終了&保存", comment: "F_SAVEKEYMACRO_APPE")),
+            MacroHost.Code.loadKeyMacro: (L10n.tr("キーマクロの読み込み", comment: "F_LOADKEYMACRO_REC"),
+                                          L10n.tr("キーマクロの記録終了&読み込み", comment: "F_LOADKEYMACRO_APPE")),
+            MacroHost.Code.execKeyMacro: (L10n.tr("キーマクロの実行", comment: "F_EXECKEYMACRO_REC"),
+                                          L10n.tr("キーマクロの記録終了&実行", comment: "F_EXECKEYMACRO_APPE")),
         ]
         if let name = names[menuItem.tag] {
             let title = recorder.isRecording ? name.1 : name.0

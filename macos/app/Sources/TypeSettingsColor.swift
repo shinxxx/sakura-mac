@@ -92,11 +92,11 @@ final class ColorSwatchView: NSView {
 
 /// 文字列エスケープ（原版 StringLitteralArr。値は EStringLiteralType）
 let stringLiterals: NamedValues = [
-    (0, NSLocalizedString("C/C++言語風 \\\"", comment: "STR_STRINGESC_CPP")),
-    (1, NSLocalizedString("PL/SQL風    \"\"", comment: "STR_STRINGESC_PLSQL")),
-    (2, NSLocalizedString("HTML/XML風  =\"\"", comment: "STR_STRINGESC_HTML")),
-    (3, NSLocalizedString("C#風        @\"\"", comment: "STR_STRINGESC_CSHARP")),
-    (4, NSLocalizedString("Python風    \"\"\"", comment: "STR_STRINGESC_PYTHON")),
+    (0, L10n.tr("C/C++言語風 \\\"", comment: "STR_STRINGESC_CPP")),
+    (1, L10n.tr("PL/SQL風    \"\"", comment: "STR_STRINGESC_PLSQL")),
+    (2, L10n.tr("HTML/XML風  =\"\"", comment: "STR_STRINGESC_HTML")),
+    (3, L10n.tr("C#風        @\"\"", comment: "STR_STRINGESC_CSHARP")),
+    (4, L10n.tr("Python風    \"\"\"", comment: "STR_STRINGESC_PYTHON")),
 ]
 
 /// 縦線桁指定（原版 CPropTypesColor の SetData / GetData）。値は m_nVertLineIdx：
@@ -514,7 +514,7 @@ final class SameColorDialog: NSObject {
     init?(items: [EditorColorItem], colors: [ColorSettingValue], text: Bool, color: UInt32) {
         guard let definition = PropDialogs.load("TypeSettingsDialogs")?.dialog("IDD_SAMECOLOR") else { return nil }
         page = PropPage(definition: definition)
-        title = text ? NSLocalizedString("文字色統一", comment: "STR_DLGSMCLR_BTN1") : NSLocalizedString("背景色統一", comment: "STR_DLGSMCLR_BTN2")
+        title = text ? L10n.tr("文字色統一", comment: "STR_DLGSMCLR_BTN1") : L10n.tr("背景色統一", comment: "STR_DLGSMCLR_BTN2")
         self.text = text
         self.color = color
         self.items = items
@@ -531,7 +531,7 @@ final class SameColorDialog: NSObject {
             let swatch = ColorSwatchView(color: ColorSettingValue.color(color), frame: label.frame)
             label.superview?.addSubview(swatch)
         }
-        page.setUnavailable([idc("BUTTON_HELP")], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         if let list = page.list(idc("LIST_COLORS")) {
             list.setColumns(["", ""], widths: [20, 120])
             list.cellView = { [weak self] row, column in self?.cell(row: row, column: column) }

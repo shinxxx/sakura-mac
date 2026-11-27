@@ -350,9 +350,9 @@ final class OutlineDockCaption: NSView {
             b.setAccessibilityLabel(tip)
             return b
         }
-        closeButton = button("xmark", NSLocalizedString("閉じる", comment: "STR_DLGFNCLST_TIP_CLOSE"), "outlineDockClose")
-        menuButton = button("chevron.down", NSLocalizedString("ウィンドウの位置", comment: "STR_DLGFNCLST_TIP_WIN"), "outlineDockMenu")
-        updateButton = button("arrow.clockwise", NSLocalizedString("更新", comment: "STR_DLGFNCLST_TIP_UPDATE"), "outlineDockUpdate")
+        closeButton = button("xmark", L10n.tr("閉じる", comment: "STR_DLGFNCLST_TIP_CLOSE"), "outlineDockClose")
+        menuButton = button("chevron.down", L10n.tr("ウィンドウの位置", comment: "STR_DLGFNCLST_TIP_WIN"), "outlineDockMenu")
+        updateButton = button("arrow.clockwise", L10n.tr("更新", comment: "STR_DLGFNCLST_TIP_UPDATE"), "outlineDockUpdate")
         super.init(frame: frame)
         title.font = PropPage.font
         title.lineBreakMode = .byTruncatingTail
@@ -591,7 +591,7 @@ extension OutlineWindowController {
     /// 継承情報を統一（原版 nId == 305）：今の画面の配置を共通設定とすべてのタイプ別設定にコピー
     @objc func menuUnify(_ sender: NSMenuItem) {
         guard let view else { return }
-        let message = NSLocalizedString("現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n",
+        let message = L10n.tr("現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n",
                                         comment: "STR_DLGFNCLST_UNIFY")
         let ok: Bool
         if let handler = Self.confirmHandler {
@@ -600,7 +600,7 @@ extension OutlineWindowController {
             let alert = NSAlert()
             alert.messageText = message
             alert.addButton(withTitle: "OK")
-            alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "cancel"))
+            alert.addButton(withTitle: L10n.tr("キャンセル", comment: "cancel"))
             ok = alert.runModal() == .alertFirstButtonReturn
         }
         guard ok else { return }

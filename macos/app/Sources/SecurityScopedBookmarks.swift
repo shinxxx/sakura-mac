@@ -125,7 +125,7 @@ final class FolderAccess {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
         panel.message = message
-        panel.prompt = NSLocalizedString("許可", comment: "Grep のフォルダーの許可")
+        panel.prompt = L10n.tr("許可", comment: "Grep のフォルダーの許可")
         panel.directoryURL = URL(fileURLWithPath: path, isDirectory: true)
         return panel.runModal() == .OK ? panel.url : nil
     }
@@ -171,7 +171,7 @@ final class FolderAccess {
         for path in paths where !startAccess(path: path) {
             // 無いフォルダーは許可を求めない（OK の確かめで「検索対象フォルダーが正しくありません。」）
             if Self.doesNotExist(path) { continue }
-            let format = purpose ?? NSLocalizedString("「%@」を検索するには、このフォルダーへのアクセスを許可してください。", comment: "Grep のフォルダーの許可")
+            let format = purpose ?? L10n.tr("「%@」を検索するには、このフォルダーへのアクセスを許可してください。", comment: "Grep のフォルダーの許可")
             let message = String(format: format, path)
             guard let url = Self.choose(path, message, parent) else { return false }
             remember(url)

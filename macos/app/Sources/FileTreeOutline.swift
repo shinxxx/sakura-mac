@@ -103,7 +103,7 @@ final class FileTreeData: NSObject, NSOutlineViewDataSource, NSOutlineViewDelega
         return true
     }
 
-    static let accessMessage = NSLocalizedString("「%@」をファイルツリーに表示するには、このフォルダーへのアクセスを許可してください。",
+    static let accessMessage = L10n.tr("「%@」をファイルツリーに表示するには、このフォルダーへのアクセスを許可してください。",
                                                  comment: "ファイルツリーのフォルダーの許可")
 
     /// Grep の項目の設定（原版 GetTreeFileFullName の nItem）

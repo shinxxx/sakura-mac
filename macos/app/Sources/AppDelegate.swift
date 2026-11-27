@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         // 自动界面测试时用临时的设置和剪贴板（UITesting.swift）
         UITesting.prepare()
+        // 界面的语言：系统的语言设置里日文、英文、简体中文中最合适的（第 48 步）。核心库的字符串表也用这个语言
+        EditorCore.uiLanguage = L10n.coreLanguage
         // 核心库：建立共通设置，读入 sakura.ini（第 24 步）
         if !EditorCore.startup() {
             NSLog("Sakura core startup failed")

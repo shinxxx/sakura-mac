@@ -19,8 +19,9 @@ final class SakuraMacUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        // 不恢复上次的窗口：每次从一个无题窗口开始
-        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES"]
+        // 不恢复上次的窗口：每次从一个无题窗口开始。
+        // 界面的语言是日文（第 48 步：App 跟随系统的语言。测试按原版的日文写，与运行的 Mac 的语言无关）
+        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)"]
         app.launch()
         XCTAssertTrue(editor.waitForExistence(timeout: 10), "启动后有编辑窗口")
         editor.click()
@@ -955,7 +956,7 @@ final class SakuraMacUITests: XCTestCase {
     func testImportWindowsSettings() {
         app.terminate()
         let home = "import-\(UUID().uuidString)"
-        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingHome", home]
 
         // 1 回目：导入前 F8 是コピー（不改变文字）
         let first = XCUIApplication()
@@ -1000,7 +1001,7 @@ final class SakuraMacUITests: XCTestCase {
         app.terminate()
         let home = "restart-\(UUID().uuidString)"
         let name = "recent-sample.txt"
-        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingHome", home]
         let byTitle = NSPredicate(format: "title CONTAINS %@", name)
 
         // 1 回目：测试用的文件打开，光标移到第 3 行，Cmd+Q 结束
@@ -1077,7 +1078,7 @@ final class SakuraMacUITests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: file) }
 
         let home = "sandbox-\(UUID().uuidString)"
-        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", home]
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingHome", home]
         let byTitle = NSPredicate(format: "title CONTAINS %@", name)
 
         // 1. App 在沙盒里：不经过对话框直接打开，应该被拒绝
@@ -1155,7 +1156,7 @@ final class SakuraMacUITests: XCTestCase {
             throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
         }
         defer { try? FileManager.default.removeItem(at: rule) }
-        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", "rule-\(UUID().uuidString)"]
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingHome", "rule-\(UUID().uuidString)"]
 
         // 1. タイプ別設定（基本）> スクリーン：ルールファイル を選ぶ（参照 → 「開く」対話框で路径を入力）
         let first = XCUIApplication(url: appURL)
@@ -1396,7 +1397,7 @@ final class SakuraMacUITests: XCTestCase {
         let appURL = URL(fileURLWithPath: appPath)
         let dir = try makeGrepFolder()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingHome", "grep-\(UUID().uuidString)"]
+        let base = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingHome", "grep-\(UUID().uuidString)"]
 
         // 1. 許可を求められる：対話框は検索するフォルダーを開いている。「許可」
         let first = XCUIApplication(url: appURL)
@@ -1486,7 +1487,7 @@ final class SakuraMacUITests: XCTestCase {
         }
         app.terminate()
         let watching = XCUIApplication()
-        watching.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingOpenPath", file.path]
+        watching.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingOpenPath", file.path]
         watching.launch()
         app = watching
         XCTAssertTrue(documentWindow(watching, "watched.txt").waitForExistence(timeout: 10), "ファイルを開いた")
@@ -1553,7 +1554,7 @@ final class SakuraMacUITests: XCTestCase {
     private func contentInApp(_ file: URL) -> String? {
         app.terminate()
         app = XCUIApplication()
-        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingOpenPath", file.path]
+        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)", "-SakuraUITestingOpenPath", file.path]
         app.launch()
         let window = documentWindow(app, file.lastPathComponent)
         guard window.waitForExistence(timeout: 10) else { return nil }
@@ -1565,7 +1566,7 @@ final class SakuraMacUITests: XCTestCase {
         app.terminate()
         let home = "backup-\(UUID().uuidString.prefix(8))"
         app = XCUIApplication()
-        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES",
+        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(ja)",
                                "-SakuraUITestingHome", home, "-SakuraUITestingOpenFile", "backup.txt"]
         app.launch()
         let window = documentWindow(app, "backup.txt")
@@ -1687,6 +1688,53 @@ final class SakuraMacUITests: XCTestCase {
         app.typeKey("w", modifierFlags: .command)
         XCTAssertTrue(editor.waitForExistence(timeout: 5), "編集画面に戻る")
         XCTAssertEqual(text, "abc")
+    }
+
+    // MARK: - 第 48 步：界面本地化
+
+    /// 系统的语言是英文、简体中文时，菜单栏、窗口的标题、共通設定窗口是那个语言（日文的假名、英文时汉字也没有）。
+    /// 共通設定的几页留下截图（run-tests.sh 之后从结果里取出来对照查看）
+    func testInterfaceFollowsSystemLanguage() {
+        let cases: [(language: String, file: String, untitled: String)] = [("en", "File", "(No Title)"), ("zh-Hans", "文件", "(无标题)")]
+        for c in cases {
+            app.terminate()
+            app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-AppleLanguages", "(\(c.language))"]
+            app.launch()
+            XCTAssertTrue(editor.waitForExistence(timeout: 10), c.language)
+            editor.click()
+            func japanese(_ s: String) -> Bool {
+                s.unicodeScalars.contains { u in
+                    (0x3040...0x30FA).contains(u.value) || (0x30FC...0x30FF).contains(u.value)
+                        || (c.language == "en" && (0x3400...0x9FFF).contains(u.value))
+                }
+            }
+            let menuTitles = app.menuBars.menuBarItems.allElementsBoundByIndex.map(\.title)
+            XCTAssertTrue(menuTitles.contains(c.file), "\(c.language) のメニュー: \(menuTitles)")
+            XCTAssertEqual(menuTitles.filter(japanese), [], c.language)
+            // 「ファイル」メニューの項目
+            app.menuBars.menuBarItems[c.file].click()
+            let fileItems = app.menuBars.menuBarItems[c.file].menuItems.allElementsBoundByIndex.map(\.title).filter { !$0.isEmpty }
+            XCTAssertGreaterThan(fileItems.count, 5)
+            XCTAssertEqual(fileItems.filter(japanese), [], c.language)
+            app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+            XCTAssertTrue(app.windows.firstMatch.title.contains(c.untitled), "\(c.language) の無題: \(app.windows.firstMatch.title)")
+
+            key(",", .command)
+            let window = app.windows["CommonSettings"]
+            XCTAssertTrue(window.waitForExistence(timeout: 5), "\(c.language) 共通設定窗口")
+            XCTAssertFalse(japanese(window.title), window.title)
+            for page in ["全般", "ウィンドウ", "編集", "検索", "キー割り当て"] {
+                window.staticTexts["CommonSettingsPage_\(page)"].click()
+                usleep(300_000)
+                let texts = (window.staticTexts.allElementsBoundByIndex.map { $0.value as? String ?? "" }
+                    + window.checkBoxes.allElementsBoundByIndex.map(\.title)
+                    + window.radioButtons.allElementsBoundByIndex.map(\.title)
+                    + window.buttons.allElementsBoundByIndex.map(\.title))
+                XCTAssertEqual(texts.filter(japanese), [], "\(c.language) \(page)")
+                keepScreenshot(window, "l10n-\(c.language)-\(page)")
+            }
+            window.buttons["CommonSettingsCancel"].click()
+        }
     }
 
     /// UITesting.testFileContent と同じ

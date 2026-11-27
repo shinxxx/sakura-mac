@@ -457,7 +457,7 @@ final class PrintPreviewController: NSObject {
     private func setUpBar() {
         // 原版 WM_INITDIALOG：「滑らか」を使えるようにする
         page.setEnabled("IDC_CHECK_ANTIALIAS", true)
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         // プリンターのアイコン（原版 IDI_PRINTER）
         if let icon = page.definition.controls.first(where: { $0.kind == "icon" }) {
             let frame = NSRect(x: PropPage.pointsX(icon.frame[0]), y: PropPage.points(icon.frame[1]) - 2,
@@ -554,7 +554,7 @@ final class PrintPreviewController: NSObject {
         if layout.isEmpty {
             close()
             windowController.textView.sendStatusMessage(
-                NSLocalizedString("印刷ページ設定エラー:印字可能領域がありません", comment: "STR_ERR_DLGPRNPRVW3_1"))
+                L10n.tr("印刷ページ設定エラー:印字可能領域がありません", comment: "STR_ERR_DLGPRNPRVW3_1"))
             return
         }
         self.layout = layout
@@ -572,7 +572,7 @@ final class PrintPreviewController: NSObject {
         page.setText("IDC_STATIC_PRNDEV", Self.printerName(setting))
         let paper = PrintCore.papers.first { $0.paperID == setting.paperSize }?.name ?? ""
         let orientation = setting.orientation == .landscape
-            ? NSLocalizedString("横", comment: "STR_ERR_DLGPRNPRVW1") : NSLocalizedString("縦", comment: "STR_ERR_DLGPRNPRVW2")
+            ? L10n.tr("横", comment: "STR_ERR_DLGPRNPRVW1") : L10n.tr("縦", comment: "STR_ERR_DLGPRNPRVW2")
         page.setText("IDC_STATIC_PAPER", "\(paper)  \(orientation)")
     }
 
@@ -591,7 +591,7 @@ final class PrintPreviewController: NSObject {
         currentPage = max(0, min(number, count - 1))
         page.setEnabled("IDC_BUTTON_PREVPAGE", currentPage > 0)
         page.setEnabled("IDC_BUTTON_NEXTPAGE", currentPage + 1 < count)
-        page.setText("IDC_STATIC_PAGENUM", String(format: NSLocalizedString("%d/%d頁", comment: "STR_ERR_DLGPRNPRVW6"), currentPage + 1, count))
+        page.setText("IDC_STATIC_PAGENUM", String(format: L10n.tr("%d/%d頁", comment: "STR_ERR_DLGPRNPRVW6"), currentPage + 1, count))
         updateZoomControls()
         if let layout, count > 0 {
             previewView.page = layout.page(currentPage, view: windowController.textView.expandParameterView)
@@ -625,8 +625,8 @@ final class PrintPreviewController: NSObject {
 
     /// 原版 OnPreviewGoDirectPage：ページ番号を入れて移動（数字以外があれば何もしない）
     func goDirectPage() {
-        let message = String(format: NSLocalizedString("表示するページ番号を指定してください。(1 - %d)", comment: "STR_ERR_DLGPRNPRVW4"), pageCount)
-        guard let text = CommonSettingsPages.input(NSLocalizedString("プレビューページ指定", comment: "STR_ERR_DLGPRNPRVW5"),
+        let message = String(format: L10n.tr("表示するページ番号を指定してください。(1 - %d)", comment: "STR_ERR_DLGPRNPRVW4"), pageCount)
+        guard let text = CommonSettingsPages.input(L10n.tr("プレビューページ指定", comment: "STR_ERR_DLGPRNPRVW5"),
                                                    message, 11, String(currentPage + 1)) else { return }
         guard text.allSatisfy({ $0.isASCII && $0.isNumber }) else { return }
         goPage((Int(text) ?? 0) - 1)
@@ -709,7 +709,7 @@ final class PrintPreviewController: NSObject {
 
     /// 印刷のジョブ名（原版：ファイル名、無題は STR_NO_TITLE2）
     var jobName: String {
-        document.path.isEmpty ? NSLocalizedString("無題", comment: "STR_NO_TITLE2") : (document.path as NSString).lastPathComponent
+        document.path.isEmpty ? L10n.tr("無題", comment: "STR_NO_TITLE2") : (document.path as NSString).lastPathComponent
     }
 
     /// 印刷する。印刷したらプレビューを閉じる（原版：印刷が終わったら Preview から抜ける。キャンセルはそのまま）
@@ -718,7 +718,7 @@ final class PrintPreviewController: NSObject {
             // 原版 STR_ERR_DLGPRNPRVW7
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = NSLocalizedString("印刷するページがありません。", comment: "STR_ERR_DLGPRNPRVW7")
+            alert.messageText = L10n.tr("印刷するページがありません。", comment: "STR_ERR_DLGPRNPRVW7")
             if let window { alert.beginSheetModal(for: window) } else { alert.runModal() }
             return
         }

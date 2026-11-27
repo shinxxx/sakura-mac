@@ -106,7 +106,7 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
             return
         }
         let count = page.list(idc("LIST_KEYWORD"))?.rows.count ?? 0
-        page.setText(idc("STATIC_KEYWORD_COUNT"), String(format: NSLocalizedString("(最大 %d 文字, 登録数 %d, 空き %d 個)", comment: "STR_PROPCOMKEYWORD_INFO"),
+        page.setText(idc("STATIC_KEYWORD_COUNT"), String(format: L10n.tr("(最大 %d 文字, 登録数 %d, 空き %d 個)", comment: "STR_PROPCOMKEYWORD_INFO"),
                                                           Self.maxKeyword, count, editor.freeCount(ofSet: currentSet)))
     }
 
@@ -143,30 +143,30 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
         switch id {
         case idc("BUTTON_ADDSET"):
             guard editor.setCount < Self.maxSets else {
-                CommonSettingsPages.inform(String(format: NSLocalizedString("セットは%d個までしか登録できません。\n", comment: "STR_PROPCOMKEYWORD_SETMAX"), Self.maxSets))
+                CommonSettingsPages.inform(String(format: L10n.tr("セットは%d個までしか登録できません。\n", comment: "STR_PROPCOMKEYWORD_SETMAX"), Self.maxSets))
                 return
             }
-            guard let name = CommonSettingsPages.input(NSLocalizedString("キーワードのセット追加", comment: "STR_PROPCOMKEYWORD_SETNAME1"),
-                                                       NSLocalizedString("セット名を入力してください。", comment: "STR_PROPCOMKEYWORD_SETNAME2"),
+            guard let name = CommonSettingsPages.input(L10n.tr("キーワードのセット追加", comment: "STR_PROPCOMKEYWORD_SETNAME1"),
+                                                       L10n.tr("セット名を入力してください。", comment: "STR_PROPCOMKEYWORD_SETNAME2"),
                                                        Self.maxSetName, ""), !name.isEmpty else { return }
             if editor.addSet(name) { loadSets(page) }
         case idc("BUTTON_DELSET"):
             deleteSet(page)
         case idc("BUTTON_KEYSETRENAME"):
             guard currentSet >= 0,
-                  let name = CommonSettingsPages.input(NSLocalizedString("セットの名称変更", comment: "STR_PROPCOMKEYWORD_RENAME1"),
-                                                       NSLocalizedString("セット名を入力してください。", comment: "STR_PROPCOMKEYWORD_RENAME2"),
+                  let name = CommonSettingsPages.input(L10n.tr("セットの名称変更", comment: "STR_PROPCOMKEYWORD_RENAME1"),
+                                                       L10n.tr("セット名を入力してください。", comment: "STR_PROPCOMKEYWORD_RENAME2"),
                                                        Self.maxSetName, editor.name(ofSet: currentSet)), !name.isEmpty else { return }
             editor.renameSet(currentSet, to: name)
             loadSets(page)
         case idc("BUTTON_ADDKEYWORD"):
             guard currentSet >= 0 else { return }
             guard editor.canAddKeyword(toSet: currentSet) else {
-                CommonSettingsPages.inform(NSLocalizedString("登録できるキーワード数が上限に達しています。\n", comment: "STR_PROPCOMKEYWORD_KEYMAX"))
+                CommonSettingsPages.inform(L10n.tr("登録できるキーワード数が上限に達しています。\n", comment: "STR_PROPCOMKEYWORD_KEYMAX"))
                 return
             }
-            guard let keyword = CommonSettingsPages.input(NSLocalizedString("キーワード追加", comment: "STR_PROPCOMKEYWORD_KEYADD1"),
-                                                          NSLocalizedString("キーワードを入力してください。", comment: "STR_PROPCOMKEYWORD_KEYADD2"),
+            guard let keyword = CommonSettingsPages.input(L10n.tr("キーワード追加", comment: "STR_PROPCOMKEYWORD_KEYADD1"),
+                                                          L10n.tr("キーワードを入力してください。", comment: "STR_PROPCOMKEYWORD_KEYADD2"),
                                                           Self.maxKeyword, ""), !keyword.isEmpty else { return }
             if editor.addKeyword(keyword, toSet: currentSet) == 0 {
                 showSet(page)
@@ -181,7 +181,7 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
             page.list(idc("LIST_KEYWORD"))?.select(row)
         case idc("BUTTON_KEYCLEAN"):
             guard currentSet >= 0,
-                  CommonSettingsPages.confirm(NSLocalizedString("現在の設定では強調キーワードとして表示できないキーワードを削除しますか？", comment: "STR_PROPCOMKEYWORD_DEL")) else { return }
+                  CommonSettingsPages.confirm(L10n.tr("現在の設定では強調キーワードとして表示できないキーワードを削除しますか？", comment: "STR_PROPCOMKEYWORD_DEL")) else { return }
             _ = editor.clean(set: currentSet)
             showSet(page)
         case idc("BUTTON_IMPORT"):
@@ -194,7 +194,7 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
             guard currentSet >= 0, let path = TypeSettingsPages.chooseExportFile(editor.name(ofSet: currentSet), ["kwd"], window) else { return }
             var message: NSString?
             let ok = editor.exportFile(set: currentSet, path: path, message: &message)
-            TypeSettingsPages.showMessage(ok ? NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path
+            TypeSettingsPages.showMessage(ok ? L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path
                                              : message as String? ?? "")
         default:
             break
@@ -210,8 +210,8 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
     private func editKeyword(_ page: PropPage) {
         guard let editor, let row = selectedRow(page) else { return }
         let index = editor.keywordIndices(ofSet: currentSet)[row].intValue
-        guard let keyword = CommonSettingsPages.input(NSLocalizedString("キーワード編集", comment: "STR_PROPCOMKEYWORD_KEYEDIT1"),
-                                                      NSLocalizedString("キーワードを編集してください。", comment: "STR_PROPCOMKEYWORD_KEYEDIT2"),
+        guard let keyword = CommonSettingsPages.input(L10n.tr("キーワード編集", comment: "STR_PROPCOMKEYWORD_KEYEDIT1"),
+                                                      L10n.tr("キーワードを編集してください。", comment: "STR_PROPCOMKEYWORD_KEYEDIT2"),
                                                       Self.maxKeyword, editor.keywords(ofSet: currentSet)[row]) else { return }
         if keyword.isEmpty {
             editor.deleteKeyword(index, ofSet: currentSet)
@@ -234,7 +234,7 @@ final class KeywordSettingsPage: CommonSettingsPageLogic {
         for type in typeSets where type.sets.contains(set) {
             if let info = types[type.index] { label += "・\(info.name)(\(info.extensions))\n" }
         }
-        let message = String(format: NSLocalizedString("「%@」のセットを削除します。\nよろしいですか？\n削除しようとするセットは、以下のファイルタイプに割り当てられています。\n削除したセットは無効になります。\n\n%@", comment: "STR_PROPCOMKEYWORD_SETDEL"),
+        let message = String(format: L10n.tr("「%@」のセットを削除します。\nよろしいですか？\n削除しようとするセットは、以下のファイルタイプに割り当てられています。\n削除したセットは無効になります。\n\n%@", comment: "STR_PROPCOMKEYWORD_SETDEL"),
                              editor.name(ofSet: set), label)
         guard CommonSettingsPages.confirm(message) else { return }
         func adjust(_ sets: [Int]) -> [Int] { sets.map { $0 == set ? -1 : $0 > set ? $0 - 1 : $0 } }
@@ -263,7 +263,7 @@ final class KeywordSettingsDialog: NSObject {
         logic.tempTypeName = typeName
         logic.tempTypeExts = typeExts
         values = CommonSettingsValues(store: store)
-        title = NSLocalizedString("共通設定", comment: "STR_PROPCOMMON") + " - " + NSLocalizedString("強調キーワード", comment: "STR_PROPCOMMON_KEYWORD")
+        title = L10n.tr("共通設定", comment: "STR_PROPCOMMON") + " - " + L10n.tr("強調キーワード", comment: "STR_PROPCOMMON_KEYWORD")
         super.init()
         // 原版：独立ウィンドウのときは OK・キャンセル の下までの大きさ
         if let ok = page.control("IDOK") {

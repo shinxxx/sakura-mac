@@ -30,6 +30,13 @@ jobs:
           done < <(git ls-files -z -- 'macos/*.h' 'macos/*.cpp' 'macos/*.mm')
           exit $ng
 
+      # 第 48 步：各语言的对话框布局（*.lproj/*Dialogs.json）、Mac 版自己的文字的翻译（Localizable.strings）与生成工具的结果相同，翻译没有遗漏
+      - name: Check localization resources
+        run: |
+          python3 macos/tools/settings/make_prop_dialogs.py
+          python3 macos/tools/l10n/make_strings.py --check
+          git diff --exit-code -- macos/app/Resources
+
   # 第 14 步：UTF-16 字符类型（sakura_core/util/wchar16.h）在两个平台上编译并运行测试
   wchar16-test-macos:
     needs: check-encoding
@@ -616,6 +623,10 @@ jobs:
           test -d "$APP"
           /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print CFBundleDisplayName' "$APP/Contents/Info.plist"
+          # 第 48 步：日文、英文、简体中文的资源
+          /usr/libexec/PlistBuddy -c 'Print CFBundleLocalizations' "$APP/Contents/Info.plist"
+          for lang in ja en zh-Hans; do test -f "$APP/Contents/Resources/$lang.lproj/CommonSettingsDialogs.json"; done
+          for lang in en zh-Hans; do test -f "$APP/Contents/Resources/$lang.lproj/Localizable.strings"; done
           # 只含 arm64（Mac 版只支持 Apple 芯片）：App、嵌在 App 里的桥接层框架、Release 和 Debug 的核心库
           ../tools/check-arch.sh \
             "$APP/Contents/MacOS/Sakura Editor for Mac" \

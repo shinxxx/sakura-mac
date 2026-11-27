@@ -1,5 +1,5 @@
 {"source": "sakura_core/sakura_rc.rc", "pages": [
- {"name": "スクリーン", "dialog": "IDD_PROP_SCREEN", "size": [302, 244], "controls": [
+ {"name": "スクリーン", "title": "スクリーン", "dialog": "IDD_PROP_SCREEN", "size": [302, 244], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [5, 6, 49, 10], "text": "設定の名前(N)"},
   {"id": "IDC_EDIT_TYPENAME", "kind": "edit", "frame": [55, 4, 59, 12]},
   {"id": "IDC_STATIC", "kind": "label", "frame": [124, 6, 58, 10], "text": "ファイル拡張子(X)"},
@@ -57,7 +57,7 @@
   {"id": "IDC_EDIT_KINSOKUTAIL", "kind": "edit", "frame": [218, 223, 70, 12]},
   {"id": "IDC_STATIC", "kind": "group", "frame": [153, 143, 145, 97], "text": "禁則処理"}
  ]},
- {"name": "カラー", "dialog": "IDD_PROP_COLOR", "size": [302, 244], "controls": [
+ {"name": "カラー", "title": "カラー", "dialog": "IDD_PROP_COLOR", "size": [302, 244], "controls": [
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 6, 148, 204], "text": "色指定(L)", "flags": ["group"]},
   {"id": "IDC_LIST_COLORS", "kind": "list", "frame": [6, 18, 142, 148], "flags": ["group"]},
   {"id": "IDC_CHECK_DISP", "kind": "check", "frame": [6, 165, 65, 10], "text": "色分け/表示(D)"},
@@ -111,7 +111,7 @@
   {"id": "IDC_EDIT_VERTLINE", "kind": "edit", "frame": [210, 216, 74, 12]},
   {"id": "IDC_STATIC", "kind": "label", "frame": [165, 230, 142, 10], "text": "*桁またはStep(Begin, End)でコンマ区切り"}
  ]},
- {"name": "ウィンドウ", "dialog": "IDD_PROP_WINDOW", "size": [302, 244], "controls": [
+ {"name": "ウィンドウ", "title": "ウィンドウ", "dialog": "IDD_PROP_WINDOW", "size": [302, 244], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [5, 6, 40, 10], "text": "入力モード"},
   {"id": "IDC_STATIC", "kind": "label", "frame": [8, 34, 46, 10], "text": "改行コード(E)"},
   {"id": "IDC_COMBO_DEFAULT_EOLTYPE", "kind": "combo", "frame": [57, 32, 52, 57], "flags": ["dropdownlist"]},
@@ -162,7 +162,7 @@
   {"id": "IDC_UPDOWN_BACKIMG_TRANSPARENCY", "kind": "spin", "frame": [285, 193, 9, 12], "text": "Spin1"},
   {"id": "IDC_STATIC", "kind": "group", "frame": [153, 122, 145, 90], "text": "背景画像"}
  ]},
- {"name": "支援", "dialog": "IDD_PROP_SUPPORT", "size": [302, 244], "controls": [
+ {"name": "支援", "title": "支援", "dialog": "IDD_PROP_SUPPORT", "size": [302, 244], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [8, 17, 53, 10], "text": "単語ファイル(W)"},
   {"id": "IDC_EDIT_HOKANFILE", "kind": "edit", "frame": [63, 15, 150, 12], "flags": ["group"]},
   {"id": "IDC_BUTTON_HOKANFILE_REF", "kind": "button", "frame": [215, 14, 19, 14], "text": "(1)..."},
@@ -186,7 +186,7 @@
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 159, 295, 40], "text": "C/C++インデント詳細設定", "flags": ["group"]},
   {"id": "IDC_CHECK_DETECT_INDENTATION_STYLE_ON_FILE_LOAD", "kind": "check", "frame": [8, 205, 240, 10], "text": "ファイル読み込み時にインデントスタイルを検出する(T)"}
  ]},
- {"name": "正規表現キーワード", "dialog": "IDD_PROP_REGEX", "size": [302, 244], "controls": [
+ {"name": "正規表現キーワード", "title": "正規表現キーワード", "dialog": "IDD_PROP_REGEX", "size": [302, 244], "controls": [
   {"id": "IDC_CHECK_REGEX", "kind": "check", "frame": [5, 5, 124, 10], "text": "正規表現キーワードを使用する(R)"},
   {"id": "IDC_LABEL_REGEX_VERSION", "kind": "label", "frame": [89, 15, 208, 11], "text": "BREGONIG.DLL Version", "flags": ["right"]},
   {"id": "IDC_FRAME_REGEX", "kind": "group", "frame": [3, 24, 295, 169], "text": "正規表現キーワード(K)"},
@@ -207,7 +207,7 @@
   {"id": "IDC_BUTTON_REGEX_EXPORT", "kind": "button", "frame": [236, 196, 60, 14], "text": "エクスポート(X)..."},
   {"id": "IDC_STATIC", "kind": "label", "frame": [14, 195, 138, 20], "text": "[色指定]で「URL」を選択するとマッチ文字列がクリッカブルになります"}
  ]},
- {"name": "キーワードヘルプ", "dialog": "IDD_PROP_KEYHELP", "size": [302, 244], "controls": [
+ {"name": "キーワードヘルプ", "title": "キーワードヘルプ", "dialog": "IDD_PROP_KEYHELP", "size": [302, 244], "controls": [
   {"id": "IDC_CHECK_KEYHELP", "kind": "check", "frame": [5, 6, 114, 10], "text": "キーワードヘルプ機能を使う(K)"},
   {"id": "IDC_FRAME_KEYHELP", "kind": "group", "frame": [3, 21, 295, 174], "text": "辞書ファイル一覧(L)"},
   {"id": "IDC_LIST_KEYHELP", "kind": "listview", "frame": [8, 33, 238, 118], "text": "List5"},

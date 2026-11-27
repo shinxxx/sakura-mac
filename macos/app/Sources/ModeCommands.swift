@@ -55,11 +55,11 @@ extension EditorTextView {
     static var chooseCharset: (EditorTextView, EditorEncoding, Bool, @escaping ((EditorEncoding, Bool)?) -> Void) -> Void = { view, encoding, bom, completion in
         let accessory = FileDialogAccessory(mode: .charset, encoding: encoding, bom: bom)
         let alert = NSAlert()
-        alert.messageText = NSLocalizedString("文字コードの指定", comment: "IDD_SETCHARSET")
+        alert.messageText = L10n.tr("文字コードの指定", comment: "IDD_SETCHARSET")
         alert.accessoryView = accessory.view
         accessory.view.frame.size = accessory.view.fittingSize
-        alert.addButton(withTitle: NSLocalizedString("OK", comment: "IDD_SETCHARSET"))
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "IDD_SETCHARSET"))
+        alert.addButton(withTitle: L10n.tr("OK", comment: "IDD_SETCHARSET"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "IDD_SETCHARSET"))
         let handler: (NSApplication.ModalResponse) -> Void = { response in
             completion(response == .alertFirstButtonReturn ? (accessory.encoding, accessory.bom) : nil)
         }
