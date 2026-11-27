@@ -441,6 +441,23 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             button.frame.size.width += shortage
         }
 
+        // それでも文字が入らない 1 行の説明（中国語「DLL文件(M)」等）は、右隣の入力欄の左端を右へずらす。
+        // 同じ列（左端と幅が同じ）の入力欄も一緒にずらして揃える（第 48 步）
+        let fields = view.subviews.compactMap { $0 as? NSTextField }.filter { $0.isEditable }
+        for label in view.subviews.compactMap({ $0 as? NSTextField }) where !label.isEditable && !label.isHidden
+            && label.cell?.wraps == false && (label.alignment == .left || label.alignment == .natural)
+            && label.fittingSize.width > label.frame.width + 0.5 {
+            let shortage = ceil(label.fittingSize.width - label.frame.width)
+            guard let field = fields.first(where: { abs($0.frame.midY - label.frame.midY) < 6 && $0.frame.minX >= label.frame.maxX - 2
+                && $0.frame.minX - label.frame.maxX < 12 && $0.frame.width > shortage * 4 }) else { continue }
+            let column = fields.filter { abs($0.frame.minX - field.frame.minX) < 1 && abs($0.frame.width - field.frame.width) < 1 }
+            for f in column {
+                f.frame.origin.x += shortage
+                f.frame.size.width -= shortage
+            }
+            label.frame.size.width += shortage
+        }
+
         // 横に並んだボタンの間を 4 点以上あける（余白のあるほうを縮める）（第 41 步）
         let pushButtons = view.subviews.compactMap { $0 as? NSButton }.filter { $0.bezelStyle == .rounded }.sorted { $0.frame.minX < $1.frame.minX }
         for (i, left) in pushButtons.enumerated() {

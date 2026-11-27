@@ -102,7 +102,10 @@ def text_of(raw):
     s = raw.replace('""', '"').replace("&&", "\0").replace("&", "").replace("\0", "&")
     s = s.replace("\\\\", "\x01")
     s = s.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n").replace("\\t", "\t")
-    return s.replace("\x01", "\\")
+    s = s.replace("\x01", "\\")
+    # 記号 1 文字にその記号の快捷字母を付けたもの（中文语言包「@(&@)」「[(&[)」）は記号だけ（日文・英文と同じ。框只有记号的宽度）
+    m = re.fullmatch(r"(\W)\(\1\)", s)
+    return m.group(1) if m else s
 
 
 def kind_of(word, cls, style):
