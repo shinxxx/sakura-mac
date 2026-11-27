@@ -39,12 +39,29 @@ final class FileUpdateQueryDialog: NSObject {
         if let label = page.control("IDC_QUERYRELOADMSG") as? NSTextField, let message = page.control("IDC_FILEUPDATEMSG") {
             label.frame.size.width = max(message.frame.width, min(ceil(label.fittingSize.width), page.view.frame.width - label.frame.minX))
         }
+        fitPath()
         (page.control("IDC_BTN_CLOSE") as? NSButton)?.keyEquivalent = "\r"	// DEFPUSHBUTTON
         page.onButton = { [weak self] id in
             guard let self else { return }
             self.result = Self.buttons[id] ?? .close
             self.onClose?()
         }
+    }
+
+    /// ファイル名の欄：パスは文字単位で折り返し、2 行に入らない長いパスは欄を高くしてファイル名まで見えるようにする
+    /// （Mac の文字は原版より広く、深い容器のパスだとファイル名が隠れる）。下のコントロールとダイアログをその分下げる
+    private func fitPath() {
+        guard let field = page.control("IDC_UPDATEDFILENAME") as? NSTextField, let cell = field.cell else { return }
+        cell.lineBreakMode = .byCharWrapping
+        let needed = ceil(cell.cellSize(forBounds: NSRect(x: 0, y: 0, width: field.frame.width, height: .greatestFiniteMagnitude)).height)
+        let delta = needed - field.frame.height
+        guard delta > 0 else { return }
+        let bottom = field.frame.maxY
+        field.frame.size.height = needed
+        for view in page.view.subviews where view !== field && view.frame.minY >= bottom - 1 {
+            view.frame.origin.y += page.view.isFlipped ? delta : 0
+        }
+        page.view.setFrameSize(NSSize(width: page.view.frame.width, height: page.view.frame.height + delta))
     }
 
     /// 原版 DoModal：閉じるまで待つ

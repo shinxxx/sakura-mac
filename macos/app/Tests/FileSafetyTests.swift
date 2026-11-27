@@ -654,6 +654,26 @@ final class FileSafetyTests: XCTestCase {
         }
     }
 
+    /// 長いパス（深い容器の中のファイル）：欄を高くしてファイル名まで見える。下のコントロールも下がって重ならない
+    func testFileUpdateQueryDialogLongPath() throws {
+        let path = "/Users/someone/Library/Containers/com.example.some.long.bundle.identifier/Data/SakuraMacUITest/watch-0123abcd/another/deeper/folder/structure/for/testing/watched-file-name.txt"
+        let short = try XCTUnwrap(FileUpdateQueryDialog(path: "/tmp/a.txt", modified: false))
+        let dialog = try XCTUnwrap(FileUpdateQueryDialog(path: path, modified: false))
+        let field = try XCTUnwrap(dialog.page.control("IDC_UPDATEDFILENAME") as? NSTextField)
+        let cell = try XCTUnwrap(field.cell)
+        let needed = cell.cellSize(forBounds: NSRect(x: 0, y: 0, width: field.frame.width, height: .greatestFiniteMagnitude)).height
+        XCTAssertLessThanOrEqual(needed, field.frame.height + 0.5, "パスが全部入る")
+        XCTAssertGreaterThan(dialog.page.view.frame.height, short.page.view.frame.height, "ダイアログが高くなる")
+        let ids = ["IDC_UPDATEDFILENAME", "IDC_FILEUPDATEMSG", "IDC_QUERYRELOADMSG", "IDC_BTN_RELOAD", "IDC_BTN_CLOSE", "IDC_BTN_AUTOLOAD",
+                   "IDC_BTN_NOTIFYONLY", "IDC_BTN_NOSUPERVISION"]
+        let frames = ids.compactMap { dialog.page.control($0)?.frame }
+        XCTAssertEqual(frames.count, ids.count)
+        for (i, a) in frames.enumerated() {
+            XCTAssertTrue(dialog.page.view.bounds.contains(a), "\(ids[i]) \(a)")
+            for (j, b) in frames.enumerated() where j > i { XCTAssertFalse(a.intersects(b), "\(ids[i]) \(ids[j])") }
+        }
+    }
+
     private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
