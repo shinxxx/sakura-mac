@@ -120,14 +120,14 @@
 編集,IDC_CHECK_ENABLEEXTEOL,AUTOCHECKBOX,"改行コードNEL, PS, LSを有効にする(O)",m_sEdit.m_bEnableExtEol,Common/bEnableExtEol,○
 編集,IDC_CHECK_BOXSELECTLOCK,AUTOCHECKBOX,矩形選択移動で選択をロックする(B),m_sEdit.m_bBoxSelectLock,Common/bBoxSelectLock,○
 ファイル,IDC_COMBO_FILESHAREMODE,COMBOBOX,排他制御(H),,Common/nFileShareMode,×（Windows の共有モード。偏离项 9）
-ファイル,IDC_CHECK_bCheckFileTimeStamp,AUTOCHECKBOX,更新の監視(W),m_sFile.m_bCheckFileTimeStamp,Common/bCheckFileTimeStamp,○
+ファイル,IDC_CHECK_bCheckFileTimeStamp,AUTOCHECKBOX,更新の監視(W),m_sFile.m_bCheckFileTimeStamp,Common/bCheckFileTimeStamp,○（第 46 步生效）
 ファイル,IDC_LABEL_AUTOLOAD_DELAY,LTEXT,自動読込時遅延(A),,,
-ファイル,IDC_EDIT_AUTOLOAD_DELAY,EDITTEXT,自動読込時遅延(A),m_sFile.m_nAutoloadDelay,Common/nAutoloadDelay,○
+ファイル,IDC_EDIT_AUTOLOAD_DELAY,EDITTEXT,自動読込時遅延(A),m_sFile.m_nAutoloadDelay,Common/nAutoloadDelay,○（第 46 步生效）
 ファイル,IDC_CHECK_bUneditableIfUnwritable,AUTOCHECKBOX,上書き禁止検出時は編集禁止にする(N),m_sFile.m_bUneditableIfUnwritable,Common/bUneditableIfUnwritable,○
 ファイル,IDC_CHECK_ENABLEUNMODIFIEDOVERWRITE,AUTOCHECKBOX,無変更でも上書きする(S),m_sFile.m_bEnableUnmodifiedOverwrite,Common/bEnableUnmodifiedOverwrite,○
-ファイル,IDC_CHECK_AUTOSAVE,AUTOCHECKBOX,自動的に保存する(U),m_sBackup.IsAutoBackupEnabled(),Common/bBackUpType2_Opt1（BKUP_AUTO ビット）,○
+ファイル,IDC_CHECK_AUTOSAVE,AUTOCHECKBOX,自動的に保存する(U),m_sBackup.IsAutoBackupEnabled(),Common/bBackUpType2_Opt1（BKUP_AUTO ビット）,○（第 46 步生效）
 ファイル,IDC_LABEL_AUTOSAVE,LTEXT,間隔は(I),,,
-ファイル,IDC_EDIT_AUTOBACKUP_INTERVAL,EDITTEXT,間隔は(I),,Common/bBackUpType2_Opt3,○
+ファイル,IDC_EDIT_AUTOBACKUP_INTERVAL,EDITTEXT,間隔は(I),,Common/bBackUpType2_Opt3,○（第 46 步生效）
 ファイル,IDC_LABEL_AUTOSAVE2,LTEXT,分ごと,,,
 ファイル,IDC_CHECK_NoFilterSaveNew,AUTOCHECKBOX,新規から保存時は全ファイル表示(O),m_sFile.m_bNoFilterSaveNew,Common/bNoFilterSaveNew,○
 ファイル,IDC_CHECK_NoFilterSaveFile,AUTOCHECKBOX,新規以外から保存時は全ファイル表示(F),m_sFile.m_bNoFilterSaveFile,Common/bNoFilterSaveFile,○
@@ -156,32 +156,32 @@
 ファイル名表示,IDC_BUTTON_FNAME_UP,PUSHBUTTON,上へ(U),,,○
 ファイル名表示,IDC_BUTTON_FNAME_DOWN,PUSHBUTTON,下へ(G),,,○
 ファイル名表示,IDC_BUTTON_FNAME_LAST,PUSHBUTTON,最終(B),,,○
-バックアップ,IDC_CHECK_BACKUP,AUTOCHECKBOX,保存時にバックアップを作成する(K),m_sBackup.m_bBackUp,Common/bBackUp,○
-バックアップ,IDC_CHECK_BACKUP_ADVANCED,AUTOCHECKBOX,詳細設定する(A),m_sBackup.m_bBackUpPathAdvanced,Common/bBackUpPathAdvanced,○
-バックアップ,IDC_EDIT_BACKUPFILE,EDITTEXT,バックアップの作成,m_sBackup.m_szBackUpPathAdvanced,Common/szBackUpPathAdvanced,○
-バックアップ,IDC_RADIO_BACKUP_TYPE1,AUTORADIOBUTTON,拡張子を .bakに変更したもの(1世代 B),,Common/nBackUpType,○
-バックアップ,IDC_RADIO_BACKUP_TYPE3,AUTORADIOBUTTON,拡張子を連番(.b00～b98)に変更したもの(G),,Common/nBackUpType,○
-バックアップ,IDC_RADIO_BACKUP_DATETYPE1,AUTORADIOBUTTON,ファイル名の後ろに保存時の日付・時刻を付加したもの(E),,Common/nBackUpType,○
-バックアップ,IDC_RADIO_BACKUP_DATETYPE2,AUTORADIOBUTTON,ファイル名の後ろに前回の保存時の日付・時刻を付加したもの(U),,Common/nBackUpType,○
-バックアップ,IDC_CHECK_BACKUP_RETAINEXT,AUTOCHECKBOX,元の拡張子を保存(R),m_sBackup.GetBackupType(),Common/nBackUpType,○
+バックアップ,IDC_CHECK_BACKUP,AUTOCHECKBOX,保存時にバックアップを作成する(K),m_sBackup.m_bBackUp,Common/bBackUp,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_ADVANCED,AUTOCHECKBOX,詳細設定する(A),m_sBackup.m_bBackUpPathAdvanced,Common/bBackUpPathAdvanced,○（第 46 步生效）
+バックアップ,IDC_EDIT_BACKUPFILE,EDITTEXT,バックアップの作成,m_sBackup.m_szBackUpPathAdvanced,Common/szBackUpPathAdvanced,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_TYPE1,AUTORADIOBUTTON,拡張子を .bakに変更したもの(1世代 B),,Common/nBackUpType,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_TYPE3,AUTORADIOBUTTON,拡張子を連番(.b00～b98)に変更したもの(G),,Common/nBackUpType,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_DATETYPE1,AUTORADIOBUTTON,ファイル名の後ろに保存時の日付・時刻を付加したもの(E),,Common/nBackUpType,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_DATETYPE2,AUTORADIOBUTTON,ファイル名の後ろに前回の保存時の日付・時刻を付加したもの(U),,Common/nBackUpType,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_RETAINEXT,AUTOCHECKBOX,元の拡張子を保存(R),m_sBackup.GetBackupType(),Common/nBackUpType,○（第 46 步生效）
 バックアップ,IDC_LABEL_BACKUP_3,LTEXT,保存する世代数(1-99 N),,,
-バックアップ,IDC_EDIT_BACKUP_3,EDITTEXT,保存する世代数(1-99 N),,Common/bBackUpType2_Opt2（下位 16 ビット）,○
-バックアップ,IDC_CHECK_BACKUP_YEAR,AUTOCHECKBOX,西暦(Y),,Common/bBackUpType2_Opt1（BKUP_YEAR）,○
-バックアップ,IDC_CHECK_BACKUP_MONTH,AUTOCHECKBOX,月(M),,Common/bBackUpType2_Opt1（BKUP_MONTH）,○
-バックアップ,IDC_CHECK_BACKUP_DAY,AUTOCHECKBOX,日(D),,Common/bBackUpType2_Opt1（BKUP_DAY）,○
-バックアップ,IDC_CHECK_BACKUP_HOUR,AUTOCHECKBOX,時(H),,Common/bBackUpType2_Opt1（BKUP_HOUR）,○
-バックアップ,IDC_CHECK_BACKUP_MIN,AUTOCHECKBOX,分(I),,Common/bBackUpType2_Opt1（BKUP_MIN）,○
-バックアップ,IDC_CHECK_BACKUP_SEC,AUTOCHECKBOX,秒(S),,Common/bBackUpType2_Opt1（BKUP_SEC）,○
-バックアップ,IDC_RADIO_BACKUP_DATETYPE1A,AUTORADIOBUTTON,保存時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○
-バックアップ,IDC_RADIO_BACKUP_DATETYPE2A,AUTORADIOBUTTON,前回のファイル更新時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○
+バックアップ,IDC_EDIT_BACKUP_3,EDITTEXT,保存する世代数(1-99 N),,Common/bBackUpType2_Opt2（下位 16 ビット）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_YEAR,AUTOCHECKBOX,西暦(Y),,Common/bBackUpType2_Opt1（BKUP_YEAR）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_MONTH,AUTOCHECKBOX,月(M),,Common/bBackUpType2_Opt1（BKUP_MONTH）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_DAY,AUTOCHECKBOX,日(D),,Common/bBackUpType2_Opt1（BKUP_DAY）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_HOUR,AUTOCHECKBOX,時(H),,Common/bBackUpType2_Opt1（BKUP_HOUR）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_MIN,AUTOCHECKBOX,分(I),,Common/bBackUpType2_Opt1（BKUP_MIN）,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_SEC,AUTOCHECKBOX,秒(S),,Common/bBackUpType2_Opt1（BKUP_SEC）,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_DATETYPE1A,AUTORADIOBUTTON,保存時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○（第 46 步生效）
+バックアップ,IDC_RADIO_BACKUP_DATETYPE2A,AUTORADIOBUTTON,前回のファイル更新時の日付・時刻を使用,,Common/bBackUpType2_Opt4,○（第 46 步生效）
 バックアップ,IDC_LABEL_BACKUP_HELP2,LTEXT,$x : x個上のフォルダー名(0-9)\r* : 拡張子\r\r%Y/%m/%d : 年月日 %y西暦(2桁) \r%H:%M:%S: 時分秒   \r%% : '%'記号\r,,,
-バックアップ,IDC_CHECK_BACKUPFOLDER,AUTOCHECKBOX,指定フォルダーに作成する(P),m_sBackup.m_bBackUpFolder,Common/bBackUpFolder,○
-バックアップ,IDC_CHECK_BACKUP_FOLDER_RM,AUTOCHECKBOX,リムーバブルメディアのみ(L),m_sBackup.m_bBackUpFolderRM,Common/bBackUpFolderRM,○
+バックアップ,IDC_CHECK_BACKUPFOLDER,AUTOCHECKBOX,指定フォルダーに作成する(P),m_sBackup.m_bBackUpFolder,Common/bBackUpFolder,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_FOLDER_RM,AUTOCHECKBOX,リムーバブルメディアのみ(L),m_sBackup.m_bBackUpFolderRM,Common/bBackUpFolderRM,○（第 46 步生效）
 バックアップ,IDC_LABEL_BACKUP_4,LTEXT,フォルダー名(F),,,
-バックアップ,IDC_EDIT_BACKUPFOLDER,EDITTEXT,フォルダー名(F),m_sBackup.m_szBackUpFolder,Common/szBackUpFolder,○
-バックアップ,IDC_BUTTON_BACKUP_FOLDER_REF,PUSHBUTTON,...,,,○
-バックアップ,IDC_CHECK_BACKUP_DUSTBOX,AUTOCHECKBOX,バックアップファイルをごみ箱に放り込む(X),m_sBackup.m_bBackUpDustBox,Common/bBackUpDustBox,○
-バックアップ,IDC_CHECK_BACKUPDIALOG,AUTOCHECKBOX,作成前に確認する(V),m_sBackup.m_bBackUpDialog,Common/bBackUpDialog,○
+バックアップ,IDC_EDIT_BACKUPFOLDER,EDITTEXT,フォルダー名(F),m_sBackup.m_szBackUpFolder,Common/szBackUpFolder,○（第 46 步生效）
+バックアップ,IDC_BUTTON_BACKUP_FOLDER_REF,PUSHBUTTON,...,,,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUP_DUSTBOX,AUTOCHECKBOX,バックアップファイルをごみ箱に放り込む(X),m_sBackup.m_bBackUpDustBox,Common/bBackUpDustBox,○（第 46 步生效）
+バックアップ,IDC_CHECK_BACKUPDIALOG,AUTOCHECKBOX,作成前に確認する(V),m_sBackup.m_bBackUpDialog,Common/bBackUpDialog,○（第 46 步生效）
 書式,IDC_RADIO_DFORM_0,AUTORADIOBUTTON,標準(S),m_sFormat.m_nDateFormatType,Common/nDateFormatType,○
 書式,IDC_RADIO_DFORM_1,AUTORADIOBUTTON,カスタム(C),,Common/nDateFormatType,○
 書式,IDC_LABEL_DFORM,LTEXT,D:,,,

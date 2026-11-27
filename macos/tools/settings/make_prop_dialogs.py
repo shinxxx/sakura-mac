@@ -9,7 +9,7 @@
 原版的 rc 改了以后重新运行：python3 make_prop_dialogs.py
 （输出 macos/app/Resources/CommonSettingsDialogs.json、TypeSettingsDialogs.json、
 第 42 步的アウトライン解析 OutlineDialogs.json、第 43 步的 Grep GrepDialogs.json、
-第 44 步的编辑辅助功能 EditSupportDialogs.json）
+第 44 步的编辑辅助功能 EditSupportDialogs.json、第 46 步的ファイルの更新 FileSafetyDialogs.json）
 """
 import json
 import os
@@ -45,6 +45,11 @@ EDIT_SUPPORT_DIALOGS = [
     "IDD_DIFF",
     "IDD_COMPARE",
     "IDD_TAGJUMPLIST",
+]
+
+# ファイルの安全機能（第 46 步。原版 CDlgFileUpdateQuery）
+FILE_SAFETY_DIALOGS = [
+    "IDD_FILEUPDATEQUERY",
 ]
 
 # 从タイプ別設定的页打开的对话框（第 40 步）
@@ -205,6 +210,7 @@ def main():
     write(lines, [], OUTLINE_DIALOGS, os.path.join(out_dir, "OutlineDialogs.json"))
     write(lines, [], GREP_DIALOGS, os.path.join(out_dir, "GrepDialogs.json"))
     write(lines, [], EDIT_SUPPORT_DIALOGS, os.path.join(out_dir, "EditSupportDialogs.json"))
+    write(lines, [], FILE_SAFETY_DIALOGS, os.path.join(out_dir, "FileSafetyDialogs.json"))
 
 
 if __name__ == "__main__":

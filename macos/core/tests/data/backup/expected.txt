@@ -1,0 +1,47 @@
+== bak ==
+test.bak: 1
+test.txt: 2
+== bak-retain-ext ==
+test.txt: 2
+test.txt.bak: 1
+== serial ==
+test.b00: 4
+test.b01: 3
+test.b02: 2
+test.txt: 5
+== serial-retain-ext ==
+test.txt: 4
+test.txt.x00: 3
+test.txt.x01: 2
+== serial-count1 ==
+test.b00: 2
+test.txt: 3
+== lastwrite-all ==
+test.txt: 2
+test_20260101102031.txt: 0
+test_20260102102032.txt: 1
+== lastwrite-month-day ==
+test.txt: 2
+test_0101.txt: 0
+test_0102.txt: 1
+== lastwrite-hour-sec ==
+test.txt: 2
+test_1031.txt: 0
+test_1032.txt: 1
+== folder ==
+bk/test.bak: 1
+test.txt: 2
+== folder-serial ==
+old/test.txt.b00: 2
+old/test.txt.b01: 1
+test.txt: 3
+== advanced-filetime ==
+test.txt: 2
+test_20260101_102031.txt: 0
+test_20260102_102032.txt: 1
+== advanced-folder-name ==
+advanced-folder-name-test.txt._26%: 1
+test.txt: 2
+== advanced-star ==
+bk_test_txt: 1
+test.txt: 2

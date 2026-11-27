@@ -73,6 +73,9 @@ extension SakuraDocument {
             return
         }
         fileModificationDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        // 第 46 步：更新の監視。読み込むと更新監視方法は既定に戻る（原版 CLoadAgent::OnLoad → CEditDoc::InitDoc）
+        fileSafety.watchUpdate = .query
+        fileSafety.storeFileTime(url)
         view.textChanged()
         view.restoreView(caret: caret, topRow: top, toEnd: false)	// 范围外时 setCaret 收到范围内
         view.refreshOutline()	// 第 42 步：アウトラインを再解析（原版 CLoadAgent → Refresh）
@@ -117,6 +120,8 @@ extension SakuraDocument {
         editor.closeToUntitled()
         fileURL = nil
         fileModificationDate = nil
+        fileSafety.watchUpdate = .query	// 第 46 步（原版 CEditDoc::InitDoc）
+        fileSafety.storeFileTime(nil)
         updateChangeCount(.changeCleared)
         if let view = editorWindowController?.textView {
             view.textChanged()
@@ -147,6 +152,7 @@ extension SakuraDocument {
         }
         fileURL = url
         fileModificationDate = (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+        fileSafety.storeFileTime(url)	// 第 46 步：更新の監視
         BookmarkStore.shared.remember(url)
         if let view = editorWindowController?.textView {
             view.textChanged()

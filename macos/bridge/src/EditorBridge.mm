@@ -2762,3 +2762,64 @@ std::vector<core::MacroCall> ToCoreCalls(NSArray<ECMacroCall *> *calls)
 + (NSString *)prepareJScript:(NSString *)source { return ToNSString(core::PrepareJScriptMacro(ToText(source))); }
 + (NSInteger)compareVersion:(NSString *)a with:(NSString *)b { return core::CompareVersionString(ToText(a), ToText(b)); }
 @end
+
+// ----- バックアップ（第 46 步） -----
+
+namespace {
+
+//! ObjC の ECBackupHandler を core::BackupHandler に
+struct BridgeBackupHandler final : core::BackupHandler {
+	id<ECBackupHandler> handler;
+	explicit BridgeBackupHandler(id<ECBackupHandler> h) : handler(h) {}
+	core::BackupAnswer Confirm(const core::Text& title, const core::Text& message, bool withCancel) override
+	{
+		switch ([handler confirmWithTitle:ToNSString(title) message:ToNSString(message) withCancel:withCancel ? YES : NO]) {
+		case ECBackupAnswerYes: return core::BackupAnswer::Yes;
+		case ECBackupAnswerNo: return core::BackupAnswer::No;
+		default: return core::BackupAnswer::Cancel;
+		}
+	}
+	void ShowError(const core::Text& title, const core::Text& message) override
+	{
+		[handler showErrorWithTitle:ToNSString(title) message:ToNSString(message)];
+	}
+	bool MoveToTrash(const core::Text& path) override { return [handler moveToTrash:ToNSString(path)] == YES; }
+};
+
+core::BackupTime ToBackupTime(NSDate *date)
+{
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *c = [calendar components:NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitHour
+											   | NSCalendarUnitMinute | NSCalendarUnitSecond fromDate:date];
+	core::BackupTime t;
+	t.year = static_cast<std::int32_t>(c.year);
+	t.month = static_cast<std::int32_t>(c.month);
+	t.day = static_cast<std::int32_t>(c.day);
+	t.hour = static_cast<std::int32_t>(c.hour);
+	t.minute = static_cast<std::int32_t>(c.minute);
+	t.second = static_cast<std::int32_t>(c.second);
+	return t;
+}
+
+} // namespace
+
+@implementation ECBackup
++ (nullable NSString *)formatPathFor:(NSString *)target date:(nullable NSDate *)date
+{
+	core::BackupTime t;
+	if (date) t = ToBackupTime(date);
+	const auto r = core::FormatBackupPath(ToText(target), date ? &t : nullptr);
+	return r ? ToNSString(*r) : nil;
+}
++ (ECBackupResult)makeBackupOf:(NSString *)target handler:(id<ECBackupHandler>)handler
+{
+	BridgeBackupHandler h(handler);
+	return static_cast<ECBackupResult>(core::MakeBackup(ToText(target), h));
+}
++ (BOOL)backupBeforeSave:(NSString *)target handler:(id<ECBackupHandler>)handler
+{
+	BridgeBackupHandler h(handler);
+	return core::BackupBeforeSave(ToText(target), h) ? YES : NO;
+}
++ (BOOL)isNeededFor:(NSString *)target { return core::IsBackupNeeded(ToText(target)) ? YES : NO; }
+@end

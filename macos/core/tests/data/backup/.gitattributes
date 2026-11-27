@@ -1,0 +1,2 @@
+# バックアップの対照の期待値：Windows でも LF のまま（CI の backup-windows が比べる）
+* -text

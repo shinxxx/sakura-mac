@@ -157,6 +157,11 @@ targets:
       - path: Sources/KeyMacro.swift
       - path: Sources/JSMacro.swift
       - path: Sources/MacroCommands.swift
+      # 第 46 步：ファイルの安全機能（バックアップ・自動保存・更新の監視）
+      - path: Sources/FileSafety.swift
+      - path: Sources/FileUpdateQueryDialog.swift
+      - path: Resources/FileSafetyDialogs.json
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder
