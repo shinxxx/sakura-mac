@@ -65,7 +65,7 @@ enum MacroHost {
     }
 
     /// 原版 STR_ERR_DLGMACRO02
-    static var errorTitle: String { NSLocalizedString("Macro実行エラー", comment: "STR_ERR_DLGMACRO02") }
+    static var errorTitle: String { L10n.tr("Macro実行エラー", comment: "STR_ERR_DLGMACRO02") }
 
     /// エラーのメッセージボックス（原版 MYMESSAGEBOX MB_ICONSTOP）。単体テストで差し替える。引数はタイトル、メッセージ
     static var showError: (String, String) -> Void = { title, message in
@@ -89,12 +89,12 @@ enum MacroHost {
         }
         switch type & 0x0F {
         case 1:	// MB_OKCANCEL
-            alert.addButton(withTitle: NSLocalizedString("OK", comment: "MB_OK"))
-            alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "MB_CANCEL"))
+            alert.addButton(withTitle: L10n.tr("OK", comment: "MB_OK"))
+            alert.addButton(withTitle: L10n.tr("キャンセル", comment: "MB_CANCEL"))
             return alert.runModal() == .alertFirstButtonReturn ? 1 : 2
         case 4:	// MB_YESNO
-            alert.addButton(withTitle: NSLocalizedString("はい", comment: "MB_YES"))
-            alert.addButton(withTitle: NSLocalizedString("いいえ", comment: "MB_NO"))
+            alert.addButton(withTitle: L10n.tr("はい", comment: "MB_YES"))
+            alert.addButton(withTitle: L10n.tr("いいえ", comment: "MB_NO"))
             return alert.runModal() == .alertFirstButtonReturn ? 6 : 7
         default:
             alert.runModal()
@@ -110,8 +110,8 @@ enum MacroHost {
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 22))
         field.stringValue = defaultValue
         alert.accessoryView = field
-        alert.addButton(withTitle: NSLocalizedString("OK", comment: "IDD_INPUT1"))
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "IDD_INPUT1"))
+        alert.addButton(withTitle: L10n.tr("OK", comment: "IDD_INPUT1"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "IDD_INPUT1"))
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let utf16 = Array(field.stringValue.utf16.prefix(maxLength))
@@ -176,19 +176,19 @@ enum MacroHost {
         switch code {
         case Code.wchar, Code.imeChar, Code.ctrlCode:
             guard let a = arg(0) else {
-                return error(NSLocalizedString("挿入すべき文字コードが指定されていません．", comment: "STR_ERR_DLGMACRO03"))
+                return error(L10n.tr("挿入すべき文字コードが指定されていません．", comment: "STR_ERR_DLGMACRO03"))
             }
             view.macroInsertCharacter(wtoi(a), code: code)
         case Code.chgmodEol:
             guard let a = arg(0) else {
-                return error(NSLocalizedString("入力改行コードが指定されていません．", comment: "STR_ERR_DLGMACRO03_1"))
+                return error(L10n.tr("入力改行コードが指定されていません．", comment: "STR_ERR_DLGMACRO03_1"))
             }
             // マクロ引数値 → EOL（原版：1 CRLF、3 LF、4 CR、5 NEL、6 LS、7 PS。それ以外は何もしない）
             let eolCommands = [1: 31081, 3: 31082, 4: 31083, 5: 31084, 6: 31086, 7: 31085]
             if let eolCode = eolCommands[wtoi(a)], view.document.isEnabled(eolCode) { _ = view.document.execute(eolCode) }
         case Code.insText, Code.addTail, Code.insBoxText:
             guard let text = arg(0) else {
-                return error(NSLocalizedString("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO04"))
+                return error(L10n.tr("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO04"))
             }
             switch code {
             case Code.insText: view.macroInsertText(text)
@@ -206,7 +206,7 @@ enum MacroHost {
             }
         case Code.jump:
             guard let a = arg(0) else {
-                return error(NSLocalizedString("ジャンプ先行番号が指定されていません．", comment: "STR_ERR_DLGMACRO05"))
+                return error(L10n.tr("ジャンプ先行番号が指定されていません．", comment: "STR_ERR_DLGMACRO05"))
             }
             let flag = int(1, 1)	// 省略時 1（改行単位）
             let settings = EditorCore.searchSettings
@@ -216,20 +216,20 @@ enum MacroHost {
                                                plsql: flag & 0x02 != 0, plsqlBlockFirstLine: JumpDialogController.shared.plsqlFirstLine))
         case Code.bookmarkPattern, Code.searchNext, Code.searchPrev:
             if code == Code.bookmarkPattern && arg(0) == nil {
-                return error(NSLocalizedString("マーク行のパターンが指定されていません．", comment: "STR_ERR_DLGMACRO06"))
+                return error(L10n.tr("マーク行のパターンが指定されていません．", comment: "STR_ERR_DLGMACRO06"))
             }
             macroSearch(code, key: arg(0) ?? "", flag: int(1), view: view)
         case Code.replace, Code.replaceAll:
             guard let key = arg(0), !key.isEmpty else {
-                return error(NSLocalizedString("置換元パターンが指定されていません．", comment: "STR_ERR_DLGMACRO09"))
+                return error(L10n.tr("置換元パターンが指定されていません．", comment: "STR_ERR_DLGMACRO09"))
             }
             guard let replacement = arg(1) else {
-                return error(NSLocalizedString("置換先パターンが指定されていません．", comment: "STR_ERR_DLGMACRO10"))
+                return error(L10n.tr("置換先パターンが指定されていません．", comment: "STR_ERR_DLGMACRO10"))
             }
             macroReplace(code, key: key, replacement: replacement, flag: int(2), view: view)
         case Code.moveCursor, Code.moveCursorLayout:
             guard let l = arg(0), let c = arg(1), let o = arg(2) else {
-                return error(NSLocalizedString("数値を指定してください．", comment: "STR_ERR_DLGMACRO16"))
+                return error(L10n.tr("数値を指定してください．", comment: "STR_ERR_DLGMACRO16"))
             }
             view.macroMoveCursor(line: wtoi(l) - 1, column: wtoi(c) - 1, option: wtoi(o), layout: code == Code.moveCursorLayout)
         case Code.messageBox, Code.errorMsg, Code.warnMsg, Code.infoMsg, Code.okCancelBox, Code.yesNoBox:
@@ -243,7 +243,7 @@ enum MacroHost {
             break	// Mac 版にまだない（タブ幅・折り返し桁の一時変更）。キーマクロは止めない
         case Code.statusMsg:
             guard let message = arg(0) else {
-                return error(NSLocalizedString("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO07"))
+                return error(L10n.tr("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO07"))
             }
             // 0：ステータスバー、1：ステータスバーがなければメッセージボックス、2：ステータスバーの 2 つ目。Mac 版はどれも編集画面の左下
             view.sendStatusMessage(message)
@@ -263,7 +263,7 @@ enum MacroHost {
         case Code.setQuoteString:
             // 共通設定: 引用符の設定（原版 Command_SET_QUOTESTRING）
             guard let quote = arg(0) else {
-                return error(NSLocalizedString("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO04"))
+                return error(L10n.tr("引数(文字列)が指定されていません．", comment: "STR_ERR_DLGMACRO04"))
             }
             EditorCore.setCommonSetting(quote, section: "Common", key: "szInyouKigou")
         case Code.textWrapMethod:

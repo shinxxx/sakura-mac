@@ -98,7 +98,7 @@ extension EditorTextView {
     private func prepareMigemo() -> Bool {
         let folder = Self.migemoDictionaryFolder
         if !FolderAccess.shared.startAccess(path: folder) && !FolderAccess.doesNotExist(folder) {
-            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: NSLocalizedString(
+            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: L10n.tr(
                 "Migemo の辞書「%@」を読むには、このフォルダーへのアクセスを許可してください。", comment: "Migemo 辞書のフォルダーの許可"))
         }
         switch EditorCore.prepareMigemo() {
@@ -106,10 +106,10 @@ extension EditorTextView {
             return true
         case .noLibrary:
             Self.beep()
-            sendStatusMessage(NSLocalizedString("MIGEMO.DLLが使用できません。", comment: "STR_EDITVWISRCH_MIGEGO1"))
+            sendStatusMessage(L10n.tr("MIGEMO.DLLが使用できません。", comment: "STR_EDITVWISRCH_MIGEGO1"))
         default:
             Self.beep()
-            sendStatusMessage(NSLocalizedString("MIGEMOは使用できません。", comment: "STR_EDITVWISRCH_MIGEGO2"))
+            sendStatusMessage(L10n.tr("MIGEMOは使用できません。", comment: "STR_EDITVWISRCH_MIGEGO2"))
         }
         return false
     }
@@ -188,7 +188,7 @@ extension EditorTextView {
             isearch.wrap = false
             isearch.history[isearch.historyCount] = match
         } else {
-            message += NSLocalizedString(" (見つかりません)", comment: "STR_EDITVWISRCH_NOMATCH")
+            message += L10n.tr(" (見つかりません)", comment: "STR_EDITVWISRCH_NOMATCH")
             if next { isearch.wrap = true }
             isearch.history[isearch.historyCount] = selection ?? EditorRange(from: caret, to: caret)
         }

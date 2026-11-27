@@ -100,7 +100,7 @@ final class KeyBindPage: CommonSettingsPageLogic {
             return
         }
         let code = editor.function(ofKey: key, modifiers: modifiers(page))
-        page.setText(idc("EDIT_KEYSFUNC"), code == 0 ? NSLocalizedString("未割当", comment: "STR_PROPCOMKEYBIND_UNASSIGN")
+        page.setText(idc("EDIT_KEYSFUNC"), code == 0 ? L10n.tr("未割当", comment: "STR_PROPCOMKEYBIND_UNASSIGN")
                                                      : editor.name(ofFunction: code))
     }
 
@@ -185,7 +185,7 @@ final class KeyBindPage: CommonSettingsPageLogic {
             let ok = editor.exportKeyBind(path: path, message: &message)
             let text = message as String? ?? ""
             TypeSettingsPages.showMessage(!ok || !text.isEmpty ? text
-                                          : NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
+                                          : L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
         default:
             break
         }

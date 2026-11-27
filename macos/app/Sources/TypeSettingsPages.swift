@@ -150,7 +150,7 @@ final class ColorPicker: NSObject {
         let ok = NSButton(title: "OK", target: self, action: #selector(okClicked(_:)))
         ok.keyEquivalent = "\r"
         ok.frame = NSRect(x: 120, y: 6, width: 90, height: 28)
-        let cancel = NSButton(title: NSLocalizedString("キャンセル", comment: "色の選択"), target: self, action: #selector(cancelClicked(_:)))
+        let cancel = NSButton(title: L10n.tr("キャンセル", comment: "色の選択"), target: self, action: #selector(cancelClicked(_:)))
         cancel.keyEquivalent = "\u{1b}"
         cancel.frame = NSRect(x: 22, y: 6, width: 90, height: 28)
         accessory.addSubview(cancel)
@@ -213,36 +213,36 @@ typealias NamedValues = [(value: Int, title: String)]
 // MARK: - スクリーン（CPropTypesScreen.cpp）
 
 /// 折り返し方法（原版 WrapMethodArr）
-let wrapMethods: NamedValues = [
-    (0, NSLocalizedString("折り返さない", comment: "STR_WRAP_METHOD_NO_WRAP")),
-    (1, NSLocalizedString("指定桁で折り返す", comment: "STR_WRAP_METHOD_SPEC_WIDTH")),
-    (2, NSLocalizedString("右端で折り返す", comment: "STR_WRAP_METHOD_WIN_WIDTH")),
-]
+var wrapMethods: NamedValues { [
+    (0, L10n.tr("折り返さない", comment: "STR_WRAP_METHOD_NO_WRAP")),
+    (1, L10n.tr("指定桁で折り返す", comment: "STR_WRAP_METHOD_SPEC_WIDTH")),
+    (2, L10n.tr("右端で折り返す", comment: "STR_WRAP_METHOD_WIN_WIDTH")),
+] }
 /// TAB表示（原版 TabArrowArr）
-let tabArrows: NamedValues = [
-    (0, NSLocalizedString("文字指定", comment: "STR_TAB_SYMBOL_CHARA")),
-    (1, NSLocalizedString("短い矢印", comment: "STR_TAB_SYMBOL_SHORT_ARROW")),
-    (2, NSLocalizedString("長い矢印", comment: "STR_TAB_SYMBOL_LONG_ARROW")),
-]
+var tabArrows: NamedValues { [
+    (0, L10n.tr("文字指定", comment: "STR_TAB_SYMBOL_CHARA")),
+    (1, L10n.tr("短い矢印", comment: "STR_TAB_SYMBOL_SHORT_ARROW")),
+    (2, L10n.tr("長い矢印", comment: "STR_TAB_SYMBOL_LONG_ARROW")),
+] }
 /// TSVモード（原版 TsvModeArr）
-let tsvModes: NamedValues = [
-    (0, NSLocalizedString("通常", comment: "STR_TSV_MODE_NONE")),
+var tsvModes: NamedValues { [
+    (0, L10n.tr("通常", comment: "STR_TSV_MODE_NONE")),
     (1, "TSV"),
     (2, "CSV"),
-]
+] }
 /// スマートインデント（原版 SmartIndentArr）
-let smartIndents: NamedValues = [
-    (0, NSLocalizedString("なし", comment: "STR_SMART_INDENT_NONE")),
+var smartIndents: NamedValues { [
+    (0, L10n.tr("なし", comment: "STR_SMART_INDENT_NONE")),
     (1, "C/C++"),
-]
+] }
 /// 折り返し行インデント（原版 IndentTypeArr）
-let wrapIndents: NamedValues = [
-    (0, NSLocalizedString("なし", comment: "STR_WRAP_INDENT_NONE")),
+var wrapIndents: NamedValues { [
+    (0, L10n.tr("なし", comment: "STR_WRAP_INDENT_NONE")),
     (1, "tx2x"),
-    (2, NSLocalizedString("論理行先頭", comment: "STR_WRAP_INDENT_BOL")),
-]
+    (2, L10n.tr("論理行先頭", comment: "STR_WRAP_INDENT_BOL")),
+] }
 /// アウトライン解析方法・標準ルール（原版 OlmArr。値は EOutlineType）
-let outlineMethods: NamedValues = [
+var outlineMethods: NamedValues { [
     (1, "C/C++"),		// OUTLINE_C_CPP
     (0, "C"),			// OUTLINE_C
     (16, "C++"),		// OUTLINE_CPP
@@ -250,16 +250,16 @@ let outlineMethods: NamedValues = [
     (4, "Java"),		// OUTLINE_JAVA
     (5, "COBOL"),		// OUTLINE_COBOL
     (7, "Perl"),		// OUTLINE_PERL
-    (6, NSLocalizedString("アセンブラ", comment: "STR_OUTLINE_ASM")),	// OUTLINE_ASM
+    (6, L10n.tr("アセンブラ", comment: "STR_OUTLINE_ASM")),	// OUTLINE_ASM
     (8, "Visual Basic"),	// OUTLINE_VB
     (13, "Python"),		// OUTLINE_PYTHON
     (14, "Erlang"),		// OUTLINE_ERLANG
-    (9, NSLocalizedString("WZ階層付テキスト", comment: "STR_OUTLINE_WZ")),	// OUTLINE_WZTXT
+    (9, L10n.tr("WZ階層付テキスト", comment: "STR_OUTLINE_WZ")),	// OUTLINE_WZTXT
     (10, "HTML"),		// OUTLINE_HTML
     (15, "XML"),		// OUTLINE_XML
     (11, "TeX"),		// OUTLINE_TEX
-    (3, NSLocalizedString("テキスト", comment: "STR_OUTLINE_TEXT")),	// OUTLINE_TEXT
-]
+    (3, L10n.tr("テキスト", comment: "STR_OUTLINE_TEXT")),	// OUTLINE_TEXT
+] }
 /// アウトライン解析：ルールファイル（OUTLINE_FILE）
 let outlineRuleFile = 12
 
@@ -445,35 +445,35 @@ struct TypeScreenPage: CommonSettingsPageLogic {
 // MARK: - ウィンドウ（CPropTypesWindow.cpp）
 
 /// 起動時のIME：ON/OFF状態（原版 ImeSwitchArr）
-let imeSwitches: NamedValues = [
-    (0, NSLocalizedString("そのまま", comment: "STR_IME_SWITCH_DONTSET")),
-    (1, NSLocalizedString("常にON", comment: "STR_IME_SWITCH_ON")),
-    (2, NSLocalizedString("常にOFF", comment: "STR_IME_SWITCH_OFF")),
-]
+var imeSwitches: NamedValues { [
+    (0, L10n.tr("そのまま", comment: "STR_IME_SWITCH_DONTSET")),
+    (1, L10n.tr("常にON", comment: "STR_IME_SWITCH_ON")),
+    (2, L10n.tr("常にOFF", comment: "STR_IME_SWITCH_OFF")),
+] }
 /// 起動時のIME：入力モード（原版 ImeStateArr）
-let imeStates: NamedValues = [
-    (0, NSLocalizedString("標準設定", comment: "STR_IME_STATE_DEF")),
-    (1, NSLocalizedString("全角", comment: "STR_IME_STATE_FULL")),
-    (2, NSLocalizedString("全角ひらがな", comment: "STR_IME_STATE_FULLHIRA")),
-    (3, NSLocalizedString("全角カタカナ", comment: "STR_IME_STATE_FULLKATA")),
-    (4, NSLocalizedString("無変換", comment: "STR_IME_STATE_NO")),
-]
+var imeStates: NamedValues { [
+    (0, L10n.tr("標準設定", comment: "STR_IME_STATE_DEF")),
+    (1, L10n.tr("全角", comment: "STR_IME_STATE_FULL")),
+    (2, L10n.tr("全角ひらがな", comment: "STR_IME_STATE_FULLHIRA")),
+    (3, L10n.tr("全角カタカナ", comment: "STR_IME_STATE_FULLKATA")),
+    (4, L10n.tr("無変換", comment: "STR_IME_STATE_NO")),
+] }
 /// 改行コード（原版 aszEolStr、aeEolType）
 let defaultEols: NamedValues = [
     (1, "CR+LF"), (2, "LF (UNIX)"), (3, "CR (Mac)"), (4, "NEL"), (5, "LS"), (6, "PS"),
 ]
 /// 背景画像の表示位置（原版 STR_IMAGE_POS1～9。値は EBackgroundImagePos）
-let backgroundImagePositions: NamedValues = [
-    (0, NSLocalizedString("左上", comment: "STR_IMAGE_POS1")),
-    (1, NSLocalizedString("右上", comment: "STR_IMAGE_POS2")),
-    (2, NSLocalizedString("左下", comment: "STR_IMAGE_POS3")),
-    (3, NSLocalizedString("右下", comment: "STR_IMAGE_POS4")),
-    (4, NSLocalizedString("中央", comment: "STR_IMAGE_POS5")),
-    (5, NSLocalizedString("中央上", comment: "STR_IMAGE_POS6")),
-    (6, NSLocalizedString("中央下", comment: "STR_IMAGE_POS7")),
-    (7, NSLocalizedString("中央左", comment: "STR_IMAGE_POS8")),
-    (8, NSLocalizedString("中央右", comment: "STR_IMAGE_POS9")),
-]
+var backgroundImagePositions: NamedValues { [
+    (0, L10n.tr("左上", comment: "STR_IMAGE_POS1")),
+    (1, L10n.tr("右上", comment: "STR_IMAGE_POS2")),
+    (2, L10n.tr("左下", comment: "STR_IMAGE_POS3")),
+    (3, L10n.tr("右下", comment: "STR_IMAGE_POS4")),
+    (4, L10n.tr("中央", comment: "STR_IMAGE_POS5")),
+    (5, L10n.tr("中央上", comment: "STR_IMAGE_POS6")),
+    (6, L10n.tr("中央下", comment: "STR_IMAGE_POS7")),
+    (7, L10n.tr("中央左", comment: "STR_IMAGE_POS8")),
+    (8, L10n.tr("中央右", comment: "STR_IMAGE_POS9")),
+] }
 
 struct TypeWindowPage: CommonSettingsPageLogic {
     static let lineNumWidthRange = 2...11	// LINENUMWIDTH_MIN、LINENUMWIDTH_MAX
@@ -634,7 +634,7 @@ struct TypeSupportPage: CommonSettingsPageLogic {
     func setData(_ page: PropPage, _ values: CommonSettingsValues) {
         page.setText(idc("EDIT_HOKANFILE"), values.string("szHokanFile"))
         // 補完種別：プラグインがないので「なし」だけ（値は変えない）
-        page.setItems(idc("COMBO_HOKAN_TYPE"), [NSLocalizedString("なし", comment: "STR_SMART_INDENT_NONE")], selected: 0)
+        page.setItems(idc("COMBO_HOKAN_TYPE"), [L10n.tr("なし", comment: "STR_SMART_INDENT_NONE")], selected: 0)
         page.loadChecks(checks, values)
         page.setText(idc("EDIT_TYPEEXTHELP"), values.string("szExtHelp"))
         page.setText(idc("EDIT_TYPEEXTHTMLHELP"), values.string("szExtHtmlHelp"))

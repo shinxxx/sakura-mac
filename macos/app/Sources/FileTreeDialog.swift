@@ -41,7 +41,7 @@ final class FileTreeDialogController: NSObject {
             if item.type != .folder {
                 if !item.label.isEmpty { return item.label }
                 if [".", ".\\", "./"].contains(item.path) {
-                    return NSLocalizedString("<カレントフォルダー>", comment: "STR_FILETREE_CURDIR")
+                    return L10n.tr("<カレントフォルダー>", comment: "STR_FILETREE_CURDIR")
                 }
                 return item.path
             }
@@ -85,7 +85,7 @@ final class FileTreeDialogController: NSObject {
     // MARK: - 控件
 
     private func setUpControls() {
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         (page.control("IDC_STATIC_SETTFING_FROM") as? NSTextField)?.lineBreakMode = .byTruncatingMiddle
         // 「...」（10×13）と「▼(3)」（21×14）：原版は小さなボタンが隣り合う。Mac の角丸ボタンでは重なるので、
         // アウトラインの ▼・■ と同じく余白のない四角いボタンにして原版の位置に置く
@@ -103,7 +103,7 @@ final class FileTreeDialogController: NSObject {
         }
         if let button = page.control("IDC_BUTTON_PATH_MENU") as? NSButton {
             button.title = "▼"	// 原版「▼(&3)」。アクセスキーの (3) は入らない
-            button.toolTip = NSLocalizedString("▼(3)", comment: "IDD_FILETREE")
+            button.toolTip = L10n.tr("▼(3)", comment: "IDD_FILETREE")
         }
         // 「読み込み」は右のボタンの列にくっつかないように（原版は 1 単位の隙間）
         if let load = page.control("IDC_BUTTON_LOAD"), let column = page.control("IDC_BUTTON_INSERT_A") {
@@ -118,15 +118,15 @@ final class FileTreeDialogController: NSObject {
         var enableDefIni = true
         if setting.loadedFrom != .file {
             var text = setting.loadedFrom == .common
-                ? NSLocalizedString("設定: 共通設定", comment: "STR_FILETREE_FROM_COMMON")
-                : NSLocalizedString("設定: タイプ別設定", comment: "STR_FILETREE_FROM_TYPE")
+                ? L10n.tr("設定: 共通設定", comment: "STR_FILETREE_FROM_COMMON")
+                : L10n.tr("設定: タイプ別設定", comment: "STR_FILETREE_FROM_TYPE")
             if !setting.loadedIni.isEmpty {
-                text += "+" + NSLocalizedString("ファイル", comment: "F_FILE_TOPMENU")
+                text += "+" + L10n.tr("ファイル", comment: "F_FILE_TOPMENU")
             }
             page.setText("IDC_STATIC_SETTFING_FROM", text)
         } else {
             page.setText("IDC_STATIC_SETTFING_FROM",
-                         String(format: NSLocalizedString("設定: %@", comment: "STR_FILETREE_FROM_FILE"), setting.loadedIni))
+                         String(format: L10n.tr("設定: %@", comment: "STR_FILETREE_FROM_FILE"), setting.loadedIni))
             enableDefIni = false
         }
         page.setEnabled("IDC_BUTTON_LOAD", enableDefIni)
@@ -166,7 +166,7 @@ final class FileTreeDialogController: NSObject {
     }
 
     static var maxCountMessage: String {
-        String(format: NSLocalizedString("最大数(%d)を超えたため切り捨てました", comment: "STR_FILETREE_MAXCOUNT"), FileTreeCore.maxItems)
+        String(format: L10n.tr("最大数(%d)を超えたため切り捨てました", comment: "STR_FILETREE_MAXCOUNT"), FileTreeCore.maxItems)
     }
 
     /// 原版 SetDataItem：項目の内容をコントロールに（項目が無いときは初期値）
@@ -344,7 +344,7 @@ final class FileTreeDialogController: NSObject {
             guard let path = TypeSettingsPages.chooseExportFile("", ["ini"], page.view.window) else { return }
             let error = FileTreeCore.exportItems(treeItems(), path: path)
             TypeSettingsPages.showMessage(error.isEmpty
-                ? NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path : error)
+                ? L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path : error)
         case "IDOK":
             getData()
             onClose?(true)
@@ -367,7 +367,7 @@ final class FileTreeDialogController: NSObject {
     private func delete() {
         guard let tree, let node = tree.selectedNode else { return }
         if !node.children.isEmpty,
-           !CommonSettingsPages.confirm(NSLocalizedString("選択している項目を下位項目ごと削除します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_DEL")) {
+           !CommonSettingsPages.confirm(L10n.tr("選択している項目を下位項目ごと削除します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_DEL")) {
             return
         }
         var siblings = node.siblings(in: tree)
@@ -449,16 +449,16 @@ final class FileTreeDialogController: NSObject {
     }
 
     /// 「▼」（原版 IDC_BUTTON_PATH_MENU）：パスの変数を入れる
-    static let pathMenu: [(title: String, value: String)] = [
-        (NSLocalizedString("INIルート(I)", comment: "STR_FILETREE_MENU_ROOT"), "<iniroot>"),
-        (NSLocalizedString("マイ ドキュメント(Y)", comment: "STR_FILETREE_MENU_MYDOC"), "%MYDOC%"),
-        (NSLocalizedString("マイ ミュージック(M)", comment: "STR_FILETREE_MENU_MYMUSIC"), "%MYMUSIC%"),
-        (NSLocalizedString("マイ ビデオ(V)", comment: "STR_FILETREE_MENU_MYVIDEO"), "%MYVIDEO%"),
-        (NSLocalizedString("デスクトップ(D)", comment: "STR_FILETREE_MENU_DESK"), "%DESKTOP%"),
-        (NSLocalizedString("Temp(T)", comment: "STR_FILETREE_MENU_TEMP"), "%TEMP%"),
-        (NSLocalizedString("sakura(S)", comment: "STR_FILETREE_MENU_SAKURA"), "%SAKURA%"),
-        (NSLocalizedString("sakuraデータ(A)", comment: "STR_FILETREE_MENU_SAKURADATA"), "%SAKURADATA%"),
-    ]
+    static var pathMenu: [(title: String, value: String)] { [
+        (L10n.tr("INIルート(I)", comment: "STR_FILETREE_MENU_ROOT"), "<iniroot>"),
+        (L10n.tr("マイ ドキュメント(Y)", comment: "STR_FILETREE_MENU_MYDOC"), "%MYDOC%"),
+        (L10n.tr("マイ ミュージック(M)", comment: "STR_FILETREE_MENU_MYMUSIC"), "%MYMUSIC%"),
+        (L10n.tr("マイ ビデオ(V)", comment: "STR_FILETREE_MENU_MYVIDEO"), "%MYVIDEO%"),
+        (L10n.tr("デスクトップ(D)", comment: "STR_FILETREE_MENU_DESK"), "%DESKTOP%"),
+        (L10n.tr("Temp(T)", comment: "STR_FILETREE_MENU_TEMP"), "%TEMP%"),
+        (L10n.tr("sakura(S)", comment: "STR_FILETREE_MENU_SAKURA"), "%SAKURA%"),
+        (L10n.tr("sakuraデータ(A)", comment: "STR_FILETREE_MENU_SAKURADATA"), "%SAKURADATA%"),
+    ] }
 
     func makePathMenu() -> NSMenu {
         let menu = NSMenu()
@@ -489,9 +489,9 @@ final class FileTreeDialogController: NSObject {
 
     /// 「パスの一括置換」（原版 IDC_BUTTON_REPLACE）：全部の項目のパスの文字列を置き換える
     private func replacePaths() {
-        let title = NSLocalizedString("文字列を指定してください。", comment: "STR_DLGREPLC_STR")
-        guard let from = CommonSettingsPages.input(title, NSLocalizedString("置換元パスを指定してください", comment: "STR_FILETREE_REPLACE_PATH_FROM"), 259, ""),
-              let to = CommonSettingsPages.input(title, NSLocalizedString("置換先文字列を指定してください", comment: "STR_FILETREE_REPLACE_PATH_TO"), 259, "") else { return }
+        let title = L10n.tr("文字列を指定してください。", comment: "STR_DLGREPLC_STR")
+        guard let from = CommonSettingsPages.input(title, L10n.tr("置換元パスを指定してください", comment: "STR_FILETREE_REPLACE_PATH_FROM"), 259, ""),
+              let to = CommonSettingsPages.input(title, L10n.tr("置換先文字列を指定してください", comment: "STR_FILETREE_REPLACE_PATH_TO"), 259, "") else { return }
         func walk(_ nodes: [PropTreeNode]) {
             for case let node as Node in nodes {
                 if !from.isEmpty {

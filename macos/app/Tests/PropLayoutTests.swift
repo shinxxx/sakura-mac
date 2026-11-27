@@ -45,7 +45,7 @@ final class PropLayoutTests: XCTestCase {
         // 説明（IDC_STATIC を含む）
         for case let label as NSTextField in page.view.subviews where !label.isEditable && !label.isHidden && !label.stringValue.isEmpty {
             let singleLine = label.cell?.wraps == false || label.frame.height <= PropPage.points(12)
-            if singleLine && !label.stringValue.contains("\n") && label.fittingSize.width > label.frame.width + 0.5 && label.alignment == .left {
+            if singleLine && !label.stringValue.contains("\n") && label.fittingSize.width > label.frame.width + 0.5 && label.alignment != .justified {	// 右寄せ・中央も（第 48 步：中文「@(@)」）
                 result.append("label \(label.stringValue) \(label.fittingSize.width) > \(label.frame.width)")
             }
         }

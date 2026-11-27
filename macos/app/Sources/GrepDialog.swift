@@ -81,7 +81,7 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
     private func setUpControls() {
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"	// DEFPUSHBUTTON
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         // 文字コードセット（原版 CCodeTypesForCombobox）
         let choices = EditorCore.encodingChoices.map { (value: $0.encoding, title: $0.name) }
         page.setTaggedItems("IDC_COMBO_CHARSET", choices, selectedValue: nil)
@@ -207,8 +207,8 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
             state.folder = page.text("IDC_COMBO_FOLDER")
             state.excludeFile = page.text("IDC_COMBO_EXCLUDE_FILE")
             state.excludeFolder = page.text("IDC_COMBO_EXCLUDE_FOLDER")
-            page.setText("IDC_COMBO_FILE", NSLocalizedString("(現在のドキュメント)", comment: "STR_DLGGREP_THISDOC"))
-            page.setText("IDC_COMBO_FOLDER", NSLocalizedString("(現在のドキュメント)", comment: "STR_DLGGREP_THISDOC"))
+            page.setText("IDC_COMBO_FILE", L10n.tr("(現在のドキュメント)", comment: "STR_DLGGREP_THISDOC"))
+            page.setText("IDC_COMBO_FOLDER", L10n.tr("(現在のドキュメント)", comment: "STR_DLGGREP_THISDOC"))
             page.setText("IDC_COMBO_EXCLUDE_FILE", "")
             page.setText("IDC_COMBO_EXCLUDE_FOLDER", "")
             enable = false
@@ -277,7 +277,7 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
     private func checkPaste() -> Bool {
         var ok = true
         if page.isChecked("IDC_CHK_PASTE") && !canPaste() {
-            Self.showMessage(NSLocalizedString("クリップボードに有効なデータがありません！", comment: "STR_DLGREPLC_CLIPBOARD"), window)
+            Self.showMessage(L10n.tr("クリップボードに有効なデータがありません！", comment: "STR_DLGREPLC_CLIPBOARD"), window)
             page.setChecked("IDC_CHK_PASTE", false)
             ok = false
         }
@@ -291,7 +291,7 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.message = NSLocalizedString("検索するフォルダーを選んでください", comment: "STR_DLGGREP1")
+        panel.message = L10n.tr("検索するフォルダーを選んでください", comment: "STR_DLGGREP1")
         panel.directoryURL = URL(fileURLWithPath: start, isDirectory: true)
         return panel.runModal() == .OK ? panel.url : nil
     }
@@ -347,7 +347,7 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
         if isReplace {
             state.text2 = page.text("IDC_COMBO_TEXT2")
             if page.text("IDC_COMBO_TEXT").isEmpty {
-                Self.showMessage(NSLocalizedString("置換条件を指定してください。", comment: "STR_DLGREPLC_REPSTR"), window)
+                Self.showMessage(L10n.tr("置換条件を指定してください。", comment: "STR_DLGREPLC_REPSTR"), window)
                 return false
             }
             backup = page.isChecked("IDC_CHK_BACKUP")

@@ -36,13 +36,13 @@ final class JSMacroRunner {
         }
         let buttons: [(String, Int)]
         switch type & 0x0F {
-        case 1: buttons = [("OK", 1), (NSLocalizedString("キャンセル", comment: "MB_OKCANCEL"), 2)]
-        case 2: buttons = [(NSLocalizedString("中止", comment: "MB_ABORTRETRYIGNORE"), 3), (NSLocalizedString("再試行", comment: "MB_ABORTRETRYIGNORE"), 4),
-                           (NSLocalizedString("無視", comment: "MB_ABORTRETRYIGNORE"), 5)]
-        case 3: buttons = [(NSLocalizedString("はい", comment: "MB_YESNOCANCEL"), 6), (NSLocalizedString("いいえ", comment: "MB_YESNOCANCEL"), 7),
-                           (NSLocalizedString("キャンセル", comment: "MB_YESNOCANCEL"), 2)]
-        case 4: buttons = [(NSLocalizedString("はい", comment: "MB_YESNO"), 6), (NSLocalizedString("いいえ", comment: "MB_YESNO"), 7)]
-        case 5: buttons = [(NSLocalizedString("再試行", comment: "MB_RETRYCANCEL"), 4), (NSLocalizedString("キャンセル", comment: "MB_RETRYCANCEL"), 2)]
+        case 1: buttons = [("OK", 1), (L10n.tr("キャンセル", comment: "MB_OKCANCEL"), 2)]
+        case 2: buttons = [(L10n.tr("中止", comment: "MB_ABORTRETRYIGNORE"), 3), (L10n.tr("再試行", comment: "MB_ABORTRETRYIGNORE"), 4),
+                           (L10n.tr("無視", comment: "MB_ABORTRETRYIGNORE"), 5)]
+        case 3: buttons = [(L10n.tr("はい", comment: "MB_YESNOCANCEL"), 6), (L10n.tr("いいえ", comment: "MB_YESNOCANCEL"), 7),
+                           (L10n.tr("キャンセル", comment: "MB_YESNOCANCEL"), 2)]
+        case 4: buttons = [(L10n.tr("はい", comment: "MB_YESNO"), 6), (L10n.tr("いいえ", comment: "MB_YESNO"), 7)]
+        case 5: buttons = [(L10n.tr("再試行", comment: "MB_RETRYCANCEL"), 4), (L10n.tr("キャンセル", comment: "MB_RETRYCANCEL"), 2)]
         default: buttons = [("OK", 1)]
         }
         for b in buttons { alert.addButton(withTitle: b.0) }
@@ -60,7 +60,7 @@ final class JSMacroRunner {
     }
 
     /// 中断のメッセージ（原版 STR_ERR_CWSH09）
-    static var abortMessage: String { NSLocalizedString("マクロの実行を中断しました。", comment: "STR_ERR_CWSH09") }
+    static var abortMessage: String { L10n.tr("マクロの実行を中断しました。", comment: "STR_ERR_CWSH09") }
 
     let view: EditorTextView
     let source: String
@@ -112,7 +112,7 @@ final class JSMacroRunner {
             return false
         }
         if canceled {	// 命令を呼ばないループを中断した
-            MacroHost.showError(NSLocalizedString("JScript 実行時エラー", comment: "WSH のエラーの種類（Mac 版）"), Self.abortMessage)
+            MacroHost.showError(L10n.tr("JScript 実行時エラー", comment: "WSH のエラーの種類（Mac 版）"), Self.abortMessage)
             return false
         }
         return !canceled
@@ -219,8 +219,8 @@ final class JSMacroRunner {
             var message = exception.objectForKeyedSubscript("message")?.toString() ?? exception.toString() ?? ""
             if message.isEmpty || message == "undefined" { message = exception.toString() ?? "" }
             let isSyntax = exception.objectForKeyedSubscript("name")?.toString() == "SyntaxError"
-            let title = isSyntax ? NSLocalizedString("JScript コンパイル エラー", comment: "WSH のエラーの種類（Mac 版）")
-                : NSLocalizedString("JScript 実行時エラー", comment: "WSH のエラーの種類（Mac 版）")
+            let title = isSyntax ? L10n.tr("JScript コンパイル エラー", comment: "WSH のエラーの種類（Mac 版）")
+                : L10n.tr("JScript 実行時エラー", comment: "WSH のエラーの種類（Mac 版）")
             firstError = (title, String(format: "[Line %d] %@", line, message))
             if self?.isCanceled == true {
                 firstError = (title, String(format: "[Line %d] %@", line, Self.abortMessage))
@@ -270,7 +270,7 @@ final class JSMacroRunner {
         context.setObject(has, forKeyedSubscript: "__sakuraHas" as NSString)
         context.setObject(call, forKeyedSubscript: "__sakuraCall" as NSString)
         context.setObject(popup, forKeyedSubscript: "__sakuraPopup" as NSString)
-        context.setObject(NSLocalizedString("オートメーション サーバーはオブジェクトを作成できません", comment: "JScript 800A01AD"),
+        context.setObject(L10n.tr("オートメーション サーバーはオブジェクトを作成できません", comment: "JScript 800A01AD"),
                           forKeyedSubscript: "__sakuraNoObject" as NSString)
         context.evaluateScript("""
         var __sakuraScope = (function (g) {
@@ -311,7 +311,7 @@ final class JSMacroRunner {
                 return nil
             }
             guard let result = done else {
-                Self.throwError(NSLocalizedString("エラーを特定できません", comment: "E_FAIL（JScript のメッセージ）"))
+                Self.throwError(L10n.tr("エラーを特定できません", comment: "E_FAIL（JScript のメッセージ）"))
                 return nil
             }
             switch result {
@@ -369,13 +369,13 @@ final class MacroCancelPanel: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.setAccessibilityIdentifier("IDD_MACRORUNNING")
         let content = NSView(frame: window.contentRect(forFrameRect: window.frame))
-        let label = NSTextField(labelWithString: NSLocalizedString("マクロ実行中・・・", comment: "IDD_MACRORUNNING"))
+        let label = NSTextField(labelWithString: L10n.tr("マクロ実行中・・・", comment: "IDD_MACRORUNNING"))
         label.frame = NSRect(x: 12, y: 56, width: 300, height: 20)
         let path = NSTextField(wrappingLabelWithString: documentPath)
         path.frame = NSRect(x: 12, y: 8, width: 396, height: 40)
         path.textColor = .secondaryLabelColor
         path.setAccessibilityIdentifier("IDC_STATIC_CMD")
-        let button = NSButton(title: NSLocalizedString("キャンセル", comment: "IDD_MACRORUNNING"), target: nil, action: nil)
+        let button = NSButton(title: L10n.tr("キャンセル", comment: "IDD_MACRORUNNING"), target: nil, action: nil)
         button.frame = NSRect(x: 316, y: 52, width: 96, height: 28)
         button.keyEquivalent = "\u{1b}"
         button.setAccessibilityIdentifier("IDCANCEL")

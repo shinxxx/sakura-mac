@@ -1,0 +1,720 @@
+/* 由 macos/tools/l10n/make_strings.py 生成（第 48 步）。键是 App 的日文，翻译改 translations.json 后重新生成 */
+
+/* STR_PROPTYPKEYHELP_DIC */
+"    辞書ファイル" = "   Dict Filename";
+/* STR_EDITVWISRCH_NOMATCH */
+" (見つかりません)" = " (No Matches)";
+/* STR_PROPCOMCUSTMENU_SEP */
+" ─────────────" = " --------------------------";
+/* STR_ERR_CEDITVIEW_CMD29 */
+"%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?" = "%@\n\nThis file has been updated.\nReloading will cause all changes to be lost, OK?";
+/* STR_ERR_DLGEDITDOC6 */
+"%@\n\nこのファイルを文字コード %@ で開こうとしていますが、前回は別の文字コード %@ で開かれています。\n前回と同じ文字コードを使いますか？\n\n・[はい(Y)]  ＝%@\n・[いいえ(N)]＝%@\n" = "%@\n\nOpening in %@, but it was opened in %@ last time.\nUse the same character encoding as last time?\n\n\t[Yes] = %@\n\t[No] = %@\n";
+/* 設定のインポート（Mac 版） */
+"%@\n\nサクラエディタの設定ファイルではありません。" = "%@\n\nThis is not a Sakura Editor settings file.";
+/* 設定のインポート（Mac 版） */
+"%@\n\nファイルを読み込めませんでした。" = "%@\n\nCould not read the file.";
+/* App 菜单（macOS） */
+"%@ について" = "About %@";
+/* STR_DLGTYPELIST_INIT2 */
+"%@ を初期化しました。" = "%@ has been initialized.";
+/* STR_DLGTYPELIST_INIT1 */
+"%@ を初期化します。 よろしいですか？" = "Are you sure you want to initialize %@?";
+/* STR_DLGTYPELIST_DEL */
+"%@ を削除します。 よろしいですか？" = "Are you sure you want to delete %@?";
+/* App 菜单（macOS） */
+"%@ を終了" = "Quit %@";
+/* App 菜单（macOS） */
+"%@ を隠す" = "Hide %@";
+/* STR_ERR_DLGPRNPRVW6 */
+"%d/%d頁" = "%d/%dpg";
+/* STR_DLGREPLC_REPLACE */
+"%d箇所を置換しました。" = "Changed %d occurrences";
+/* STR_PROPCOMBK_DUSTBOX */
+"(ゴミ箱)" = "(Recycle Folder)";
+/* STR_DLGTAGJMP2 */
+"(候補は見つかりませんでした)" = "(Not Found)";
+/* ウィンドウのタイトル（原版 STR_CAPTION_ACTIVE_UPDATE） */
+"(更新)" = "(Update)";
+/* STR_PROPCOMKEYWORD_INFO */
+"(最大 %d 文字, 登録数 %d, 空き %d 個)" = "(Max %d chr, keywords %d, space %d )";
+/* STR_DLGWINSZ_MINIMIZE */
+"(最小化)" = "(Minimize)";
+/* 無題の文書の名前（原版 STR_NO_TITLE1） */
+"(無題)" = "(No Title)";
+/* STR_DLGGREP_THISDOC */
+"(現在のドキュメント)" = "(Current document)";
+/* STR_DLGTAGJMP1 */
+"(通知)" = "(report)";
+/* STR_DLGTYPEASC_IMPORT */
+"--そのままインポート--" = "--Without change import--";
+/* STR_FILETREE_CURDIR */
+"<カレントフォルダー>" = "<Cur Folder>";
+/* STR_STRINGESC_CSHARP */
+"C#風        @\"\"" = "C#       @\"\"";
+/* STR_STRINGESC_CPP */
+"C/C++言語風 \\\"" = "C/C++    \\\" ";
+/* STR_SCROLL_WITH_CTRL_KEY */
+"CONTROLキー" = "Control Key";
+/* STR_ERR_DLGEDITVWDIFF5 */
+"DIFF差分は見つかりませんでした。" = "No differences were found by DIFF";
+/* STR_ERR_DLGEDITVWDIFF4 */
+"DIFF差分を行おうとしたファイルはバイナリファイルです。" = "The file to be used for comparison appears to be a binary file.";
+/* STR_GREP_RUNNINNG */
+"Grepの処理中です。\n" = "Grep Running.\n";
+/* STR_STRINGESC_HTML */
+"HTML/XML風  =\"\"" = "HTML/XML =\"\"";
+/* STR_FILETREE_MENU_ROOT */
+"INIルート(I)" = "Ini Root";
+/* WSH のエラーの種類（Mac 版） */
+"JScript コンパイル エラー" = "JScript compilation error";
+/* WSH のエラーの種類（Mac 版） */
+"JScript 実行時エラー" = "JScript runtime error";
+/* STR_EDITVWISRCH_MIGEGO1 */
+"MIGEMO.DLLが使用できません。" = "MIGEMO.DLL cant be loaded, or found.";
+/* STR_EDITVWISRCH_MIGEGO2 */
+"MIGEMOは使用できません。" = "MIGEMO is not available";
+/* 共通設定：プラグイン */
+"Mac 版では DLL のプラグインは使用できません。" = "DLL plugins cannot be used in the Mac version.";
+/* 共通設定：Mac 版不能用的项目 */
+"Mac 版では使用できません。" = "Not available in the Mac version.";
+/* help */
+"Mac 版にはまだヘルプがありません" = "The Mac version does not have help yet.";
+/* STR_PROPCOMMACR_SEL_DIR */
+"Macroディレクトリの選択" = "Select Macro Directory";
+/* STR_ERR_DLGMACRO02 */
+"Macro実行エラー" = "Macro Execution Error";
+/* Migemo 辞書のフォルダーの許可 */
+"Migemo の辞書「%@」を読むには、このフォルダーへのアクセスを許可してください。" = "To read the Migemo dictionary \"%@\", please allow access to this folder.";
+/* IDD_ABOUT */
+"OK" = "OK";
+/* IDD_JUMP */
+"PL/SQLコンパイルエラー行" = "PL/SQL Compile Error Line";
+/* IDD_JUMP */
+"PL/SQLコンパイルエラー行を処理する" = "PL/SQL Compiler Error Processing";
+/* STR_STRINGESC_PLSQL */
+"PL/SQL風    \"\"" = "PL/SQL   \"\"";
+/* STR_STRINGESC_PYTHON */
+"Python風    \"\"\"" = "Python   \"\"\"";
+/* STR_SCROLL_WITH_SHIFT_KEY */
+"SHIFTキー" = "Shift Key";
+/* STR_FILETREE_MENU_TEMP */
+"Temp(T)" = "Temp";
+/* STR_OUTLINE_WZ */
+"WZ階層付テキスト" = "WZ Hierarchy Text";
+/* 設定 > キーの方案（Mac 版） */
+"Windows のキー割り当てを使う" = "Use Windows Key Assignments";
+/* 設定 > 設定のインポート（Mac 版） */
+"Windows 版の設定をインポート…" = "Import Windows Settings…";
+/* 設定のインポート（Mac 版） */
+"Windows 版の設定をインポートしますか?" = "Import the Windows settings?";
+/* STR_FILETREE_MENU_SAKURA */
+"sakura(S)" = "Sakura";
+/* STR_FILETREE_MENU_SAKURADATA */
+"sakuraデータ(A)" = "Sakura data";
+/* STR_PROPCOMMAINMENU_SEP */
+"――――――――――" = "--------------------";
+/* STR_PROPCOMTOOL_ITEM2 */
+"――ツールバー折返――" = "--Tool Bar Break--";
+/* STR_PROPCOMTOOL_ITEM1 */
+"───────────" = "---------------------";
+/* STR_PROPCOMTOOL_ITEM3 */
+"────不　明────" = "----- disabled -----";
+/* STR_ERR_SRPREV1 */
+"▲末尾から再検索しました" = "▲Restarted search from bottom";
+/* STR_ERR_SRPREV2 */
+"△見つかりませんでした" = "△Not Found";
+/* IDD_FILETREE */
+"▼(3)" = "▼(3)";
+/* STR_ERR_SRNEXT1 */
+"▼先頭から再検索しました" = "▼Restarted search from top";
+/* STR_ERR_SRNEXT2 */
+"▽見つかりませんでした" = "▽Not Found";
+/* STR_AUTORELOAD_NOFITY */
+"★ファイル更新 %02d:%02d:%02d" = "★File Updated at %02d:%02d:%02d";
+/* タグジャンプのフォルダーの許可 */
+"「%@」の tags ファイルを読むには、このフォルダー（またはその上のフォルダー）へのアクセスを許可してください。" = "To read the tags file of \"%@\", please allow access to this folder (or a folder above it).";
+/* STR_PROPCOMKEYWORD_SETDEL */
+"「%@」のセットを削除します。\nよろしいですか？\n削除しようとするセットは、以下のファイルタイプに割り当てられています。\n削除したセットは無効になります。\n\n%@" = "Delete the set [%@]\nOK?\nThe set to be deleted is assigned to the file types below.\nThe deleted set will become invalid.\n\n%@";
+/* DIFF のフォルダーの許可 */
+"「%@」のファイルと比べるには、このフォルダーへのアクセスを許可してください。" = "To compare with \"%@\", please allow access to this folder.";
+/* ファイルツリーのフォルダーの許可 */
+"「%@」をファイルツリーに表示するには、このフォルダーへのアクセスを許可してください。" = "To show \"%@\" in the file tree, please allow access to this folder.";
+/* Grep のフォルダーの許可 */
+"「%@」を検索するには、このフォルダーへのアクセスを許可してください。" = "To search \"%@\", please allow access to this folder.";
+/* IDD_REPLACE */
+"「すべて置換」は置換の繰返し" = "'Replace All' Iteratively replaces";
+/* STR_PROPCOMMAINMENU_ERR2 */
+"『共通設定』が有りません。\n" = "Not include [Common Settings]\n";
+/* STR_CAPTION_ACTIVE_KEYMACRO */
+"【キーマクロの記録中】" = "[REC Key macro]";
+/* メッセージボックス */
+"いいえ" = "No";
+/* バージョン情報（Mac 版） */
+"このアプリはサクラエディタを macOS 用に移植・改変したものです。サクラエディタの公式版ではありません。\n" = "This app is a modified port of Sakura Editor for macOS. It is not an official release of Sakura Editor.\n";
+/* IDS_ABOUT_DESCRIPTION */
+"このソフトウェアは「テキストエディタ(共同開発版)」を改称したものです。\n商用・非商用を問わず無償で利用できますが、ソースコードの著作権は各箇所を記述した人が留保しています。\nこのソフトウェアは無保証です。\n" = "This software is the renamed [Text Editor(Joint Development Version)].\nIt is free for use irrespective of use commercially or not but, Source Code Copyright reserved by the person as described in each section.\nThis software is distributed without guarantee.\n";
+/* 共通設定：以后的版本移植的页 */
+"このページは今後のバージョンで対応します。現在の設定を表示しています。" = "This page will be supported in a future version. The current settings are shown.";
+/* マクロの種類（Mac 版） */
+"このマクロ（.%@）は Mac 版では実行できません。\nMac 版で使えるのはキーマクロ（.mac）と JScript（.js）です。\n\n%@" = "This macro (.%@) cannot be run in the Mac version.\nThe Mac version supports key macros (.mac) and JScript (.js).\n\n%@";
+/* 共通設定：以后的版本移植的项目 */
+"この項目は今後のバージョンで対応します。" = "This item will be supported in a future version.";
+/* STR_PROPCOMFNM_ERR_REG */
+"これ以上登録できません。" = "Cannot register any more.";
+/* STR_EXCLU_NO_EXCLUSIVE */
+"しない" = "No Exclusive Mode";
+/* ウィンドウ > しまう（macOS） */
+"しまう" = "Minimize";
+/* App 菜单（macOS） */
+"すべてを表示" = "Show All";
+/* STR_DLGFNCLST_MENU_EXPAND */
+"すべて展開(E)" = "Expand all";
+/* STR_DLGFNCLST_MENU_COLLAPSE */
+"すべて縮小(O)" = "Collapse(O) all";
+/* IDD_REPLACE */
+"すべて置換" = "Replace All";
+/* STR_IME_SWITCH_DONTSET */
+"そのまま" = "Don't Set";
+/* STR_PROPCOMTAB_DISP_NO */
+"なし" = "None";
+/* メッセージボックス */
+"はい" = "Yes";
+/* App 菜单（macOS） */
+"ほかを隠す" = "Hide Others";
+/* STR_OUTLINE_ASM */
+"アセンブラ" = "Assembler";
+/* STR_DLGFNCLST_SORTTYPE2_2 */
+"アルファベット(降順)" = "Alphabetical Order (Desc)";
+/* STR_DLGFNCLST_SORTTYPE2 */
+"アルファベット順" = "Alphabetical Order";
+/* 設定のインポート（Mac 版） */
+"インポートして再起動" = "Import and Restart";
+/* 設定のインポート（Mac 版） */
+"インポートする設定ファイル（sakura.ini）を選択してください。" = "Select the settings file (sakura.ini) to import.";
+/* STR_DLGFNCLST_TIP_WIN */
+"ウィンドウの位置" = "Window position";
+/* STR_DLGFNCLST_MENU_WINPOS */
+"ウィンドウの位置(W)" = "Window position";
+/* STR_IMPEXP_VER */
+"エクスポートした %@(%@/%d) とバージョンが異なります。\n\nインポートしてもよろしいですか？" = "The version differs from the exported %@(%@/%d).\n\nAre you sure you want to import?";
+/* E_FAIL（JScript のメッセージ） */
+"エラーを特定できません" = "Unspecified error";
+/* JScript 800A01AD */
+"オートメーション サーバーはオブジェクトを作成できません" = "Automation server can't create object";
+/* 共通設定的确认 */
+"キャンセル" = "Cancel";
+/* STR_CODECHECKER_CONFORM_LOSESOME */
+"キャンセル=該当位置に移動" = "Cancel = go to that position";
+/* STR_PROPCOMCUSTMENU_AC2 */
+"キーを入力してください。" = "Please press a key.";
+/* F_SAVEKEYMACRO */
+"キーマクロの保存" = "Save the macro";
+/* F_EXECKEYMACRO_REC */
+"キーマクロの実行" = "Run the macro";
+/* F_RECKEYMACRO_APPE */
+"キーマクロの記録終了" = "Stop Recording Macro";
+/* F_SAVEKEYMACRO_APPE */
+"キーマクロの記録終了&保存" = "Stop & Save the macro";
+/* F_EXECKEYMACRO_APPE */
+"キーマクロの記録終了&実行" = "Stop & Run the macro";
+/* F_LOADKEYMACRO_APPE */
+"キーマクロの記録終了&読み込み" = "Stop & Load the macro";
+/* F_RECKEYMACRO_REC */
+"キーマクロの記録開始" = "Start Recording Macro";
+/* F_LOADKEYMACRO */
+"キーマクロの読み込み" = "Load the macro";
+/* STR_DLGTAGJMP_LIST1 */
+"キーワード" = "Keyword";
+/* STR_PROPTYPEREGEX_NOSEL */
+"キーワードが選択されていません。" = "No selected Keyword.";
+/* STR_PROPCOMKEYWORD_SETNAME1 */
+"キーワードのセット追加" = "Added Keyword Set";
+/* STR_PROPCOMKEYWORD_KEYADD2 */
+"キーワードを入力してください。" = "Please input the Keyword";
+/* STR_PROPCOMKEYWORD_KEYEDIT2 */
+"キーワードを編集してください。" = "Please edit the keyword";
+/* STR_PROPCOMKEYWORD_KEYEDIT1 */
+"キーワード編集" = "Keyword Editing";
+/* STR_PROPTYPKEYHELP_DICPATH */
+"キーワード辞書ファイル パス" = "Keyword dict file path";
+/* STR_PROPCOMKEYWORD_KEYADD1 */
+"キーワード追加" = "Added Keyword";
+/* IDD_REPLACE */
+"クリップボードから貼り付ける" = "Paste from Clipboard";
+/* STR_DLGREPLC_CLIPBOARD */
+"クリップボードに有効なデータがありません！" = "There is no valid data in the clipboard!";
+/* STR_DLGFNCLST_MENU_COPY */
+"コピー(C)" = "Copy";
+/* STR_DLGABOUT_APPNAME */
+"サクラエディタ" = "Sakura Editor";
+/* App 菜单（macOS） */
+"サービス" = "Services";
+/* IDD_JUMP */
+"ジャンプ" = "Jump";
+/* STR_ERR_DLGMACRO05 */
+"ジャンプ先行番号が指定されていません．" = "Jump To Line Numer is not defined.";
+/* STR_PROPCOMKEYWORD_RENAME1 */
+"セットの名称変更" = "Name for Set has been changed";
+/* STR_PROPCOMKEYWORD_SETMAX */
+"セットは%d個までしか登録できません。\n" = "Maximum registration of %d sets is possible.\n";
+/* STR_PROPCOMKEYWORD_SETNAME2 */
+"セット名を入力してください。" = "Please input the Set's name";
+/* タイプ別設定窗口的标题（原版 STR_PROPTYPE） */
+"タイプ別設定" = "File Type Setting";
+/* STR_ERR_TAGJMP1 */
+"タグジャンプできません" = "Cant Tag-Jump";
+/* STR_ERR_TAGJMPBK1 */
+"タグジャンプバックできません" = "Cant Bookmark Tag-Jump";
+/* STR_OUTLINE_TEXT */
+"テキスト" = "Text";
+/* IDD_JUMP */
+"テキストの" = "Group";
+/* STR_FILETREE_MENU_DESK */
+"デスクトップ(D)" = "Desktop";
+/* STR_DLGFNCLST_SORTTYPE1 */
+"デフォルト" = "Default";
+/* STR_DLGFNCLST_SORTTYPE1_2 */
+"デフォルト(降順)" = "Default (Desc)";
+/* STR_PROPCOMMAINMENU_ERR3 */
+"トップレベルの項目数が多すぎます。\n" = "Too many top-level items\n";
+/* STR_DLGFNCLST_MENU_NODOCK */
+"ドッキング禁止(I)" = "No docking(I)";
+/* STR_DLGFNCLST_MENU_TYPE */
+"ドッキング配置をタイプ別継承(Y)" = "Docking position inherit type setting(Y)";
+/* STR_DLGFNCLST_MENU_INHERIT */
+"ドッキング配置を共通継承(C)" = "Docking position inherit Common setting";
+/* STR_DLGFNCLST_MENU_SYNC */
+"ドッキング配置を同期(S)" = "Docking position Sync";
+/* バックアップのフォルダーの許可 */
+"バックアップを作成するには、「%@」へのアクセスを許可してください。" = "To create a backup, please allow access to \"%@\".";
+/* STR_PROPCOMBK_SEL_FOLDER */
+"バックアップを作成するフォルダーを選んでください" = "Please choose the file to be created for backup";
+/* IDD_ABOUT */
+"バージョン情報" = "About Sakura";
+/* STR_PROPTYPKEYHELP_PATH */
+"パス" = "Path";
+/* STR_TAGJUMP_1 */
+"ヒットしたら次のファイルを検索しない" = "If hit, don't search next file";
+/* F_FILE_TOPMENU */
+"ファイル" = "File";
+/* STR_IMPEXP_OK_EXPORT */
+"ファイルをエクスポートしました。\n\n" = "Exported to the file\n\n";
+/* STR_ERR_CEDITVIEW_CMD28 */
+"ファイルを開けませんでした。\n\n%@" = "Could not open the file.\n\n%@";
+/* IDD_REPLACE */
+"ファイル全体" = "Whole Document";
+/* STR_PROPCOMMACR_LIST3 */
+"ファイル名" = "File Name";
+/* STR_PROPEDIT_SELECT_DIR */
+"フォルダーを選んでください" = "Please select a folder.";
+/* STR_DLGFNCLST_MENU_FLOATING */
+"フローティング(F)" = "Floating";
+/* STR_ERR_DLGPRNPRVW5 */
+"プレビューページ指定" = "Preview Page Settings";
+/* IDD_FIND */
+"ヘルプ" = "Help";
+/* STR_FILETREE_MENU_MYDOC */
+"マイ ドキュメント(Y)" = "My Document";
+/* STR_FILETREE_MENU_MYVIDEO */
+"マイ ビデオ(V)" = "My Video";
+/* STR_FILETREE_MENU_MYMUSIC */
+"マイ ミュージック(M)" = "My Music";
+/* STR_SCROLL_WITH_SIDE_1_BTN */
+"マウスサイドボタン1" = "Side Button 1";
+/* STR_SCROLL_WITH_SIDE_2_BTN */
+"マウスサイドボタン2" = "Side Button 2";
+/* STR_SCROLL_WITH_MID_BTN */
+"マウス中ボタン" = "Middle Button";
+/* STR_ERR_MACRO1 */
+"マクロ %d (%@) の実行に失敗しました。" = "Macro %d (%@) failed to execute.";
+/* STR_ERR_CWSH09 */
+"マクロの実行を中断しました。" = "Aborted execute macro.";
+/* STR_ERR_MACROERR1 */
+"マクロの読み込みに失敗しました。\n\n%@" = "Failed to load the macro.\n\n%@";
+/* STR_ERR_CEDITVIEW_CMD25 */
+"マクロファイルを作成できませんでした。\n\n%@" = "Could not create the macro file.\n\n%@";
+/* STR_PROPCOMMACR_LIST2 */
+"マクロ名" = "Macro Name";
+/* IDD_MACRORUNNING */
+"マクロ実行中・・・" = "Executing Macro . . .";
+/* STR_ERR_DLGMACRO06 */
+"マーク行のパターンが指定されていません．" = "Bookmarking pattern has not been defined.";
+/* STR_PROPCOMMAINMENU_CLEAR */
+"メニューの設定をクリアします。\nよろしいですか？" = "Are you sure you want to erase menu settings?";
+/* STR_PROPCOMMAINMENU_INIT */
+"メニューの設定を初期状態に戻します。\nよろしいですか？" = "Are you sure you want to load default menu settings?";
+/* STR_PROPCOMCUSTMENU_AC1 */
+"メニューアイテムのアクセスキー設定" = "Menu Item Access Settings";
+/* STR_CODECHECKER_LOSESOME_SAVE */
+"一部の文字情報が、セーブ時の変換により失われました" = "lose some char info by saving encoding conversion.";
+/* STR_CODECHECKER_LOSESOME_ROAD */
+"一部の文字情報が、ロード時の変換により失われました" = "lose some char info by loading encoding conversion.";
+/* STR_PROPCOMTAB_TAB_POS_TOP */
+"上" = "Top";
+/* STR_DLGFNCLST_MENU_TOPDOC */
+"上ドッキング(T)" = "Top docking";
+/* STR_EXCLU_DENY_WRITE */
+"上書きを禁止する" = "Deny Write Access Mode";
+/* IDD_FIND */
+"上検索" = "Previous";
+/* STR_PROPCOMTAB_TAB_POS_BOTTOM */
+"下" = "Bottom";
+/* STR_DLGFNCLST_MENU_BOTDOC */
+"下ドッキング(B)" = "Bottom docking";
+/* IDD_FIND */
+"下検索" = "Next";
+/* STR_ERR_CSHAREDATA22 */
+"不明" = "unknown";
+/* STR_IMAGE_POS5 */
+"中央" = "Center";
+/* STR_IMAGE_POS6 */
+"中央上" = "Center top";
+/* STR_IMAGE_POS7 */
+"中央下" = "Center bottom";
+/* STR_IMAGE_POS9 */
+"中央右" = "Center right";
+/* STR_IMAGE_POS8 */
+"中央左" = "Center left";
+/* MB_ABORTRETRYIGNORE */
+"中止" = "Abort";
+/* STR_CODECHECKER_CONFORM_LOSESOME */
+"保存処理を続行しますか？" = "Do you want to continue saving?";
+/* STR_DLGTAGJMP_LIST6 */
+"備考" = "Notes";
+/* STR_KEYHELP_RMENU_TOP */
+"先頭に表示" = "Show Top";
+/* IDD_FIND */
+"先頭（末尾）から再検索する" = "Re-start search from beginning(end)";
+/* STR_ERR_DLGMACRO03_1 */
+"入力改行コードが指定されていません．" = "Line Break Code is not defined.";
+/* STR_IME_STATE_FULL */
+"全角" = "Full Height";
+/* STR_IME_STATE_FULLHIRA */
+"全角ひらがな" = "Full Height Hiragana";
+/* STR_IME_STATE_FULLKATA */
+"全角カタカナ" = "Full Height Katakana";
+/* 共通設定窗口的标题（原版 STR_PROPCOMMON） */
+"共通設定" = "Common Setting";
+/* 設定のインポート（Mac 版） */
+"共通設定、キー割り当て、タイプ別設定、メインメニューなどを次のファイルの内容に置き換えます。\n%@\n\n履歴（最近使ったファイルなど）はこの Mac のものを残します。現在の設定は次のファイルに保存します。\n%@\n\nインポートした設定はサクラエディタの再起動後に有効になります。開いているファイルはすべて閉じます。" = "Common settings, key assignments, type settings, the main menu and so on will be replaced with the contents of this file:\n%@\n\nThe history (recent files and so on) of this Mac is kept. The current settings are saved to this file:\n%@\n\nThe imported settings take effect after Sakura Editor restarts. All open files will be closed.";
+/* STR_ERR_DLGUPQRY2 */
+"再ロードしますか?" = "Reload?";
+/* STR_ERR_DLGUPQRY1 */
+"再ロードを行うと変更が失われますがよろしいですか?" = "Reloading will cause changes to be lost, is this OK?";
+/* MB_ABORTRETRYIGNORE */
+"再試行" = "Retry";
+/* STR_BOOKMARK_NEXT_NOT_FOUND */
+"前方(↓) にブックマークが見つかりません。" = "Forward (↓) bookmark wasn't found.";
+/* STR_MODLINE_NEXT_NOT_FOUND */
+"前方(↓) に変更行が見つかりません。" = "Forward (↓) Modified Line wasn't found.";
+/* STR_DIFF_NEXT_NOT_FOUND */
+"前方(↓) に差分が見つかりません。" = "Forwards (↓) searching didn't find differences";
+/* STR_ERR_SRNEXT3 */
+"前方(↓) に文字列 '%@' が１つも見つかりません。" = "Forward (↓): the string '%@' was not found.";
+/* STR_FUCLIST_NEXT_NOT_FOUND */
+"前方(↓) に関数が見つかりません。" = "Forward (↓) Function wasn't found.";
+/* IDD_FIND */
+"単語単位で探す" = "Match Whole Word";
+/* STR_ERR_DLGPRNPRVW7 */
+"印刷するページがありません。" = "The page is blank, there is nothing to print.";
+/* STR_ERR_DLGPRNPRVW3_1 */
+"印刷ページ設定エラー:印字可能領域がありません" = "Print Page Setting Error:There is no printable area";
+/* IDD_ABOUT */
+"原作者: たけ(竹パンダ) さん" = "Original author: Take (Takepanda)";
+/* STR_DLGFNCLST_MENU_RIGHTDOC */
+"右ドッキング(R)" = "Right docking";
+/* STR_IMAGE_POS2 */
+"右上" = "Right top";
+/* STR_IMAGE_POS4 */
+"右下" = "Right bottom";
+/* STR_WRAP_METHOD_WIN_WIDTH */
+"右端で折り返す" = "Wrap at right side of window";
+/* STR_PROPTYPEREGEX_ALREADY */
+"同じキーワードで登録済みです。" = "The same keyword is already registered.";
+/* メインメニュー：子菜单の名前（Mac 版） */
+"名前の変更" = "Rename";
+/* F_EXECEXTMACRO */
+"名前を指定してマクロ実行" = "Run an Existing macro";
+/* STR_PROPCOMMAINMENU_OK */
+"問題ありませんでした。" = "No problems detected.";
+/* 保存ダイアログ > 改行コード */
+"変換なし" = "as is";
+/* STR_TAGJUMP_2 */
+"完全一致でヒットしたら次のファイルを検索しない" = "If exact match, don't search next file";
+/* STR_PROPCOMMACR_LIST4 */
+"実行時に読み込み" = "Read at Exec time";
+/* STR_DLGFNCLST_MENU_LEFTDOC */
+"左ドッキング(L)" = "Left docking";
+/* STR_IMAGE_POS1 */
+"左上" = "Left top";
+/* STR_IMAGE_POS3 */
+"左下" = "Left bottom";
+/* STR_ERR_DLGEDITVWDIFF1 */
+"差分コマンド実行は失敗しました。\n\n比較するファイルが見つかりません。" = "DIFF command failed.\n\nFile to be used for comparison wasn't found.";
+/* STR_IME_SWITCH_OFF */
+"常にOFF" = "Turn Off";
+/* STR_IME_SWITCH_ON */
+"常にON" = "Turn On";
+/* STR_PROPCOMTAB_DISP_ALLWAYS */
+"常に表示" = "Always";
+/* STR_ERR_DLGMACRO04 */
+"引数(文字列)が指定されていません．" = "Parameter(string)is not defined.";
+/* STR_PROPCOMMON_KEYWORD */
+"強調キーワード" = "Keyword Highlight";
+/* STR_BOOKMARK_PREV_NOT_FOUND */
+"後方(↑) にブックマークが見つかりません。" = "Previous (↑) bookmark wasn't found.";
+/* STR_MODLINE_PREV_NOT_FOUND */
+"後方(↑) に変更行が見つかりません。" = "Previous (↑) Modified Line wasn't found.";
+/* STR_DIFF_PREV_NOT_FOUND */
+"後方(↑) に差分が見つかりません。" = "Backward (↑) searching didn't find differences";
+/* STR_ERR_SRPREV3 */
+"後方(↑) に文字列 '%@' が１つも見つかりません。" = "Backward (↑): the string '%@' was not found.";
+/* STR_FUCLIST_PREV_NOT_FOUND */
+"後方(↑) に関数が見つかりません。" = "Previous (↑) Function wasn't found.";
+/* IDD_ABOUT */
+"情報をコピー" = "Copy Info";
+/* STR_WRAP_METHOD_NO_WRAP */
+"折り返さない" = "Don't wrap";
+/* IDD_JUMP */
+"折り返し単位の行番号" = "Use Layout";
+/* STR_WRAP_METHOD_SPEC_WIDTH */
+"指定桁で折り返す" = "Wrap at set line";
+/* IDD_JUMP */
+"指定行へジャンプ" = "Jump to Line";
+/* STR_ERR_DLGMACRO03 */
+"挿入すべき文字コードが指定されていません．" = "End of line auto-insert char code hasn't been defined.";
+/* 保存ダイアログ */
+"改行コード:" = "CR Code:";
+/* STR_CODECHECKER_EOL_UNIFY */
+"改行コードが混在しています。" = "Line endings are mixed.";
+/* IDD_JUMP */
+"改行単位の行番号" = "Use CRLF";
+/* IDS_EOLTYPENAME_0 */
+"改行無" = "NONE";
+/* STR_ERR_DLGMACRO16 */
+"数値を指定してください．" = "Number is not defined.";
+/* STR_CODECHECKER_CONFORM_LOSESOME */
+"文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。" = "Saving in %@, but some character information will be lost by the encoding conversion.";
+/* STR_ERR_MACRO_ENCODING */
+"文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@" = "Failed to convert character encoding.\nCheck that the file is saved as UTF-8 with BOM or Shift_JIS.\n\n%@";
+/* IDD_SETCHARSET */
+"文字コードの指定" = "Select Encoding";
+/* ファイルダイアログ */
+"文字コードセット:" = "Encoding:";
+/* STR_ERR_DLGEDITDOC5 */
+"文字コード情報" = "Character Encoding";
+/* STR_DLGREPLC_STR */
+"文字列を指定してください。" = "No Selected Text to Replace";
+/* STR_TAB_SYMBOL_CHARA */
+"文字指定" = "Character";
+/* STR_DLGSMCLR_BTN1 */
+"文字色統一" = "foreground color unity";
+/* STR_PROPTYPKEYHELP_ERR_REG2 */
+"既に登録済みの辞書です。" = "You have already registered this dictionary.";
+/* 共通設定 > ウィンドウ > 言語 */
+"日本語" = "English";
+/* STR_DLGWINSZ_NORMAL */
+"普通" = "Normal";
+/* STR_DLGFNCLST_TIP_UPDATE */
+"更新" = "Update";
+/* STR_DLGFNCLST_MENU_UPDATE */
+"更新(U)" = "Update";
+/* STR_PROPTYPKEYHELP_SELECT */
+"更新する辞書をリストから選択してください。" = "Select dict to update from the list";
+/* STR_PROPTYPEREGEX_INVALID */
+"書式が正しくないか、正規表現ライブラリが見つかりません。\n\n登録しますか？" = "Formatted incorrectly or RegEx library cant be found\n\nRegister anyway?";
+/* STR_CODECHECKER_CONFORM_LOSESOME */
+"最初の場所 %ld行 %ld桁 文字[%@]%@" = "First point: line %ld, column %ld, character [%@]%@";
+/* STR_CODECHECKER_CONFORM_LOSESOME */
+"最初の場所 %ld行 文字[%@]" = "First point: line %ld, character [%@]";
+/* STR_DLGWINSZ_MAXIMIZE */
+"最大化" = "Maximize";
+/* STR_FILETREE_MAXCOUNT */
+"最大数(%d)を超えたため切り捨てました" = "Truncated because the maximum number (%d) was exceeded";
+/* STR_ERR_CEDITVIEW_CMD11 */
+"最後まで置換しました。" = "Replaced all occurrences to end of file.";
+/* ファイル > 最近使ったファイル（34006） */
+"最近使ったファイル" = "Recently Used File";
+/* STR_PROPCOMGEN_FILE2 */
+"最近使ったファイルの履歴を削除しました。" = "Deleted recent file history.\n";
+/* STR_PROPCOMGEN_FILE1 */
+"最近使ったファイルの履歴を削除します。\nよろしいですか？" = "Deleting recent file history,\nOK?\n";
+/* ファイル > 最近使ったフォルダー（34007） */
+"最近使ったフォルダー" = "Recently Used Folder";
+/* STR_PROPCOMGEN_DIR2 */
+"最近使ったフォルダーの履歴を削除しました。" = "Deleted recent folder history\n";
+/* STR_PROPCOMGEN_DIR1 */
+"最近使ったフォルダーの履歴を削除します。\nよろしいですか？" = "Deleting recent folder history,\nOK?\n";
+/* STR_PROPCOMKEYBIND_UNASSIGN */
+"未割当" = "Unassigned";
+/* STR_PROPCOMMAINMENU_ERR6 */
+"未設定のアクセスキーがあります。\n" = "There is access key not set.\n";
+/* STR_KEYHELP_RMENU_BOTTOM */
+"末尾に表示" = "Show Bottom";
+/* IDD_FIND */
+"条件" = "Find what";
+/* IDD_JUMP */
+"検出されたPL/SQLパッケージのブロックから選択" = "Select from detected PL/SQL package's block";
+/* IDD_FIND */
+"検索" = "Search";
+/* STR_PROPCOMHELP_MIGEMODIR */
+"検索するフォルダーを選んでください" = "Please select search folder.";
+/* IDD_FIND */
+"検索ダイアログを自動的に閉じる" = "Automatically close the search dialog";
+/* STR_DLGFIND1 */
+"検索条件を指定してください。" = "Please supply a search term first.";
+/* STR_IME_STATE_DEF */
+"標準設定" = "Default";
+/* STR_ERR_DLGPRNPRVW1 */
+"横" = "Landscape";
+/* STR_TAGJUMP_0 */
+"次のファイルを検索しない" = "Don't search next file";
+/* STR_TAGJUMP_3 */
+"次のファイルを検索する" = "Search next file.";
+/* STR_DLGJUMP1 */
+"正しく行番号を入力してください。" = "Please input correct line number";
+/* IDD_FIND */
+"正規表現" = "Regex";
+/* STR_REGEX_COMPILE_ERR_PREAMBLE */
+"正規表現の構文に誤りがあります。" = "The given regular expression is incorrect.";
+/* STR_PROPTYPEREGEX_NOUSE */
+"正規表現キーワードは使えません。" = "Cannot use Regular Expression";
+/* STR_PROPTYPEREGEX_KAKOMI */
+"正規表現キーワードを / と /k で囲ってください。\nキーワードに / がある場合は m# と #k で囲ってください。" = "RegEx Keyword should be enclosed in / and /k \nWhen the keyword has a / use m# and #k to enclose it.";
+/* STR_IME_STATE_NO */
+"無変換" = "No Conversion";
+/* MB_ABORTRETRYIGNORE */
+"無視" = "Ignore";
+/* STR_NO_TITLE2 */
+"無題" = "No Title";
+/* STR_CODECHECKER_EOL_UNIFY */
+"現在の入力改行コード %@ に統一しますか？" = "Do you want to unify them to the current line ending (%@)?";
+/* STR_DLGFNCLST_UNIFY */
+"現在の画面のドッキング配置情報をすべての共通設定・タイプ別設定にコピーして統一します。\n（現在開いている他画面の状態も統一します。）\n" = "Copies the docking layout of the current window to all common settings and type settings.\n(The windows that are open now are also unified.)\n";
+/* STR_PROPCOMKEYWORD_DEL */
+"現在の設定では強調キーワードとして表示できないキーワードを削除しますか？" = "Delete undisplayable Keywords from the current input ?";
+/* STR_PROPCOMMACR_LIST1 */
+"番号" = "Number";
+/* STR_ERR_CEDITVIEW_CMD23 */
+"異なる箇所が見つかりました。" = "Some differences were found.";
+/* STR_ERR_CEDITVIEW_CMD22 */
+"異なる箇所は見つかりませんでした。" = "Did not find any differences.";
+/* STR_PROPCOMKEYWORD_KEYMAX */
+"登録できるキーワード数が上限に達しています。\n" = "Reached the maximum number of registerable keywords.\n";
+/* STR_PROPCOMMAINMENU_ERR4 */
+"登録項目数が多すぎます。\n" = "Too many items\n";
+/* STR_TAB_SYMBOL_SHORT_ARROW */
+"短い矢印" = "Short Arrow";
+/* STR_DLGTAGJMP_LIST4 */
+"種類" = "Type";
+/* IDD_REPLACE */
+"範囲" = "Scope";
+/* STR_SCROLL_WITH_NO_KEY */
+"組み合わせなし" = "Not used";
+/* 共通設定 > 検索 > 正規表現ライブラリ（Mac 版） */
+"組み込みの bregonig (Onigmo) を使用します" = "Uses the built-in bregonig (Onigmo)";
+/* STR_DLGFNCLST_MENU_UNIFY */
+"継承情報を統一(U)" = "Unify inheriting info";
+/* STR_PROPCOMMAINMENU_EDIT */
+"編集してください" = "Please edit";
+/* STR_ERR_DLGPRNPRVW2 */
+"縦" = "Portrait";
+/* IDD_REPLACE */
+"置換" = "Replace";
+/* IDD_REPLACE */
+"置換ダイアログを自動的に閉じる" = "Automatically close dialog";
+/* STR_FILETREE_REPLACE_PATH_FROM */
+"置換元パスを指定してください" = "Please Input Replace 'From' Path";
+/* STR_ERR_DLGMACRO09 */
+"置換元パターンが指定されていません．" = "Source replacement string is unset.";
+/* STR_ERR_DLGMACRO10 */
+"置換先パターンが指定されていません．" = "Destination replacement string is unset.";
+/* STR_FILETREE_REPLACE_PATH_TO */
+"置換先文字列を指定してください" = "Please Input Replace 'To' Path";
+/* STR_PROPCOMFNM_LIST1 */
+"置換前" = "Before Replacement";
+/* IDD_REPLACE */
+"置換対象" = "Substitution Method";
+/* STR_PROPCOMFNM_LIST2 */
+"置換後" = "After Replacement";
+/* STR_DLGREPLC_REPSTR */
+"置換条件を指定してください。" = "Please provide a replacement term first.";
+/* STR_DLGSMCLR_BTN2 */
+"背景色統一" = "background color unity";
+/* STR_PROPCOMMACR_LIST5 */
+"自動実行" = "Automatic";
+/* STR_PROPCOMTAB_DISP_AUTO */
+"自動表示" = "Auto";
+/* STR_PROPTYPEREGEX_LIST2 */
+"色指定" = "Color Index";
+/* IDD_FIND */
+"英大文字と小文字を区別する" = "Case Sensitive";
+/* IDD_REPLACE */
+"行削除" = "(3) line delete";
+/* IDD_JUMP */
+"行番号" = "Line Nr";
+/* IDD_JUMP */
+"行目をブロックの1行目とする" = "Line as a block of 1 Line";
+/* STR_KEYHELP_RMENU_NONE */
+"表示しない" = "Hide";
+/* STR_ERR_DLGPRNPRVW4 */
+"表示するページ番号を指定してください。(1 - %d)" = "Please choose the page number to display (1 - %d)";
+/* STR_SUPPORT_NOT_COMPLITE */
+"補完対象がありません" = "There is no completions.";
+/* IDD_FIND */
+"見つからないときにメッセージを表示" = "Display a message if not found";
+/* STR_FILETREE_FROM_FILE */
+"設定: %@" = "Settings: %@";
+/* STR_FILETREE_FROM_TYPE */
+"設定: タイプ別設定" = "Setting: Types";
+/* STR_FILETREE_FROM_COMMON */
+"設定: 共通設定" = "Setting: Common";
+/* App 菜单（macOS） */
+"設定…" = "Settings…";
+/* STR_DLGPRNST2 */
+"設定の名称を入力してください。" = "Please input the profile name";
+/* 設定のインポート（Mac 版） */
+"設定ファイルに書き込めませんでした。\n%@" = "Could not write the settings file.\n%@";
+/* STR_DLGPRNST1 */
+"設定名の変更" = "Page Setup Profile Name";
+/* Grep のフォルダーの許可 */
+"許可" = "Allow";
+/* IDD_FIND */
+"該当行マーク" = "Set Bookmark";
+/* STR_REGEX_COMPILE_ERR_PREAMBLE */
+"詳細：" = "Details: ";
+/* STR_EXCLU_DENY_READWRITE */
+"読み書きを禁止する" = "Deny Read-Write Access Mode";
+/* STR_WRAP_INDENT_BOL */
+"論理行先頭" = "prev. line start";
+/* STR_PROPTYPKEYHELP_INFO */
+"辞書の説明" = "Description";
+/* STR_PROPTYPKEYHELP_LINE1 */
+"辞書ファイルの１行目の文字列" = "<<First line of dictionary file here>>";
+/* STR_TSV_MODE_NONE */
+"通常" = "Normal";
+/* 設定のインポート（Mac 版） */
+"選択" = "Selection";
+/* STR_PROPCOMMAINMENU_DEL */
+"選択している項目を下位項目ごと削除します。\nよろしいですか？" = "Are you sure you want to delete selected item?";
+/* IDD_REPLACE */
+"選択始点挿入" = "(1) insert before";
+/* IDD_REPLACE */
+"選択文字" = "(0) overwrite";
+/* IDD_REPLACE */
+"選択範囲" = "Selected Area";
+/* IDD_REPLACE */
+"選択終点追加" = "(2) insert after";
+/* STR_PROPCOMMAINMENU_ERR5 */
+"重複したアクセスキーがあります。\n" = "There is access key duplicate.\n";
+/* STR_TAB_SYMBOL_LONG_ARROW */
+"長い矢印" = "Long Arrow";
+/* STR_DLGFNCLST_TIP_CLOSE */
+"閉じる" = "Close";
+/* STR_DLGFNCLST_MENU_CLOSE */
+"閉じる(X)" = "Close(X)";
+/* STR_DLGTAGJMP_LIST2 */
+"階層" = "hierarchical";
+/* IDD_FUNCLIST */
+"順序(S)" = "Sort";

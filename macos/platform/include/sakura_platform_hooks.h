@@ -11,6 +11,7 @@
 */
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 namespace sakura::platform {
@@ -29,5 +30,19 @@ int ShowMessageBox(const WCHAR* text, const WCHAR* caption, UINT type);
 using StringLoaderFunction = bool (*)(UINT id, std::basic_string<WCHAR>& out);
 void SetStringLoaderFunction(StringLoaderFunction func) noexcept;
 bool LoadResourceString(UINT id, std::basic_string<WCHAR>& out);
+
+/*!
+	界面字符串的语言（第 48 步）。0 是日文（Windows 版 sakura.exe 内置的），
+	1 以后是原版语言 DLL（sakura_lang）的语言：ResourceLanguageName 返回 "en"、"zh"。
+	选的语言里没有的编号读日文（与原版 CSelectLang::LoadStringW 相同）。
+*/
+std::size_t ResourceLanguageCount() noexcept;
+const char* ResourceLanguageName(std::size_t index) noexcept;
+void SetResourceLanguage(std::size_t index) noexcept;
+std::size_t GetResourceLanguage() noexcept;
+//! 只在指定的语言里找（不读日文的后备）。测试用
+bool LoadResourceStringIn(std::size_t language, UINT id, std::basic_string<WCHAR>& out);
+//! 指定的语言的全部编号（测试用）
+std::size_t ResourceStringIds(std::size_t language, UINT* ids, std::size_t capacity) noexcept;
 
 } // namespace sakura::platform

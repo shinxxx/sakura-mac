@@ -4,7 +4,8 @@
 	- sakura::platform 的接口（文字宽度、消息框、界面字符串）和默认实现
 	- MessageBoxS（util/MessageBoxF.h）
 	- CSelectLang::LoadStringW / CLoadString（CSelectLang.h）的字符串读取部分
-	  语言资源 DLL 的选择功能在 Mac 版不使用（界面语言跟随系统设置）。
+	- CSelectLang::ChangeLang（第 48 步）：语言资源 DLL 的名字（共通设置 szLanguageDll）→ 内嵌的英文、中文字符串表。
+	  Mac 版的界面语言跟随系统设置，App 启动时由核心库选（sakura::core::SetUILanguage）。
 
 	Copyright (C) 2026, Sakura Editor Organization
 	SPDX-License-Identifier: Zlib
@@ -17,6 +18,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
+#include <string_view>
 #include <cstdio>
 #include <mutex>
 #include <unordered_map>
@@ -25,6 +28,10 @@
 struct SakuraResourceString { unsigned int id; const char16_t* text; };
 extern const SakuraResourceString g_sakuraResourceStrings[];
 extern const std::size_t g_sakuraResourceStringCount;
+// 第 48 步：各语言的字符串表（0 是上面的日文，1 以后是语言包 sakura_lang 的英文、中文）
+struct SakuraResourceLanguage { const char* name; const SakuraResourceString* strings; std::size_t count; };
+extern const SakuraResourceLanguage g_sakuraResourceLanguages[];
+extern const std::size_t g_sakuraResourceLanguageCount;
 
 namespace sakura::platform {
 
@@ -33,6 +40,17 @@ namespace {
 std::atomic<TextMeasureFunction> g_measure{ nullptr };
 std::atomic<MessageBoxFunction> g_messageBox{ nullptr };
 std::atomic<StringLoaderFunction> g_stringLoader{ nullptr };
+std::atomic<std::size_t> g_language{ 0 };
+
+const SakuraResourceString* FindString(std::size_t language, UINT id) noexcept
+{
+	if (g_sakuraResourceLanguageCount <= language) return nullptr;
+	const auto& table = g_sakuraResourceLanguages[language];
+	const auto* begin = table.strings;
+	const auto* end = table.strings + table.count;
+	const auto it = std::lower_bound(begin, end, id, [](const SakuraResourceString& e, UINT v) { return e.id < v; });
+	return it != end && it->id == id ? it : nullptr;
+}
 
 //! 东亚宽字符（全角）判定。只在没有注册 Core Text 测量函数时使用。
 bool IsWideCodePoint(char32_t c) noexcept
@@ -82,16 +100,48 @@ void SetStringLoaderFunction(StringLoaderFunction func) noexcept { g_stringLoade
 bool LoadResourceString(UINT id, std::basic_string<WCHAR>& out)
 {
 	if (const auto f = g_stringLoader.load()) return f(id, out);
-	// 默认实现：与 Windows 版 sakura.exe 内置的日文字符串相同
-	const auto* begin = g_sakuraResourceStrings;
-	const auto* end = g_sakuraResourceStrings + g_sakuraResourceStringCount;
-	const auto it = std::lower_bound(begin, end, id, [](const SakuraResourceString& e, UINT v) { return e.id < v; });
-	if (it != end && it->id == id) {
-		out = it->text;
+	// 默认实现：选的语言的字符串表。没有这个编号时读日文（Windows 版 sakura.exe 内置的），
+	// 与原版 CSelectLang::LoadStringW 在语言 DLL 里找不到时相同
+	const auto* found = FindString(g_language.load(), id);
+	if (!found) found = FindString(0, id);
+	if (found) {
+		out = found->text;
 		return true;
 	}
 	out.clear();
 	return false;
+}
+
+std::size_t ResourceLanguageCount() noexcept { return g_sakuraResourceLanguageCount; }
+
+const char* ResourceLanguageName(std::size_t index) noexcept
+{
+	return index < g_sakuraResourceLanguageCount ? g_sakuraResourceLanguages[index].name : "";
+}
+
+void SetResourceLanguage(std::size_t index) noexcept
+{
+	g_language.store(index < g_sakuraResourceLanguageCount ? index : 0);
+}
+
+std::size_t GetResourceLanguage() noexcept { return g_language.load(); }
+
+bool LoadResourceStringIn(std::size_t language, UINT id, std::basic_string<WCHAR>& out)
+{
+	if (const auto* found = FindString(language, id)) {
+		out = found->text;
+		return true;
+	}
+	out.clear();
+	return false;
+}
+
+std::size_t ResourceStringIds(std::size_t language, UINT* ids, std::size_t capacity) noexcept
+{
+	if (g_sakuraResourceLanguageCount <= language) return 0;
+	const auto& table = g_sakuraResourceLanguages[language];
+	for (std::size_t i = 0; i < table.count && i < capacity; ++i) ids[i] = table.strings[i].id;
+	return table.count;
 }
 
 } // namespace sakura::platform
@@ -134,14 +184,41 @@ int Wrap_MessageBox(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
 // ---------------------------------------------------------------------------
 sakura::wstring_view CSelectLang::LoadStringW(UINT id)
 {
-	// 为了让返回的视图一直有效，读入的字符串一直保留
+	// 为了让返回的视图一直有效，读入的字符串一直保留（第 48 步：按语言分开保留，换了语言以前的视图也有效）
 	static std::mutex mtx;
-	static std::unordered_map<UINT, sakura::wstring> cache;
+	static std::unordered_map<std::uint64_t, sakura::wstring> cache;
 	std::lock_guard lock(mtx);
-	if (const auto it = cache.find(id); it != cache.end()) return it->second;
+	const std::uint64_t key = (std::uint64_t(sakura::platform::GetResourceLanguage()) << 32) | id;
+	if (const auto it = cache.find(key); it != cache.end()) return it->second;
 	sakura::wstring s;
 	sakura::platform::LoadResourceString(id, s);
-	return cache.emplace(id, std::move(s)).first->second;
+	return cache.emplace(key, std::move(s)).first->second;
+}
+
+/*!
+	言語を変更する（第 48 步）。原版は言語 DLL を読み込むが、Mac 版は DLL の名前に対応する内嵌の字符串表を選ぶ。
+	名前が空のときは日本語（sakura.exe 内蔵）。知らない名前のときは原版（リストにない DLL）と同じく何もしない。
+*/
+void CSelectLang::ChangeLang(sakura::wstring_view dllName)
+{
+	sakura::platform::SetResourceLanguage(LanguageIndexOfDll(dllName));
+}
+
+std::size_t CSelectLang::LanguageIndexOfDll(sakura::wstring_view dllName) noexcept
+{
+	if (dllName.empty()) return 0;
+	// 原版の言語 DLL：sakura_lang_en_US.dll、sakura_lang_zh_CN.dll
+	constexpr struct { const char16_t* dll; const char* lang; } dlls[] = {
+		{ u"sakura_lang_en_US.dll", "en" },
+		{ u"sakura_lang_zh_CN.dll", "zh" },
+	};
+	for (const auto& d : dlls) {
+		if (dllName != sakura::wstring_view(d.dll)) continue;
+		for (std::size_t i = 1; i < sakura::platform::ResourceLanguageCount(); ++i) {
+			if (std::string_view(sakura::platform::ResourceLanguageName(i)) == d.lang) return i;
+		}
+	}
+	return sakura::platform::GetResourceLanguage();
 }
 
 thread_local std::array<CLoadString::CLoadStrBuffer, 16> CLoadString::gm_Buffers{};

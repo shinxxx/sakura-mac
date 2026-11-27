@@ -158,6 +158,11 @@ public:
 	 * @throw std::system_error リソースが見つからなかった場合
 	 */
 	static sakura::wstring_view LoadStringW(UINT id);
+
+#if !defined(_WIN32)
+	//! Mac 版：言語 DLL の名前（共通設定 szLanguageDll）→ 内蔵の文字列表の番号（移植計画のステップ 48）
+	static size_t LanguageIndexOfDll(sakura::wstring_view dllName) noexcept;
+#endif
 };
 
 /*!

@@ -78,10 +78,10 @@ extension EditorTextView {
     /// wrapped：先頭（末尾）から再検索した、nil：見つからなかった
     func sendSearchStatus(next: Bool, wrapped: Bool?) {
         switch (next, wrapped) {
-        case (true, true?): sendStatusMessage(NSLocalizedString("▼先頭から再検索しました", comment: "STR_ERR_SRNEXT1"))
-        case (false, true?): sendStatusMessage(NSLocalizedString("▲末尾から再検索しました", comment: "STR_ERR_SRPREV1"))
-        case (true, nil): sendStatusMessage(NSLocalizedString("▽見つかりませんでした", comment: "STR_ERR_SRNEXT2"))
-        case (false, nil): sendStatusMessage(NSLocalizedString("△見つかりませんでした", comment: "STR_ERR_SRPREV2"))
+        case (true, true?): sendStatusMessage(L10n.tr("▼先頭から再検索しました", comment: "STR_ERR_SRNEXT1"))
+        case (false, true?): sendStatusMessage(L10n.tr("▲末尾から再検索しました", comment: "STR_ERR_SRPREV1"))
+        case (true, nil): sendStatusMessage(L10n.tr("▽見つかりませんでした", comment: "STR_ERR_SRNEXT2"))
+        case (false, nil): sendStatusMessage(L10n.tr("△見つかりませんでした", comment: "STR_ERR_SRPREV2"))
         default: sendStatusMessage("")
         }
     }

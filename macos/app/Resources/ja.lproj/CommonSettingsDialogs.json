@@ -1,5 +1,5 @@
 {"source": "sakura_core/sakura_rc.rc", "pages": [
- {"name": "全般", "dialog": "IDD_PROP_GENERAL", "size": [293, 240], "controls": [
+ {"name": "全般", "title": "全般", "dialog": "IDD_PROP_GENERAL", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 3, 149, 90], "text": "カーソル"},
   {"id": "IDC_CHECK_FREECARET", "kind": "check", "frame": [8, 16, 120, 10], "text": "フリーカーソル(F)"},
   {"id": "IDC_CHECK_STOPS_BOTH_ENDS_WHEN_SEARCH_WORD", "kind": "check", "frame": [8, 28, 120, 20], "text": "単語単位で移動するときに\n単語の両端に止まる(B)", "flags": ["multiline"]},
@@ -35,7 +35,7 @@
   {"id": "IDC_SPIN_MAX_MRU_FOLDER", "kind": "spin", "frame": [196, 214, 9, 12], "text": "Spin1"},
   {"id": "IDC_BUTTON_CLEAR_MRU_FOLDER", "kind": "button", "frame": [208, 214, 61, 14], "text": "履歴をクリア(L)..."}
  ]},
- {"name": "ウィンドウ", "dialog": "IDD_PROP_WIN", "size": [293, 240], "controls": [
+ {"name": "ウィンドウ", "title": "ウィンドウ", "dialog": "IDD_PROP_WIN", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_DispTOOLBAR", "kind": "check", "frame": [7, 17, 76, 10], "text": "ツールバー表示(T)"},
   {"id": "IDC_CHECK_DispFUNCKEYWND", "kind": "check", "frame": [7, 30, 96, 10], "text": "ファンクションキー表示(K)"},
   {"id": "IDC_CHECK_DispSTATUSBAR", "kind": "check", "frame": [7, 43, 88, 10], "text": "ステータスバー表示(S)"},
@@ -76,7 +76,7 @@
   {"id": "IDC_STATIC", "kind": "group", "frame": [162, 121, 126, 40], "text": "言語"},
   {"id": "IDC_COMBO_LANGUAGE", "kind": "combo", "frame": [178, 139, 105, 80], "flags": ["dropdownlist"]}
  ]},
- {"name": "メインメニュー", "dialog": "IDD_PROP_MAINMENU", "size": [293, 240], "controls": [
+ {"name": "メインメニュー", "title": "メインメニュー", "dialog": "IDD_PROP_MAINMENU", "size": [293, 240], "controls": [
   {"id": "IDC_LABEL_MENUFUNCKIND", "kind": "label", "frame": [10, 6, 45, 10], "text": "種別(K)", "flags": ["right"]},
   {"id": "IDC_COMBO_FUNCKIND", "kind": "combo", "frame": [57, 4, 70, 180], "flags": ["dropdownlist"]},
   {"id": "IDC_LABEL_MENUFUNC", "kind": "label", "frame": [4, 17, 40, 10], "text": "機能(F)"},
@@ -102,7 +102,7 @@
   {"id": "IDC_BUTTON_CLEAR", "kind": "button", "frame": [196, 222, 44, 14], "text": "クリア(C)", "flags": ["group"]},
   {"id": "IDC_BUTTON_INITIALIZE", "kind": "button", "frame": [245, 222, 44, 14], "text": "初期設定(E)"}
  ]},
- {"name": "ツールバー", "dialog": "IDD_PROP_TOOLBAR", "size": [293, 240], "controls": [
+ {"name": "ツールバー", "title": "ツールバー", "dialog": "IDD_PROP_TOOLBAR", "size": [293, 240], "controls": [
   {"id": "IDC_LABEL_MENUFUNCKIND", "kind": "label", "frame": [4, 4, 51, 10], "text": "種別(K)", "flags": ["right"]},
   {"id": "IDC_COMBO_FUNCKIND", "kind": "combo", "frame": [56, 2, 70, 170], "flags": ["dropdownlist"]},
   {"id": "IDC_LABEL_MENUFUNC", "kind": "label", "frame": [3, 15, 40, 10], "text": "機能(F)"},
@@ -118,7 +118,7 @@
   {"id": "IDC_BUTTON_DOWN", "kind": "button", "frame": [129, 119, 33, 14], "text": "↓(O)"},
   {"id": "IDC_BUTTON_INSERTWRAP", "kind": "button", "frame": [129, 151, 33, 14], "text": "折返(W)"}
  ]},
- {"name": "タブバー", "dialog": "IDD_PROP_TAB", "size": [293, 240], "controls": [
+ {"name": "タブバー", "title": "タブバー", "dialog": "IDD_PROP_TAB", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_DispTabWnd", "kind": "check", "frame": [7, 11, 111, 10], "text": "タブバーを表示する(D)"},
   {"id": "IDC_CHECK_DispTabWndMultiWin", "kind": "check", "frame": [15, 40, 239, 10], "text": "ウィンドウをまとめてグループ化する(B)"},
   {"id": "IDC_CHECK_RetainEmptyWindow", "kind": "check", "frame": [24, 53, 226, 10], "text": "最後のファイルを閉じたとき(無題)文書を残す(R)"},
@@ -141,7 +141,7 @@
   {"id": "IDC_CHECK_ChgWndByWheel", "kind": "check", "frame": [15, 196, 127, 10], "text": "マウスホイールでタブ切替(W)"},
   {"id": "IDC_STATIC", "kind": "group", "frame": [7, 184, 280, 28], "text": "その他", "flags": ["group"]}
  ]},
- {"name": "ステータスバー", "dialog": "IDD_PROP_STATUSBAR", "size": [293, 240], "controls": [
+ {"name": "ステータスバー", "title": "ステータスバー", "dialog": "IDD_PROP_STATUSBAR", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 3, 285, 92], "text": "表示文字コードの指定"},
   {"id": "IDC_CHECK_DISP_UNICODE_IN_SJIS", "kind": "check", "frame": [7, 16, 205, 10], "text": "SJIS, Latin1等で文字コード値をUnicodeで表示する(S)"},
   {"id": "IDC_CHECK_DISP_UNICODE_IN_JIS", "kind": "check", "frame": [7, 32, 205, 10], "text": "JISで文字コード値をUnicodeで表示する(J)"},
@@ -152,7 +152,7 @@
   {"id": "IDC_CHECK_DISP_SELCOUNT_BY_BYTE", "kind": "check", "frame": [7, 112, 274, 10], "text": "選択文字数を文字単位ではなくバイト単位で表示する(B)　※高負荷のため非推奨"},
   {"id": "IDC_CHECK_DISP_COL_BY_CHAR", "kind": "check", "frame": [7, 128, 274, 10], "text": "現在桁をルーラー単位ではなく文字単位で表示する(C)"}
  ]},
- {"name": "編集", "dialog": "IDD_PROP_EDIT", "size": [293, 240], "controls": [
+ {"name": "編集", "title": "編集", "dialog": "IDD_PROP_EDIT", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_ADDCRLFWHENCOPY", "kind": "check", "frame": [8, 16, 131, 10], "text": "折り返し行に改行を付けてコピー(C)"},
   {"id": "IDC_CHECK_COPYnDISABLESELECTEDAREA", "kind": "check", "frame": [8, 29, 131, 10], "text": "コピーしたら選択解除(R)"},
   {"id": "IDC_CHECK_bEnableNoSelectCopy", "kind": "check", "frame": [8, 42, 131, 10], "text": "選択なしでコピーを可能にする(E)"},
@@ -179,7 +179,7 @@
   {"id": "IDC_CHECK_BOXSELECTLOCK", "kind": "check", "frame": [149, 171, 134, 10], "text": "矩形選択移動で選択をロックする(B)"},
   {"id": "IDC_STATIC", "kind": "group", "frame": [144, 145, 142, 42], "text": "その他", "flags": ["group"]}
  ]},
- {"name": "ファイル", "dialog": "IDD_PROP_FILE", "size": [293, 240], "controls": [
+ {"name": "ファイル", "title": "ファイル", "dialog": "IDD_PROP_FILE", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [8, 18, 48, 10], "text": "排他制御(H)"},
   {"id": "IDC_COMBO_FILESHAREMODE", "kind": "combo", "frame": [60, 16, 84, 78], "flags": ["dropdownlist"]},
   {"id": "IDC_CHECK_bCheckFileTimeStamp", "kind": "check", "frame": [8, 33, 60, 10], "text": "更新の監視(W)"},
@@ -215,7 +215,7 @@
   {"id": "IDC_STATIC", "kind": "label", "frame": [214, 214, 25, 10], "text": "MBから"},
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 97, 285, 135], "text": "ファイルオープン", "flags": ["group"]}
  ]},
- {"name": "ファイル名表示", "dialog": "IDD_PROP_FNAME", "size": [293, 240], "controls": [
+ {"name": "ファイル名表示", "title": "ファイル名表示", "dialog": "IDD_PROP_FNAME", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_SHORTPATH", "kind": "check", "frame": [6, 3, 100, 10], "text": "長いパスの省略表示(L)"},
   {"id": "IDC_STATIC", "kind": "label", "frame": [109, 4, 45, 10], "text": "文字数(N)"},
   {"id": "IDC_EDIT_SHORTMAXWIDTH", "kind": "edit", "frame": [155, 3, 30, 13], "flags": ["number"]},
@@ -234,7 +234,7 @@
   {"id": "IDC_BUTTON_FNAME_DOWN", "kind": "button", "frame": [245, 79, 38, 15], "text": "下へ(G)"},
   {"id": "IDC_BUTTON_FNAME_LAST", "kind": "button", "frame": [245, 97, 38, 15], "text": "最終(B)"}
  ]},
- {"name": "バックアップ", "dialog": "IDD_PROP_BACKUP", "size": [293, 240], "controls": [
+ {"name": "バックアップ", "title": "バックアップ", "dialog": "IDD_PROP_BACKUP", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 3, 285, 207], "text": "バックアップの作成", "flags": ["group"]},
   {"id": "IDC_CHECK_BACKUP", "kind": "check", "frame": [8, 16, 136, 10], "text": "保存時にバックアップを作成する(K)"},
   {"id": "IDC_CHECK_BACKUP_ADVANCED", "kind": "check", "frame": [12, 32, 79, 10], "text": "詳細設定する(A)"},
@@ -265,7 +265,7 @@
   {"id": "IDC_CHECK_BACKUP_DUSTBOX", "kind": "check", "frame": [12, 176, 150, 10], "text": "バックアップファイルをごみ箱に放り込む(X)"},
   {"id": "IDC_CHECK_BACKUPDIALOG", "kind": "check", "frame": [12, 196, 104, 10], "text": "作成前に確認する(V)"}
  ]},
- {"name": "書式", "dialog": "IDD_PROP_FORMAT", "size": [293, 240], "controls": [
+ {"name": "書式", "title": "書式", "dialog": "IDD_PROP_FORMAT", "size": [293, 240], "controls": [
   {"id": "IDC_RADIO_DFORM_0", "kind": "radio", "frame": [8, 18, 41, 10], "text": "標準(S)", "flags": ["group"]},
   {"id": "IDC_RADIO_DFORM_1", "kind": "radio", "frame": [51, 18, 52, 10], "text": "カスタム(C)"},
   {"id": "IDC_LABEL_DFORM", "kind": "label", "frame": [106, 19, 8, 10], "text": "D:"},
@@ -285,7 +285,7 @@
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 140, 283, 32], "text": "引用符(Q)", "flags": ["group"]},
   {"id": "IDC_EDIT_INYOUKIGOU", "kind": "edit", "frame": [8, 152, 270, 12], "flags": ["group"]}
  ]},
- {"name": "検索", "dialog": "IDD_PROP_GREP", "size": [293, 240], "controls": [
+ {"name": "検索", "title": "検索", "dialog": "IDD_PROP_GREP", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_bCaretTextForSearch", "kind": "check", "frame": [8, 21, 204, 12], "text": "カーソル位置の文字列をデフォルトの検索文字列にする(C)"},
   {"id": "IDC_CHECK_INHERIT_KEY_OTHER_VIEW", "kind": "check", "frame": [8, 33, 209, 12], "text": "次・前検索で他のビューでの検索条件変更を引き継ぐ(I)"},
   {"id": "IDC_LABEL_REGEXP", "kind": "label", "frame": [8, 50, 93, 10], "text": "正規表現ライブラリ指定(L)"},
@@ -304,7 +304,7 @@
   {"id": "IDC_STATIC", "kind": "label", "frame": [8, 210, 112, 10], "text": "キーワード指定のタグファイル検索(K):"},
   {"id": "IDC_COMBO_KEYWORD_TAGJUMP", "kind": "combo", "frame": [124, 208, 156, 100], "flags": ["dropdownlist"]}
  ]},
- {"name": "キー割り当て", "dialog": "IDD_PROP_KEYBIND", "size": [293, 240], "controls": [
+ {"name": "キー割り当て", "title": "キー割り当て", "dialog": "IDD_PROP_KEYBIND", "size": [293, 240], "controls": [
   {"id": "IDC_LABEL_MENUFUNCKIND", "kind": "label", "frame": [4, 4, 51, 10], "text": "種別(K)", "flags": ["right"]},
   {"id": "IDC_COMBO_FUNCKIND", "kind": "combo", "frame": [60, 2, 68, 180], "flags": ["dropdownlist"]},
   {"id": "IDC_LABEL_MENUFUNC", "kind": "label", "frame": [3, 18, 41, 10], "text": "機能(F)"},
@@ -323,7 +323,7 @@
   {"id": "IDC_BUTTON_ASSIGN", "kind": "button", "frame": [129, 190, 34, 14], "text": "割当(B)", "flags": ["group"]},
   {"id": "IDC_BUTTON_RELEASE", "kind": "button", "frame": [129, 204, 34, 14], "text": "解除(R)"}
  ]},
- {"name": "カスタムメニュー", "dialog": "IDD_PROP_CUSTMENU", "size": [293, 240], "controls": [
+ {"name": "カスタムメニュー", "title": "カスタムメニュー", "dialog": "IDD_PROP_CUSTMENU", "size": [293, 240], "controls": [
   {"id": "IDC_LABEL_MENUFUNCKIND", "kind": "label", "frame": [4, 4, 52, 10], "text": "種別(K)", "flags": ["right"]},
   {"id": "IDC_COMBO_FUNCKIND", "kind": "combo", "frame": [60, 2, 68, 180], "flags": ["dropdownlist"]},
   {"id": "IDC_LABEL_MENUFUNC", "kind": "label", "frame": [3, 16, 40, 10], "text": "機能(F)"},
@@ -346,7 +346,7 @@
   {"id": "IDC_BUTTON_IMPORT", "kind": "button", "frame": [3, 208, 58, 14], "text": "インポート(I)...", "flags": ["group"]},
   {"id": "IDC_BUTTON_EXPORT", "kind": "button", "frame": [64, 208, 58, 14], "text": "エクスポート(X)..."}
  ]},
- {"name": "強調キーワード", "dialog": "IDD_PROP_KEYWORD", "size": [293, 240], "controls": [
+ {"name": "強調キーワード", "title": "強調キーワード", "dialog": "IDD_PROP_KEYWORD", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [3, 6, 37, 10], "text": "セット名(N)"},
   {"id": "IDC_COMBO_SET", "kind": "combo", "frame": [42, 5, 85, 180], "flags": ["dropdownlist"]},
   {"id": "IDC_BUTTON_ADDSET", "kind": "button", "frame": [181, 5, 53, 14], "text": "セット追加(M)...", "flags": ["group"]},
@@ -365,7 +365,7 @@
   {"id": "IDOK", "kind": "button", "frame": [182, 243, 50, 14], "text": "OK"},
   {"id": "IDCANCEL", "kind": "button", "frame": [237, 243, 50, 14], "text": "キャンセル(X)"}
  ]},
- {"name": "支援", "dialog": "IDD_PROP_HELPER", "size": [293, 240], "controls": [
+ {"name": "支援", "title": "支援", "dialog": "IDD_PROP_HELPER", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_m_bHokanKey_RETURN", "kind": "check", "frame": [59, 15, 33, 10], "text": "Enter"},
   {"id": "IDC_CHECK_m_bHokanKey_TAB", "kind": "check", "frame": [93, 15, 28, 10], "text": "Tab"},
   {"id": "IDC_CHECK_m_bHokanKey_RIGHT", "kind": "check", "frame": [122, 15, 53, 10], "text": "→(R)"},
@@ -389,7 +389,7 @@
   {"id": "IDC_BUTTON_OPENMDICT", "kind": "button", "frame": [264, 189, 19, 14], "text": "(4)..."},
   {"id": "IDC_STATIC", "kind": "group", "frame": [3, 159, 287, 47], "text": "migemo設定", "flags": ["group"]}
  ]},
- {"name": "マクロ", "dialog": "IDD_PROP_MACRO", "size": [293, 240], "controls": [
+ {"name": "マクロ", "title": "マクロ", "dialog": "IDD_PROP_MACRO", "size": [293, 240], "controls": [
   {"id": "IDC_STATIC", "kind": "label", "frame": [4, 5, 50, 10], "text": "マクロフォルダー"},
   {"id": "IDC_MACRODIR", "kind": "edit", "frame": [60, 5, 212, 14]},
   {"id": "IDC_MACRODIRREF", "kind": "button", "frame": [274, 5, 14, 14], "text": "..."},
@@ -413,7 +413,7 @@
   {"id": "IDC_COMBO_MACROID", "kind": "combo", "frame": [260, 174, 28, 129], "flags": ["dropdownlist"]},
   {"id": "IDC_MACRO_REG", "kind": "button", "frame": [250, 190, 38, 14], "text": "設定(A)"}
  ]},
- {"name": "プラグイン", "dialog": "IDD_PROP_PLUGIN", "size": [293, 240], "controls": [
+ {"name": "プラグイン", "title": "プラグイン", "dialog": "IDD_PROP_PLUGIN", "size": [293, 240], "controls": [
   {"id": "IDC_CHECK_PluginEnable", "kind": "check", "frame": [6, 9, 100, 10], "text": "プラグインを有効にする(E)"},
   {"id": "IDC_PLUGIN_INST_ZIP", "kind": "button", "frame": [192, 6, 96, 14], "text": "ZIPプラグインを導入(Z)"},
   {"id": "IDC_PLUGIN_OpenFolder", "kind": "button", "frame": [120, 20, 70, 14], "text": "フォルダーを開く(F)"},

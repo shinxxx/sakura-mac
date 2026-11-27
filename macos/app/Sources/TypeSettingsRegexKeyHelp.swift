@@ -64,12 +64,12 @@ final class TypeRegexPage: CommonSettingsPageLogic {
         // Mac 版は組み込みの正規表現ライブラリ（原版 CheckRegexpVersion）
         let version = EditorCore.regexpVersion
         page.setText(idc("LABEL_REGEX_VERSION"), version.isEmpty
-            ? NSLocalizedString("正規表現キーワードは使えません。", comment: "STR_PROPTYPEREGEX_NOUSE") : version)
+            ? L10n.tr("正規表現キーワードは使えません。", comment: "STR_PROPTYPEREGEX_NOUSE") : version)
         page.setTaggedItems(idc("COMBO_REGEX_COLOR"), colorItems.map { (Int($0.index), $0.name) }, selectedValue: regex1)
         if let list = page.list(idc("LIST_REGEX")), list.table.tableColumns.count < 2, let scroll = page.control(idc("LIST_REGEX")) {
             let width = scroll.frame.width
-            list.setColumns([NSLocalizedString("キーワード", comment: "STR_PROPTYPEREGEX_LIST1"),
-                             NSLocalizedString("色指定", comment: "STR_PROPTYPEREGEX_LIST2")],
+            list.setColumns([L10n.tr("キーワード", comment: "STR_PROPTYPEREGEX_LIST1"),
+                             L10n.tr("色指定", comment: "STR_PROPTYPEREGEX_LIST2")],
                             widths: [(width * 54 / 100).rounded(), (width * 38 / 100).rounded()])
         }
         loadKeywords(values)
@@ -126,15 +126,15 @@ final class TypeRegexPage: CommonSettingsPageLogic {
     /// 原版 CheckKeywordList：囲み、文法（間違っていても登録できる）、同じキーワード
     private func check(_ keyword: String, updating: Int) -> Bool {
         guard EditorCore.regexKeywordHasDelimiters(keyword) else {
-            TypeSettingsPages.showMessage(NSLocalizedString("正規表現キーワードを / と /k で囲ってください。\nキーワードに / がある場合は m# と #k で囲ってください。", comment: "STR_PROPTYPEREGEX_KAKOMI"))
+            TypeSettingsPages.showMessage(L10n.tr("正規表現キーワードを / と /k で囲ってください。\nキーワードに / がある場合は m# と #k で囲ってください。", comment: "STR_PROPTYPEREGEX_KAKOMI"))
             return false
         }
         if !EditorCore.regexKeywordSyntaxOK(keyword),
-           !CommonSettingsPages.confirm(NSLocalizedString("書式が正しくないか、正規表現ライブラリが見つかりません。\n\n登録しますか？", comment: "STR_PROPTYPEREGEX_INVALID")) {
+           !CommonSettingsPages.confirm(L10n.tr("書式が正しくないか、正規表現ライブラリが見つかりません。\n\n登録しますか？", comment: "STR_PROPTYPEREGEX_INVALID")) {
             return false
         }
         if keywords.enumerated().contains(where: { $0.offset != updating && $0.element.keyword == keyword }) {
-            TypeSettingsPages.showMessage(NSLocalizedString("同じキーワードで登録済みです。", comment: "STR_PROPTYPEREGEX_ALREADY"))
+            TypeSettingsPages.showMessage(L10n.tr("同じキーワードで登録済みです。", comment: "STR_PROPTYPEREGEX_ALREADY"))
             return false
         }
         return true
@@ -149,7 +149,7 @@ final class TypeRegexPage: CommonSettingsPageLogic {
         switch id {
         case idc("BUTTON_REGEX_INS"), idc("BUTTON_REGEX_ADD"):
             guard keywords.count < Self.maxKeywords else {
-                TypeSettingsPages.showMessage(NSLocalizedString("これ以上登録できません。", comment: "STR_PROPTYPEREGEX_NOREG"))
+                TypeSettingsPages.showMessage(L10n.tr("これ以上登録できません。", comment: "STR_PROPTYPEREGEX_NOREG"))
                 return
             }
             guard check(keyword, updating: -1) else { return }
@@ -158,7 +158,7 @@ final class TypeRegexPage: CommonSettingsPageLogic {
             select = at
         case idc("BUTTON_REGEX_UPD"):
             guard index != -1 else {
-                TypeSettingsPages.showMessage(NSLocalizedString("キーワードが選択されていません。", comment: "STR_PROPTYPEREGEX_NOSEL"))
+                TypeSettingsPages.showMessage(L10n.tr("キーワードが選択されていません。", comment: "STR_PROPTYPEREGEX_NOSEL"))
                 return
             }
             guard check(keyword, updating: index) else { return }
@@ -202,11 +202,11 @@ final class TypeRegexPage: CommonSettingsPageLogic {
 // MARK: - キーワードヘルプ（CPropTypesKeyHelp.cpp）
 
 /// 右クリックメニュー（原版 nKeyHelpRMenuType。値は EKeyHelpRMenuType）
-let keyHelpMenuTypes: NamedValues = [
-    (0, NSLocalizedString("表示しない", comment: "STR_KEYHELP_RMENU_NONE")),
-    (1, NSLocalizedString("先頭に表示", comment: "STR_KEYHELP_RMENU_TOP")),
-    (2, NSLocalizedString("末尾に表示", comment: "STR_KEYHELP_RMENU_BOTTOM")),
-]
+var keyHelpMenuTypes: NamedValues { [
+    (0, L10n.tr("表示しない", comment: "STR_KEYHELP_RMENU_NONE")),
+    (1, L10n.tr("先頭に表示", comment: "STR_KEYHELP_RMENU_TOP")),
+    (2, L10n.tr("末尾に表示", comment: "STR_KEYHELP_RMENU_BOTTOM")),
+] }
 
 final class TypeKeyHelpPage: CommonSettingsPageLogic {
     static let maxFiles = 20	// MAX_KEYHELP_FILE
@@ -232,9 +232,9 @@ final class TypeKeyHelpPage: CommonSettingsPageLogic {
         page.loadCombo(idc("COMBO_MENU"), keyHelpMenuTypes, value: values.int("nKeyHelpRMenuShowType"))
         if let list = page.list(idc("LIST_KEYHELP")), list.table.tableColumns.count < 3, let scroll = page.control(idc("LIST_KEYHELP")) {
             let width = scroll.frame.width
-            list.setColumns([NSLocalizedString("    辞書ファイル", comment: "STR_PROPTYPKEYHELP_DIC"),
-                             NSLocalizedString("辞書の説明", comment: "STR_PROPTYPKEYHELP_INFO"),
-                             NSLocalizedString("パス", comment: "STR_PROPTYPKEYHELP_PATH")],
+            list.setColumns([L10n.tr("    辞書ファイル", comment: "STR_PROPTYPKEYHELP_DIC"),
+                             L10n.tr("辞書の説明", comment: "STR_PROPTYPKEYHELP_INFO"),
+                             L10n.tr("パス", comment: "STR_PROPTYPKEYHELP_PATH")],
                             widths: [(width * 25 / 100).rounded(), (width * 55 / 100).rounded(), (width * 18 / 100).rounded()])
             // 1 列目はチェックボックス（原版 LVS_EX_CHECKBOXES）とファイル名
             list.cellView = { [weak self] row, column in
@@ -273,8 +273,8 @@ final class TypeKeyHelpPage: CommonSettingsPageLogic {
 
     /// 一覧が空のときの説明（原版：初期値として用途を表示）
     private func showPlaceholder(_ page: PropPage) {
-        page.setText(idc("LABEL_KEYHELP_ABOUT"), NSLocalizedString("辞書ファイルの１行目の文字列", comment: "STR_PROPTYPKEYHELP_LINE1"))
-        page.setText(idc("EDIT_KEYHELP"), NSLocalizedString("キーワード辞書ファイル パス", comment: "STR_PROPTYPKEYHELP_DICPATH"))
+        page.setText(idc("LABEL_KEYHELP_ABOUT"), L10n.tr("辞書ファイルの１行目の文字列", comment: "STR_PROPTYPKEYHELP_LINE1"))
+        page.setText(idc("EDIT_KEYHELP"), L10n.tr("キーワード辞書ファイル パス", comment: "STR_PROPTYPKEYHELP_DICPATH"))
     }
 
     private func loadDictionaries(_ values: CommonSettingsValues) {
@@ -332,21 +332,21 @@ final class TypeKeyHelpPage: CommonSettingsPageLogic {
         case idc("BUTTON_KEYHELP_INS"), idc("BUTTON_KEYHELP_UPD"):
             let insert = id == idc("BUTTON_KEYHELP_INS")
             if insert && dictionaries.count >= Self.maxFiles {
-                TypeSettingsPages.showMessage(NSLocalizedString("これ以上登録できません。", comment: "STR_PROPTYPKEYHELP_ERR_REG1"))
+                TypeSettingsPages.showMessage(L10n.tr("これ以上登録できません。", comment: "STR_PROPTYPKEYHELP_ERR_REG1"))
                 return
             }
             if !insert && index == -1 {
-                TypeSettingsPages.showMessage(NSLocalizedString("更新する辞書をリストから選択してください。", comment: "STR_PROPTYPKEYHELP_SELECT"))
+                TypeSettingsPages.showMessage(L10n.tr("更新する辞書をリストから選択してください。", comment: "STR_PROPTYPKEYHELP_SELECT"))
                 return
             }
             let path = page.text(idc("EDIT_KEYHELP"))
             guard !path.isEmpty else { return }
             if dictionaries.enumerated().contains(where: { $0.element.path == path && !(!insert && $0.offset == index) }) {
-                TypeSettingsPages.showMessage(NSLocalizedString("既に登録済みの辞書です。", comment: "STR_PROPTYPKEYHELP_ERR_REG2"))
+                TypeSettingsPages.showMessage(L10n.tr("既に登録済みの辞書です。", comment: "STR_PROPTYPKEYHELP_ERR_REG2"))
                 return
             }
             guard let about = EditorCore.keywordHelpDictionaryAbout(path) else {
-                TypeSettingsPages.showMessage(String(format: NSLocalizedString("ファイルを開けませんでした。\n\n%@", comment: "STR_PROPTYPKEYHELP_ERR_OPEN"), path))
+                TypeSettingsPages.showMessage(String(format: L10n.tr("ファイルを開けませんでした。\n\n%@", comment: "STR_PROPTYPKEYHELP_ERR_OPEN"), path))
                 return
             }
             page.setText(idc("LABEL_KEYHELP_ABOUT"), about)
@@ -423,7 +423,7 @@ extension TypeSettingsPages {
         guard let path = chooseExportFile("", extensions, window) else { return }
         let result = EditorCore.exportTypeSettingFile(kind, typeIndex: typeIndex, pending: values.pending, path: path)
         showMessage(result.succeeded
-            ? NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path
+            ? L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path
             : result.message)
     }
 }

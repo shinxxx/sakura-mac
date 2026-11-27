@@ -152,12 +152,17 @@ struct PropDialogs: Decodable {
         let frame: [Double]
         let text: String?
         let flags: [String]?
+        /// IDC_STATIC 的标签的日文的文字（英文、中文的布局。按文字找标签时用，第 48 步）
+        let key: String?
 
         func has(_ flag: String) -> Bool { flags?.contains(flag) ?? false }
     }
 
     struct Page: Decodable {
+        /// 固定的日文名（找页、辅助功能的标识用）
         let name: String
+        /// 显示的页名（原版 STR_PROPCOMMON_* 等，界面的语言。第 48 步）
+        let title: String?
         let dialog: String
         let size: [Double]
         let controls: [Control]
@@ -173,8 +178,8 @@ struct PropDialogs: Decodable {
 
     /// resource：共通設定是 CommonSettingsDialogs，タイプ別設定是 TypeSettingsDialogs（第 40 步）
     static func load(_ resource: String = "CommonSettingsDialogs") -> PropDialogs? {
-        let bundle = Bundle(for: PropPage.self)
-        guard let url = bundle.url(forResource: resource, withExtension: "json"),
+        // 第 48 步：界面的语言的布局（Resources/<语言>.lproj/）
+        guard let url = L10n.resourceURL(resource, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(PropDialogs.self, from: data)
     }
@@ -191,8 +196,9 @@ final class PropFlippedView: NSView {
 final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     /// 对话框单位 → 点（縦）
     static let scale: CGFloat = 1.6
-    /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）
-    static var scaleX: CGFloat = 1.95
+    /// 横は少し広く：Mac の文字は原版（Windows）の文字より幅があるので、原版の枠のままだと文字が切れる（第 41 步）。
+    /// 英語・中国語は原版の語言包の枠（日本語と同じ大きさ）に長い文字が入るので、もっと広く（第 48 步）
+    static var scaleX: CGFloat { L10n.language == "ja" ? 1.95 : 2.3 }
     static let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
 
     let definition: PropDialogs.Page
@@ -306,6 +312,7 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
                 view.addSubview(label)
                 register(label, control)
                 if !text.isEmpty { labels[text] = label }
+                if let key = control.key { labels[key] = label }	// 英文、中文也能用日文的文字找（第 48 步）
             case "edit":
                 let field = NSTextField(frame: frame)
                 field.font = Self.font
@@ -434,6 +441,23 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             button.frame.size.width += shortage
         }
 
+        // それでも文字が入らない 1 行の説明（中国語「DLL文件(M)」等）は、右隣の入力欄の左端を右へずらす。
+        // 同じ列（左端と幅が同じ）の入力欄も一緒にずらして揃える（第 48 步）
+        let fields = view.subviews.compactMap { $0 as? NSTextField }.filter { $0.isEditable }
+        for label in view.subviews.compactMap({ $0 as? NSTextField }) where !label.isEditable && !label.isHidden
+            && label.cell?.wraps == false && (label.alignment == .left || label.alignment == .natural)
+            && label.fittingSize.width > label.frame.width + 0.5 {
+            let shortage = ceil(label.fittingSize.width - label.frame.width)
+            guard let field = fields.first(where: { abs($0.frame.midY - label.frame.midY) < 6 && $0.frame.minX >= label.frame.maxX - 2
+                && $0.frame.minX - label.frame.maxX < 12 && $0.frame.width > shortage * 4 }) else { continue }
+            let column = fields.filter { abs($0.frame.minX - field.frame.minX) < 1 && abs($0.frame.width - field.frame.width) < 1 }
+            for f in column {
+                f.frame.origin.x += shortage
+                f.frame.size.width -= shortage
+            }
+            label.frame.size.width += shortage
+        }
+
         // 横に並んだボタンの間を 4 点以上あける（余白のあるほうを縮める）（第 41 步）
         let pushButtons = view.subviews.compactMap { $0 as? NSButton }.filter { $0.bezelStyle == .rounded }.sorted { $0.frame.minX < $1.frame.minX }
         for (i, left) in pushButtons.enumerated() {
@@ -464,7 +488,7 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             if control.has("disabled") { setEnabled(control.id, false) }
         }
         for control in definition.controls where control.id == "IDC_STATIC" && control.has("hidden") {
-            if let text = control.text, let label = labels[text] { label.isHidden = true }
+            if let text = control.key ?? control.text, let label = labels[text] { label.isHidden = true }
         }
     }
 
@@ -489,7 +513,16 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             let r = Self.rect(other.frame)
             guard r != original, r.maxY > original.minY, r.minY < original.maxY else { continue }
             if r.minX >= original.maxX - 1 { limit = min(limit, r.minX - 4) }
-            if r.maxX <= original.minX + 1 { leftLimit = max(leftLimit, r.maxX + 4) }
+            if r.maxX <= original.minX + 1 {
+                // 左隣のチェックボックスは文字の幅に縮めてあるので、その右端まで使える（第 48 步：中国語「Tab键(T)」）
+                var edge = r.maxX
+                if other.kind == "check", let left = controls[other.id], left.superview === view { edge = min(edge, left.frame.maxX) }
+                if other.kind == "radio", let left = controls[other.id] as? NSButton, !left.title.contains("\n") {
+                    // ラジオボタンも文字の幅に縮める（下の radioGroups）
+                    edge = min(edge, r.minX + ceil(left.fittingSize.width) + 2)
+                }
+                leftLimit = max(leftLimit, edge + 4)
+            }
         }
         result.size.width = min(needed, max(frame.width, limit - frame.minX))
         let shortage = needed - result.width
@@ -504,7 +537,9 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     /// 項目を入れた下拉框が全部の項目を見せられるように広げる（第 41 步）
     private func fitPopup(_ id: String) {
         guard let popup = controls[id] as? NSPopUpButton, let control = definition.controls.first(where: { $0.id == id }) else { return }
-        let original = Self.rect(control.frame)
+        // 原版の高さは開いたリストの分まで含むので、分组框・隣の控件は閉じたときの高さで探す（第 48 步：分组框からはみ出さない）
+        var original = Self.rect(control.frame)
+        original.size.height = min(original.height, popup.frame.height)
         let base = NSRect(x: original.minX, y: popup.frame.minY, width: original.width, height: popup.frame.height)
         popup.frame = widened(base, original: original, needed: ceil(popup.fittingSize.width))
     }
@@ -828,7 +863,9 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         table.allowsMultipleSelection = false
         table.allowsEmptySelection = true
         table.rowHeight = 17
-        table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0")))
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0"))
+        column.title = ""	// 既定の「Field」を出さない（第 48 步）
+        table.addTableColumn(column)
         table.dataSource = self
         table.delegate = self
         table.target = self
@@ -1147,7 +1184,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
         okButton.keyEquivalent = "\r"
         okButton.frame = NSRect(x: width - margin - 90, y: margin, width: 90, height: 28)
         okButton.setAccessibilityIdentifier(identifierPrefix + "OK")
-        let cancelButton = NSButton(title: NSLocalizedString("キャンセル", comment: "共通設定窗口的按钮"), target: self, action: #selector(cancel(_:)))
+        let cancelButton = NSButton(title: L10n.tr("キャンセル", comment: "共通設定窗口的按钮"), target: self, action: #selector(cancel(_:)))
         cancelButton.keyEquivalent = "\u{1b}"
         cancelButton.frame = NSRect(x: width - margin - 90 - 8 - 90, y: margin, width: 90, height: 28)
         cancelButton.setAccessibilityIdentifier(identifierPrefix + "Cancel")
@@ -1183,7 +1220,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
 
     /// 以后的步骤移植的页的说明
     func laterNote(for dialog: String) -> String {
-        NSLocalizedString("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
+        L10n.tr("このページは今後のバージョンで対応します。現在の設定を表示しています。", comment: "共通設定：以后的版本移植的页")
     }
 
     // MARK: 页
@@ -1198,8 +1235,8 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
             for (id, range) in logic.ranges { page.setRange(id, range) }
             logic.setData(page, values)
             for (id, range) in logic.ranges { page.setRange(id, range) }
-            page.setUnavailable(logic.unavailable, reason: NSLocalizedString("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
-            page.setUnavailable(logic.notYet, reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+            page.setUnavailable(logic.unavailable, reason: L10n.tr("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
+            page.setUnavailable(logic.notYet, reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
             logic.enable(page)
             page.onChange = { [weak self, weak page] id in
                 guard let self, let page else { return }
@@ -1288,7 +1325,7 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let label = NSTextField(labelWithString: dialogs.pages[row].name)
+        let label = NSTextField(labelWithString: dialogs.pages[row].title ?? dialogs.pages[row].name)
         label.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         label.setAccessibilityIdentifier("\(identifierPrefix)Page_\(dialogs.pages[row].name)")
         return label
@@ -1331,7 +1368,7 @@ final class CommonSettingsWindowController: PropSheetWindowController {
 
     init?(store: CommonSettingsStore = CoreCommonSettingsStore(), page: Int = 0) {
         super.init(dialogs: PropDialogs.load(), values: CommonSettingsValues(store: store),
-                   title: NSLocalizedString("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）"),
+                   title: L10n.tr("共通設定", comment: "共通設定窗口的标题（原版 STR_PROPCOMMON）"),
                    identifierPrefix: "CommonSettings", logic: CommonSettingsPages.logic(for:), page: page)
     }
 
@@ -1388,7 +1425,7 @@ final class CommonSettingsWindowController: PropSheetWindowController {
     override func laterNote(for dialog: String) -> String {
         switch dialog {
         case "IDD_PROP_PLUGIN":
-            return NSLocalizedString("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
+            return L10n.tr("Mac 版では DLL のプラグインは使用できません。", comment: "共通設定：プラグイン")
         default:
             return super.laterNote(for: dialog)
         }
@@ -1437,10 +1474,10 @@ final class WinSizeDialog: NSObject, NSWindowDelegate {
         self.values = values
         super.init()
         // 原版 OnInitDialog
-        page.setItems("IDC_COMBO_WINTYPE", [NSLocalizedString("普通", comment: "STR_DLGWINSZ_NORMAL"),
-                                            NSLocalizedString("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
-                                            NSLocalizedString("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+        page.setItems("IDC_COMBO_WINTYPE", [L10n.tr("普通", comment: "STR_DLGWINSZ_NORMAL"),
+                                            L10n.tr("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
+                                            L10n.tr("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         setData()
         page.setRange("IDC_EDIT_SX", 0...30000)
         page.setRange("IDC_EDIT_SY", 0...30000)

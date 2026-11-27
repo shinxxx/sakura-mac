@@ -42,7 +42,7 @@ final class TypeSettingsWindowController: PropSheetWindowController {
         self.typeIndex = typeIndex
         super.init(dialogs: PropDialogs.load("TypeSettingsDialogs"),
                    values: CommonSettingsValues(store: store, defaultSection: "Types(\(typeIndex))"),
-                   title: NSLocalizedString("タイプ別設定", comment: "タイプ別設定窗口的标题（原版 STR_PROPTYPE）"),
+                   title: L10n.tr("タイプ別設定", comment: "タイプ別設定窗口的标题（原版 STR_PROPTYPE）"),
                    identifierPrefix: "TypeSettings", logic: { TypeSettingsPages.logic(for: $0, typeIndex: typeIndex) }, page: page)
     }
 

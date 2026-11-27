@@ -95,6 +95,6 @@ final class EditorWindowController: NSWindowController {
         }
         // 第 45 步：キーマクロの記録中（原版のキャプションの ${M?  【キーマクロの記録中】$}）
         let recording = KeyMacroRecorder.shared.isRecording(in: window) ? KeyMacroRecorder.recordingCaption : ""
-        return displayName + (editorDocument.isModified ? " (更新)" : "") + recording
+        return displayName + (editorDocument.isModified ? " " + L10n.tr("(更新)", comment: "ウィンドウのタイトル（原版 STR_CAPTION_ACTIVE_UPDATE）") : "") + recording
     }
 }

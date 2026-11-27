@@ -26,8 +26,8 @@ final class SettingsImporter: NSObject, NSMenuItemValidation {
     /// 选择设置文件。取消时 nil
     static var chooseFile: () -> URL? = {
         let panel = NSOpenPanel()
-        panel.message = NSLocalizedString("インポートする設定ファイル（sakura.ini）を選択してください。", comment: "設定のインポート（Mac 版）")
-        panel.prompt = NSLocalizedString("選択", comment: "設定のインポート（Mac 版）")
+        panel.message = L10n.tr("インポートする設定ファイル（sakura.ini）を選択してください。", comment: "設定のインポート（Mac 版）")
+        panel.prompt = L10n.tr("選択", comment: "設定のインポート（Mac 版）")
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         return panel.runModal() == .OK ? panel.url : nil
@@ -36,12 +36,12 @@ final class SettingsImporter: NSObject, NSMenuItemValidation {
     /// 导入前的确认。继续时 true
     static var confirm: (_ source: String, _ backup: String) -> Bool = { source, backup in
         let alert = NSAlert()
-        alert.messageText = NSLocalizedString("Windows 版の設定をインポートしますか?", comment: "設定のインポート（Mac 版）")
-        alert.informativeText = String(format: NSLocalizedString(
+        alert.messageText = L10n.tr("Windows 版の設定をインポートしますか?", comment: "設定のインポート（Mac 版）")
+        alert.informativeText = String(format: L10n.tr(
             "共通設定、キー割り当て、タイプ別設定、メインメニューなどを次のファイルの内容に置き換えます。\n%@\n\n履歴（最近使ったファイルなど）はこの Mac のものを残します。現在の設定は次のファイルに保存します。\n%@\n\nインポートした設定はサクラエディタの再起動後に有効になります。開いているファイルはすべて閉じます。",
             comment: "設定のインポート（Mac 版）"), source, backup)
-        alert.addButton(withTitle: NSLocalizedString("インポートして再起動", comment: "設定のインポート（Mac 版）"))
-        alert.addButton(withTitle: NSLocalizedString("キャンセル", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("インポートして再起動", comment: "設定のインポート（Mac 版）"))
+        alert.addButton(withTitle: L10n.tr("キャンセル", comment: "メッセージボックス"))
         return alert.runModal() == .alertFirstButtonReturn
     }
 
@@ -50,7 +50,7 @@ final class SettingsImporter: NSObject, NSMenuItemValidation {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = message
-        alert.addButton(withTitle: NSLocalizedString("OK", comment: "メッセージボックス"))
+        alert.addButton(withTitle: L10n.tr("OK", comment: "メッセージボックス"))
         alert.runModal()
     }
 
@@ -81,10 +81,10 @@ final class SettingsImporter: NSObject, NSMenuItemValidation {
         case .imported:
             break
         case .notSettingsFile:
-            Self.showError(String(format: NSLocalizedString("%@\n\nサクラエディタの設定ファイルではありません。", comment: "設定のインポート（Mac 版）"), path))
+            Self.showError(String(format: L10n.tr("%@\n\nサクラエディタの設定ファイルではありません。", comment: "設定のインポート（Mac 版）"), path))
             return
         default:
-            Self.showError(String(format: NSLocalizedString("%@\n\nファイルを読み込めませんでした。", comment: "設定のインポート（Mac 版）"), path))
+            Self.showError(String(format: L10n.tr("%@\n\nファイルを読み込めませんでした。", comment: "設定のインポート（Mac 版）"), path))
             return
         }
         guard Self.confirm(path, EditorCore.settingsBackupPath) else { return }
@@ -106,7 +106,7 @@ final class SettingsImporter: NSObject, NSMenuItemValidation {
         let result = EditorCore.importSettings(path)
         guard result == .imported else {
             isImporting = false
-            Self.showError(String(format: NSLocalizedString("設定ファイルに書き込めませんでした。\n%@", comment: "設定のインポート（Mac 版）"),
+            Self.showError(String(format: L10n.tr("設定ファイルに書き込めませんでした。\n%@", comment: "設定のインポート（Mac 版）"),
                                   EditorCore.settingsFilePath))
             return
         }

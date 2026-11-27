@@ -14,10 +14,10 @@ final class AboutPanel: NSObject, NSWindowDelegate {
     static let shared = AboutPanel()
 
     /// 原版 STR_DLGABOUT_APPNAME
-    static let appName = NSLocalizedString("サクラエディタ", comment: "STR_DLGABOUT_APPNAME")
+    static var appName: String { L10n.tr("サクラエディタ", comment: "STR_DLGABOUT_APPNAME") }
     /// 原版 S_COPYRIGHT（sakura_rc.rc2）
     static let copyright = "Copyright (C) 1998-2022  by Norio Nakatani & Collaborators"
-    static let originalAuthor = NSLocalizedString("原作者: たけ(竹パンダ) さん", comment: "IDD_ABOUT")
+    static var originalAuthor: String { L10n.tr("原作者: たけ(竹パンダ) さん", comment: "IDD_ABOUT") }
     static let projectURL = URL(string: "https://sakura-editor.github.io/")!
 
     /// 版本的部分（原版 IDC_EDIT_VER。「情報をコピー」复制这一段）
@@ -34,10 +34,10 @@ final class AboutPanel: NSObject, NSWindowDelegate {
 
     /// 说明的部分（原版 IDC_EDIT_ABOUT 的 IDS_ABOUT_DESCRIPTION），后面是修改版的声明和许可证
     static var descriptionText: String {
-        let description = NSLocalizedString(
+        let description = L10n.tr(
             "このソフトウェアは「テキストエディタ(共同開発版)」を改称したものです。\n商用・非商用を問わず無償で利用できますが、ソースコードの著作権は各箇所を記述した人が留保しています。\nこのソフトウェアは無保証です。\n",
             comment: "IDS_ABOUT_DESCRIPTION")
-        let modified = NSLocalizedString(
+        let modified = L10n.tr(
             "このアプリはサクラエディタを macOS 用に移植・改変したものです。サクラエディタの公式版ではありません。\n",
             comment: "バージョン情報（Mac 版）")
         return description + "\n" + modified + "\n" + license
@@ -101,7 +101,7 @@ final class AboutPanel: NSObject, NSWindowDelegate {
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 460),
                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        panel.title = NSLocalizedString("バージョン情報", comment: "IDD_ABOUT")
+        panel.title = L10n.tr("バージョン情報", comment: "IDD_ABOUT")
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         panel.setAccessibilityIdentifier("about")
@@ -127,10 +127,10 @@ final class AboutPanel: NSObject, NSWindowDelegate {
         }
         scroll.borderType = .bezelBorder
 
-        let ok = NSButton(title: NSLocalizedString("OK", comment: "IDD_ABOUT"), target: self, action: #selector(closePanel(_:)))
+        let ok = NSButton(title: L10n.tr("OK", comment: "IDD_ABOUT"), target: self, action: #selector(closePanel(_:)))
         ok.keyEquivalent = "\r"
         ok.setAccessibilityIdentifier("aboutOK")
-        let copy = NSButton(title: NSLocalizedString("情報をコピー", comment: "IDD_ABOUT"), target: self, action: #selector(copyInfo(_:)))
+        let copy = NSButton(title: L10n.tr("情報をコピー", comment: "IDD_ABOUT"), target: self, action: #selector(copyInfo(_:)))
         copy.setAccessibilityIdentifier("copyInfo")
 
         let urlRow = NSStackView(views: [urlCaption, urlButton])

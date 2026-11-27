@@ -1,0 +1,13 @@
+{"source": "sakura_lang/sakura_rc_en-US.rc", "pages": [
+], "dialogs": [
+ {"name": "File has changed", "dialog": "IDD_FILEUPDATEQUERY", "size": [223, 107], "controls": [
+  {"id": "IDC_BTN_RELOAD", "kind": "button", "frame": [7, 63, 50, 14], "text": "Reload"},
+  {"id": "IDC_BTN_CLOSE", "kind": "button", "frame": [59, 63, 50, 14], "text": "Close"},
+  {"id": "IDC_BTN_AUTOLOAD", "kind": "button", "frame": [114, 63, 102, 14], "text": "Autoload while not modified"},
+  {"id": "IDC_BTN_NOTIFYONLY", "kind": "button", "frame": [7, 81, 102, 14], "text": "Notify me later"},
+  {"id": "IDC_BTN_NOSUPERVISION", "kind": "button", "frame": [114, 81, 102, 14], "text": "Don't Notify me again"},
+  {"id": "IDC_UPDATEDFILENAME", "kind": "edit", "frame": [7, 7, 209, 25], "flags": ["multiline", "readonly"]},
+  {"id": "IDC_FILEUPDATEMSG", "kind": "label", "frame": [7, 36, 209, 8], "text": "This file has been altered by an external editor or other program."},
+  {"id": "IDC_QUERYRELOADMSG", "kind": "label", "frame": [7, 48, 209, 8]}
+ ]}
+]}

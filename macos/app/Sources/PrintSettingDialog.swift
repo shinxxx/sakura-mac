@@ -67,7 +67,7 @@ final class PrintSettingDialog: NSObject {
             let range = PrintCore.range(of: field)
             page.setRange(id, range.location ... range.location + range.length - 1)
         }
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         page.onChange = { [weak self] id in self?.changed(id) }
         page.onButton = { [weak self] id in self?.buttonPressed(id) }
@@ -284,8 +284,8 @@ final class PrintSettingDialog: NSObject {
     /// 設定名変更（原版 CDlgInput1：STR_DLGPRNST1・STR_DLGPRNST2、32 文字まで。空は変えない）
     func editSettingName() {
         let s = settings[currentIndex]
-        guard let name = CommonSettingsPages.input(NSLocalizedString("設定名の変更", comment: "STR_DLGPRNST1"),
-                                                   NSLocalizedString("設定の名称を入力してください。", comment: "STR_DLGPRNST2"),
+        guard let name = CommonSettingsPages.input(L10n.tr("設定名の変更", comment: "STR_DLGPRNST1"),
+                                                   L10n.tr("設定の名称を入力してください。", comment: "STR_DLGPRNST2"),
                                                    32, s.name), !name.isEmpty else { return }
         s.name = String(name.prefix(32))
         updateSettingNames()

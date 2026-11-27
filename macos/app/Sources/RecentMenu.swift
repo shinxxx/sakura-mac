@@ -29,8 +29,8 @@ final class RecentMenu: NSObject, NSMenuDelegate {
     init(kind: Kind) {
         self.kind = kind
         let title = kind == .files
-            ? NSLocalizedString("最近使ったファイル", comment: "ファイル > 最近使ったファイル（34006）")
-            : NSLocalizedString("最近使ったフォルダー", comment: "ファイル > 最近使ったフォルダー（34007）")
+            ? L10n.tr("最近使ったファイル", comment: "ファイル > 最近使ったファイル（34006）")
+            : L10n.tr("最近使ったフォルダー", comment: "ファイル > 最近使ったフォルダー（34007）")
         menu = NSMenu(title: title)
         item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         super.init()

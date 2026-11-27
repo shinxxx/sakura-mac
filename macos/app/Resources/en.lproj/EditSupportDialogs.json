@@ -1,0 +1,50 @@
+{"source": "sakura_lang/sakura_rc_en-US.rc", "pages": [
+], "dialogs": [
+ {"name": "DIFF Differences", "dialog": "IDD_DIFF", "size": [263, 303], "controls": [
+  {"id": "IDC_FRAME_DIFF_DST", "kind": "group", "frame": [7, 47, 249, 138], "text": "Compare with", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_DST1", "kind": "radio", "frame": [13, 58, 78, 11], "text": "Using External File", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_DST2", "kind": "radio", "frame": [13, 89, 147, 11], "text": "Other Open Editor Files"},
+  {"id": "IDC_EDIT_DIFF_DST", "kind": "edit", "frame": [13, 72, 191, 13]},
+  {"id": "IDC_BUTTON_DIFF_DST", "kind": "button", "frame": [208, 72, 42, 14], "text": "Select(R)...", "flags": ["group"]},
+  {"id": "IDC_LIST_DIFF_FILES", "kind": "list", "frame": [13, 102, 236, 77]},
+  {"id": "IDC_CHECK_DIFF_OPT_CASE", "kind": "check", "frame": [7, 191, 101, 10], "text": "Case Insensitive"},
+  {"id": "IDC_CHECK_DIFF_OPT_SPACE", "kind": "check", "frame": [7, 203, 101, 10], "text": "Ignore Whitespace"},
+  {"id": "IDC_CHECK_DIFF_OPT_SPCCHG", "kind": "check", "frame": [7, 216, 101, 10], "text": "Ignore diff in whitespace(B)"},
+  {"id": "IDC_CHECK_DIFF_OPT_BLINE", "kind": "check", "frame": [7, 229, 101, 10], "text": "Ignore Blank Lines"},
+  {"id": "IDC_CHECK_DIFF_OPT_TABSPC", "kind": "check", "frame": [7, 242, 101, 10], "text": "Tab whitespace diff"},
+  {"id": "IDC_FRAME_DIFF_FILE12", "kind": "group", "frame": [110, 190, 146, 26], "text": "Editor File is...", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_FILE1", "kind": "radio", "frame": [119, 201, 59, 10], "text": "New File", "flags": ["group"]},
+  {"id": "IDC_RADIO_DIFF_FILE2", "kind": "radio", "frame": [183, 201, 59, 10], "text": "Old File"},
+  {"id": "IDC_FRAME_SEARCH_MSG", "kind": "group", "frame": [110, 221, 146, 41], "text": "Jump to Prev(Next) diff"},
+  {"id": "IDC_CHECK_NOTIFYNOTFOUND", "kind": "check", "frame": [114, 232, 140, 10], "text": "Show message if not found"},
+  {"id": "IDC_CHECK_SEARCHALL", "kind": "check", "frame": [114, 245, 130, 10], "text": "Continue search from top of file(Z)"},
+  {"id": "IDC_CHECK_DIFF_EXEC_STATE", "kind": "check", "frame": [110, 267, 139, 10], "text": "Show message if no differences found"},
+  {"id": "IDOK", "kind": "button", "frame": [93, 282, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [147, 282, 50, 14], "text": "Cancel(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [202, 282, 50, 14], "text": "Help"},
+  {"id": "IDC_STATIC", "kind": "label", "frame": [7, 7, 61, 8], "text": "Current Editor File", "key": "編集中のファイル"},
+  {"id": "IDC_STATIC_DIFF_SRC", "kind": "edit", "frame": [7, 18, 249, 23], "flags": ["multiline", "readonly"]}
+ ]},
+ {"name": "File Compare", "dialog": "IDD_COMPARE", "size": [365, 165], "controls": [
+  {"id": "IDC_STATIC", "kind": "label", "frame": [5, 31, 158, 8], "text": "Choose a file from below to use as comparison:", "key": "比較するファイルを下から選択してください(C):"},
+  {"id": "IDC_LIST_FILES", "kind": "list", "frame": [5, 42, 355, 95]},
+  {"id": "IDC_CHECK_TILE_H", "kind": "check", "frame": [288, 30, 71, 10], "text": "Display side-by-side(T)"},
+  {"id": "IDOK", "kind": "button", "frame": [184, 145, 50, 14], "text": "OK"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [244, 145, 50, 14], "text": "Cancel(X)"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [304, 145, 50, 14], "text": "Help"},
+  {"id": "IDC_STATIC_COMPARESRC", "kind": "edit", "frame": [7, 7, 355, 20], "flags": ["multiline", "readonly"]}
+ ]},
+ {"name": "Direct Tag Jump List", "dialog": "IDD_TAGJUMPLIST", "size": [410, 189], "controls": [
+  {"id": "IDC_STATIC_BASEDIR", "kind": "label", "frame": [4, 151, 276, 8], "text": "DIR"},
+  {"id": "IDC_STATIC_KEYWORD", "kind": "label", "frame": [4, 162, 100, 8], "text": "Keyword"},
+  {"id": "IDC_KEYWORD", "kind": "combo", "frame": [3, 172, 134, 180]},
+  {"id": "IDC_LIST_TAGJUMP", "kind": "listview", "frame": [3, 4, 403, 143], "text": "List1"},
+  {"id": "IDC_BUTTON_PREVTAG", "kind": "button", "frame": [296, 152, 50, 14], "text": "Previous"},
+  {"id": "IDC_BUTTON_NEXTTAG", "kind": "button", "frame": [349, 152, 50, 14], "text": "Next"},
+  {"id": "IDC_BUTTON_HELP", "kind": "button", "frame": [243, 170, 50, 14], "text": "Help"},
+  {"id": "IDOK", "kind": "button", "frame": [296, 170, 50, 14], "text": "Jump"},
+  {"id": "IDCANCEL", "kind": "button", "frame": [349, 170, 50, 14], "text": "Cancel(X)"},
+  {"id": "IDC_CHECK_ICASE", "kind": "check", "frame": [144, 163, 93, 10], "text": "Case Insensitive(F)"},
+  {"id": "IDC_CHECK_ANYWHERE", "kind": "check", "frame": [144, 175, 93, 10], "text": "Match inside string"}
+ ]}
+]}

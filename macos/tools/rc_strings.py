@@ -9,7 +9,11 @@ Mac 版在没有注册其他语言的读取函数时，用这里生成的日文�
 另外，用户定义类型的资源（类型是数字，例如 `IDR_MENU1 100 "MainMenu.ini"`，第 21 步）
 把文件内容原样嵌入，供 FindResource / LoadResource（macos/platform/src/resources.cpp）读取。
 
-用法: rc_strings.py <sakura_rc.rc> <输出.cpp> <定义 ID 的头文件>...
+第 48 步（界面本地化）：再用 --lang 指定英文、中文的资源文件（原版语言 DLL 的 sakura_lang/sakura_rc_en-US.rc、
+sakura_rc_zh-CN.rc），生成各语言的字符串表。语言包里缺少的、没翻译的字符串用 --supplement 的 JSON 补上
+（macos/tools/l10n/rc_supplement.json，Mac 版自己的翻译）。仍然没有的编号与原版相同，读日文。
+
+用法: rc_strings.py <sakura_rc.rc> <输出.cpp> <定义 ID 的头文件>... [--lang en=<rc>] [--lang zh=<rc>] [--supplement <json>]
 """
 import re
 import sys
@@ -66,28 +70,75 @@ def to_cpp_literal(s):
     return ''.join(out)
 
 
-def main():
-    if len(sys.argv) < 4:
-        print(__doc__, file=sys.stderr)
-        return 2
-    rc_path, out_path, headers = sys.argv[1], sys.argv[2], sys.argv[3:]
-    raw = open(rc_path, 'rb').read()
+def read_rc_text(path):
+    raw = open(path, 'rb').read()
     text = raw.decode('utf-16') if raw[:2] in (b'\xff\xfe', b'\xfe\xff') else raw.decode('utf-8-sig')
-    text = text.replace('\r\n', '\n')
-    defines = read_defines(headers)
+    return text.replace('\r\n', '\n')
 
+
+def resolve_id(name, defines):
+    if name.isdigit():
+        return int(name)
+    if name in defines:
+        return defines[name]
+    raise KeyError(name)
+
+
+def string_table(text, defines):
+    """STRINGTABLE 的全部字符串：编号 → 文字"""
     entries = {}
     for block in re.findall(r'^STRINGTABLE\b[^\n]*\nBEGIN\n(.*?)^END', text, re.M | re.S):
         for m in re.finditer(r'(\w+)\s*,?\s*"((?:[^"]|"")*)"', block):
-            name, value = m.group(1), m.group(2)
-            if name.isdigit():
-                ident = int(name)
-            elif name in defines:
-                ident = defines[name]
-            else:
-                print(f'rc_strings.py: unknown id {name}', file=sys.stderr)
-                return 1
-            entries[ident] = unescape_rc(value)
+            entries[resolve_id(m.group(1), defines)] = unescape_rc(m.group(2))
+    return entries
+
+
+def write_table(f, var, count_var, entries):
+    f.write(f'extern const SakuraResourceString {var}[] = {{\n')
+    for ident in sorted(entries):
+        f.write(f'\t{{ {ident}u, {to_cpp_literal(entries[ident])} }},\n')
+    if not entries:
+        f.write('\t{ 0u, u"" },\n')
+    f.write('};\n')
+    f.write(f'extern const std::size_t {count_var} = {len(entries)};\n')
+
+
+def main():
+    args = sys.argv[1:]
+    langs = []          # (语言, rc)
+    supplement = None
+    positional = []
+    i = 0
+    while i < len(args):
+        if args[i] == '--lang':
+            name, _, path = args[i + 1].partition('=')
+            langs.append((name, path)); i += 2; continue
+        if args[i] == '--supplement':
+            supplement = args[i + 1]; i += 2; continue
+        positional.append(args[i]); i += 1
+    if len(positional) < 3:
+        print(__doc__, file=sys.stderr)
+        return 2
+    rc_path, out_path, headers = positional[0], positional[1], positional[2:]
+    text = read_rc_text(rc_path)
+    defines = read_defines(headers)
+
+    try:
+        entries = string_table(text, defines)
+        lang_entries = []
+        supp = {}
+        if supplement:
+            import json
+            with open(supplement, encoding='utf-8') as sf:
+                supp = json.load(sf)
+        for name, path in langs:
+            table = string_table(read_rc_text(path), defines)
+            for key, value in supp.get(name, {}).items():
+                table[resolve_id(key, defines)] = value
+            lang_entries.append((name, table))
+    except KeyError as e:
+        print(f'rc_strings.py: unknown id {e.args[0]}', file=sys.stderr)
+        return 1
 
     # 用户定义类型的资源：<名字> <数字类型> "<文件>"（路径相对于 rc 文件）
     import os
@@ -114,11 +165,17 @@ def main():
         f.write('// 由 macos/tools/rc_strings.py 根据 sakura_core/sakura_rc.rc 生成，请勿手动修改\n')
         f.write('#include <cstddef>\n\n')
         f.write('struct SakuraResourceString { unsigned int id; const char16_t* text; };\n')
-        f.write('extern const SakuraResourceString g_sakuraResourceStrings[] = {\n')
-        for ident in sorted(entries):
-            f.write(f'\t{{ {ident}u, {to_cpp_literal(entries[ident])} }},\n')
+        write_table(f, 'g_sakuraResourceStrings', 'g_sakuraResourceStringCount', entries)
+        # 第 48 步：英文、中文（原版的语言 DLL）。0 号是日文（sakura.exe 内置的）
+        for name, table in lang_entries:
+            write_table(f, f'g_sakuraResourceStrings_{name}', f'g_sakuraResourceStringCount_{name}', table)
+        f.write('\nstruct SakuraResourceLanguage { const char* name; const SakuraResourceString* strings; std::size_t count; };\n')
+        f.write('extern const SakuraResourceLanguage g_sakuraResourceLanguages[] = {\n')
+        f.write('\t{ "ja", g_sakuraResourceStrings, g_sakuraResourceStringCount },\n')
+        for name, _ in lang_entries:
+            f.write(f'\t{{ "{name}", g_sakuraResourceStrings_{name}, g_sakuraResourceStringCount_{name} }},\n')
         f.write('};\n')
-        f.write(f'extern const std::size_t g_sakuraResourceStringCount = {len(entries)};\n')
+        f.write(f'extern const std::size_t g_sakuraResourceLanguageCount = {1 + len(lang_entries)};\n')
         f.write('\nstruct SakuraResourceData { unsigned int type; unsigned int id; const unsigned char* data; std::size_t size; };\n')
         for n, (type_id, res_id, data) in enumerate(raw_entries):
             f.write(f'static const unsigned char s_resourceData{n}[] = {{')

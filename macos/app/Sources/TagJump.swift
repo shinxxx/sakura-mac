@@ -44,7 +44,7 @@ extension EditorTextView {
     @objc func tagJumpBack(_ sender: Any?) {
         guard let entry = TagJumpStack.pop(), let view = entry.view, let window = view.window else {
             NSSound.beep()
-            sendStatusMessage(NSLocalizedString("タグジャンプバックできません", comment: "STR_ERR_TAGJMPBK1"))	// 第 44 步
+            sendStatusMessage(L10n.tr("タグジャンプバックできません", comment: "STR_ERR_TAGJMPBK1"))	// 第 44 步
             return
         }
         window.makeKeyAndOrderFront(nil)
@@ -75,7 +75,7 @@ extension EditorTextView {
             // ファイル名がなければ tags ファイルで（第 44 步，原版 Command_TagJumpByTagsFile）
             if tagJumpByTagsFile(close: close) { return true }
             NSSound.beep()
-            sendStatusMessage(NSLocalizedString("タグジャンプできません", comment: "STR_ERR_TAGJMP1"))
+            sendStatusMessage(L10n.tr("タグジャンプできません", comment: "STR_ERR_TAGJMP1"))
             return false
         }
         let origin = caret

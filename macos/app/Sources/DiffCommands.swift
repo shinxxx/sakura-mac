@@ -70,7 +70,7 @@ final class DiffDialogController: NSObject, NSWindowDelegate {
         window.delegate = self
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.onButton = { [weak self] id in self?.buttonClicked(id) }
         page.onChange = { [weak self] id in self?.controlChanged(id) }
         setData()
@@ -275,7 +275,7 @@ final class CompareDialogController: NSObject, NSWindowDelegate {
         window.delegate = self
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.onButton = { [weak self] id in self?.buttonClicked(id) }
         page.list("IDC_LIST_FILES")?.onDoubleClick = { [weak self] _, _ in self?.buttonClicked("IDOK") }
         setData()
@@ -380,13 +380,13 @@ extension EditorTextView {
     func readDiffFile(_ path: String) -> String? {
         let folder = (path as NSString).deletingLastPathComponent
         if !FileManager.default.isReadableFile(atPath: path) && !FolderAccess.doesNotExist(path) {
-            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: NSLocalizedString(
+            _ = FolderAccess.shared.ensureAccess(paths: [folder], parent: window, message: L10n.tr(
                 "「%@」のファイルと比べるには、このフォルダーへのアクセスを許可してください。", comment: "DIFF のフォルダーの許可"))
         }
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue,
               let text = EditorDocument.textOfFile(atPath: path) else {
-            Self.showMessage(NSLocalizedString("差分コマンド実行は失敗しました。\n\n比較するファイルが見つかりません。", comment: "STR_ERR_DLGEDITVWDIFF1"),
+            Self.showMessage(L10n.tr("差分コマンド実行は失敗しました。\n\n比較するファイルが見つかりません。", comment: "STR_ERR_DLGEDITVWDIFF1"),
                              style: .warning)
             return nil
         }
@@ -397,11 +397,11 @@ extension EditorTextView {
     func viewDiff(_ otherText: String, flags: Int) {
         switch document.applyDiff(otherText, flags: flags) {
         case .binary:
-            Self.showMessage(NSLocalizedString("DIFF差分を行おうとしたファイルはバイナリファイルです。", comment: "STR_ERR_DLGEDITVWDIFF4"),
+            Self.showMessage(L10n.tr("DIFF差分を行おうとしたファイルはバイナリファイルです。", comment: "STR_ERR_DLGEDITVWDIFF4"),
                              style: .warning)
         case .noDiff:
             if flags & 0x40 != 0 {	// DIFF差分がないときにメッセージを表示
-                Self.showMessage(NSLocalizedString("DIFF差分は見つかりませんでした。", comment: "STR_ERR_DLGEDITVWDIFF5"))
+                Self.showMessage(L10n.tr("DIFF差分は見つかりませんでした。", comment: "STR_ERR_DLGEDITVWDIFF5"))
             }
         default:
             break
@@ -426,8 +426,8 @@ extension EditorTextView {
         }
         sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
-            ? NSLocalizedString("前方(↓) に差分が見つかりません。", comment: "STR_DIFF_NEXT_NOT_FOUND")
-            : NSLocalizedString("後方(↑) に差分が見つかりません。", comment: "STR_DIFF_PREV_NOT_FOUND"))
+            ? L10n.tr("前方(↓) に差分が見つかりません。", comment: "STR_DIFF_NEXT_NOT_FOUND")
+            : L10n.tr("後方(↑) に差分が見つかりません。", comment: "STR_DIFF_PREV_NOT_FOUND"))
     }
 
     /// 差分の全解除（F_DIFF_RESET）
@@ -455,10 +455,10 @@ extension EditorTextView {
             target.view.setCaret(theirs)
             setCaret(mine)
             window?.makeKeyAndOrderFront(nil)
-            Self.showMessage(NSLocalizedString("異なる箇所が見つかりました。", comment: "STR_ERR_CEDITVIEW_CMD23"), style: .warning)
+            Self.showMessage(L10n.tr("異なる箇所が見つかりました。", comment: "STR_ERR_CEDITVIEW_CMD23"), style: .warning)
         } else {
             window?.makeKeyAndOrderFront(nil)
-            Self.showMessage(NSLocalizedString("異なる箇所は見つかりませんでした。", comment: "STR_ERR_CEDITVIEW_CMD22"))
+            Self.showMessage(L10n.tr("異なる箇所は見つかりませんでした。", comment: "STR_ERR_CEDITVIEW_CMD22"))
         }
     }
 

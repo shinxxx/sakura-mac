@@ -191,13 +191,13 @@ final class MainMenuPage: CommonSettingsPageLogic {
             let ok = editor.exportMainMenu(path: path, message: &message)
             let text = message as String? ?? ""
             TypeSettingsPages.showMessage(!ok || !text.isEmpty ? text
-                                          : NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
+                                          : L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
         case idc("BUTTON_CLEAR"):
-            guard CommonSettingsPages.confirm(NSLocalizedString("メニューの設定をクリアします。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_CLEAR")) else { return }
+            guard CommonSettingsPages.confirm(L10n.tr("メニューの設定をクリアします。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_CLEAR")) else { return }
             tree.roots = []
             tree.reload()
         case idc("BUTTON_INITIALIZE"):
-            guard CommonSettingsPages.confirm(NSLocalizedString("メニューの設定を初期状態に戻します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_INIT")) else { return }
+            guard CommonSettingsPages.confirm(L10n.tr("メニューの設定を初期状態に戻します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_INIT")) else { return }
             editor.initializeMainMenu()
             loadTree(page)
         case idc("BUTTON_DELETE"):
@@ -244,7 +244,7 @@ final class MainMenuPage: CommonSettingsPageLogic {
         case idc("BUTTON_CHECK"):
             let errors = check(tree)
             if errors.isEmpty {
-                CommonSettingsPages.inform(NSLocalizedString("問題ありませんでした。", comment: "STR_PROPCOMMAINMENU_OK"))
+                CommonSettingsPages.inform(L10n.tr("問題ありませんでした。", comment: "STR_PROPCOMMAINMENU_OK"))
             } else {
                 CommonSettingsPages.inform(errors)
             }
@@ -265,7 +265,7 @@ final class MainMenuPage: CommonSettingsPageLogic {
     private func delete(_ page: PropPage, _ tree: PropTree) {
         guard let node = tree.selectedNode else { return }
         if !node.children.isEmpty,
-           !CommonSettingsPages.confirm(NSLocalizedString("選択している項目を下位項目ごと削除します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_DEL")) {
+           !CommonSettingsPages.confirm(L10n.tr("選択している項目を下位項目ごと削除します。\nよろしいですか？", comment: "STR_PROPCOMMAINMENU_DEL")) {
             return
         }
         var siblings = node.siblings(in: tree)
@@ -284,7 +284,7 @@ final class MainMenuPage: CommonSettingsPageLogic {
         var functionRow: Int?
         switch id {
         case idc("BUTTON_INSERT_NODE"):
-            node = MenuNode(code: Self.nodeCode, name: NSLocalizedString("編集してください", comment: "STR_PROPCOMMAINMENU_EDIT"), accessKey: "", isNode: true)
+            node = MenuNode(code: Self.nodeCode, name: L10n.tr("編集してください", comment: "STR_PROPCOMMAINMENU_EDIT"), accessKey: "", isNode: true)
         case idc("BUTTON_INSERTSEPARATOR"):
             node = MenuNode(code: Self.separatorCode, name: Self.separatorLabel, accessKey: "", isNode: false)
         default:
@@ -338,14 +338,14 @@ final class MainMenuPage: CommonSettingsPageLogic {
     }
 
     static var separatorLabel: String {
-        NSLocalizedString("――――――――――", comment: "STR_PROPCOMMAINMENU_SEP")
+        L10n.tr("――――――――――", comment: "STR_PROPCOMMAINMENU_SEP")
     }
 
     /// 原版 NM_DBLCLK：アクセスキーの設定（区切線以外）
     private func editAccessKey(_ page: PropPage, _ node: MenuNode?) {
         guard let node, node.code != Self.separatorCode,
-              let key = CommonSettingsPages.input(NSLocalizedString("メニューアイテムのアクセスキー設定", comment: "STR_PROPCOMMAINMENU_ACCKEY1"),
-                                                  NSLocalizedString("キーを入力してください。", comment: "STR_PROPCOMMAINMENU_ACCKEY2"),
+              let key = CommonSettingsPages.input(L10n.tr("メニューアイテムのアクセスキー設定", comment: "STR_PROPCOMMAINMENU_ACCKEY1"),
+                                                  L10n.tr("キーを入力してください。", comment: "STR_PROPCOMMAINMENU_ACCKEY2"),
                                                   1, node.accessKey) else { return }
         node.accessKey = String(key.prefix(1))
         node.duplicate = false
@@ -356,9 +356,9 @@ final class MainMenuPage: CommonSettingsPageLogic {
     /// 原版 F2 → TVN_BEGINLABELEDIT / TVN_ENDLABELEDIT：子菜单の名前（空は「編集してください」、変えたら F_NODE）
     private func renameNode(_ page: PropPage) {
         guard let node = tree(page)?.selectedNode as? MenuNode, node.isNode,
-              let name = CommonSettingsPages.input(NSLocalizedString("名前の変更", comment: "メインメニュー：子菜单の名前（Mac 版）"),
+              let name = CommonSettingsPages.input(L10n.tr("名前の変更", comment: "メインメニュー：子菜单の名前（Mac 版）"),
                                                    "", Self.maxNameLength, node.name) else { return }
-        let newName = name.isEmpty ? NSLocalizedString("編集してください", comment: "STR_PROPCOMMAINMENU_EDIT") : name
+        let newName = name.isEmpty ? L10n.tr("編集してください", comment: "STR_PROPCOMMAINMENU_EDIT") : name
         if newName != node.name { node.code = Self.nodeCode }
         node.name = newName
         node.updateTitle()
@@ -403,11 +403,11 @@ final class MainMenuPage: CommonSettingsPageLogic {
         visit(tree.roots, level: 0)
         tree.reload()
         var message = ""
-        if !optionOk { message += NSLocalizedString("『共通設定』が有りません。\n", comment: "STR_PROPCOMMAINMENU_ERR2") }
-        if topCount > Self.maxTop { message += NSLocalizedString("トップレベルの項目数が多すぎます。\n", comment: "STR_PROPCOMMAINMENU_ERR3") }
-        if menuCount > Self.maxItems { message += NSLocalizedString("登録項目数が多すぎます。\n", comment: "STR_PROPCOMMAINMENU_ERR4") }
-        if duplicateCount > 0 { message += NSLocalizedString("重複したアクセスキーがあります。\n", comment: "STR_PROPCOMMAINMENU_ERR5") }
-        if missingCount > 0 { message += NSLocalizedString("未設定のアクセスキーがあります。\n", comment: "STR_PROPCOMMAINMENU_ERR6") }
+        if !optionOk { message += L10n.tr("『共通設定』が有りません。\n", comment: "STR_PROPCOMMAINMENU_ERR2") }
+        if topCount > Self.maxTop { message += L10n.tr("トップレベルの項目数が多すぎます。\n", comment: "STR_PROPCOMMAINMENU_ERR3") }
+        if menuCount > Self.maxItems { message += L10n.tr("登録項目数が多すぎます。\n", comment: "STR_PROPCOMMAINMENU_ERR4") }
+        if duplicateCount > 0 { message += L10n.tr("重複したアクセスキーがあります。\n", comment: "STR_PROPCOMMAINMENU_ERR5") }
+        if missingCount > 0 { message += L10n.tr("未設定のアクセスキーがあります。\n", comment: "STR_PROPCOMMAINMENU_ERR6") }
         if let firstError { tree.select(firstError) }
         return message
     }

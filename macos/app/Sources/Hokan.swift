@@ -157,7 +157,7 @@ extension EditorTextView {
         let word = document.leftWord(at: caret)
         if word.isEmpty {
             Self.beep()
-            sendStatusMessage(NSLocalizedString("補完対象がありません", comment: "STR_SUPPORT_NOT_COMPLITE"))
+            sendStatusMessage(L10n.tr("補完対象がありません", comment: "STR_SUPPORT_NOT_COMPLITE"))
             return
         }
         showHokan(word, autoDecided: true)

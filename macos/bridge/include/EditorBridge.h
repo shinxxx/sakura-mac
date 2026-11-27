@@ -534,6 +534,13 @@ typedef NS_ENUM(NSInteger, ECMigemoStatus) {
 	ECMigemoStatusNoDictionary NS_SWIFT_NAME(noDictionary) = 2,
 } NS_SWIFT_NAME(EditorMigemoStatus);
 
+//! 界面的语言（sakura::core::UILanguage。第 48 步）
+typedef NS_ENUM(NSInteger, ECUILanguage) {
+	ECUILanguageJapanese NS_SWIFT_NAME(japanese) = 0,
+	ECUILanguageEnglish NS_SWIFT_NAME(english) = 1,
+	ECUILanguageChinese NS_SWIFT_NAME(chinese) = 2,
+} NS_SWIFT_NAME(EditorUILanguage);
+
 NS_SWIFT_NAME(EditorCore)
 @interface ECCore : NSObject
 
@@ -542,6 +549,11 @@ NS_SWIFT_NAME(EditorCore)
 //! 结束核心库。save 为 YES 时写出 sakura.ini
 + (void)shutdownSavingSettings:(BOOL)save NS_SWIFT_NAME(shutdown(savingSettings:));
 @property (class, readonly) BOOL isStarted;
+//! 界面的语言（第 48 步）：App 在 +startup 之前按系统的语言设置。核心库的字符串（功能名、消息等）是这个语言，
+//! sakura.ini 的语言与它不同时，设置里的默认文字（タイプ名等）换成这个语言（原版换语言时相同）
+@property (class) ECUILanguage uiLanguage;
+//! 按资源编号读界面字符串（原版的 LS()，当前的语言）
++ (NSString *)resourceString:(NSInteger)resourceID NS_SWIFT_NAME(resourceString(_:));
 //! sakura.ini 的路径（沙盒里在 App 的容器中）
 @property (class, readonly, copy) NSString *settingsFilePath;
 //! path 是不是サクラエディタ的设置文件（sakura.ini）（第 35 步）

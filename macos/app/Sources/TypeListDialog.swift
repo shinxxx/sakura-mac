@@ -32,8 +32,8 @@ final class TypeListDialog: NSObject {
         self.enableTempChange = enableTempChange
         super.init()
         page.setUnavailable([idc("CHECK_EXT_RMENU"), idc("CHECK_EXT_DBLCLICK")],
-                            reason: NSLocalizedString("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
-        page.setUnavailable([idc("BUTTON_HELP")], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+                            reason: L10n.tr("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
+        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         if let list = page.list(idc("LIST_TYPES")) {
             list.onDoubleClick = { [weak self] row, _ in self?.close(Result(index: row, temporary: true)) }
             list.onSelect = { [weak self] in self?.enable() }
@@ -108,13 +108,13 @@ final class TypeListDialog: NSObject {
             guard types.indices.contains(index) else { return }
             // 拡張子のないタイプ（追加したばかり等）は確認しない（原版）
             if !types[index].extensions.isEmpty || index == 0 {
-                guard CommonSettingsPages.confirm(String(format: NSLocalizedString("%@ を初期化します。 よろしいですか？", comment: "STR_DLGTYPELIST_INIT1"), types[index].name)) else { return }
+                guard CommonSettingsPages.confirm(String(format: L10n.tr("%@ を初期化します。 よろしいですか？", comment: "STR_DLGTYPELIST_INIT1"), types[index].name)) else { return }
             }
             let name = EditorCore.initializeTypeSetting(index)
             guard !name.isEmpty else { return }
             Self.notifyType(index)
             reload(select: index)
-            CommonSettingsPages.inform(String(format: NSLocalizedString("%@ を初期化しました。", comment: "STR_DLGTYPELIST_INIT2"), name))
+            CommonSettingsPages.inform(String(format: L10n.tr("%@ を初期化しました。", comment: "STR_DLGTYPELIST_INIT2"), name))
         case idc("BUTTON_COPY_TYPE"):
             let copied = EditorCore.copyTypeSetting(index)
             if copied >= 0 { reload(select: copied) }
@@ -128,7 +128,7 @@ final class TypeListDialog: NSObject {
             reload(select: moved)
         case idc("BUTTON_DEL_TYPE"):
             guard index > 0, types.indices.contains(index),
-                  CommonSettingsPages.confirm(String(format: NSLocalizedString("%@ を削除します。 よろしいですか？", comment: "STR_DLGTYPELIST_DEL"), types[index].name)),
+                  CommonSettingsPages.confirm(String(format: L10n.tr("%@ を削除します。 よろしいですか？", comment: "STR_DLGTYPELIST_DEL"), types[index].name)),
                   EditorCore.deleteTypeSetting(index) else { return }
             Self.notifyList()
             reload(select: index)
@@ -146,7 +146,7 @@ final class TypeListDialog: NSObject {
             return
         }
         if info.versionDiffers {
-            guard CommonSettingsPages.confirm(String(format: NSLocalizedString("エクスポートした %@(%@/%d) とバージョンが異なります。\n\nインポートしてもよろしいですか？", comment: "STR_IMPEXP_VER"),
+            guard CommonSettingsPages.confirm(String(format: L10n.tr("エクスポートした %@(%@/%d) とバージョンが異なります。\n\nインポートしてもよろしいですか？", comment: "STR_IMPEXP_VER"),
                                                      CommonSettingsPages.appName, info.version, info.structureVersion)) else { return }
         }
         guard let ascertain = TypeAscertainDialog(typeNameTo: types[index].name, typeNameFile: info.typeName, colorFiles: info.colorFiles),
@@ -186,13 +186,13 @@ final class TypeAscertainDialog: NSObject {
         page.setText(idc("STATIC_TYPE_FILE"), typeNameFile)
         page.setChecked(idc("RADIO_TYPE_ADD"), true)
         // 色選択：先頭は「そのまま」、次に各タイプ、同じフォルダーの *.col
-        var items: [(value: Int, title: String)] = [(-1, NSLocalizedString("--そのままインポート--", comment: "STR_DLGTYPEASC_IMPORT"))]
+        var items: [(value: Int, title: String)] = [(-1, L10n.tr("--そのままインポート--", comment: "STR_DLGTYPEASC_IMPORT"))]
         items += EditorCore.typeSettings.map { type in
             (type.index, type.extensions.isEmpty ? type.name : "\(type.name) (\(type.extensions))")
         }
         items += colorFiles.enumerated().map { (EditorCore.maxTypeSettings + $0.offset, "File -- \($0.element)") }
         page.setTaggedItems(idc("COMBO_COLORS"), items, selectedValue: -1)
-        page.setUnavailable([idc("BUTTON_HELP")], reason: NSLocalizedString("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
+        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         page.onButton = { [weak self] id in
             guard let self else { return }
             if id == "IDOK" {

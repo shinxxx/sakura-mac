@@ -55,12 +55,12 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
     /// 「継承情報を統一」の確認（単体テストで差し替える）。OK なら true
     static var confirmHandler: ((String) -> Bool)?
 
-    static let sortTitles = [
-        NSLocalizedString("デフォルト", comment: "STR_DLGFNCLST_SORTTYPE1"),
-        NSLocalizedString("デフォルト(降順)", comment: "STR_DLGFNCLST_SORTTYPE1_2"),
-        NSLocalizedString("アルファベット順", comment: "STR_DLGFNCLST_SORTTYPE2"),
-        NSLocalizedString("アルファベット(降順)", comment: "STR_DLGFNCLST_SORTTYPE2_2"),
-    ]
+    static var sortTitles: [String] { [
+        L10n.tr("デフォルト", comment: "STR_DLGFNCLST_SORTTYPE1"),
+        L10n.tr("デフォルト(降順)", comment: "STR_DLGFNCLST_SORTTYPE1_2"),
+        L10n.tr("アルファベット順", comment: "STR_DLGFNCLST_SORTTYPE2"),
+        L10n.tr("アルファベット(降順)", comment: "STR_DLGFNCLST_SORTTYPE2_2"),
+    ] }
 
     init?(view: EditorTextView, result: OutlineResult, outlineType: OutlineType) {
         guard let definition = PropDialogs.load("OutlineDialogs")?.dialog("IDD_FUNCLIST") else { return nil }
@@ -153,7 +153,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         }
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"		// DEFPUSHBUTTON
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: NSLocalizedString("Mac 版にはまだヘルプがありません", comment: "help"))
+        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.setItems("IDC_COMBO_nSortType", Self.sortTitles, selected: 0)
 
         page.onButton = { [weak self] id in self?.buttonClicked(id) }
@@ -205,7 +205,7 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         let showSort = result.isTree && result.listType != .fileTree
         page.showEnable("IDC_COMBO_nSortType", show: showSort, enable: showSort)
         page.control("IDC_STATIC_nSortType")?.isHidden = !showSort
-        page.label(NSLocalizedString("順序(S)", comment: "IDD_FUNCLIST"))?.isHidden = !showSort
+        page.label(L10n.tr("順序(S)", comment: "IDD_FUNCLIST"))?.isHidden = !showSort
         if showSort { page.select("IDC_COMBO_nSortType", result.sort.rawValue) }
 
         syncColor()	// 色はツリー・リストを作る前に（作り直すと選択が消える）
@@ -473,17 +473,17 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         menu.autoenablesItems = false
         var positionMenu = menu
         if !dropDown {
-            menu.addItem(item(NSLocalizedString("更新(U)", comment: "STR_DLGFNCLST_MENU_UPDATE"), #selector(menuUpdate(_:))))
-            let copy = item(NSLocalizedString("コピー(C)", comment: "STR_DLGFNCLST_MENU_COPY"), #selector(menuCopy(_:)))
+            menu.addItem(item(L10n.tr("更新(U)", comment: "STR_DLGFNCLST_MENU_UPDATE"), #selector(menuUpdate(_:))))
+            let copy = item(L10n.tr("コピー(C)", comment: "STR_DLGFNCLST_MENU_COPY"), #selector(menuCopy(_:)))
             copy.isEnabled = page.isEnabled("IDC_BUTTON_COPY")
             menu.addItem(copy)
             if result.isTree {
                 menu.addItem(.separator())
-                menu.addItem(item(NSLocalizedString("すべて展開(E)", comment: "STR_DLGFNCLST_MENU_EXPAND"), #selector(menuExpandAll(_:))))
-                menu.addItem(item(NSLocalizedString("すべて縮小(O)", comment: "STR_DLGFNCLST_MENU_COLLAPSE"), #selector(menuCollapseAll(_:))))
+                menu.addItem(item(L10n.tr("すべて展開(E)", comment: "STR_DLGFNCLST_MENU_EXPAND"), #selector(menuExpandAll(_:))))
+                menu.addItem(item(L10n.tr("すべて縮小(O)", comment: "STR_DLGFNCLST_MENU_COLLAPSE"), #selector(menuCollapseAll(_:))))
             }
             menu.addItem(.separator())
-            let position = NSMenuItem(title: NSLocalizedString("ウィンドウの位置(W)", comment: "STR_DLGFNCLST_MENU_WINPOS"), action: nil, keyEquivalent: "")
+            let position = NSMenuItem(title: L10n.tr("ウィンドウの位置(W)", comment: "STR_DLGFNCLST_MENU_WINPOS"), action: nil, keyEquivalent: "")
             positionMenu = NSMenu()
             positionMenu.autoenablesItems = false
             position.submenu = positionMenu
@@ -492,12 +492,12 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         // ドッキング配置（設定上の配置にチェック）
         let current = OutlineDockSettings.side(typeIndex: typeIndex)
         let sides: [(DockSide, String)] = [
-            (.left, NSLocalizedString("左ドッキング(L)", comment: "STR_DLGFNCLST_MENU_LEFTDOC")),
-            (.right, NSLocalizedString("右ドッキング(R)", comment: "STR_DLGFNCLST_MENU_RIGHTDOC")),
-            (.top, NSLocalizedString("上ドッキング(T)", comment: "STR_DLGFNCLST_MENU_TOPDOC")),
-            (.bottom, NSLocalizedString("下ドッキング(B)", comment: "STR_DLGFNCLST_MENU_BOTDOC")),
-            (.float, NSLocalizedString("フローティング(F)", comment: "STR_DLGFNCLST_MENU_FLOATING")),
-            (.undockable, NSLocalizedString("ドッキング禁止(I)", comment: "STR_DLGFNCLST_MENU_NODOCK")),
+            (.left, L10n.tr("左ドッキング(L)", comment: "STR_DLGFNCLST_MENU_LEFTDOC")),
+            (.right, L10n.tr("右ドッキング(R)", comment: "STR_DLGFNCLST_MENU_RIGHTDOC")),
+            (.top, L10n.tr("上ドッキング(T)", comment: "STR_DLGFNCLST_MENU_TOPDOC")),
+            (.bottom, L10n.tr("下ドッキング(B)", comment: "STR_DLGFNCLST_MENU_BOTDOC")),
+            (.float, L10n.tr("フローティング(F)", comment: "STR_DLGFNCLST_MENU_FLOATING")),
+            (.undockable, L10n.tr("ドッキング禁止(I)", comment: "STR_DLGFNCLST_MENU_NODOCK")),
         ]
         for (side, title) in sides {
             let sideItem = item(title, #selector(menuDockSide(_:)))
@@ -506,22 +506,22 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
             positionMenu.addItem(sideItem)
         }
         positionMenu.addItem(.separator())
-        let sync = item(NSLocalizedString("ドッキング配置を同期(S)", comment: "STR_DLGFNCLST_MENU_SYNC"), #selector(menuSync(_:)))
+        let sync = item(L10n.tr("ドッキング配置を同期(S)", comment: "STR_DLGFNCLST_MENU_SYNC"), #selector(menuSync(_:)))
         sync.state = OutlineDockSettings.sync ? .on : .off
         positionMenu.addItem(sync)
         positionMenu.addItem(.separator())
-        let inheritCommon = item(NSLocalizedString("ドッキング配置を共通継承(C)", comment: "STR_DLGFNCLST_MENU_INHERIT"), #selector(menuInherit(_:)))
+        let inheritCommon = item(L10n.tr("ドッキング配置を共通継承(C)", comment: "STR_DLGFNCLST_MENU_INHERIT"), #selector(menuInherit(_:)))
         inheritCommon.tag = 0
-        let inheritType = item(NSLocalizedString("ドッキング配置をタイプ別継承(Y)", comment: "STR_DLGFNCLST_MENU_TYPE"), #selector(menuInherit(_:)))
+        let inheritType = item(L10n.tr("ドッキング配置をタイプ別継承(Y)", comment: "STR_DLGFNCLST_MENU_TYPE"), #selector(menuInherit(_:)))
         inheritType.tag = 1
         (OutlineDockSettings.useType ? inheritType : inheritCommon).state = .on
         positionMenu.addItem(inheritCommon)
         positionMenu.addItem(inheritType)
         positionMenu.addItem(.separator())
-        positionMenu.addItem(item(NSLocalizedString("継承情報を統一(U)", comment: "STR_DLGFNCLST_MENU_UNIFY"), #selector(menuUnify(_:))))
+        positionMenu.addItem(item(L10n.tr("継承情報を統一(U)", comment: "STR_DLGFNCLST_MENU_UNIFY"), #selector(menuUnify(_:))))
         if !dropDown {
             menu.addItem(.separator())
-            menu.addItem(item(NSLocalizedString("閉じる(X)", comment: "STR_DLGFNCLST_MENU_CLOSE"), #selector(menuClose(_:))))
+            menu.addItem(item(L10n.tr("閉じる(X)", comment: "STR_DLGFNCLST_MENU_CLOSE"), #selector(menuClose(_:))))
         }
         return menu
     }
@@ -1124,8 +1124,8 @@ extension EditorTextView {
         }
         sendSearchStatus(next: next, wrapped: nil)
         Self.alertNotFound(next
-            ? NSLocalizedString("前方(↓) に関数が見つかりません。", comment: "STR_FUCLIST_NEXT_NOT_FOUND")
-            : NSLocalizedString("後方(↑) に関数が見つかりません。", comment: "STR_FUCLIST_PREV_NOT_FOUND"))
+            ? L10n.tr("前方(↓) に関数が見つかりません。", comment: "STR_FUCLIST_NEXT_NOT_FOUND")
+            : L10n.tr("後方(↑) に関数が見つかりません。", comment: "STR_FUCLIST_PREV_NOT_FOUND"))
     }
 }
 

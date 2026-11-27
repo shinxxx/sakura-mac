@@ -76,7 +76,7 @@ final class CustomMenuPage: CommonSettingsPageLogic {
     }
 
     static var separatorLabel: String {
-        NSLocalizedString(" ─────────────", comment: "STR_PROPCOMCUSTMENU_SEP")
+        L10n.tr(" ─────────────", comment: "STR_PROPCOMCUSTMENU_SEP")
     }
 
     private func loadFunctions(_ page: PropPage) {
@@ -160,7 +160,7 @@ final class CustomMenuPage: CommonSettingsPageLogic {
             let ok = editor.exportCustomMenu(path: path, message: &message)
             let text = message as String? ?? ""
             TypeSettingsPages.showMessage(!ok || !text.isEmpty ? text
-                                          : NSLocalizedString("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
+                                          : L10n.tr("ファイルをエクスポートしました。\n\n", comment: "STR_IMPEXP_OK_EXPORT") + path)
             return
         case idc("BUTTON_MENUNAME"):
             // 原版：名前を設定してコンボボックスの名前を換える
@@ -206,8 +206,8 @@ final class CustomMenuPage: CommonSettingsPageLogic {
         let menu = menuIndex
         var list = items(editor, menu)
         guard list.indices.contains(row), list[row].code != 0,
-              let key = CommonSettingsPages.input(NSLocalizedString("メニューアイテムのアクセスキー設定", comment: "STR_PROPCOMCUSTMENU_AC1"),
-                                                  NSLocalizedString("キーを入力してください。", comment: "STR_PROPCOMCUSTMENU_AC2"),
+              let key = CommonSettingsPages.input(L10n.tr("メニューアイテムのアクセスキー設定", comment: "STR_PROPCOMCUSTMENU_AC1"),
+                                                  L10n.tr("キーを入力してください。", comment: "STR_PROPCOMCUSTMENU_AC2"),
                                                   1, list[row].key) else { return }
         list[row].key = String(key.prefix(1))
         store(editor, menu, list)
@@ -259,9 +259,9 @@ final class ToolbarPage: CommonSettingsPageLogic {
         guard let editor else { return "" }
         switch editor.kind(ofToolbarButton: number) {
         case 0: return editor.name(ofFunction: editor.function(ofToolbarButton: number))
-        case 1: return NSLocalizedString("───────────", comment: "STR_PROPCOMTOOL_ITEM1")
-        case 2: return NSLocalizedString("――ツールバー折返――", comment: "STR_PROPCOMTOOL_ITEM2")
-        default: return NSLocalizedString("────不　明────", comment: "STR_PROPCOMTOOL_ITEM3")
+        case 1: return L10n.tr("───────────", comment: "STR_PROPCOMTOOL_ITEM1")
+        case 2: return L10n.tr("――ツールバー折返――", comment: "STR_PROPCOMTOOL_ITEM2")
+        default: return L10n.tr("────不　明────", comment: "STR_PROPCOMTOOL_ITEM3")
         }
     }
 

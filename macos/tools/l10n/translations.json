@@ -1,0 +1,298 @@
+{
+  "原作者: たけ(竹パンダ) さん": {
+    "en": "Original author: Take (Takepanda)",
+    "zh": "原作者：Take（竹熊猫）"
+  },
+  "このアプリはサクラエディタを macOS 用に移植・改変したものです。サクラエディタの公式版ではありません。\n": {
+    "en": "This app is a modified port of Sakura Editor for macOS. It is not an official release of Sakura Editor.\n",
+    "zh": "本应用是将樱花编辑器（Sakura Editor）移植到 macOS 并修改的版本，不是樱花编辑器的官方版本。\n"
+  },
+  "情報をコピー": {
+    "en": "Copy Info",
+    "zh": "复制信息"
+  },
+  "日本語": {
+    "en": "English",
+    "zh": "简体中文"
+  },
+  "フォルダーを選んでください": {
+    "en": "Please select a folder.",
+    "zh": "请选择文件夹"
+  },
+  "組み込みの bregonig (Onigmo) を使用します": {
+    "en": "Uses the built-in bregonig (Onigmo)",
+    "zh": "使用内置的 bregonig (Onigmo)"
+  },
+  "このページは今後のバージョンで対応します。現在の設定を表示しています。": {
+    "en": "This page will be supported in a future version. The current settings are shown.",
+    "zh": "此页将在以后的版本中支持。现在显示的是当前的设置。"
+  },
+  "Mac 版では使用できません。": {
+    "en": "Not available in the Mac version.",
+    "zh": "Mac 版不能使用。"
+  },
+  "この項目は今後のバージョンで対応します。": {
+    "en": "This item will be supported in a future version.",
+    "zh": "此项将在以后的版本中支持。"
+  },
+  "Mac 版では DLL のプラグインは使用できません。": {
+    "en": "DLL plugins cannot be used in the Mac version.",
+    "zh": "Mac 版不能使用 DLL 插件。"
+  },
+  "Mac 版にはまだヘルプがありません": {
+    "en": "The Mac version does not have help yet.",
+    "zh": "Mac 版还没有帮助。"
+  },
+  "「%@」のファイルと比べるには、このフォルダーへのアクセスを許可してください。": {
+    "en": "To compare with \"%@\", please allow access to this folder.",
+    "zh": "要与“%@”比较，请允许访问此文件夹。"
+  },
+  "%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?": {
+    "en": "%@\n\nThis file has been updated.\nReloading will cause all changes to be lost, OK?",
+    "zh": "%@\n\n此文件已被更新。\n重新加载将导致所有更改丢失，确定继续？"
+  },
+  "はい": {
+    "en": "Yes",
+    "zh": "是"
+  },
+  "いいえ": {
+    "en": "No",
+    "zh": "否"
+  },
+  "バックアップを作成するには、「%@」へのアクセスを許可してください。": {
+    "en": "To create a backup, please allow access to \"%@\".",
+    "zh": "要创建备份，请允许访问“%@”。"
+  },
+  "設定: %@": {
+    "en": "Settings: %@",
+    "zh": "设置：%@"
+  },
+  "「%@」をファイルツリーに表示するには、このフォルダーへのアクセスを許可してください。": {
+    "en": "To show \"%@\" in the file tree, please allow access to this folder.",
+    "zh": "要在文件树中显示“%@”，请允许访问此文件夹。"
+  },
+  "Migemo の辞書「%@」を読むには、このフォルダーへのアクセスを許可してください。": {
+    "en": "To read the Migemo dictionary \"%@\", please allow access to this folder.",
+    "zh": "要读取 Migemo 词典“%@”，请允许访问此文件夹。"
+  },
+  "中止": {
+    "en": "Abort",
+    "zh": "中止"
+  },
+  "再試行": {
+    "en": "Retry",
+    "zh": "重试"
+  },
+  "無視": {
+    "en": "Ignore",
+    "zh": "忽略"
+  },
+  "JScript 実行時エラー": {
+    "en": "JScript runtime error",
+    "zh": "JScript 运行时错误"
+  },
+  "JScript コンパイル エラー": {
+    "en": "JScript compilation error",
+    "zh": "JScript 编译错误"
+  },
+  "オートメーション サーバーはオブジェクトを作成できません": {
+    "en": "Automation server can't create object",
+    "zh": "Automation 服务器不能创建对象"
+  },
+  "エラーを特定できません": {
+    "en": "Unspecified error",
+    "zh": "未指明的错误"
+  },
+  "マクロファイルを作成できませんでした。\n\n%@": {
+    "en": "Could not create the macro file.\n\n%@",
+    "zh": "无法创建宏文件。\n\n%@"
+  },
+  "文字コードの変換に失敗しました。\nBOM付きUTF-8またはShift_JIS等で保存されているか確認してください。\n\n%@": {
+    "en": "Failed to convert character encoding.\nCheck that the file is saved as UTF-8 with BOM or Shift_JIS.\n\n%@",
+    "zh": "字符编码转换失败。\n请确认文件是否以带BOM的UTF-8或Shift_JIS等编码保存。\n\n%@"
+  },
+  "ファイルを開けませんでした。\n\n%@": {
+    "en": "Could not open the file.\n\n%@",
+    "zh": "无法打开文件。\n\n%@"
+  },
+  "「%@」のセットを削除します。\nよろしいですか？\n削除しようとするセットは、以下のファイルタイプに割り当てられています。\n削除したセットは無効になります。\n\n%@": {
+    "en": "Delete the set [%@]\nOK?\nThe set to be deleted is assigned to the file types below.\nThe deleted set will become invalid.\n\n%@",
+    "zh": "确定要删除关键字组 [%@] 吗？\n要删除的组已分配给以下文件类型。\n删除后相关配置将失效。\n\n%@"
+  },
+  "このマクロ（.%@）は Mac 版では実行できません。\nMac 版で使えるのはキーマクロ（.mac）と JScript（.js）です。\n\n%@": {
+    "en": "This macro (.%@) cannot be run in the Mac version.\nThe Mac version supports key macros (.mac) and JScript (.js).\n\n%@",
+    "zh": "Mac 版不能运行此宏（.%@）。\nMac 版能使用的是键盘宏（.mac）和 JScript（.js）。\n\n%@"
+  },
+  "マクロ %d (%@) の実行に失敗しました。": {
+    "en": "Macro %d (%@) failed to execute.",
+    "zh": "宏 %d (%@) 执行失败。"
+  },
+  "マクロの読み込みに失敗しました。\n\n%@": {
+    "en": "Failed to load the macro.\n\n%@",
+    "zh": "宏的读取失败。\n\n%@"
+  },
+  "しまう": {
+    "en": "Minimize",
+    "zh": "最小化"
+  },
+  "Windows のキー割り当てを使う": {
+    "en": "Use Windows Key Assignments",
+    "zh": "使用 Windows 的键分配"
+  },
+  "Windows 版の設定をインポート…": {
+    "en": "Import Windows Settings…",
+    "zh": "导入 Windows 版的设置…"
+  },
+  "%@ について": {
+    "en": "About %@",
+    "zh": "关于 %@"
+  },
+  "サービス": {
+    "en": "Services",
+    "zh": "服务"
+  },
+  "%@ を隠す": {
+    "en": "Hide %@",
+    "zh": "隐藏 %@"
+  },
+  "ほかを隠す": {
+    "en": "Hide Others",
+    "zh": "隐藏其他"
+  },
+  "すべてを表示": {
+    "en": "Show All",
+    "zh": "全部显示"
+  },
+  "%@ を終了": {
+    "en": "Quit %@",
+    "zh": "退出 %@"
+  },
+  "名前の変更": {
+    "en": "Rename",
+    "zh": "重命名"
+  },
+  "%@\n\nこのファイルを文字コード %@ で開こうとしていますが、前回は別の文字コード %@ で開かれています。\n前回と同じ文字コードを使いますか？\n\n・[はい(Y)]  ＝%@\n・[いいえ(N)]＝%@\n": {
+    "en": "%@\n\nOpening in %@, but it was opened in %@ last time.\nUse the same character encoding as last time?\n\n\t[Yes] = %@\n\t[No] = %@\n",
+    "zh": "%@\n\n当前使用 %@ 打开，但上次打开时使用的编码是 %@。\n是否使用上次的字符编码设置？\n\n\t[是] = %@\n\t[否] = %@\n"
+  },
+  "改行コードが混在しています。": {
+    "en": "Line endings are mixed.",
+    "zh": "检测到混合换行符。"
+  },
+  "現在の入力改行コード %@ に統一しますか？": {
+    "en": "Do you want to unify them to the current line ending (%@)?",
+    "zh": "是否要统一换行符为(%@)？"
+  },
+  "最初の場所 %ld行 文字[%@]": {
+    "en": "First point: line %ld, character [%@]",
+    "zh": "首个错误点：第%ld行 字符[%@]"
+  },
+  "最初の場所 %ld行 %ld桁 文字[%@]%@": {
+    "en": "First point: line %ld, column %ld, character [%@]%@",
+    "zh": "首个错误点：第%ld行 第%ld列 字符[%@]%@"
+  },
+  "文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。": {
+    "en": "Saving in %@, but some character information will be lost by the encoding conversion.",
+    "zh": "正在保存为%@编码，编码转换会导致部分字符信息丢失。"
+  },
+  "保存処理を続行しますか？": {
+    "en": "Do you want to continue saving?",
+    "zh": "是否继续保存？"
+  },
+  "キャンセル=該当位置に移動": {
+    "en": "Cancel = go to that position",
+    "zh": "取消=跳转到丢失点"
+  },
+  "正規表現の構文に誤りがあります。": {
+    "en": "The given regular expression is incorrect.",
+    "zh": "正则表达式有误。"
+  },
+  "詳細：": {
+    "en": "Details: ",
+    "zh": "详细信息："
+  },
+  "前方(↓) に文字列 '%@' が１つも見つかりません。": {
+    "en": "Forward (↓): the string '%@' was not found.",
+    "zh": "向下(↓)未找到字符串 '%@'。"
+  },
+  "後方(↑) に文字列 '%@' が１つも見つかりません。": {
+    "en": "Backward (↑): the string '%@' was not found.",
+    "zh": "向上(↑)未找到字符串 '%@'。"
+  },
+  "許可": {
+    "en": "Allow",
+    "zh": "允许"
+  },
+  "「%@」を検索するには、このフォルダーへのアクセスを許可してください。": {
+    "en": "To search \"%@\", please allow access to this folder.",
+    "zh": "要搜索“%@”，请允许访问此文件夹。"
+  },
+  "インポートする設定ファイル（sakura.ini）を選択してください。": {
+    "en": "Select the settings file (sakura.ini) to import.",
+    "zh": "请选择要导入的设置文件（sakura.ini）。"
+  },
+  "Windows 版の設定をインポートしますか?": {
+    "en": "Import the Windows settings?",
+    "zh": "要导入 Windows 版的设置吗？"
+  },
+  "共通設定、キー割り当て、タイプ別設定、メインメニューなどを次のファイルの内容に置き換えます。\n%@\n\n履歴（最近使ったファイルなど）はこの Mac のものを残します。現在の設定は次のファイルに保存します。\n%@\n\nインポートした設定はサクラエディタの再起動後に有効になります。開いているファイルはすべて閉じます。": {
+    "en": "Common settings, key assignments, type settings, the main menu and so on will be replaced with the contents of this file:\n%@\n\nThe history (recent files and so on) of this Mac is kept. The current settings are saved to this file:\n%@\n\nThe imported settings take effect after Sakura Editor restarts. All open files will be closed.",
+    "zh": "通用设置、键分配、类型设置、主菜单等将替换为以下文件的内容。\n%@\n\n历史记录（最近使用的文件等）保留这台 Mac 的。当前的设置保存到以下文件。\n%@\n\n导入的设置在樱花编辑器重新启动后生效。所有打开的文件都将关闭。"
+  },
+  "インポートして再起動": {
+    "en": "Import and Restart",
+    "zh": "导入并重新启动"
+  },
+  "%@\n\nサクラエディタの設定ファイルではありません。": {
+    "en": "%@\n\nThis is not a Sakura Editor settings file.",
+    "zh": "%@\n\n这不是樱花编辑器的设置文件。"
+  },
+  "%@\n\nファイルを読み込めませんでした。": {
+    "en": "%@\n\nCould not read the file.",
+    "zh": "%@\n\n无法读取文件。"
+  },
+  "設定ファイルに書き込めませんでした。\n%@": {
+    "en": "Could not write the settings file.\n%@",
+    "zh": "无法写入设置文件。\n%@"
+  },
+  "「%@」の tags ファイルを読むには、このフォルダー（またはその上のフォルダー）へのアクセスを許可してください。": {
+    "en": "To read the tags file of \"%@\", please allow access to this folder (or a folder above it).",
+    "zh": "要读取“%@”的 tags 文件，请允许访问此文件夹（或其上级文件夹）。"
+  },
+  "%@ を初期化します。 よろしいですか？": {
+    "en": "Are you sure you want to initialize %@?",
+    "zh": "确定要初始化 %@ 吗？"
+  },
+  "%@ を初期化しました。": {
+    "en": "%@ has been initialized.",
+    "zh": "%@ 已初始化完成。"
+  },
+  "%@ を削除します。 よろしいですか？": {
+    "en": "Are you sure you want to delete %@?",
+    "zh": "确定要删除 %@ 吗？"
+  },
+  "エクスポートした %@(%@/%d) とバージョンが異なります。\n\nインポートしてもよろしいですか？": {
+    "en": "The version differs from the exported %@(%@/%d).\n\nAre you sure you want to import?",
+    "zh": "检测到 %@(%@/%d) 版本差异\n\n确定要继续导入吗？"
+  },
+  "OK": {
+    "en": "OK",
+    "zh": "确定"
+  },
+  "キャンセル": {
+    "en": "Cancel",
+    "zh": "取消"
+  },
+  "閉じる": {
+    "en": "Close",
+    "zh": "关闭"
+  },
+  "選択範囲": {
+    "en": "Selected Area",
+    "zh": "选定范围"
+  },
+  "設定…": {
+    "en": "Settings…",
+    "zh": "设置…"
+  }
+}
