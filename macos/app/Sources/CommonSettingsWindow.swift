@@ -496,7 +496,12 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
             let r = Self.rect(other.frame)
             guard r != original, r.maxY > original.minY, r.minY < original.maxY else { continue }
             if r.minX >= original.maxX - 1 { limit = min(limit, r.minX - 4) }
-            if r.maxX <= original.minX + 1 { leftLimit = max(leftLimit, r.maxX + 4) }
+            if r.maxX <= original.minX + 1 {
+                // 左隣のチェックボックスは文字の幅に縮めてあるので、その右端まで使える（第 48 步：中国語「Tab键(T)」）
+                var edge = r.maxX
+                if other.kind == "check", let left = controls[other.id], left.superview === view { edge = min(edge, left.frame.maxX) }
+                leftLimit = max(leftLimit, edge + 4)
+            }
         }
         result.size.width = min(needed, max(frame.width, limit - frame.minX))
         let shortage = needed - result.width
