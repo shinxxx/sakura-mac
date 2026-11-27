@@ -1,0 +1,75 @@
+﻿印刷のテスト（第 47 步）
+
+int main(int argc, char* argv[])
+{
+	for (int i = 0; i < argc; ++i) {
+		printf("%d: %s\n", i, argv[i]);	// 引数を表示する
+	}
+	return 0;
+}
+
+The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!
+吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。
+「禁則処理」のテスト、行頭に来てはいけない文字。句読点、。や括弧「」の位置を確かめる。ＡＢＣ１２３ｱｲｳｴｵ
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz0123456789
+001	line 1 行のい*
+002	line 2 行のう**
+003	line 3 行のえ***
+004	line 4 行のお****
+005	line 5 行のあ*****
+006	line 6 行のい******
+007	line 7 行のう
+008	line 8 行のえ*
+009	line 9 行のお**
+010	line 10 行のあ***
+011	line 11 行のい****
+012	line 12 行のう*****
+013	line 13 行のえ******
+014	line 14 行のお
+015	line 15 行のあ*
+016	line 16 行のい**
+017	line 17 行のう***
+018	line 18 行のえ****
+019	line 19 行のお*****
+020	line 20 行のあ******
+021	line 21 行のい
+022	line 22 行のう*
+023	line 23 行のえ**
+024	line 24 行のお***
+025	line 25 行のあ****
+026	line 26 行のい*****
+027	line 27 行のう******
+028	line 28 行のえ
+029	line 29 行のお*
+030	line 30 行のあ**
+031	line 31 行のい***
+032	line 32 行のう****
+033	line 33 行のえ*****
+034	line 34 行のお******
+035	line 35 行のあ
+036	line 36 行のい*
+037	line 37 行のう**
+038	line 38 行のえ***
+039	line 39 行のお****
+040	line 40 行のあ*****
+041	line 41 行のい******
+042	line 42 行のう
+043	line 43 行のえ*
+044	line 44 行のお**
+045	line 45 行のあ***
+046	line 46 行のい****
+047	line 47 行のう*****
+048	line 48 行のえ******
+049	line 49 行のお
+050	line 50 行のあ*
+051	line 51 行のい**
+052	line 52 行のう***
+053	line 53 行のえ****
+054	line 54 行のお*****
+055	line 55 行のあ******
+056	line 56 行のい
+057	line 57 行のう*
+058	line 58 行のえ**
+059	line 59 行のお***
+060	line 60 行のあ****
+最後の行

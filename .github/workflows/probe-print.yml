@@ -5,11 +5,35 @@ on:
 jobs:
   probe:
     runs-on: windows-latest
-    steps:
-      - run: |
-          Get-Printer | Format-Table -AutoSize | Out-String -Width 300
-          Get-PrinterDriver | Format-Table -AutoSize | Out-String -Width 300
-          Get-WindowsOptionalFeature -Online | Where-Object { $_.FeatureName -like '*Print*' -or $_.FeatureName -like '*XPS*' } | Format-Table -AutoSize | Out-String -Width 300
-          Get-WindowsFeature *print* , *xps* | Format-Table -AutoSize | Out-String -Width 300
+    timeout-minutes: 30
+    defaults:
+      run:
         shell: pwsh
-        continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download Sakura Editor (official release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+      - name: Print
+        run: |
+          $exe = (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName
+          ./macos/tools/print/windows-print.ps1 -SakuraExe $exe -DataDir macos/core/tests/data/print -OutDir print-result
+      - name: Extract
+        if: always()
+        run: |
+          pip install pdfminer.six==20250506
+          $args2 = Get-ChildItem print-result -Filter *.pdf | ForEach-Object { "$($_.BaseName)=$($_.FullName)" }
+          python macos/tools/print/print_pdf_chars.py @args2 > print-result/print.txt
+          Get-Content print-result/print.txt -TotalCount 80
+          Get-ChildItem C:\Windows\Fonts | Where-Object { $_.Name -match 'msmin|msgoth|yu' } | Select-Object Name
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: print-windows
+          path: print-result/*.*
