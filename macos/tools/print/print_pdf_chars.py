@@ -32,6 +32,8 @@ def main(args):
     for arg in args:
         name, path = arg.split('=', 1)
         pages = list(extract_pages(path, laparams=LAParams(char_margin=0.0, line_margin=0.0, all_texts=True)))
+        fonts = sorted({c.fontname for page in pages for c in chars(page)})
+        sys.stderr.write(f'{name}: fonts {fonts}\n')
         out.append(f'== {name} ==')
         out.append(f'pages {len(pages)}')
         for no, page in enumerate(pages, 1):

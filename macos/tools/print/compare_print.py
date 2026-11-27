@@ -31,6 +31,7 @@ def load(path):
 
 
 def main():
+    sys.stdout.reconfigure(encoding='utf-8')
     expected = load(sys.argv[1])
     actual = load(sys.argv[2])
     tol = int(sys.argv[3]) if len(sys.argv) > 3 else 2

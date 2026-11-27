@@ -30,6 +30,7 @@ jobs:
           pip install pdfminer.six==20250506
           $args2 = Get-ChildItem print-result -Filter *.pdf | ForEach-Object { "$($_.BaseName)=$($_.FullName)" }
           python macos/tools/print/print_pdf_chars.py @args2 > print-result/print.txt
+          Get-Content (Join-Path (Split-Path (Get-ChildItem -Recurse sakura -Filter sakura.exe | Select-Object -First 1).FullName) sakura.ini) | Select-Object -First 8
           python macos/tools/print/compare_print.py macos/core/tests/data/print/expected.txt print-result/print.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
