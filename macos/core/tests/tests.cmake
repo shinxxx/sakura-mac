@@ -69,4 +69,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-edit-support.cpp"     # 第 44 步：編集支援（対括弧、ブックマーク、差分、補完、タグ）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-macro.cpp"           # 第 45 步：マクロ（関数表、キーマクロの読み書き、JScript の前処理、ExpandParameter、Cookie）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-backup.cpp"          # 第 46 步：バックアップ（ファイル名の書式、作成、連番の世代、確認。data/backup/ は Windows 版の結果と比較）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-print.cpp"           # 第 47 步：印刷（印刷ページ設定、用紙、印刷用の排版、ヘッダー・フッター、行番号。data/print/ は Windows 版の PDF と比較）
 )

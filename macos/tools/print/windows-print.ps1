@@ -90,7 +90,8 @@ foreach ($line in [IO.File]::ReadAllLines((Join-Path $DataDir 'cases.tsv'), $utf
 	if ($line -eq '' -or $line.StartsWith('#')) { continue }
 	$cols = $line.Split("`t")
 	$name = $cols[0]
-	# 既定値（原版 CPrint::SettingInitialize。Mac 版の测试と同じ）に条件を重ねる
+	# 既定値（原版 CPrint::SettingInitialize。Mac 版の测试と同じ）に条件を重ねる。
+	# フォントは ＭＳ ゴシック（CI の Windows には ＭＳ 明朝 がない。ほかのフォントに代わると文字の幅が変わる）
 	$v = [ordered]@{
 		height = 24; spacing = 30; columns = 1; colspace = 70; mt = 100; mb = 200; ml = 200; mr = 100
 		orient = 1; paper = 9; wrap = 1; linenum = 0; kh = 0; kt = 0; kr = 0; kk = 0
@@ -105,7 +106,7 @@ foreach ($line in [IO.File]::ReadAllLines((Join-Path $DataDir 'cases.tsv'), $utf
 	}
 	$width = [Math]::Floor(([int]$v.height + 1) / 2)
 	$ints = @($width, $v.height, $v.columns, $v.colspace, $v.spacing, $v.mt, $v.mb, $v.ml, $v.mr, $v.orient, $v.paper, $v.wrap, $v.linenum, 1, 0, 0, 1, 0, 0) -join ','
-	$iniText = "[Print]`r`nPS[00].nInts=$ints`r`nPS[00].szSName=印刷設定 1`r`nPS[00].szFF=ＭＳ 明朝`r`nPS[00].szFFZ=ＭＳ 明朝`r`n"
+	$iniText = "[Print]`r`nPS[00].nInts=$ints`r`nPS[00].szSName=印刷設定 1`r`nPS[00].szFF=ＭＳ ゴシック`r`nPS[00].szFFZ=ＭＳ ゴシック`r`n"
 	for ($j = 0; $j -lt 3; $j++) {
 		$iniText += "PS[00].szHF[$j]=$($v["h$j"])`r`nPS[00].szFTF[$j]=$($v["f$j"])`r`n"
 	}
