@@ -98,10 +98,11 @@ TYPE_DIALOGS = [
 
 
 def text_of(raw):
-    """rc 的文字 → 显示的文字：&X 的 & 去掉（&& 是 &），\\n、\\r 是换行"""
+    """rc 的文字 → 显示的文字：&X 的 & 去掉（&& 是 &），\\n、\\r 是换行，\\\\ 是一个 \\（第 48 步）"""
     s = raw.replace('""', '"').replace("&&", "\0").replace("&", "").replace("\0", "&")
+    s = s.replace("\\\\", "\x01")
     s = s.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n").replace("\\t", "\t")
-    return s
+    return s.replace("\x01", "\\")
 
 
 def kind_of(word, cls, style):

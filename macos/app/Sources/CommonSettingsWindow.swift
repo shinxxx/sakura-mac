@@ -500,6 +500,10 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
                 // 左隣のチェックボックスは文字の幅に縮めてあるので、その右端まで使える（第 48 步：中国語「Tab键(T)」）
                 var edge = r.maxX
                 if other.kind == "check", let left = controls[other.id], left.superview === view { edge = min(edge, left.frame.maxX) }
+                if other.kind == "radio", let left = controls[other.id] as? NSButton, !left.title.contains("\n") {
+                    // ラジオボタンも文字の幅に縮める（下の radioGroups）
+                    edge = min(edge, r.minX + ceil(left.fittingSize.width) + 2)
+                }
                 leftLimit = max(leftLimit, edge + 4)
             }
         }
@@ -516,7 +520,9 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     /// 項目を入れた下拉框が全部の項目を見せられるように広げる（第 41 步）
     private func fitPopup(_ id: String) {
         guard let popup = controls[id] as? NSPopUpButton, let control = definition.controls.first(where: { $0.id == id }) else { return }
-        let original = Self.rect(control.frame)
+        // 原版の高さは開いたリストの分まで含むので、分组框・隣の控件は閉じたときの高さで探す（第 48 步：分组框からはみ出さない）
+        var original = Self.rect(control.frame)
+        original.size.height = min(original.height, popup.frame.height)
         let base = NSRect(x: original.minX, y: popup.frame.minY, width: original.width, height: popup.frame.height)
         popup.frame = widened(base, original: original, needed: ceil(popup.fittingSize.width))
     }
@@ -840,7 +846,9 @@ final class PropList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         table.allowsMultipleSelection = false
         table.allowsEmptySelection = true
         table.rowHeight = 17
-        table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0")))
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("0"))
+        column.title = ""	// 既定の「Field」を出さない（第 48 步）
+        table.addTableColumn(column)
         table.dataSource = self
         table.delegate = self
         table.target = self

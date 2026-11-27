@@ -252,6 +252,10 @@ final class LocalizationTests: XCTestCase {
                     for text in texts where Self.hasJapanese(text, language: language) {
                         problems.append("\(language) \(b.dialog) \(text)")
                     }
+                    // rc の「\\」は「\」1 文字（「句読点ぶら下げ(\)」）
+                    for text in texts where text.contains("\\\\") {
+                        problems.append("\(language) \(b.dialog) \\\\: \(text)")
+                    }
                 }
             }
         }
