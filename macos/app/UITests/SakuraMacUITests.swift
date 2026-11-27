@@ -1665,7 +1665,14 @@ final class SakuraMacUITests: XCTestCase {
         let sheet = window.sheets.firstMatch
         if sheet.waitForExistence(timeout: 10) {
             keepScreenshot(sheet, "step47-print-panel")
-            sheet.typeKey(.escape, modifierFlags: [])
+            // 印刷パネルは Esc が効かないことがある：「キャンセル」を押す
+            let names = ["キャンセル", "Cancel"]
+            let cancel = sheet.buttons.matching(NSPredicate(format: "title IN %@ OR label IN %@", names, names)).firstMatch
+            if cancel.waitForExistence(timeout: 10) {
+                cancel.click()
+            } else {
+                sheet.typeKey(.escape, modifierFlags: [])
+            }
             XCTAssertTrue(waitFor { !sheet.exists }, "印刷パネルを閉じた")
         }
         XCTAssertTrue(pageNumber.exists, "キャンセルはプレビューのまま")
