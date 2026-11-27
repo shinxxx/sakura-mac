@@ -326,18 +326,10 @@ final class LocalizationTests: XCTestCase {
 
     /// 菜单栏（原版的 MainMenu.ini + Mac 的 App 菜单）
     func testMainMenuIsTranslated() {
-        let savedWindowsMenu = NSApp.windowsMenu
-        let savedServicesMenu = NSApp.servicesMenu
-        let savedHelpMenu = NSApp.helpMenu
-        defer {
-            NSApp.windowsMenu = savedWindowsMenu
-            NSApp.servicesMenu = savedServicesMenu
-            NSApp.helpMenu = savedHelpMenu
-        }
         var problems: [String] = []
         for language in Self.languages {
             Self.inLanguage(language) {
-                let menu = MainMenuBuilder.build()
+                let menu = MainMenuBuilder.build(installingAppMenus: false)
                 let all = Self.titles(of: menu)
                 XCTAssertGreaterThan(all.count, 100)
                 for (path, title) in all where Self.hasJapanese(title, language: language) {
@@ -348,7 +340,7 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(problems, [], problems.joined(separator: "\n"))
         // 英語の「ファイル」メニュー
         Self.inLanguage("en") {
-            let menu = MainMenuBuilder.build()
+            let menu = MainMenuBuilder.build(installingAppMenus: false)
             XCTAssertTrue(menu.items.contains { $0.title == "File" }, menu.items.map(\.title).joined(separator: ","))
         }
     }

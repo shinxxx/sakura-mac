@@ -17,7 +17,10 @@ import EditorBridge
 /// - 「設定」的最后加「Windows のキー割り当てを使う」（KeyScheme）和「Windows 版の設定をインポート…」（第 35 步）
 /// - 菜单的「&」快捷字母（m_sKey）不显示
 enum MainMenuBuilder {
-    static func build() -> NSMenu {
+    /// installingAppMenus：false 时不设 NSApp 的 windowsMenu・helpMenu・servicesMenu（测试只看菜单的内容时）
+    static func build(installingAppMenus: Bool = true) -> NSMenu {
+        installing = installingAppMenus
+        defer { installing = true }
         let mainMenu = NSMenu()
         mainMenu.addItem(submenuItem(appMenu()))
         var stack: [NSMenu] = [mainMenu]		// stack[level] 是 level 这一层的项目放进去的菜单
@@ -73,6 +76,8 @@ enum MainMenuBuilder {
     }
 
     /// 子项目由 Mac 的菜单做的子菜单
+    private static var installing = true
+
     private static func isReplaced(_ code: Int) -> Bool {
         [MenuCode.recentFiles, MenuCode.recentFolders, MenuCode.windowList].contains(code)
     }
@@ -89,7 +94,7 @@ enum MainMenuBuilder {
         case MenuCode.windowList:
             // 窗口（标签也算一个窗口）的一览由 macOS 自动加在 windowsMenu 里
             let menu = NSMenu(title: title)
-            NSApp.windowsMenu = menu
+            if installing { NSApp.windowsMenu = menu }
             item = submenuItem(menu)
         default:
             let menu = NSMenu(title: title)
@@ -110,7 +115,7 @@ enum MainMenuBuilder {
                          action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
             menu.addItem(.separator())
         case MenuCode.help:
-            NSApp.helpMenu = menu
+            if installing { NSApp.helpMenu = menu }
         default:
             break
         }
@@ -172,7 +177,7 @@ enum MainMenuBuilder {
         let services = NSMenuItem(title: L10n.tr("サービス", comment: "App 菜单（macOS）"), action: nil, keyEquivalent: "")
         let servicesMenu = NSMenu(title: L10n.tr("サービス", comment: "App 菜单（macOS）"))
         services.submenu = servicesMenu
-        NSApp.servicesMenu = servicesMenu
+        if installing { NSApp.servicesMenu = servicesMenu }
         menu.addItem(services)
         menu.addItem(.separator())
         menu.addItem(withTitle: String(format: L10n.tr("%@ を隠す", comment: "App 菜单（macOS）"), name), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
