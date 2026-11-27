@@ -27,9 +27,17 @@ final class SakuraDocument: NSDocument {
         super.init()
     }
 
-    // 原版没有自动保存到原文件和版本浏览，保存只在用户操作时进行
+    // 原版没有自动保存到原文件和版本浏览，保存只在用户操作时进行（第 46 步的「自動的に保存する」は FileSafetyAgent）
     override class var autosavesInPlace: Bool { false }
     override class var preservesVersions: Bool { false }
+
+    /// 自動保存・更新の監視（第 46 步。FileSafety.swift）
+    private(set) lazy var fileSafety = FileSafetyAgent(document: self)
+    /// 自動保存の保存が終わったときに呼ぶ（FileSafety.swift）
+    var autoSaveCompletions: [() -> Void] = []
+
+    /// 他のアプリがファイルを変えたとき、NSDocument は何もしない（第 46 步：更新の監視は FileSafetyAgent。原版 CAutoReloadAgent）
+    override func presentedItemDidChange() {}
 
     // MARK: - 读写
 
@@ -78,6 +86,8 @@ final class SakuraDocument: NSDocument {
         default:
             throw CocoaError(.fileReadUnknown, userInfo: [NSURLErrorKey: url])
         }
+        // 第 46 步：更新の監視のためにファイルの更新日時を覚える
+        fileSafety.storeFileTime(url)
         // 记下访问权限，重启后从「最近使ったファイル」打开时用（第 31 步）
         BookmarkStore.shared.remember(url)
         BookmarkStore.shared.pruneToRecentFiles()
@@ -127,6 +137,7 @@ final class SakuraDocument: NSDocument {
         isClosing = true
         defer { isClosing = false }
         addToRecent()
+        fileSafety.stop()
         super.close()
         securityScopedURL?.stopAccessingSecurityScopedResource()
         securityScopedURL = nil
@@ -155,14 +166,25 @@ final class SakuraDocument: NSDocument {
                 completionHandler(CocoaError(.userCancelled))
                 return
             }
+            // 第 46 步：バックアップ（原版 DoSaveFlow → NotifyPreBeforeSave → CBackupAgent::OnPreBeforeSave。保存前の自動実行マクロより前）
+            guard backupBeforeSave(to: url) else {
+                completionHandler(CocoaError(.userCancelled))
+                return
+            }
             nextSaveSettings = confirmed
             // 第 45 步：保存前の自動実行マクロ（原版 CDocFileOperation::DoSaveFlow → RunAutoMacro(nMacroOnSave)）
             let typeBefore = editor.typeIndex
             if let view = (windowControllers.first as? EditorWindowController)?.textView {
                 MacroCommands.runAuto("nMacroOnSave", view: view, savePath: url.path)
             }
+            // 第 46 步：保存中は更新の監視を止める（原版 CAutoReloadAgent::OnBeforeSave）。
+            // NSDocument の「ほかのアプリケーションで変更されました」を出さない（原版は保存のときに確かめない）
+            let overwrite = fileURL.map { Self.encodingKey($0) == Self.encodingKey(url) } ?? false
+            fileSafety.beforeSave()
+            syncFileModificationDate()
             writeConfirmed(to: url, ofType: typeName, for: saveOperation) { [self] error in
                 nextSaveSettings = nil
+                fileSafety.afterSave(succeeded: error == nil, overwrite: overwrite, url: url)
                 if error == nil {
                     // タイプが変わったら（名前を付けて保存で拡張子が変わった等）タイプ変更後の自動実行マクロ（原版 CEditDoc::OnChangeType）
                     if editor.typeIndex != typeBefore, let view = (windowControllers.first as? EditorWindowController)?.textView {
@@ -182,6 +204,13 @@ final class SakuraDocument: NSDocument {
                 completionHandler(error)
             }
         }
+    }
+
+    /// 第 46 步：上書き保存の前に、NSDocument の覚えている更新日時を今のファイルのものにする
+    /// （NSDocument の「ほかのアプリケーションで変更されました」の確認を出さない。原版は保存のときに確かめない）
+    override func save(withDelegate delegate: Any?, didSave didSaveSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        syncFileModificationDate()
+        super.save(withDelegate: delegate, didSave: didSaveSelector, contextInfo: contextInfo)
     }
 
     /// 检查通过后交给 NSDocument 写出（闭包里不能直接调用 super）
@@ -416,6 +445,8 @@ final class SakuraDocument: NSDocument {
         }
         // 第 42 步：ドッキングしたアウトラインを開く（原版 CNormalProcess → CDlgFuncList::Refresh）
         controller.textView.refreshOutline()
+        // 第 46 步：自動保存・更新の監視のタイマー（原版 IDT_EDIT）
+        fileSafety.start()
     }
 
     /// 開いた後の自動実行マクロを実行した（第 45 步）

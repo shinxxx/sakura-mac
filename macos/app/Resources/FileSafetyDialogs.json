@@ -1,0 +1,13 @@
+{"source": "sakura_core/sakura_rc.rc", "pages": [
+], "dialogs": [
+ {"name": "ファイルが更新されました", "dialog": "IDD_FILEUPDATEQUERY", "size": [223, 107], "controls": [
+  {"id": "IDC_BTN_RELOAD", "kind": "button", "frame": [7, 63, 50, 14], "text": "再読込(R)"},
+  {"id": "IDC_BTN_CLOSE", "kind": "button", "frame": [59, 63, 50, 14], "text": "閉じる(C)"},
+  {"id": "IDC_BTN_AUTOLOAD", "kind": "button", "frame": [114, 63, 102, 14], "text": "以後未編集で再読込(L)"},
+  {"id": "IDC_BTN_NOTIFYONLY", "kind": "button", "frame": [7, 81, 102, 14], "text": "以後通知メッセージのみ(M)"},
+  {"id": "IDC_BTN_NOSUPERVISION", "kind": "button", "frame": [114, 81, 102, 14], "text": "以後更新を監視しない(N)"},
+  {"id": "IDC_UPDATEDFILENAME", "kind": "edit", "frame": [7, 7, 209, 25], "flags": ["multiline", "readonly"]},
+  {"id": "IDC_FILEUPDATEMSG", "kind": "label", "frame": [7, 36, 209, 10], "text": "このファイルは外部のエディタ等で変更されています。"},
+  {"id": "IDC_QUERYRELOADMSG", "kind": "label", "frame": [7, 48, 209, 10]}
+ ]}
+]}

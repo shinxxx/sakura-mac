@@ -1472,6 +1472,157 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(documentWindow(app, "a.txt").textViews["editor"].value as? String, "alpha HIT\nnone\n")
     }
 
+    // MARK: - 第 46 步：ファイルの安全機能（更新の監視・バックアップ）
+
+    /// 外部で変わったファイル（測試程序の容器。App は読める）を開いた App を起動する
+    private func launchWatching(_ content: String) throws -> (XCUIApplication, URL) {
+        let dir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("SakuraMacUITest/watch-\(UUID().uuidString.prefix(8))")
+        let file = dir.appendingPathComponent("watched.txt")
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try content.write(to: file, atomically: false, encoding: .utf8)
+        } catch {
+            throw XCTSkip("测试程序写不了 \(dir.path)：\(error)")
+        }
+        app.terminate()
+        let watching = XCUIApplication()
+        watching.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingOpenPath", file.path]
+        watching.launch()
+        app = watching
+        XCTAssertTrue(documentWindow(watching, "watched.txt").waitForExistence(timeout: 10), "ファイルを開いた")
+        return (watching, file)
+    }
+
+    /// 外部のエディタで書き換える（更新日時を確実に進める）
+    private func modifyExternally(_ file: URL, _ content: String) throws {
+        let old = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date ?? Date()
+        try content.write(to: file, atomically: false, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: max(Date(), old.addingTimeInterval(5))], ofItemAtPath: file.path)
+    }
+
+    /// 開いているファイルを外部で変えると「ファイルが更新されました」（3 秒ごとに調べる）。再読込(R) で新しい内容
+    func testFileUpdateQueryReload() throws {
+        let (app, file) = try launchWatching("first\n")
+        defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+        let window = documentWindow(app, "watched.txt")
+        try modifyExternally(file, "second\n")
+        app.activate()
+        let reload = app.buttons["IDC_BTN_RELOAD"]
+        XCTAssertTrue(reload.waitForExistence(timeout: 10), "「ファイルが更新されました」")
+        XCTAssertTrue(app.staticTexts["再ロードしますか?"].exists, "未編集のときのメッセージ")
+        XCTAssertTrue(app.buttons["IDC_BTN_CLOSE"].exists && app.buttons["IDC_BTN_AUTOLOAD"].exists
+                      && app.buttons["IDC_BTN_NOTIFYONLY"].exists && app.buttons["IDC_BTN_NOSUPERVISION"].exists)
+        reload.click()
+        XCTAssertTrue(waitFor { window.textViews["editor"].value as? String == "second\n" }, "再読込した")
+        XCTAssertFalse(reload.exists)
+    }
+
+    /// 以後未編集で再読込(L)：読み直し、次の外部の変更は聞かずに読み直す
+    func testFileUpdateAutoload() throws {
+        let (app, file) = try launchWatching("one\n")
+        defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+        let window = documentWindow(app, "watched.txt")
+        try modifyExternally(file, "two\n")
+        app.activate()
+        let autoload = app.buttons["IDC_BTN_AUTOLOAD"]
+        XCTAssertTrue(autoload.waitForExistence(timeout: 10), "「ファイルが更新されました」")
+        autoload.click()
+        XCTAssertTrue(waitFor { window.textViews["editor"].value as? String == "two\n" }, "読み直した")
+        try modifyExternally(file, "three\n")
+        XCTAssertTrue(waitFor(timeout: 10) { window.textViews["editor"].value as? String == "three\n" }, "聞かずに読み直した")
+        XCTAssertFalse(app.buttons["IDC_BTN_AUTOLOAD"].exists, "対話框は出ない")
+    }
+
+    /// App の一時フォルダー（沙盒の容器）の、界面测试用の設定フォルダーのファイルのパス。
+    /// 测试程序は App の容器の中を読めない（存在は分かる）ので、中身は App で開いて確かめる（contentInApp）
+    private func appTestFile(home: String, _ name: String) -> URL? {
+        guard let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir else { return nil }
+        let realHome = String(cString: dir)
+        let candidates = [
+            "\(realHome)/Library/Containers/com.hanagumo.texteditor/Data/tmp",
+            (NSTemporaryDirectory() as NSString).deletingLastPathComponent + "/com.hanagumo.texteditor",
+        ]
+        for base in candidates {
+            let url = URL(fileURLWithPath: base).appendingPathComponent("sakura-uitest-\(home)").appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+        }
+        return nil
+    }
+
+    /// App を起動し直してファイルを開き、中身を返す
+    private func contentInApp(_ file: URL) -> String? {
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES", "-SakuraUITestingOpenPath", file.path]
+        app.launch()
+        let window = documentWindow(app, file.lastPathComponent)
+        guard window.waitForExistence(timeout: 10) else { return nil }
+        return window.textViews["editor"].value as? String
+    }
+
+    /// 共通設定 > バックアップ：保存時にバックアップを作成する（.bak）。作成前に確認する で確認が出て、キャンセルで保存しない
+    func testBackupOnSave() throws {
+        app.terminate()
+        let home = "backup-\(UUID().uuidString.prefix(8))"
+        app = XCUIApplication()
+        app.launchArguments = ["-SakuraUITesting", "YES", "-ApplePersistenceIgnoreState", "YES",
+                               "-SakuraUITestingHome", home, "-SakuraUITestingOpenFile", "backup.txt"]
+        app.launch()
+        let window = documentWindow(app, "backup.txt")
+        XCTAssertTrue(window.waitForExistence(timeout: 10), "テスト用のファイル")
+        let file = try XCTUnwrap(appTestFile(home: home, "backup.txt"), "App の一時フォルダーのファイル")
+        let bak = file.deletingPathExtension().appendingPathExtension("bak")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bak.path))
+
+        func setBackup(dialog: Bool) {
+            app.typeKey(",", modifierFlags: .command)
+            let settings = app.windows["CommonSettings"]
+            XCTAssertTrue(settings.waitForExistence(timeout: 5), "共通設定窗口")
+            settings.staticTexts["CommonSettingsPage_バックアップ"].click()
+            let check = settings.checkBoxes["IDC_CHECK_BACKUP"]
+            XCTAssertTrue(check.waitForExistence(timeout: 2), "バックアップ 页")
+            if check.value as? Int != 1 { check.click() }
+            settings.radioButtons["IDC_RADIO_BACKUP_TYPE1"].click()
+            let confirm = settings.checkBoxes["IDC_CHECK_BACKUPDIALOG"]
+            if (confirm.value as? Int == 1) != dialog { confirm.click() }
+            settings.buttons["CommonSettingsOK"].click()
+            XCTAssertFalse(settings.waitForExistence(timeout: 1))
+        }
+
+        setBackup(dialog: false)
+        let editor = window.textViews["editor"]
+        editor.click()	// クリックでカーソルは末尾
+        editor.typeText("X")
+        app.typeKey("s", modifierFlags: .command)
+        XCTAssertTrue(waitFor { !window.title.contains("(更新)") }, "保存した：\(window.title)")
+        XCTAssertTrue(waitFor { FileManager.default.fileExists(atPath: bak.path) }, ".bak を作った")
+
+        // 作成前に確認する：キャンセルで保存しない
+        setBackup(dialog: true)
+        editor.click()
+        editor.typeText("Y")
+        app.typeKey("s", modifierFlags: .command)
+        let cancel = app.buttons["キャンセル"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "バックアップ作成の確認")
+        XCTAssertTrue(app.staticTexts["バックアップ作成の確認"].exists)
+        XCTAssertTrue(app.buttons["はい"].exists && app.buttons["いいえ"].exists)
+        cancel.click()
+        XCTAssertFalse(cancel.waitForExistence(timeout: 1))
+        XCTAssertTrue(window.title.contains("(更新)"), "キャンセル：保存しない、変更は残る：\(window.title)")
+        // はい：作って保存
+        app.typeKey("s", modifierFlags: .command)
+        XCTAssertTrue(app.buttons["はい"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["はい"].firstMatch.click()
+        XCTAssertTrue(waitFor { !window.title.contains("(更新)") }, "保存した：\(window.title)")
+
+        // 中身は App で開いて確かめる：.bak は 2 回目の保存の前の内容
+        XCTAssertEqual(contentInApp(file), Self.testFileContent + "XY")
+        XCTAssertEqual(contentInApp(bak), Self.testFileContent + "X", ".bak は保存の前の内容")
+    }
+
+    /// UITesting.testFileContent と同じ
+    private static let testFileContent = "line1\nline2\nline3\nline4\n"
+
     /// 文件的窗口（标题是「文件名 – 编码」）
     private func documentWindow(_ app: XCUIApplication, _ name: String) -> XCUIElement {
         app.windows.matching(NSPredicate(format: "title == %@ OR title BEGINSWITH %@", name, name + " ")).firstMatch

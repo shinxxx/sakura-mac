@@ -112,3 +112,15 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
   `CommonSettingsTests.testMacroPage`：共通設定『マクロ』。
 - 界面测试 `testJScriptMacroFromMenu`（名前を指定してマクロ実行、Popup、エラー）、`testRegisteredMacroAndCancelDialog`（共通設定で登録 → 登録済みマクロ、キャンセルの窓口）。
   キャンセルの窓口はスクリプトの実行中なのでアクセシビリティの一覧に出てこない：画面の写真で確かめて Esc でキャンセルする。
+
+## ファイルの安全機能（第 46 步）
+
+- 核心库 `test-mac-backup.cpp`：备份文件名的书式、作成（世代、文件夹、更新日时）、确认、ごみ箱。`BackupWindowsComparison` 按 `data/backup/cases.tsv` 的步骤做备份，
+  把结果写成文字与 `data/backup/expected.txt` 比较；CI 的 `backup-windows` 在 Windows 上用官方版 sakura.exe 做同样的步骤（`macos/tools/backup/windows-backup.ps1`），与同一个 `expected.txt` 比较。
+- App 的 `FileSafetyTests`：保存时的备份、外部修改后保存不出 NSDocument 的确认、自动保存、文件更新的监视。
+  对话框换成测试用的（`SakuraDocument.backupHandler`、`FileSafetyAgent.queryFileUpdate`），时钟（`FileSafetyAgent.clock`）、活动窗口的判断（`isActiveWindow`）、
+  自动保存的保存（`performAutoSave`）也可以换；文档的 500 ms 计时器停掉，测试直接调用 `checkAutoSave`・`checkFileTimeStamp`・`onEditTimer`。
+  `FolderAccess.choose` 换成失败的：沙盒外不应该请求文件夹的许可。改的共通设定在 tearDown 里改回去。
+- 界面测试 `testFileUpdateQueryReload`・`testFileUpdateAutoload`：测试程序在自己的容器里改 App 打开的文件，「ファイルが更新されました」出来，按 再読込(R)／以後未編集で再読込(L)。
+  `testBackupOnSave`：共通設定『バックアップ』打开备份，⌘S 后有 .bak；作成前に確認する 时 キャンセル 不保存、はい 保存。
+  测试程序读不了 App 容器里的文件（只知道有没有），内容由 App 重新启动后打开来确认。详见 [phase3-file-safety.md](phase3-file-safety.md)。

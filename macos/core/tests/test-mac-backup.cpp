@@ -262,9 +262,15 @@ TEST_F(MacBackupTest, FormatAdvanced)
 	// $ の後が数字でないときはそのまま（原版と同じ）
 	Set({ { u"szBackUpPathAdvanced", u"$a$0$" } });
 	EXPECT_EQ("sub/proj/$amemo$", Rel(Format(file, &kNow)));
-	// ないフォルダー（$9）は空
-	Set({ { u"szBackUpPathAdvanced", u"x$9y" } });
-	EXPECT_EQ("sub/proj/xy", Rel(Format(file, &kNow)));
+	// ないフォルダー（$9）は空。Mac の一時フォルダー（/private/var/folders/…）は深く、9 つ上がある場合はその名前
+	{
+		std::string ninth;
+		auto p = file.parent_path();
+		for (int k = 1; k < 9 && p.has_relative_path(); ++k) p = p.parent_path();
+		if (p.has_relative_path()) ninth = p.filename().string();
+		Set({ { u"szBackUpPathAdvanced", u"x$9y" } });
+		EXPECT_EQ("sub/proj/x" + ninth + "y", Rel(Format(file, &kNow)));
+	}
 	// ファイルの日付・時刻
 	Set({ { u"bBackUpType2_Opt4", u"4" }, { u"szBackUpPathAdvanced", u"$0.%Y-%m-%d.%H%M%S.*" } });
 	EXPECT_EQ("sub/proj/memo.2024-02-29.010203.txt", Rel(Format(file, &kNow)));
