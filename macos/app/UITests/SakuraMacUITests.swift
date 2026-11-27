@@ -1651,7 +1651,8 @@ final class SakuraMacUITests: XCTestCase {
 
         // ページ設定（キャンセル）
         window.buttons["IDC_BUTTON_PRINTSETTING"].click()
-        let dialog = app.windows["PrintSettingDialog"]
+        // 閉じるボタンのない NSPanel は dialog として見えることがある
+        let dialog = app.descendants(matching: .any).matching(identifier: "PrintSettingDialog").firstMatch
         XCTAssertTrue(dialog.waitForExistence(timeout: 5), "印刷ページ設定")
         XCTAssertTrue(dialog.popUpButtons["IDC_COMBO_SETTINGNAME"].exists)
         XCTAssertTrue(dialog.staticTexts["IDC_STATIC_ENABLECOLUMNS"].exists)
