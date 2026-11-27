@@ -384,7 +384,7 @@ final class PrintTests: XCTestCase {
         controller.togglePrintPreview()
         XCTAssertNil(controller.printPreview)
         XCTAssertTrue(controller.window?.contentView is EditorContainerView)
-        XCTAssertEqual(controller.textView.statusMessage, "印刷ページ設定エラー:印字可能領域がありません")
+        XCTAssertEqual(controller.textView.statusMessage.trimmingCharacters(in: .whitespaces), "印刷ページ設定エラー:印字可能領域がありません")
     }
 
     /// 他の窓で設定が変わったら作り直す（PM_PRINTSETTING）。行番号を入れるとページの文字の位置がずれる

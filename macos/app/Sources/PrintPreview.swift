@@ -394,6 +394,8 @@ final class PrintPreviewController: NSObject {
     let previewView = PrintPreviewView()
     let scrollView = NSScrollView()
     let container: PrintPreviewContainerView
+    /// 操作バーのプリンターのアイコン
+    private var barIcon: NSImageView?
     /// 隠した窓の中身（戻るときに戻す）
     private let savedContent: NSView?
     private(set) var layout: PrintLayout?
@@ -464,7 +466,9 @@ final class PrintPreviewController: NSObject {
             image.image = NSImage(systemSymbolName: "printer", accessibilityDescription: nil)
             image.imageScaling = .scaleProportionallyUpOrDown
             page.view.addSubview(image)
+            barIcon = image
         }
+        layOutBar()
         // 「印刷」は既定のボタン（原版 IDOK）、「戻る」は Esc（IDCANCEL）
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
@@ -472,6 +476,35 @@ final class PrintPreviewController: NSObject {
         page.onChange = { [weak self] id in
             if id == "IDC_CHECK_ANTIALIAS" { self?.antialiasChanged() }
         }
+    }
+
+    /// 操作バーを列ごとに並べ直す。原版の列の順番のまま、Mac の文字の幅に合わせて広げ、
+    /// 後ろの列を右へずらす（原版はダイアログの幅いっぱいで、Mac の字では入らない）
+    private func layOutBar() {
+        let columns = [["IDOK", "IDC_BUTTON_PRINTSETTING"], ["IDC_BUTTON_PREVPAGE", "IDC_BUTTON_ZOOMDOWN"],
+                       ["IDC_BUTTON_NEXTPAGE", "IDC_BUTTON_ZOOMUP"], ["IDC_BUTTON_DIRECTPAGE"],
+                       ["IDC_STATIC_PAGENUM", "IDC_STATIC_ZOOM"], ["IDC_BUTTON_HELP", "IDCANCEL"],
+                       ["IDC_CHECK_ANTIALIAS", "IDC_BUTTON_PRINTERSELECT"]]
+        let gap: CGFloat = 4
+        var x = columns.first?.compactMap { page.control($0)?.frame.minX }.min() ?? gap
+        for column in columns {
+            let views = column.compactMap { page.control($0) }
+            let width = views.map { max($0.frame.width, ceil($0.fittingSize.width)) }.max() ?? 0
+            for view in views {
+                view.frame.origin.x = x
+                view.frame.size.width = width
+            }
+            x += width + gap
+        }
+        var labelX = x
+        if let icon = barIcon {
+            icon.frame.origin.x = x
+            labelX = icon.frame.maxX + 2
+        }
+        if let device = page.control("IDC_STATIC_PRNDEV") { device.frame.origin.x = labelX }
+        if let paper = page.control("IDC_STATIC_PAPER") { paper.frame.origin.x = x }
+        let right = page.view.subviews.map(\.frame.maxX).max() ?? 0
+        page.view.frame.size.width = max(page.view.frame.width, right + gap)
     }
 
     // MARK: 開く・閉じる（原版 PrintPreviewModeONOFF）
