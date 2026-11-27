@@ -63,3 +63,18 @@
 - App `FileSafetyTests`（19 个）：保存时的备份（各种类、确认的 はい・いいえ・キャンセル、ごみ箱、失败、另存为）、
   外部修改后保存不出 NSDocument 的确认、自动保存（换掉时钟）、更新的监视的每个回答、延迟、暂停、条件、计时器的 6 次、对话框的文字和按钮。
 - 界面测试 `testFileUpdateQueryReload`、`testFileUpdateAutoload`、`testBackupOnSave`。
+
+## 截图
+
+- ![](images/step46/01-file-update-query-unmodified.png)
+  「ファイルが更新されました」对话框（文档未修改）：长路径按字折行完整显示，问「再ロードしますか?」。
+- ![](images/step46/02-file-update-query-modified.png)
+  同一对话框（文档已修改）：提示「再ロードを行うと変更が失われますがよろしいですか?」。
+- ![](images/step46/03-notify-status-message.png)
+  选「以後通知メッセージのみ」后，外部修改只在编辑区左下显示「★ファイル更新 10:21:16」，标题栏带「(更新)」。
+- ![](images/step46/04-common-settings-backup-page.png)
+  共通設定的「バックアップ」页：保存时备份、各种备份方式、指定フォルダー、ごみ箱、作成前に確認する。
+- ![](images/step46/05-backup-confirm.png)
+  「バックアップ作成の確認」对话框：显示原文件 → 备份文件的路径，按钮 キャンセル・いいえ・はい。
+- ![](images/step46/06-backup-confirm-dustbox.png)
+  同一确认对话框（开了「ごみ箱に放り込む」）：多一行「作成したバックアップファイルをごみ箱に放り込みます。」，按钮只有 いいえ・はい。
