@@ -94,6 +94,11 @@ say "导出中…"
 if ! xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$OUT/export" \
     -exportOptionsPlist "$OUT/ExportOptions.plist" "${AUTH[@]}" > "$OUT/export.log" 2>&1; then
     grep -E "error:|Error " "$OUT/export.log" | head -20 | tee -a "$SUMMARY"
+    if grep -q 'No signing certificate "Developer ID Application"' "$OUT/export.log"; then
+        # Developer ID 证书只能由账户持有人建，API 密钥用不了云端管理的 Developer ID 证书
+        say "钥匙串里没有 Developer ID Application 证书：在 Xcode →「设置」→「Accounts」→ 选团队 →「Manage Certificates…」"
+        say "→ 左下角「+」→「Developer ID Application」建一次（证书和私钥放进钥匙串），然后再运行"
+    fi
     fail "导出（$OUT/export.log）"
 fi
 

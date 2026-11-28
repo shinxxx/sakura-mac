@@ -12,8 +12,12 @@
 3. 注册 Bundle ID：`macos/tools/release/release.sh --register`（API 注册 macOS 的 `com.hanagumo.texteditor`）。
 4. 在 App Store Connect 建 App 的记录（「マイ App」→「＋」→「新規 App」。API 不能建，只能在网页上）。
 
-证书（Apple Distribution、Mac Installer Distribution、Developer ID Application）和描述文件由 Xcode 自动准备
+App Store 用的证书（Apple Distribution、Mac Installer Distribution）和描述文件由 Xcode 自动准备
 （`-allowProvisioningUpdates` + API 密钥，云端管理的证书），不用在钥匙串里手动建，也不用 Apple ID 的密码。
+
+Developer ID Application 证书只能由账户持有人建，API 密钥用不了云端管理的 Developer ID 证书
+（2026-11-28 实测：`Cloud signing permission error`）。直接发布（`--developer-id`）之前，在 Xcode 里建一次：
+「设置」→「Accounts」→ 选团队 →「Manage Certificates…」→ 左下角「+」→「Developer ID Application」。
 
 ## 发布
 
