@@ -1699,8 +1699,8 @@ final class SakuraMacUITests: XCTestCase {
     private func helpPageShows(_ part: String, timeout: TimeInterval = 10) -> Bool {
         // WKWebView のページは webView（AXWebArea）の中の文字として見える
         let page = helpWindow.webViews.firstMatch
-        let text = page.descendants(matching: .any)
-            .matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@ OR title CONTAINS %@", part, part, part)).firstMatch
+        // 文字の要素だけ（チェックボックス等の value は数で、CONTAINS が例外になる）
+        let text = page.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", part, part)).firstMatch
         if text.waitForExistence(timeout: timeout) { return true }
         // 見つからないとき：ヘルプの窓の中身を結果に残す（原因を調べる）
         let tree = XCTAttachment(string: helpWindow.debugDescription)
