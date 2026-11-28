@@ -259,6 +259,16 @@ final class HelpTests: XCTestCase {
         }
     }
 
+    /// 沙盒的 App で WKWebView を使う権限（ないと WebKit のプロセスがクラッシュしてページが白いまま。第 49 步）
+    func testEntitlementForWebView() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Config/SakuraMac.entitlements")
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: Any], url.path)
+        XCTAssertEqual(plist["com.apple.security.app-sandbox"] as? Bool, true)
+        XCTAssertEqual(plist["com.apple.security.network.client"] as? Bool, true)
+        XCTAssertNil(plist["com.apple.security.network.server"], "接続を受ける権限は要らない")
+    }
+
     // MARK: - ヘルプ窗口
 
     private func waitForPage(_ help: HelpWindowController, _ action: () -> Void) {

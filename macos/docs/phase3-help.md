@@ -20,6 +20,7 @@ macOS 没有 HTML Help，Mac 版把原版的 HTML 原样收进 App，用自己�
 - Mac 版的注记：页的开头插入「Mac 版：…」的框（WKUserScript，不改原版的 HTML）。
   - Mac 版没有的功能（菜单里变灰）的页：自动加「Mac 版にはこの機能はありません」。
   - 其他（动作环境、sakura.ini 的位置、键、プラグイン、マクロ等）：`macos/tools/help/mac_notes.json` 里手写。
+- 沙盒的权限加 `com.apple.security.network.client`：WKWebView 显示 App 里的 HTML 也需要（没有时 WebKit 的 GPU・Networking 进程启动就崩溃，页是白的）。App 自身不联网，帮助里的网页链接用浏览器打开。
 - プラグイン（plugin.chm）、PPA、Windows Script（script56）的帮助：原版也是另外的文件，Mac 版没有这些功能，不收。
 
 ## 数据
