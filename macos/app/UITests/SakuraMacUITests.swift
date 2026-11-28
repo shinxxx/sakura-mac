@@ -1697,11 +1697,18 @@ final class SakuraMacUITests: XCTestCase {
 
     /// ヘルプのページ（WKWebView）にこの文字がある
     private func helpPageShows(_ part: String, timeout: TimeInterval = 10) -> Bool {
-        // WKWebView のページは webView（AXWebArea）の中の文字として見える
+        // WKWebView のページは webView（AXWebArea）の中の文字として見える。
+        // 述語の CONTAINS は value が数の要素（チェックボックス等）で例外になるので、一度に取った要素の木から探す
         let page = helpWindow.webViews.firstMatch
-        // 文字の要素だけ（チェックボックス等の value は数で、CONTAINS が例外になる）
-        let text = page.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", part, part)).firstMatch
-        if text.waitForExistence(timeout: timeout) { return true }
+        func contains(_ node: XCUIElementSnapshot) -> Bool {
+            if (node.value as? String)?.contains(part) == true || node.label.contains(part) { return true }
+            return node.children.contains(where: contains)
+        }
+        let found = waitFor(timeout: timeout) {
+            guard page.exists, let snapshot = try? page.snapshot() else { return false }
+            return contains(snapshot)
+        }
+        if found { return true }
         // 見つからないとき：ヘルプの窓の中身を結果に残す（原因を調べる）
         let tree = XCTAttachment(string: helpWindow.debugDescription)
         tree.name = "ヘルプの窓の要素（\(part)）"
