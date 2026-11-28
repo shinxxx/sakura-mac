@@ -25,6 +25,7 @@
 | `macos/app/Tests/` | 桥接层的单元测试（Swift、XCTest） |
 | `macos/app/UITests/` | 自动界面测试（XCUITest）：真的启动 App 用键盘和菜单操作 |
 | `macos/tools/run-tests.sh` | 一次跑完全部自动测试，只打印结果摘要（见 [docs/testing.md](docs/testing.md)） |
+| `macos/tools/release/` | 签名、上传 TestFlight、公证（`release.sh`）和发布前的检查（`check-release.sh`）（见 [docs/phase2-release.md](docs/phase2-release.md)） |
 
 核心逻辑继续使用 `sakura_core/` 中的原版代码，不复制到本目录。
 
@@ -70,5 +71,5 @@ ctest --test-dir build/mac-core --output-on-failure
 - [与上游同步的流程](docs/upstream-sync.md)
 - [自动测试](docs/testing.md)
 - 阶段 1：[编译错误清单](docs/phase1-compile-errors.md) · [平台抽象层](docs/phase1-platform-layer.md) · [字符类型方案](docs/phase1-char-type.md) · [核心库构建](docs/phase1-core-build.md) · [编码模块](docs/phase1-charset.md) · [编码往返测试](docs/phase1-roundtrip.md) · [换掉 DLL](docs/phase1-extmodule.md) · [文档模型和语法类型](docs/phase1-doc-types.md) · [设置模块 env](docs/phase1-env.md) · [核心库接口](docs/phase1-core-api.md) · [阶段 1 验收](docs/phase1-review.md)
-- 阶段 2：[桥接层](docs/phase2-bridge.md) · [输入法原型](docs/phase2-ime.md) · [窗口框架](docs/phase2-windows.md) · [排版](docs/phase2-layout.md) · [绘制和颜色](docs/phase2-drawing.md) · [基本编辑](docs/phase2-edit.md) · [打开与保存](docs/phase2-open-save.md) · [沙盒文件访问](docs/phase2-sandbox-files.md) · [查找与替换](docs/phase2-search.md) · [语法高亮](docs/phase2-syntax-color.md) · [菜单与快捷键](docs/phase2-menu-keys.md) · [导入原版设置](docs/phase2-import-settings.md) · [性能](docs/phase2-performance.md)
+- 阶段 2：[桥接层](docs/phase2-bridge.md) · [输入法原型](docs/phase2-ime.md) · [窗口框架](docs/phase2-windows.md) · [排版](docs/phase2-layout.md) · [绘制和颜色](docs/phase2-drawing.md) · [基本编辑](docs/phase2-edit.md) · [打开与保存](docs/phase2-open-save.md) · [沙盒文件访问](docs/phase2-sandbox-files.md) · [查找与替换](docs/phase2-search.md) · [语法高亮](docs/phase2-syntax-color.md) · [菜单与快捷键](docs/phase2-menu-keys.md) · [导入原版设置](docs/phase2-import-settings.md) · [性能](docs/phase2-performance.md) · [签名与 TestFlight](docs/phase2-release.md)
 - 阶段 3：[共通設定窗口](docs/phase3-common-settings.md) · [タイプ別設定窗口](docs/phase3-type-settings.md) · [キー割り当て・メニュー的设置](docs/phase3-command-settings.md) · [アウトライン解析](docs/phase3-outline.md) · [Grep・Grep置換](docs/phase3-grep.md) · [编辑辅助功能](docs/phase3-edit-support.md) · [マクロ](docs/phase3-macro.md) · [文件的安全功能](docs/phase3-file-safety.md) · [印刷](docs/phase3-print.md) · [界面本地化](docs/phase3-l10n.md) · [ヘルプ](docs/phase3-help.md)

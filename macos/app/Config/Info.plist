@@ -46,6 +46,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- 第 37 步：App 的图标（Resources/Assets.xcassets/AppIcon，macos/tools/icon/make_app_icon.py 从原版图标生成） -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<!-- 第 37 步：出口合规。App 自己不使用需要申报的加密（上传 TestFlight 时不再逐次询问） -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>LSMinimumSystemVersion</key>

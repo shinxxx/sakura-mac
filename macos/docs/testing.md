@@ -30,6 +30,9 @@ macos/tools/run-tests.sh --no-ui    # 不跑界面测试
 需要 Xcode、CMake、XcodeGen（`brew install xcodegen cmake`）。不需要开发者账号：测试用本机签名（ad-hoc）。
 `xcode-select` 指向 Command Line Tools 时，脚本自动改用 `/Applications` 里的 Xcode（只在这次运行里，不改系统设置）。
 界面测试运行时会真的打开窗口、操作键盘，这期间不要动鼠标和键盘。
+输入法（第 37 步加，2026-11-28 项目负责人同意）：开始时记下当前的输入法，结束或中途被打断（Ctrl+C 等）时自动切回；
+开始时已经停在「Unicode 十六进制输入」（XCUITest 打字时临时切换、中断时留下来的）时先切回 ABC。不动别的输入法的设置。
+切换用 `macos/tools/inputsource.swift`（第一次运行时编译到 `build/inputsource`），结果里的「输入法：…」一行就是确认。
 App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/tools/check-arch.sh`，Mac 版只支持 Apple 芯片；结果里的「架构：只含 arm64」）。
 
 `testSandboxedFileReopensFromRecentFilesAfterRestart`（第 31 步）只在 run-tests.sh 里运行（CI 上跳过）：
