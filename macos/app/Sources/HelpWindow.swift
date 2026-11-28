@@ -138,10 +138,13 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
             splitView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             splitView.topAnchor.constraint(equalTo: bar.bottomAnchor, constant: 6),
             splitView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            navigation.widthAnchor.constraint(greaterThanOrEqualToConstant: 160),
+            navigation.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
         ])
+        // 最初の幅（原版の HTML Help の左の窓と同じくらい）。分割の線で変えられる
+        let initialWidth = navigation.widthAnchor.constraint(equalToConstant: 260)
+        initialWidth.priority = NSLayoutConstraint.Priority(rawValue: 300)
+        initialWidth.isActive = true
         content.layoutSubtreeIfNeeded()
-        splitView.setPosition(250, ofDividerAt: 0)
         updateButtons()
     }
 
@@ -200,7 +203,7 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
 
     private func indexPane() -> NSView {
         let pane = NSView()
-        let label = NSTextField(labelWithString: L10n.tr("検索するキーワードを入力してください:", comment: "ヘルプ窗口：キーワード"))
+        let label = NSTextField(wrappingLabelWithString: L10n.tr("検索するキーワードを入力してください:", comment: "ヘルプ窗口：キーワード"))
         label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         indexField.delegate = self
         indexField.sendsSearchStringImmediately = false
@@ -219,7 +222,7 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
 
     private func searchPane() -> NSView {
         let pane = NSView()
-        let label = NSTextField(labelWithString: L10n.tr("検索する語を入力してください:", comment: "ヘルプ窗口：検索"))
+        let label = NSTextField(wrappingLabelWithString: L10n.tr("検索する語を入力してください:", comment: "ヘルプ窗口：検索"))
         label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         searchField.setAccessibilityIdentifier("HelpSearchField")
         searchField.sendsWholeSearchString = true

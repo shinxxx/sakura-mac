@@ -1736,7 +1736,7 @@ final class SakuraMacUITests: XCTestCase {
 
         // キーワード検索：キーワードのタブ
         helpMenuItem("キーワード検索").click()
-        let indexField = helpWindow.textFields["HelpIndexField"]
+        let indexField = helpWindow.descendants(matching: .any).matching(identifier: "HelpIndexField").firstMatch	// NSSearchField
         XCTAssertTrue(indexField.waitForExistence(timeout: 5), "キーワードのタブ")
         indexField.click()
         indexField.typeText("grep置\r")
