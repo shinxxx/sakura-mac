@@ -37,6 +37,13 @@ FAILED=0
 
 say() { echo "$*" | tee -a "$SUMMARY"; }
 
+# 界面测试前：现在的输入法是「Unicode 十六进制输入」时停下（这个布局用 Option 键输入编码，⌥→ 等的测试会失败。
+# XCUITest 打字时会临时切到这个布局，运行中断时可能留下来）。只读设置，不改：请用户在菜单栏切回平时的输入法
+if [ "$RUN_UI" = 1 ] && defaults read com.apple.HIToolbox AppleSelectedInputSources 2>/dev/null | grep -q "UnicodeHexInput"; then
+    say "现在的输入法是「Unicode 十六进制输入」：请在菜单栏切回平时用的输入法（ABC、日文等）后再运行"
+    exit 1
+fi
+
 cd "$ROOT"
 git submodule update --init externals/Onigmo externals/bregonig externals/cmigemo > /dev/null
 

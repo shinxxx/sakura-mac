@@ -366,6 +366,9 @@ enum ContextHelp {
             ?? NSSize(width: width, height: 60)
         let inset: CGFloat = 10
         let container = NSView(frame: NSRect(x: 0, y: 0, width: ceil(size.width) + inset * 2, height: ceil(size.height) + inset * 2))
+        // 不透明（原版のポップアップヘルプと同じ。半透明だと下のダイアログの文字が透けて読みにくい）
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         label.frame = NSRect(x: inset, y: inset, width: ceil(size.width), height: ceil(size.height))
         container.addSubview(label)
         let controller = NSViewController()
@@ -374,7 +377,12 @@ enum ContextHelp {
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.animates = false
-        popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+        // 矢印は項目の文字に向ける（チェックボックス等は右に空きがある）
+        var anchor = view.bounds
+        if let button = view as? NSButton {
+            anchor.size.width = min(anchor.width, max(16, button.fittingSize.width))
+        }
+        popover.show(relativeTo: anchor, of: view, preferredEdge: .maxY)
         self.popover = popover
         self.text = text
         // Esc は説明だけを閉じる（原版のポップアップヘルプと同じ。ダイアログは閉じない）

@@ -741,7 +741,7 @@ enum HelpViewer {
     static func show(path: String) -> Bool {
         guard let help = HelpWindowController.shared() else { return false }
         opened(path)
-        help.show(path: path)
+        help.show(path: path, tab: .contents)	// 目次にそのページを表示（HTML Help の同期と同じ）
         return true
     }
 
