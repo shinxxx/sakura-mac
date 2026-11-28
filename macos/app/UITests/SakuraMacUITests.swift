@@ -1697,8 +1697,10 @@ final class SakuraMacUITests: XCTestCase {
 
     /// ヘルプのページ（WKWebView）にこの文字がある
     private func helpPageShows(_ part: String, timeout: TimeInterval = 10) -> Bool {
-        let page = helpWindow.descendants(matching: .any).matching(identifier: "HelpPage").firstMatch
-        let text = page.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", part)).firstMatch
+        // WKWebView のページは webView（AXWebArea）の中の文字として見える
+        let page = helpWindow.webViews.firstMatch
+        let text = page.descendants(matching: .any)
+            .matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@ OR title CONTAINS %@", part, part, part)).firstMatch
         return text.waitForExistence(timeout: timeout)
     }
 
