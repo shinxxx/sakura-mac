@@ -74,7 +74,7 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
         window.title = L10n.tr("サクラエディタ ヘルプ", comment: "ヘルプ窗口的标题（sakura.hhp の Title）")
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 520, height: 320)
-        window.setAccessibilityIdentifier("Help")
+        window.setAccessibilityIdentifier("HelpWindow")
         super.init(window: window)
         window.delegate = self
         build(in: window)

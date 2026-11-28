@@ -1693,7 +1693,7 @@ final class SakuraMacUITests: XCTestCase {
     // MARK: - 第 49 步：ヘルプ
 
     /// ヘルプの窓（NSPanel は dialog として見えることがある）
-    private var helpWindow: XCUIElement { app.descendants(matching: .any).matching(identifier: "Help").firstMatch }
+    private var helpWindow: XCUIElement { app.descendants(matching: .any).matching(identifier: "HelpWindow").firstMatch }
 
     /// ヘルプのページ（WKWebView）にこの文字がある
     private func helpPageShows(_ part: String, timeout: TimeInterval = 10) -> Bool {
@@ -1701,7 +1701,14 @@ final class SakuraMacUITests: XCTestCase {
         let page = helpWindow.webViews.firstMatch
         let text = page.descendants(matching: .any)
             .matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@ OR title CONTAINS %@", part, part, part)).firstMatch
-        return text.waitForExistence(timeout: timeout)
+        if text.waitForExistence(timeout: timeout) { return true }
+        // 見つからないとき：ヘルプの窓の中身を結果に残す（原因を調べる）
+        let tree = XCTAttachment(string: helpWindow.debugDescription)
+        tree.name = "ヘルプの窓の要素（\(part)）"
+        tree.lifetime = .keepAlways
+        add(tree)
+        print(helpWindow.debugDescription)
+        return false
     }
 
     /// ヘルプのタブ（目次・キーワード・検索）を選ぶ
