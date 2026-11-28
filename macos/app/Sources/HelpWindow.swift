@@ -672,6 +672,7 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
         let root = String(data: rootData, encoding: .utf8) ?? "[\"\"]"
         let labelData = (try? JSONSerialization.data(withJSONObject: [book.noteLabel], options: [])) ?? Data("[\"\"]".utf8)
         let label = String(data: labelData, encoding: .utf8) ?? "[\"\"]"
+        // sakura-mac-style：原版のダイアログの画像（Windows の画面）が窓より広いときは縮める（横に切れないように）
         return """
             (function () {
               var notes = \(json);
@@ -679,7 +680,6 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
               var label = \(label)[0];
               var href = location.href.split('#')[0];
               if (href.indexOf(root) !== 0 || !document.body) return;
-              // 原版のダイアログの画像（Windows の画面）が窓より広いときは縮める（横に切れないように）
               if (!document.getElementById('sakura-mac-style')) {
                 var style = document.createElement('style');
                 style.id = 'sakura-mac-style';
