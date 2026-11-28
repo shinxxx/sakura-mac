@@ -1785,6 +1785,7 @@ final class SakuraMacUITests: XCTestCase {
         app.buttons["findHelp"].click()
         XCTAssertTrue(helpPageShows("単語単位で探す"), "検索ダイアログのページ")
         if app.buttons["findCancel"].exists { app.buttons["findCancel"].click() }	// 画面の記録に重ならないように閉じる
+        helpWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()	// タイトルバー：ヘルプの窓を前に
         keepScreenshot(helpWindow, "step49-help-find-page")
     }
 
