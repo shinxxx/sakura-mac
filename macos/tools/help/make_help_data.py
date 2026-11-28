@@ -201,6 +201,23 @@ def help_defines():
     return defines
 
 
+def merge_index(index):
+    """同じキーワード（sakura.hhk と macro.hhk の両方にある Grep 等）はひとつにまとめる。原版の HTML Help も合併した索引では
+    ひとつのキーワードにして「トピックの選択」で選ぶ。下位のキーワードを持つ項目はそのまま"""
+    def has_children(i):
+        return i + 1 < len(index) and index[i + 1].get("l", 0) > 0
+    result, first = [], {}
+    for i, entry in enumerate(index):
+        if entry.get("l", 0) == 0 and not has_children(i):
+            if entry["k"] in first:
+                topics = result[first[entry["k"]]]["p"]
+                topics += [t for t in entry["p"] if t not in topics]
+                continue
+            first[entry["k"]] = len(result)
+        result.append(dict(entry, p=list(entry["p"])))
+    return result
+
+
 def topics(defines):
     text = read(BOOKS["sakura"] + "/sakura.hhp")
     alias = re.search(r"^\[ALIAS\]\s*$(.*?)^\[", text, re.M | re.S).group(1)
@@ -252,6 +269,7 @@ def build():
     for book in ("sakura", "macro"):
         index += index_entries(parse_sitemap(read(BOOKS[book] + f"/{book}.hhk")), book)
     index.append({"k": MAC_PAGE_TITLE, "p": [[MAC_PAGE_TITLE, MAC_PAGE]]})
+    index = merge_index(index)
     defines = help_defines()
     with open(NOTES, encoding="utf-8") as f:
         notes = json.load(f)

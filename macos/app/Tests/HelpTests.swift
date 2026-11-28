@@ -328,7 +328,8 @@ final class HelpTests: XCTestCase {
         // 目次の先頭：Mac 版のページ（原版のスタイル）
         waitForPage(help) { help.show(path: "HelpMac.html") }
         XCTAssertEqual(try evaluate(help, "document.title") as? String, "Mac 版について")
-        XCTAssertEqual(try evaluate(help, "document.styleSheets.length > 0 && document.styleSheets[0].cssRules.length > 0") as? Bool, true)
+        // 原版の dsk_sakura.css が効いている（BODY の background-color: #fff。CSS がないときは透明）
+        XCTAssertEqual(try evaluate(help, "getComputedStyle(document.body).backgroundColor") as? String, "rgb(255, 255, 255)")
         XCTAssertEqual(help.selectedContentsTitle, "Mac 版について")
     }
 
