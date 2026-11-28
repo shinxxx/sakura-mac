@@ -580,6 +580,7 @@ jobs:
         run: xcodegen generate
 
       # 第 37 步：本机签名（ad-hoc）带上权限（沙盒等）构建，之后用 check-release.sh 检查发布的要求。
+      # 本机签名时 Xcode 默认加上调试用的 get-task-allow，发布时的导出会去掉，这里也不加（CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO）
       # 真正的发布证书的签名、上传在用户的 Mac 上用 macos/tools/release/release.sh 做（CI 不放密钥）
       - name: Build (Release, ad-hoc signed)
         working-directory: macos/app
@@ -593,6 +594,7 @@ jobs:
             -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build \
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             build
 
       # 第 24 步：桥接层的单元测试（Swift 通过桥接层打开文件、读出文字）
