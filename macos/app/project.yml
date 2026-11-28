@@ -29,9 +29,11 @@ targets:
       - path: ../../help/sakura
         type: folder
         buildPhase: resources
+        group: HelpBooks   # 仓库根目录的文件夹：不加 group 时 xcodegen 做出 ".." 属于两个组的工程（Copy Headers 的路径错乱）
       - path: ../../help/macro
         type: folder
         buildPhase: resources
+        group: HelpBooks   # 仓库根目录的文件夹：不加 group 时 xcodegen 做出 ".." 属于两个组的工程（Copy Headers 的路径错乱）
     settings:
       base:
         INFOPLIST_FILE: Config/Info.plist
@@ -185,9 +187,11 @@ targets:
       - path: ../../help/sakura
         type: folder
         buildPhase: resources
+        group: HelpBooks   # 仓库根目录的文件夹：不加 group 时 xcodegen 做出 ".." 属于两个组的工程（Copy Headers 的路径错乱）
       - path: ../../help/macro
         type: folder
         buildPhase: resources
+        group: HelpBooks   # 仓库根目录的文件夹：不加 group 时 xcodegen 做出 ".." 属于两个组的工程（Copy Headers 的路径错乱）
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder
