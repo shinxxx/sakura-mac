@@ -377,12 +377,26 @@ enum ContextHelp {
         popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
         self.popover = popover
         self.text = text
+        // Esc は説明だけを閉じる（原版のポップアップヘルプと同じ。ダイアログは閉じない）
+        if escMonitor == nil {
+            escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard event.keyCode == 53, ContextHelp.popover?.isShown == true else { return event }
+                ContextHelp.close()
+                return nil
+            }
+        }
     }
+
+    private static var escMonitor: Any?
 
     static func close() {
         popover?.close()
         popover = nil
         text = nil
+        if let monitor = escMonitor {
+            NSEvent.removeMonitor(monitor)
+            escMonitor = nil
+        }
     }
 
     /// 右键的位置（container 的直接的子视图）的控件的说明。有说明时显示，返回 true

@@ -1779,6 +1779,7 @@ final class SakuraMacUITests: XCTestCase {
         keepScreenshot(app.descendants(matching: .any).matching(NSPredicate(format: "title == %@", "検索")).firstMatch, "step49-context-help")
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
         XCTAssertTrue(waitFor { !popover.exists }, "Esc で説明を閉じる")
+        XCTAssertTrue(combo.exists, "Esc は説明だけを閉じる（検索ダイアログは開いたまま）")
 
         // 検索ダイアログの「ヘルプ」：原版の検索のページ
         app.buttons["findHelp"].click()
