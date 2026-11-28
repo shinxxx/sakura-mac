@@ -33,7 +33,6 @@ final class TypeListDialog: NSObject {
         super.init()
         page.setUnavailable([idc("CHECK_EXT_RMENU"), idc("CHECK_EXT_DBLCLICK")],
                             reason: L10n.tr("Mac 版では使用できません。", comment: "共通設定：Mac 版不能用的项目"))
-        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         if let list = page.list(idc("LIST_TYPES")) {
             list.onDoubleClick = { [weak self] row, _ in self?.close(Result(index: row, temporary: true)) }
             list.onSelect = { [weak self] in self?.enable() }
@@ -192,7 +191,6 @@ final class TypeAscertainDialog: NSObject {
         }
         items += colorFiles.enumerated().map { (EditorCore.maxTypeSettings + $0.offset, "File -- \($0.element)") }
         page.setTaggedItems(idc("COMBO_COLORS"), items, selectedValue: -1)
-        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         page.onButton = { [weak self] id in
             guard let self else { return }
             if id == "IDOK" {

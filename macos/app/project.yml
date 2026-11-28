@@ -24,6 +24,14 @@ targets:
       # 第 41 步：ツールバーのアイコン mytool.bmp（原版 IDB_MYTOOL。src/main/resources/images へのシンボリックリンク）
       - path: Resources
         buildPhase: resources
+      # 第 49 步：原版的 HTML 帮助（sakura.chm、macro.chm 的原稿）原样放进 App（Resources/sakura/、Resources/macro/）。
+      # 目次・キーワード・话题编号是 Resources/HelpTopics.json（macos/tools/help/make_help_data.py 生成）
+      - path: ../../help/sakura
+        type: folder
+        buildPhase: resources
+      - path: ../../help/macro
+        type: folder
+        buildPhase: resources
     settings:
       base:
         INFOPLIST_FILE: Config/Info.plist
@@ -167,6 +175,19 @@ targets:
       # 第 47 步：印刷・印刷プレビュー・印刷ページ設定
       - path: Sources/PrintPreview.swift
       - path: Sources/PrintSettingDialog.swift
+      # 第 49 步：ヘルプ
+      - path: Sources/Help.swift
+      - path: Sources/HelpWindow.swift
+      - path: Resources/HelpTopics.json
+        buildPhase: resources
+      - path: Resources/HelpMac.html
+        buildPhase: resources
+      - path: ../../help/sakura
+        type: folder
+        buildPhase: resources
+      - path: ../../help/macro
+        type: folder
+        buildPhase: resources
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

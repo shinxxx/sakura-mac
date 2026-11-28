@@ -135,3 +135,12 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
   其他界面测试固定用 `-AppleLanguages (ja)`（按原版的日文写）。
 - `DialogScreenshotTests.testLocalizedSettingsShots`：英文・中文的共通設定・タイプ別設定・Grep 的截图（`$TMPDIR/sakura-dialog-shots/l10n-*.png`）。
 - CI 的 `check-encoding`：重新生成 `Resources/*.lproj` 并确认与提交的一致（`make_prop_dialogs.py`、`make_strings.py --check`）。详见 [phase3-l10n.md](phase3-l10n.md)。
+
+## ヘルプ（第 49 步）
+
+- 核心库 `test-mac-help.cpp`：`HelpContextID`（原版 `FuncID_To_HelpContextID`）的编号与原版相同，「種別」里全部功能的话题在 `help/sakura/sakura.hhp` 的 [ALIAS] 里有页、文件也在。
+- App 的 `HelpTests`：目次・キーワード・话题・注记的页都在 bundle 里，全部页（help/sakura、help/macro）里的链接不断（原版自身的 1 处书写错误除外），
+  功能・对话框・设置的页打开原版的那一页（「ヘルプ」按钮有 13 个对话框、设置窗口的「?」），右键显示原版 Cshelp.txt 的说明，Mac 版没有的功能的页有注记，
+  ヘルプ窗口的目次同步・戻る・進む・ホーム・非表示・キーワード・検索、帮助以外的链接用浏览器（换成测试用的），コマンド一覧，macOS 帮助菜单的搜索。
+- 界面测试 `testHelpWindow`：ヘルプ > ヘルプ目次・キーワード検索、検索 的タブ、戻る・ホーム、検索ダイアログの「ヘルプ」、项目的右键说明，保存截图 `step49-*`。
+- CI 的 `check-encoding`：`make_help_data.py --check`（`HelpTopics.json` 与原版的帮助生成的结果相同）。详见 [phase3-help.md](phase3-help.md)。

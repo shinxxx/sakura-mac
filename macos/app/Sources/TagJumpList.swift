@@ -38,7 +38,6 @@ final class TagJumpListDialogController: NSObject, NSWindowDelegate, NSComboBoxD
         window.delegate = self
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.onButton = { [weak self] id in self?.buttonClicked(id) }
         page.onChange = { [weak self] id in self?.controlChanged(id) }
         if let list = page.list("IDC_LIST_TAGJUMP") {

@@ -180,6 +180,10 @@ enum CommandTable {
 
         // ヘルプ（第 34 步：AboutPanel.swift，原版的内容）
         31455: #selector(NSApplication.showSakuraAbout(_:)),		// F_ABOUT バージョン情報
+        // 第 49 步：ヘルプ（Help.swift、HelpWindow.swift）。外部ヘルプ１・外部HTMLヘルプ は Windows のヘルプ（偏离项 9）
+        31440: #selector(NSApplication.showHelpContents(_:)),		// F_HELP_CONTENTS ヘルプ目次
+        31441: #selector(NSApplication.showHelpSearch(_:)),			// F_HELP_SEARCH ヘルプキーワード検索
+        31445: #selector(EditorTextView.showAllFunctions(_:)),		// F_MENU_ALLFUNC コマンド一覧
     ]
 
     /// 这个功能的动作。还没有移植时是 nil

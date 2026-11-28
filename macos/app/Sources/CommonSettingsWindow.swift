@@ -188,6 +188,14 @@ struct PropDialogs: Decodable {
 /// 左上是原点的视图（对话框的坐标）
 final class PropFlippedView: NSView {
     override var isFlipped: Bool { true }
+
+    /// 控件的说明（第 49 步：原版 HELP_CONTEXTMENU，右键显示 Cshelp.txt 的说明）。nil 时没有说明
+    var contextHelpText: ((NSView) -> String?)?
+
+    override func rightMouseDown(with event: NSEvent) {
+        if let text = contextHelpText, ContextHelp.handleRightClick(in: self, event: event, text: text) { return }
+        super.rightMouseDown(with: event)
+    }
 }
 
 // MARK: - 一页
@@ -228,6 +236,9 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
                                              width: Self.pointsX(definition.size[0]), height: Self.points(definition.size[1])))
         super.init()
         build()
+        view.contextHelpText = { [weak self] view in
+            view.identifier.flatMap { self?.contextHelpText($0.rawValue) }
+        }
     }
 
     static func points(_ units: Double) -> CGFloat {
@@ -597,7 +608,14 @@ final class PropPage: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
 
     @objc private func pushButtonClicked(_ sender: NSView) {
         guard let id = sender.identifier?.rawValue else { return }
+        // 第 49 步：「ヘルプ」（原版 IDC_BUTTON_HELP → MyWinHelp(HELP_CONTEXT)）
+        if id == "IDC_BUTTON_HELP", HelpViewer.show(dialog: definition.dialog) { return }
         onButton?(id)
+    }
+
+    /// 控件的说明（第 49 步。原版的 p_helpids + Cshelp.txt）
+    func contextHelpText(_ id: String) -> String? {
+        HelpBook.shared?.popupText(dialog: definition.dialog, control: id)
     }
 
     @objc private func stepperClicked(_ sender: NSStepper) {
@@ -1192,6 +1210,14 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
             button.bezelStyle = .rounded
             content.addSubview(button)
         }
+        // 第 49 步：ヘルプ（原版 プロパティシートの「ヘルプ」→ PSN_HELP → CPropCommon::OnHelp、CPropTypes::OnHelp）。
+        // Mac の設定ウィンドウの習慣で左下の「?」ボタン
+        let helpButton = NSButton(title: "", target: self, action: #selector(showHelp(_:)))
+        helpButton.bezelStyle = .helpButton
+        helpButton.frame = NSRect(x: margin, y: margin + 2, width: 25, height: 25)
+        helpButton.setAccessibilityIdentifier(identifierPrefix + "Help")
+        helpButton.toolTip = L10n.tr("ヘルプ", comment: "IDD_FIND")
+        content.addSubview(helpButton)
         noteLabel.font = PropPage.font
         noteLabel.textColor = .secondaryLabelColor
         noteLabel.frame = NSRect(x: margin + sidebarWidth + margin, y: margin, width: cancelButton.frame.minX - (margin + sidebarWidth + margin) - 8, height: buttonsHeight)
@@ -1289,6 +1315,13 @@ class PropSheetWindowController: NSWindowController, NSWindowDelegate, NSTableVi
     private func leaveCurrentPage() {
         guard currentIndex >= 0, let page = pages[currentIndex], let logic = logics[currentIndex] else { return }
         logic.getData(page, values)
+    }
+
+    // MARK: ヘルプ
+
+    /// 显示着的页的ヘルプ（第 49 步。原版 PSN_HELP）
+    @objc func showHelp(_ sender: Any?) {
+        guard currentIndex >= 0, HelpViewer.show(dialog: dialogs.pages[currentIndex].dialog) else { return NSSound.beep() }
     }
 
     // MARK: OK / キャンセル
@@ -1477,7 +1510,6 @@ final class WinSizeDialog: NSObject, NSWindowDelegate {
         page.setItems("IDC_COMBO_WINTYPE", [L10n.tr("普通", comment: "STR_DLGWINSZ_NORMAL"),
                                             L10n.tr("最大化", comment: "STR_DLGWINSZ_MAXIMIZE"),
                                             L10n.tr("(最小化)", comment: "STR_DLGWINSZ_MINIMIZE")], selected: 0)
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         setData()
         page.setRange("IDC_EDIT_SX", 0...30000)
         page.setRange("IDC_EDIT_SY", 0...30000)

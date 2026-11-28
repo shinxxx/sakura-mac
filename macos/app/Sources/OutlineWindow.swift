@@ -153,7 +153,6 @@ final class OutlineWindowController: NSWindowController, NSWindowDelegate {
         }
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"		// DEFPUSHBUTTON
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         page.setItems("IDC_COMBO_nSortType", Self.sortTitles, selected: 0)
 
         page.onButton = { [weak self] id in self?.buttonClicked(id) }

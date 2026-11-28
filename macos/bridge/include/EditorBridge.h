@@ -674,6 +674,8 @@ NS_SWIFT_NAME(EditorCore)
 	NS_SWIFT_NAME(windowListLabel(path:untitledId:modified:encoding:grepKey:index:));
 //! ファイル名の似ている度合い（原版 FileMatchScoreSepExt）
 + (NSInteger)fileMatchScore:(NSString *)file1 with:(NSString *)file2 NS_SWIFT_NAME(fileMatchScore(_:_:));
+//! 機能のヘルプの話題番号（原版 FuncID_To_HelpContextID。ないときは 0。第 49 步）
++ (NSInteger)helpContextIDOfFunction:(NSInteger)code NS_SWIFT_NAME(helpContextID(ofFunction:));
 //! キーワード指定タグジャンプの履歴（第 44 步）
 @property (class, readonly, copy) NSArray<NSString *> *tagJumpKeywordHistory;
 + (void)addTagJumpKeyword:(NSString *)keyword NS_SWIFT_NAME(addTagJumpKeyword(_:));

@@ -928,6 +928,7 @@ static std::vector<std::pair<core::Text, core::Text>> ToPairs(NSDictionary<NSStr
 }
 
 + (NSInteger)fileMatchScore:(NSString *)file1 with:(NSString *)file2 { return core::FileMatchScore(ToText(file1), ToText(file2)); }
++ (NSInteger)helpContextIDOfFunction:(NSInteger)code { return core::HelpContextID(static_cast<core::FunctionCode>(code)); }
 + (void)resetMigemo { core::ResetMigemo(); }
 + (void)addReplaceKey:(NSString *)key { core::AddReplaceKey(ToText(key)); }
 + (NSInteger)searchKeySequence { return core::SearchKeySequence(); }

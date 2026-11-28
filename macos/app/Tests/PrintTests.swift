@@ -125,7 +125,7 @@ final class PrintTests: XCTestCase {
         XCTAssertEqual(label(page, "IDC_STATIC_ENABLELINES"), String(PrintCore.printableLines(s, paperHeight: height)))
         XCTAssertEqual(label(page, "IDC_STATIC_FONTSIZE"), PrintCore.fontSizeText(s.fontHeight))
         XCTAssertTrue(page.isEnabled("IDOK"))
-        XCTAssertFalse(page.isEnabled("IDC_BUTTON_HELP"), "Mac 版にはヘルプがない")
+        XCTAssertTrue(page.isEnabled("IDC_BUTTON_HELP"), "第 49 步：ヘルプ")
         // ヘッダー・フッターのフォントは指定なし
         XCTAssertFalse(page.isChecked("IDC_CHECK_USE_FONT_HEAD"))
         XCTAssertFalse(page.isEnabled("IDC_CHECK_USE_FONT_HEAD"))

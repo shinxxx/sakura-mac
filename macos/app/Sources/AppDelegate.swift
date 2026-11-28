@@ -29,6 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
+        // 第 49 步：ヘルプメニューの検索欄でヘルプのキーワードも探す
+        NSApp.registerUserInterfaceItemSearchHandler(HelpMenuSearch.shared)
         UITesting.openTestFileIfRequested()
     }
 

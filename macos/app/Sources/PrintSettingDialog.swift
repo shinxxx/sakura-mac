@@ -67,7 +67,6 @@ final class PrintSettingDialog: NSObject {
             let range = PrintCore.range(of: field)
             page.setRange(id, range.location ... range.location + range.length - 1)
         }
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"
         page.onChange = { [weak self] id in self?.changed(id) }
         page.onButton = { [weak self] id in self?.buttonPressed(id) }

@@ -14,6 +14,14 @@ import EditorBridge
 /// 上下翻转的视图：控件的位置与原版一样从左上角算
 final class FlippedView: NSView {
     override var isFlipped: Bool { true }
+
+    /// 控件的说明（第 49 步：原版 HELP_CONTEXTMENU，右键显示 Cshelp.txt 的说明）
+    var contextHelpText: ((NSView) -> String?)?
+
+    override func rightMouseDown(with event: NSEvent) {
+        if let text = contextHelpText, ContextHelp.handleRightClick(in: self, event: event, text: text) { return }
+        super.rightMouseDown(with: event)
+    }
 }
 
 /// 对话框的控件和布局（DLU → 点）
@@ -40,6 +48,13 @@ class DialogBuilder: NSObject {
     }
 
     private static var font: NSFont { .systemFont(ofSize: NSFont.smallSystemFontSize) }
+
+    /// 控件的说明（第 49 步）：辅助功能的标识 → 原版的控件 ID（dialog 的 p_helpids）
+    func setContextHelp(dialog: String, controls: [String: String]) {
+        content.contextHelpText = { view in
+            controls[view.accessibilityIdentifier()].flatMap { HelpBook.shared?.popupText(dialog: dialog, control: $0) }
+        }
+    }
 
     @discardableResult
     func label(_ title: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat = 10, id: String = "") -> NSTextField {
@@ -206,11 +221,19 @@ class SearchPanelBase: NSWindowController, NSWindowDelegate {
     }
 
     static func on(_ button: NSButton) -> Bool { button.state == .on }
+
+    /// 原版的对话框（IDD_FIND、IDD_REPLACE）。「ヘルプ」で開くページ（第 49 步）
+    var helpDialog: String { "" }
+
+    @objc func showHelp(_ sender: Any?) {
+        if !HelpViewer.show(dialog: helpDialog) { NSSound.beep() }
+    }
 }
 
 // MARK: - 検索（IDD_FIND）
 
 final class FindPanelController: SearchPanelBase {
+    override var helpDialog: String { "IDD_FIND" }
     private var combo: NSComboBox!
     private var wordCheck: NSButton!
     private var caseCheck: NSButton!
@@ -244,9 +267,15 @@ final class FindPanelController: SearchPanelBase {
         let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_FIND"), 221, 57, 58, id: "findCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
-        // ヘルプは HTML ヘルプの移植（後のステップ）まで使えない
-        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_FIND"), 221, 73, 58, id: "findHelp", target: nil, action: nil)
-        help.isEnabled = false
+        // 第 49 步：ヘルプ（原版 CDlgFind の IDC_BUTTON_HELP）、控件的说明
+        b.button(L10n.tr("ヘルプ", comment: "IDD_FIND"), 221, 73, 58, id: "findHelp", target: self, action: #selector(showHelp(_:)))
+        b.setContextHelp(dialog: "IDD_FIND", controls: [
+            "findText": "IDC_COMBO_TEXT", "findWord": "IDC_CHK_WORD", "findCase": "IDC_CHK_LOHICASE",
+            "findRegex": "IDC_CHK_REGULAREXP", "findRegexVersion": "IDC_STATIC_JRE32VER", "findNotify": "IDC_CHECK_NOTIFYNOTFOUND",
+            "findAutoClose": "IDC_CHECK_bAutoCloseDlgFind", "findSearchAll": "IDC_CHECK_SEARCHALL",
+            "findPrev": "IDC_BUTTON_SEARCHPREV", "findNext": "IDC_BUTTON_SEARCHNEXT", "findMark": "IDC_BUTTON_SETMARK",
+            "findCancel": "IDCANCEL", "findHelp": "IDC_BUTTON_HELP",
+        ])
         window?.initialFirstResponder = combo
     }
 
@@ -347,6 +376,7 @@ final class FindPanelController: SearchPanelBase {
 // MARK: - 置換（IDD_REPLACE）
 
 final class ReplacePanelController: SearchPanelBase {
+    override var helpDialog: String { "IDD_REPLACE" }
     private var combo: NSComboBox!
     private var combo2: NSComboBox!
     private var pasteCheck: NSButton!
@@ -417,8 +447,20 @@ final class ReplacePanelController: SearchPanelBase {
         let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_REPLACE"), 237, 110, 56, id: "replaceCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
-        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_REPLACE"), 237, 127, 56, id: "replaceHelp", target: nil, action: nil)
-        help.isEnabled = false
+        // 第 49 步：ヘルプ（原版 CDlgReplace の IDC_BUTTON_HELP）、控件的说明
+        b.button(L10n.tr("ヘルプ", comment: "IDD_REPLACE"), 237, 127, 56, id: "replaceHelp", target: self, action: #selector(showHelp(_:)))
+        b.setContextHelp(dialog: "IDD_REPLACE", controls: [
+            "replaceText": "IDC_COMBO_TEXT", "replaceText2": "IDC_COMBO_TEXT2", "replacePaste": "IDC_CHK_PASTE",
+            "replaceWord": "IDC_CHK_WORD", "replaceCase": "IDC_CHK_LOHICASE", "replaceRegex": "IDC_CHK_REGULAREXP",
+            "replaceRegexVersion": "IDC_STATIC_JRE32VER", "replaceConsecutive": "IDC_CHECK_CONSECUTIVEALL",
+            "replaceNotify": "IDC_CHECK_NOTIFYNOTFOUND", "replaceAutoClose": "IDC_CHECK_bAutoCloseDlgReplace",
+            "replaceSearchAll": "IDC_CHECK_SEARCHALL", "replaceSelectedArea": "IDC_RADIO_SELECTEDAREA",
+            "replaceAllArea": "IDC_RADIO_ALLAREA", "replaceTargetSelection": "IDC_RADIO_REPLACE",
+            "replaceTargetInsert": "IDC_RADIO_INSERT", "replaceTargetAdd": "IDC_RADIO_ADD",
+            "replaceTargetDeleteLine": "IDC_RADIO_LINEDELETE", "replacePrev": "IDC_BUTTON_SEARCHPREV",
+            "replaceNext": "IDC_BUTTON_SEARCHNEXT", "replaceMark": "IDC_BUTTON_SETMARK", "replaceOne": "IDC_BUTTON_REPALCE",
+            "replaceAll": "IDC_BUTTON_REPALCEALL", "replaceCancel": "IDCANCEL", "replaceHelp": "IDC_BUTTON_HELP",
+        ])
         window?.initialFirstResponder = combo
     }
 
@@ -650,8 +692,13 @@ final class JumpDialogController: NSObject {
         let cancel = b.button(L10n.tr("キャンセル", comment: "IDD_JUMP"), 197, 24, 50, id: "jumpCancel",
                               target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
-        let help = b.button(L10n.tr("ヘルプ", comment: "IDD_JUMP"), 197, 101, 50, id: "jumpHelp", target: nil, action: nil)
-        help.isEnabled = false
+        // 第 49 步：ヘルプ（原版 CDlgJump の IDC_BUTTON_HELP）、控件的说明
+        b.button(L10n.tr("ヘルプ", comment: "IDD_JUMP"), 197, 101, 50, id: "jumpHelp", target: self, action: #selector(showHelp(_:)))
+        b.setContextHelp(dialog: "IDD_JUMP", controls: [
+            "jumpLine": "IDC_EDIT_LINENUM", "jumpLayout": "IDC_RADIO_LINENUM_LAYOUT", "jumpCRLF": "IDC_RADIO_LINENUM_CRLF",
+            "jumpPlsql": "IDC_CHECK_PLSQL", "jumpPlsqlLine": "IDC_EDIT_PLSQL_E1", "jumpPlsqlBlocks": "IDC_COMBO_PLSQLBLOCKS",
+            "jumpOK": "IDC_BUTTON_JUMP", "jumpCancel": "IDCANCEL", "jumpHelp": "IDC_BUTTON_HELP",
+        ])
 
         // SetData
         lineField.stringValue = lineNumber == 0 ? "" : String(lineNumber)
@@ -725,6 +772,11 @@ final class JumpDialogController: NSObject {
                                         plsql: plsql, plsqlBlockFirstLine: plsqlFirstLine)
         view?.recordKeyMacro(MacroHost.Code.jump, jump: options)	// 第 45 步
         view?.jumpCommand(options)
+    }
+
+    @objc private func showHelp(_ sender: Any?) {
+        // 表单（シート）を開いたまま読めるように、ヘルプは別のウィンドウ（原版も別のウィンドウ）
+        if !HelpViewer.show(dialog: "IDD_JUMP") { NSSound.beep() }
     }
 
     @objc private func cancel(_ sender: Any?) {

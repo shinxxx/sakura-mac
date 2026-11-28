@@ -39,10 +39,6 @@
     "en": "DLL plugins cannot be used in the Mac version.",
     "zh": "Mac 版不能使用 DLL 插件。"
   },
-  "Mac 版にはまだヘルプがありません": {
-    "en": "The Mac version does not have help yet.",
-    "zh": "Mac 版还没有帮助。"
-  },
   "「%@」のファイルと比べるには、このフォルダーへのアクセスを許可してください。": {
     "en": "To compare with \"%@\", please allow access to this folder.",
     "zh": "要与“%@”比较，请允许访问此文件夹。"
@@ -294,5 +290,37 @@
   "設定…": {
     "en": "Settings…",
     "zh": "设置…"
+  },
+  "サクラエディタ ヘルプ": {
+    "en": "Sakura Editor Help",
+    "zh": "樱花编辑器 帮助"
+  },
+  "非表示": {
+    "en": "Hide",
+    "zh": "隐藏"
+  },
+  "進む": {
+    "en": "Forward",
+    "zh": "前进"
+  },
+  "ホーム": {
+    "en": "Home",
+    "zh": "主页"
+  },
+  "目次": {
+    "en": "Contents",
+    "zh": "目录"
+  },
+  "検索するキーワードを入力してください:": {
+    "en": "Type in the keyword to find:",
+    "zh": "键入要查找的关键字:"
+  },
+  "表示": {
+    "en": "Show",
+    "zh": "显示"
+  },
+  "検索する語を入力してください:": {
+    "en": "Type in the word(s) to search for:",
+    "zh": "键入要搜索的字词:"
   }
 }

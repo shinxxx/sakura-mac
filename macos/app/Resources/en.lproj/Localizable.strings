@@ -78,8 +78,6 @@
 "Mac 版では DLL のプラグインは使用できません。" = "DLL plugins cannot be used in the Mac version.";
 /* 共通設定：Mac 版不能用的项目 */
 "Mac 版では使用できません。" = "Not available in the Mac version.";
-/* help */
-"Mac 版にはまだヘルプがありません" = "The Mac version does not have help yet.";
 /* STR_PROPCOMMACR_SEL_DIR */
 "Macroディレクトリの選択" = "Select Macro Directory";
 /* STR_ERR_DLGMACRO02 */
@@ -224,7 +222,7 @@
 "キーマクロの記録開始" = "Start Recording Macro";
 /* F_LOADKEYMACRO */
 "キーマクロの読み込み" = "Load the macro";
-/* STR_DLGTAGJMP_LIST1 */
+/* ヘルプ窗口的标签 */
 "キーワード" = "Keyword";
 /* STR_PROPTYPEREGEX_NOSEL */
 "キーワードが選択されていません。" = "No selected Keyword.";
@@ -248,6 +246,8 @@
 "コピー(C)" = "Copy";
 /* STR_DLGABOUT_APPNAME */
 "サクラエディタ" = "Sakura Editor";
+/* ヘルプ窗口的标题（sakura.hhp の Title） */
+"サクラエディタ ヘルプ" = "Sakura Editor Help";
 /* App 菜单（macOS） */
 "サービス" = "Services";
 /* IDD_JUMP */
@@ -314,6 +314,8 @@
 "プレビューページ指定" = "Preview Page Settings";
 /* IDD_FIND */
 "ヘルプ" = "Help";
+/* ヘルプ窗口 */
+"ホーム" = "Home";
 /* STR_FILETREE_MENU_MYDOC */
 "マイ ドキュメント(Y)" = "My Document";
 /* STR_FILETREE_MENU_MYVIDEO */
@@ -416,6 +418,8 @@
 "前方(↓) に関数が見つかりません。" = "Forward (↓) Function wasn't found.";
 /* IDD_FIND */
 "単語単位で探す" = "Match Whole Word";
+/* ヘルプ窗口 */
+"印刷" = "Print...";
 /* STR_ERR_DLGPRNPRVW7 */
 "印刷するページがありません。" = "The page is blank, there is nothing to print.";
 /* STR_ERR_DLGPRNPRVW3_1 */
@@ -474,6 +478,8 @@
 "後方(↑) に関数が見つかりません。" = "Previous (↑) Function wasn't found.";
 /* IDD_ABOUT */
 "情報をコピー" = "Copy Info";
+/* ヘルプ窗口 */
+"戻る" = "Close";
 /* STR_WRAP_METHOD_NO_WRAP */
 "折り返さない" = "Don't wrap";
 /* IDD_JUMP */
@@ -556,10 +562,14 @@
 "条件" = "Find what";
 /* IDD_JUMP */
 "検出されたPL/SQLパッケージのブロックから選択" = "Select from detected PL/SQL package's block";
-/* IDD_FIND */
+/* ヘルプ窗口的标签 */
 "検索" = "Search";
+/* ヘルプ窗口：キーワード */
+"検索するキーワードを入力してください:" = "Type in the keyword to find:";
 /* STR_PROPCOMHELP_MIGEMODIR */
 "検索するフォルダーを選んでください" = "Please select search folder.";
+/* ヘルプ窗口：検索 */
+"検索する語を入力してください:" = "Type in the word(s) to search for:";
 /* IDD_FIND */
 "検索ダイアログを自動的に閉じる" = "Automatically close the search dialog";
 /* STR_DLGFIND1 */
@@ -604,6 +614,8 @@
 "登録できるキーワード数が上限に達しています。\n" = "Reached the maximum number of registerable keywords.\n";
 /* STR_PROPCOMMAINMENU_ERR4 */
 "登録項目数が多すぎます。\n" = "Too many items\n";
+/* ヘルプ窗口的标签 */
+"目次" = "Contents";
 /* STR_TAB_SYMBOL_SHORT_ARROW */
 "短い矢印" = "Short Arrow";
 /* STR_DLGTAGJMP_LIST4 */
@@ -656,6 +668,8 @@
 "行番号" = "Line Nr";
 /* IDD_JUMP */
 "行目をブロックの1行目とする" = "Line as a block of 1 Line";
+/* ヘルプ窗口：キーワード・検索のトピックを表示 */
+"表示" = "Show";
 /* STR_KEYHELP_RMENU_NONE */
 "表示しない" = "Hide";
 /* STR_ERR_DLGPRNPRVW4 */
@@ -694,6 +708,8 @@
 "辞書ファイルの１行目の文字列" = "<<First line of dictionary file here>>";
 /* STR_TSV_MODE_NONE */
 "通常" = "Normal";
+/* ヘルプ窗口 */
+"進む" = "Forward";
 /* 設定のインポート（Mac 版） */
 "選択" = "Selection";
 /* STR_PROPCOMMAINMENU_DEL */
@@ -716,5 +732,7 @@
 "閉じる(X)" = "Close(X)";
 /* STR_DLGTAGJMP_LIST2 */
 "階層" = "hierarchical";
+/* ヘルプ窗口：目次を隠す */
+"非表示" = "Hide";
 /* IDD_FUNCLIST */
 "順序(S)" = "Sort";

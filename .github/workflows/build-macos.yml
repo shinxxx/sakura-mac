@@ -7,6 +7,7 @@ on:
     branches: [macos]
     paths:
       - 'macos/**'
+      - 'help/**'
       - '.github/workflows/build-macos.yml'
   workflow_dispatch:
 
@@ -36,6 +37,10 @@ jobs:
           python3 macos/tools/settings/make_prop_dialogs.py
           python3 macos/tools/l10n/make_strings.py --check
           git diff --exit-code -- macos/app/Resources
+
+      # 第 49 步：ヘルプの目次・キーワード・話題・控件の説明（HelpTopics.json）が原版のヘルプ（help/）から生成した結果と同じ
+      - name: Check help data
+        run: python3 macos/tools/help/make_help_data.py --check
 
   # 第 14 步：UTF-16 字符类型（sakura_core/util/wchar16.h）在两个平台上编译并运行测试
   wchar16-test-macos:
