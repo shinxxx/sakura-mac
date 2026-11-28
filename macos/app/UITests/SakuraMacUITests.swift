@@ -347,14 +347,17 @@ final class SakuraMacUITests: XCTestCase {
         let item = submenu.menuItems["前方インクリメンタルサーチ"]
         XCTAssertTrue(item.waitForExistence(timeout: 3))
         item.click()
-        let status = app.staticTexts["statusMessage"]
+        // 第 38 步：ステータスバーのメッセージ欄に出る
+        let status = app.staticTexts["statusBar.message"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5), "ステータスバー")
+        let started = NSPredicate(format: "value BEGINSWITH 'I-Search'")
         // 子菜单的点击が効かないことがある（XCUITest）：もう一度
-        if !status.waitForExistence(timeout: 3) {
+        if XCTWaiter.wait(for: [expectation(for: started, evaluatedWith: status)], timeout: 3) != .completed {
             menu.click()
             submenu.hover()
             item.click()
         }
-        XCTAssertTrue(status.waitForExistence(timeout: 5), "ステータスメッセージ")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: started, evaluatedWith: status)], timeout: 5), .completed, "ステータスメッセージ")
         editor.typeText("abd")
         XCTAssertEqual((status.value as? String)?.trimmingCharacters(in: .whitespaces), "I-Search: abd")
         editor.typeText("\r")	// 抜ける（改行は入らない）
@@ -1871,4 +1874,26 @@ final class SakuraMacUITests: XCTestCase {
         }
         return app
     }
+
+    // MARK: - 第 38 步：ステータスバー・ツールバー・タブバー
+
+    /// 既定でツールバーとステータスバーが出る。入力すると行・桁が変わる。設定 > タブバーの表示 でタブが出る
+    func testWindowBars() {
+        let rowCol = app.staticTexts["statusBar.rowCol"]
+        XCTAssertTrue(rowCol.waitForExistence(timeout: 5), "ステータスバーの行・桁")
+        XCTAssertEqual(rowCol.value as? String, "    1 行    1 桁")
+        XCTAssertEqual(app.staticTexts["statusBar.insMode"].value as? String, "挿入")
+        XCTAssertTrue(app.descendants(matching: .any)["toolbar"].exists, "ツールバー")
+        editor.typeText("abc")
+        let moved = NSPredicate(format: "value == %@", "    1 行    4 桁")
+        wait(for: [expectation(for: moved, evaluatedWith: rowCol)], timeout: 5)
+        let settings = app.menuBars.menuBarItems["設定"]
+        let tabItem = settings.menuItems.matching(NSPredicate(format: "title CONTAINS 'タブ' AND (title CONTAINS '表示' OR title CONTAINS '隠す')")).firstMatch
+        settings.click()
+        tabItem.click()
+        XCTAssertTrue(app.descendants(matching: .any)["tabBar"].waitForExistence(timeout: 5), "タブバー")
+        settings.click()
+        tabItem.click()
+    }
 }
+

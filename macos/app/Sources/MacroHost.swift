@@ -515,7 +515,7 @@ enum MacroHost {
             if (initial as NSString).length >= 260 { return nil }
             return .string(CommonSettingsPages.chooseFolder(message, initial) ?? "")
         case Code.isShownStatus:
-            return .int(0)	// Mac 版にはステータスバーがない
+            return .int(view.statusBarView != nil ? 1 : 0)	// ステータスバーを表示しているか（第 38 步）
         case Code.isTextSelectingLock:
             return .int(view.selectingLock ? (view.isBoxSelection ? 2 : 1) : 0)
         case Code.getViewLines:

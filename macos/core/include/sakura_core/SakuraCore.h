@@ -471,6 +471,31 @@ struct SaveCheck {
 	Text lostCharCode;
 };
 
+/*!
+	ステータスバーに出すカーソル位置の情報（原版 CCaret::ShowCaretPosInfo，第 38 步）。
+	行・桁は表示する値（1 から）。共通設定『ステータスバー』の「列数を文字単位で表示」と
+	タイプ別設定「行番号の表示：改行単位」に従う（原版と同じ計算）。
+*/
+struct CaretStatus {
+	std::int32_t line = 1;
+	std::int32_t column = 1;
+	//! カーソル位置の文字のコード（文書の文字コードで。表せないときは Unicode。"82A0"、"U+3042" 等）。
+	//! 改行の上では改行の名前（"CRLF" 等）、EOF やフリーカーソル位置では空
+	Text charCode;
+	//! 入力改行コードの名前（原版 CEol::GetName：CRLF、LF、CR、NEL、LS、PS）
+	Text eolName;
+};
+
+/*!
+	カーソル位置の文字の各文字コード（原版 CEditWnd.cpp の ShowCodeBox：ステータスバーの文字コード欄のダブルクリック）。
+	表せない文字コードは "-"
+*/
+struct CharCodes {
+	Text character;		//!< その文字（サロゲートペアは 2 つ）
+	Text codePoint;		//!< "U+3042" 等（サロゲートペアも）
+	Text sjis, jis, euc, latin1, utf16, utf8, cesu8;
+};
+
 // ---------------------------------------------------------------------------
 // 最近使ったファイル、最近使ったフォルダー（原版 CMRUFile、CMRUFolder，第 31 步）
 // ---------------------------------------------------------------------------
@@ -2332,6 +2357,12 @@ public:
 
 	//! 半角一字的宽度（点，包括文字间隔）。TAB、行号、记号的宽度按它算
 	std::int32_t CharWidth() const;
+
+	//! ステータスバーのカーソル位置の情報（第 38 步，原版 CCaret::ShowCaretPosInfo）。caret はカーソルの排版位置
+	CaretStatus GetCaretStatus(const LayoutPosition& caret) const;
+
+	//! カーソル位置の文字の各文字コード（第 38 步，原版 ShowCodeBox）。文字がない（改行・EOF）とき nullopt
+	std::optional<CharCodes> GetCharCodes(const LayoutPosition& caret) const;
 
 	/*!
 		文字部分的宽度（点）：「折り返さない」时是最长的排版行的宽度，

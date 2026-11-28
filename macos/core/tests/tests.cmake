@@ -72,4 +72,5 @@ list(APPEND SAKURA_CORE_TEST_SOURCES
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-print.cpp"           # 第 47 步：印刷（印刷ページ設定、用紙、印刷用の排版、ヘッダー・フッター、行番号。data/print/ は Windows 版の PDF と比較）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-l10n.cpp"            # 第 48 步：界面本地化（各語言の文字列表、言語の切り替え）
   "${CMAKE_CURRENT_LIST_DIR}/test-mac-help.cpp"            # 第 49 步：ヘルプ（機能の話題番号、原版のヘルプにページがある）
+  "${CMAKE_CURRENT_LIST_DIR}/test-mac-statusbar.cpp"       # 第 38 步：ステータスバー（行・桁、カーソル位置の文字コード、ShowCodeBox）
 )

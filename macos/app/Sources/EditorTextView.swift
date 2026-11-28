@@ -2112,7 +2112,8 @@ final class EditorTextView: NSView, NSTextInputClient, NSMenuItemValidation, NSF
         default:
             return validateSearchMenuItem(menuItem) ?? validateCursorMenuItem(menuItem) ?? validateModeMenuItem(menuItem)
                 ?? validateISearchMenuItem(menuItem) ?? validateDiffMenuItem(menuItem) ?? validateKeywordHelpMenuItem(menuItem)
-                ?? validateTagJumpMenuItem(menuItem) ?? validateKeyMacroMenuItem(menuItem) ?? true
+                ?? validateTagJumpMenuItem(menuItem) ?? validateKeyMacroMenuItem(menuItem)
+                ?? validateWindowBarMenuItem(menuItem) ?? true
         }
     }
 

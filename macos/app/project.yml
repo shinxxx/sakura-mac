@@ -95,6 +95,11 @@ targets:
       - path: Tests
         excludes:
           - "MacroSamples/**"
+          - "StatusBarSamples/**"
+      # 第 38 步：ステータスバーの文字を Windows 版と比べる（样本、操作、Windows 版の結果）
+      - path: Tests/StatusBarSamples
+        type: folder
+        buildPhase: resources
       # 第 45 步：原版のヘルプのマクロのサンプル（JScript の部分）と tools/macro/CopyDirPath.js
       - path: Tests/MacroSamples
         type: folder
@@ -195,6 +200,11 @@ targets:
         type: folder
         buildPhase: resources
         group: HelpBooks   # 仓库根目录的文件夹：不加 group 时 xcodegen 做出 ".." 属于两个组的工程（Copy Headers 的路径错乱）
+      # 第 38 步：ツールバー・タブバー・ステータスバー
+      - path: Sources/StatusBar.swift
+      - path: Sources/EditorToolbar.swift
+      - path: Sources/TabBar.swift
+      - path: Sources/WindowBars.swift
       # 第 30 步：第 18 步的编码样本（在 App 里打开再保存，字节不变）
       - path: ../core/tests/data/roundtrip
         type: folder

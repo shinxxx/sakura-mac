@@ -16,6 +16,13 @@ final class EditorWindowController: NSWindowController {
 
     let editorDocument: EditorDocument
     let textView: EditorTextView
+    /// 编辑画面、ドッキングしたアウトライン、第 38 步的ツールバー・タブバー・ステータスバー的容器
+    let container: EditorContainerView
+    /// 第 38 步：ツールバー・タブバー・ステータスバー（WindowBars.swift。不显示时 nil）
+    var toolbarView: EditorToolbarView?
+    var tabBarView: TabBarView?
+    var statusBar: StatusBarView?
+    var barObservers: [NSObjectProtocol] = []
 
     init(document: EditorDocument) {
         editorDocument = document
@@ -35,7 +42,8 @@ final class EditorWindowController: NSWindowController {
         textView = EditorTextView(document: document)
         scrollView.documentView = textView
         // 第 42 步：ドッキングしたアウトラインと並べる（OutlineDock.swift）
-        window.contentView = EditorContainerView(editor: scrollView)
+        container = EditorContainerView(editor: scrollView)
+        window.contentView = container
         window.initialFirstResponder = textView
         super.init(window: window)
         // 新窗口错开一点，不完全重叠（原版也是层叠显示）
@@ -44,6 +52,11 @@ final class EditorWindowController: NSWindowController {
             (self?.document as? SakuraDocument)?.contentDidChange()
         }
         textView.contentDidChange()
+        setUpWindowBars()	// 第 38 步
+    }
+
+    deinit {
+        barObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     @available(*, unavailable)
