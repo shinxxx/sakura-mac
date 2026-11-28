@@ -146,8 +146,8 @@ final class OutlineTests: XCTestCase {
         }
         // 1 行の文字が切れない、ボタンが重ならない（共通設定と同じ検査）
         XCTAssertEqual(PropLayoutTests.truncated(page), [])
-        // ヘルプはまだない
-        XCTAssertFalse(page.isEnabled("IDC_BUTTON_HELP"))
+        // 第 49 步：ヘルプ
+        XCTAssertTrue(page.isEnabled("IDC_BUTTON_HELP"))
         // ツリーのときは順序がある、リストは隠れている
         XCTAssertFalse(page.control("IDC_TREE_FL")?.isHidden ?? true)
         XCTAssertTrue(page.control("IDC_LIST_FL")?.isHidden ?? false)

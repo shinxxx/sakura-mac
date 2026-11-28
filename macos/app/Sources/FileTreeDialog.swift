@@ -85,7 +85,6 @@ final class FileTreeDialogController: NSObject {
     // MARK: - 控件
 
     private func setUpControls() {
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         (page.control("IDC_STATIC_SETTFING_FROM") as? NSTextField)?.lineBreakMode = .byTruncatingMiddle
         // 「...」（10×13）と「▼(3)」（21×14）：原版は小さなボタンが隣り合う。Mac の角丸ボタンでは重なるので、
         // アウトラインの ▼・■ と同じく余白のない四角いボタンにして原版の位置に置く

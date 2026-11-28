@@ -1397,6 +1397,8 @@ struct WindowListEntry {
 Text WindowListLabel(const WindowListEntry& entry, std::int32_t index);
 //! ファイル名の似ている度合い（原版 FileMatchScoreSepExt：比較の相手の初期選択）
 std::int32_t FileMatchScore(const Text& file1, const Text& file2);
+//! 機能のヘルプの話題番号（原版 FuncID_To_HelpContextID。HLP000025 なら 25。ないときは 0。第 49 步）
+std::int32_t HelpContextID(FunctionCode code);
 
 //! 行の差分の印（原版 EDiffMark）
 enum class DiffMark : std::uint8_t {

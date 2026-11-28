@@ -81,7 +81,6 @@ final class GrepDialogController: NSObject, NSWindowDelegate {
     private func setUpControls() {
         (page.control("IDOK") as? NSButton)?.keyEquivalent = "\r"	// DEFPUSHBUTTON
         (page.control("IDCANCEL") as? NSButton)?.keyEquivalent = "\u{1b}"
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         // 文字コードセット（原版 CCodeTypesForCombobox）
         let choices = EditorCore.encodingChoices.map { (value: $0.encoding, title: $0.name) }
         page.setTaggedItems("IDC_COMBO_CHARSET", choices, selectedValue: nil)

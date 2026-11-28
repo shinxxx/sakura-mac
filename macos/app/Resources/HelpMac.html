@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- Copyright (C) 2026, Sakura Editor Organization
+     SPDX-License-Identifier: Zlib
+     第 49 步：Mac 版のヘルプの最初のページ（目次の先頭）。原版のヘルプのスタイルを使う -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="sakura/res/dsk_sakura.css" type="text/css">
+<title>Mac 版について</title>
+</head>
+<body>
+[<a href="sakura/res/HLP000001.html">目次</a>]
+<h2>Mac 版について</h2>
+Sakura Editor for Mac は、Windows 版サクラエディタを macOS に移植したものです。
+メニュー、ダイアログの項目、設定ファイル（sakura.ini）、キー割り当て、タイプ別設定は Windows 版と同じです。
+このヘルプも Windows 版のヘルプをそのまま収録しています。Windows 版と違うところを以下に示します。<br>
+<br>
+<h3>画面と操作</h3>
+<div class="li200">
+■メニューは画面の上のメニューバーに表示されます。左端に App のメニュー（バージョン情報、設定、終了など）が加わります。<br>
+■ダイアログの項目と配置は Windows 版と同じで、ボタンやチェックボックスは Mac の部品です。<br>
+■キー割り当ては、初期状態では ⌘ キーを Ctrl キーとして扱います（⌘C コピー、⌘F 検索、⌘R 置換など）。
+「設定 &gt; Windows のキー割り当てを使う」にチェックを付けると Windows 版と同じキー（⌃ が Ctrl）になります。⌘Q（終了）、⌘W（閉じる）、⌘H（隠す）などの Mac のキーはそのまま使えます。<br>
+■ウィンドウを閉じる・しまうボタンは、タイトルバーの左上にあります。<br>
+■初期のフォントは Mac の等幅フォントです（Windows の ＭＳ ゴシック はありません）。<br>
+■表示言語は Mac のシステムの言語に従います（日本語・英語・簡体中国語）。<br>
+■タスクトレイはありません。<br>
+</div>
+<br>
+<h3>ファイル</h3>
+<div class="li200">
+■ファイルを開く・保存するときは Mac のファイルパネルを使います。文字コードと改行コードはパネルの下で選びます。<br>
+■App はサンドボックスの中で動くので、自分で選んだファイルとフォルダーだけを読み書きできます。
+Grep するフォルダーやバックアップのフォルダーは、最初に一度だけ選んで許可します（許可は App を終了しても残ります）。<br>
+■設定ファイル sakura.ini は「~/Library/Containers/com.hanagumo.texteditor/Data/Library/Application Support/sakura/」にあります。
+Windows 版の sakura.ini は「設定 &gt; Windows 版の設定をインポート…」で読み込めます。<br>
+■システムの文字コード（Windows の CP_ACP）は UTF-8 として扱います。ISCII（57002〜57011）は選べません。<br>
+</div>
+<br>
+<h3>Mac 版にない機能</h3>
+<div class="li200">
+■メニューで灰色になっている機能は Mac 版では使えません。そのページには「Mac 版にはこの機能はありません」と表示されます。<br>
+■プラグイン、外部ヘルプ・外部 HTML ヘルプ、コマンドラインオプション、タグファイルの作成（ctags は含まれていません）。<br>
+■マクロは、キーボードマクロと JScript マクロ（JavaScriptCore で実行）が使えます。VBScript、PPA、Python のマクロは使えません。<br>
+</div>
+<br>
+<h3>このヘルプの使い方</h3>
+<div class="li200">
+■左の「目次」「キーワード」「検索」でページを探します。<br>
+■ダイアログの「ヘルプ」ボタンや、設定ウィンドウの <b>?</b> ボタンで、そのダイアログのページが開きます。<br>
+■ダイアログの項目を右クリック（トラックパッドでは 2 本指でクリック）すると、その項目の説明が表示されます。<br>
+■ヘルプメニューの検索欄では、メニュー項目とヘルプのキーワードを検索できます。<br>
+</div>
+</body>
+</html>

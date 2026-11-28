@@ -1690,6 +1690,112 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertEqual(text, "abc")
     }
 
+    // MARK: - 第 49 步：ヘルプ
+
+    /// ヘルプの窓（NSPanel は dialog として見えることがある）
+    private var helpWindow: XCUIElement { app.descendants(matching: .any).matching(identifier: "HelpWindow").firstMatch }
+
+    /// ヘルプのページ（WKWebView）にこの文字がある
+    private func helpPageShows(_ part: String, timeout: TimeInterval = 10) -> Bool {
+        // WKWebView のページは webView（AXWebArea）の中の文字として見える。
+        // 述語の CONTAINS は value が数の要素（チェックボックス等）で例外になるので、一度に取った要素の木から探す
+        let page = helpWindow.webViews.firstMatch
+        func contains(_ node: XCUIElementSnapshot) -> Bool {
+            if (node.value as? String)?.contains(part) == true || node.label.contains(part) { return true }
+            return node.children.contains(where: contains)
+        }
+        let found = waitFor(timeout: timeout) {
+            guard page.exists, let snapshot = try? page.snapshot() else { return false }
+            return contains(snapshot)
+        }
+        if found { return true }
+        // 見つからないとき：ヘルプの窓の中身を結果に残す（原因を調べる）
+        let tree = XCTAttachment(string: helpWindow.debugDescription)
+        tree.name = "ヘルプの窓の要素（\(part)）"
+        tree.lifetime = .keepAlways
+        add(tree)
+        print(helpWindow.debugDescription)
+        return false
+    }
+
+    /// ヘルプのタブ（目次・キーワード・検索）を選ぶ
+    private func selectHelpTab(_ title: String) {
+        let tabs = helpWindow.descendants(matching: .any).matching(identifier: "HelpTabs").firstMatch
+        let tab = tabs.radioButtons[title].exists ? tabs.radioButtons[title] : tabs.tabs[title]
+        tab.click()
+    }
+
+    private func helpMenuItem(_ part: String) -> XCUIElement {
+        let help = app.menuBars.menuBarItems["ヘルプ"]
+        help.click()
+        return help.menuItems.matching(NSPredicate(format: "title CONTAINS %@", part)).firstMatch
+    }
+
+    /// 完成标志：ヘルプ > ヘルプ目次で原版のヘルプ（目次・キーワード・検索）、検索ダイアログの「ヘルプ」でそのページ、
+    /// 項目の右クリックで説明（原版 Cshelp.txt）。画面を step49-* として残す
+    func testHelpWindow() {
+        // ヘルプ目次
+        helpMenuItem("ヘルプ目次").click()
+        XCTAssertTrue(helpWindow.waitForExistence(timeout: 10), "ヘルプの窓")
+        XCTAssertTrue(helpPageShows("サクラエディタ"), "首页")
+        XCTAssertTrue(helpWindow.outlines["HelpContents"].exists, "目次")
+        keepScreenshot(helpWindow, "step49-help-contents")
+
+        // キーワード検索：キーワードのタブ
+        helpMenuItem("キーワード検索").click()
+        let indexField = helpWindow.descendants(matching: .any).matching(identifier: "HelpIndexField").firstMatch	// NSSearchField
+        XCTAssertTrue(indexField.waitForExistence(timeout: 5), "キーワードのタブ")
+        indexField.click()
+        indexField.typeText("grep置\r")
+        helpWindow.buttons["HelpIndexDisplay"].click()
+        XCTAssertTrue(helpPageShows("Grep置換"), "キーワードのページ")
+        keepScreenshot(helpWindow, "step49-help-index")
+
+        // 検索のタブ
+        selectHelpTab("検索")
+        let searchField = helpWindow.descendants(matching: .any).matching(identifier: "HelpSearchField").firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5), "検索のタブ")
+        searchField.click()
+        searchField.typeText("タグジャンプ\r")
+        let results = helpWindow.descendants(matching: .any).matching(identifier: "HelpSearchResults").firstMatch
+        XCTAssertTrue(results.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitFor { results.tableRows.count > 0 || results.outlineRows.count > 0 }, "検索の結果")
+        helpWindow.buttons["HelpSearchDisplay"].click()
+        XCTAssertTrue(helpPageShows("タグジャンプ"), "検索のページ")
+        keepScreenshot(helpWindow, "step49-help-search")
+
+        // 戻る・ホーム、非表示
+        helpWindow.buttons["HelpBack"].click()
+        XCTAssertTrue(helpPageShows("Grep置換"), "戻る")
+        helpWindow.buttons["HelpHome"].click()
+        XCTAssertTrue(helpPageShows("サクラエディタ"), "ホーム")
+        helpWindow.buttons["HelpHide"].click()
+        XCTAssertTrue(waitFor { !self.helpWindow.outlines["HelpContents"].isHittable }, "目次を隠す")
+        helpWindow.buttons["HelpHide"].click()
+
+        // 検索ダイアログ：項目の右クリックで説明
+        editor.click()
+        key("f", .command)
+        let combo = app.comboBoxes["findText"]
+        XCTAssertTrue(combo.waitForExistence(timeout: 5), "検索ダイアログ")
+        app.checkBoxes["findWord"].rightClick()
+        let popover = app.staticTexts["ContextHelp"]
+        XCTAssertTrue(popover.waitForExistence(timeout: 5), "項目の説明")
+        XCTAssertTrue((popover.value as? String ?? "").hasPrefix("【単語単位で探す】"), popover.value as? String ?? "")
+        // NSPanel は XCUITest では Dialog として見える
+        keepScreenshot(app.descendants(matching: .any).matching(NSPredicate(format: "title == %@", "検索")).firstMatch, "step49-context-help")
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        XCTAssertTrue(waitFor { !popover.exists }, "Esc で説明を閉じる")
+        XCTAssertTrue(combo.exists, "Esc は説明だけを閉じる（検索ダイアログは開いたまま）")
+
+        // 検索ダイアログの「ヘルプ」：原版の検索のページ
+        app.buttons["findHelp"].click()
+        XCTAssertTrue(helpPageShows("単語単位で探す"), "検索ダイアログのページ")
+        if app.buttons["findCancel"].exists { app.buttons["findCancel"].click() }	// 画面の記録に重ならないように閉じる
+        helpWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()	// タイトルバー：ヘルプの窓を前に
+        keepScreenshot(helpWindow, "step49-help-find-page")
+    }
+
     // MARK: - 第 48 步：界面本地化
 
     /// 系统的语言是英文、简体中文时，菜单栏、窗口的标题、共通設定窗口是那个语言（日文的假名、英文时汉字也没有）。

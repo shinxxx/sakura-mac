@@ -457,7 +457,6 @@ final class PrintPreviewController: NSObject {
     private func setUpBar() {
         // 原版 WM_INITDIALOG：「滑らか」を使えるようにする
         page.setEnabled("IDC_CHECK_ANTIALIAS", true)
-        page.setUnavailable(["IDC_BUTTON_HELP"], reason: L10n.tr("Mac 版にはまだヘルプがありません", comment: "help"))
         // プリンターのアイコン（原版 IDI_PRINTER）
         if let icon = page.definition.controls.first(where: { $0.kind == "icon" }) {
             let frame = NSRect(x: PropPage.pointsX(icon.frame[0]), y: PropPage.points(icon.frame[1]) - 2,

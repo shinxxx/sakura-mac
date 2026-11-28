@@ -142,7 +142,7 @@ final class GrepTests: XCTestCase {
         XCTAssertTrue(d.page.isChecked("IDC_CHECK_FILE_ONLY"))
         XCTAssertTrue(d.page.isChecked("IDC_CHK_EXCLUDE_FILE_REGEXP"))
         XCTAssertEqual(d.page.text("IDC_STATIC_JRE32VER"), EditorCore.regexpVersion)
-        XCTAssertTrue(d.page.isUnavailable("IDC_BUTTON_HELP"))
+        XCTAssertFalse(d.page.isUnavailable("IDC_BUTTON_HELP"))	// 第 49 步：ヘルプ
         // 一覧にない文字コード（コードページ）は CP にチェックして加える
         _ = EditorCore.setCommonSettings(["nGrepCharSet": "1252"], section: "Common")
         let cp = try dialog(view)

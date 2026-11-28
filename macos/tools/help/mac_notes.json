@@ -1,0 +1,23 @@
+{
+"_说明": "第 49 步：Mac 版的注记。键是 App 里的页（HelpTopics.json 的路径），值是插在页开头的 HTML（日文，与原版的帮助相同）。make_help_data.py 原样写进 HelpTopics.json。Mac 版没有的功能（菜单里变灰的功能）的页，App 自动加 _unavailable 的文字，不用写在这里。_label 是注记开头的标签。",
+"_label": "<b>Mac 版：</b>",
+"_unavailable": "Mac 版にはこの機能はありません（メニューでは灰色で表示されます）。",
+"sakura/res/HLP000001.html": "このヘルプは Windows 版サクラエディタのヘルプを Mac 版に収録したものです。Mac 版との違いは「<a href=\"../../HelpMac.html\">Mac 版について</a>」をご覧ください。",
+"sakura/res/HLP000003.html": "Mac 版の動作環境：macOS 13.3 以降、Apple シリコン（M1 以降）の Mac。Intel の Mac には対応していません。",
+"sakura/res/HLP000005.html": "Mac 版は Mac App Store からインストールします。アンインストールは「アプリケーション」フォルダーの App をゴミ箱に入れます。ここに書かれているファイルの構成は Windows 版のものです。",
+"sakura/res/HLP000006.html": "Mac 版には正規表現ライブラリ（bregonig / Onigmo）が組み込まれています。DLL を用意する必要はありません。",
+"sakura/res/HLP000010.html": "Mac 版ではツールバーアイコンのファイルを変更できません。",
+"sakura/res/HLP000260.html": "Mac 版ではアプリアイコンを変更できません。",
+"sakura/res/HLP000077.html": "Mac 版の設定ファイル sakura.ini は「~/Library/Containers/com.hanagumo.texteditor/Data/Library/Application Support/sakura/」にあります（App はサンドボックスの中で動くので、この場所に固定です）。Windows 版の sakura.ini は「設定 &gt; Windows 版の設定をインポート…」で読み込めます。",
+"sakura/res/HLP000084.html": "Mac 版のキー割り当ては、初期状態では ⌘ キーを Ctrl キーとして扱います（例：⌘C でコピー、⌘F で検索）。「設定 &gt; Windows のキー割り当てを使う」にチェックを付けると、Windows 版と同じキー（⌃ が Ctrl）になります。",
+"sakura/res/HLP000107.html": "Mac 版のキー割り当ては、初期状態では ⌘ キーを Ctrl キーとして扱います。「設定 &gt; Windows のキー割り当てを使う」にチェックを付けると、Windows 版と同じキーになります。",
+"sakura/res/HLP000109.html": "Mac 版ではコマンドラインオプションは使えません。ファイルは Finder、Dock、または「open」コマンドで開きます。",
+"sakura/res/HLP000110.html": "Mac 版はプラグインに対応していません。",
+"sakura/res/HLP000151.html": "Mac 版はプラグインに対応していません。",
+"sakura/res/HLP000153.html": "Mac 版はプラグインに対応していません。",
+"sakura/res/HLP000204.html": "Mac 版で使えるマクロは、キーボードマクロ（.mac）と JScript マクロ（.js。JavaScriptCore で実行します）です。VBScript マクロ、PPA マクロ、Python マクロには対応していません。",
+"sakura/res/HLP000269.html": "Mac 版で使える WSH マクロは JScript（.js）だけです（JavaScriptCore で実行します）。VBScript マクロと PPA マクロには対応していません。WScript.Shell は Popup だけが使えます。",
+"sakura/res/HLP000358.html": "Mac 版の表示言語は Mac のシステムの言語に従います（日本語・英語・簡体中国語。それ以外は日本語）。App ごとの言語は「システム設定 &gt; 一般 &gt; 言語と地域 &gt; アプリケーション」で変えられます。",
+"sakura/res/HLP000400.html": "Mac にはタスクトレイがないので、Mac 版にはタスクトレイメニューはありません。",
+"sakura/res/HLP000100.html": "Mac 版のヘルプは App に組み込まれています。ヘルプメニューの検索欄でも、メニュー項目とヘルプのキーワードを検索できます。"
+}

@@ -14,5 +14,9 @@
 	<!-- 第 47 步：印刷（プリンターに出す・PDF に保存する） -->
 	<key>com.apple.security.print</key>
 	<true/>
+	<!-- 第 49 步：ヘルプの窓（WKWebView）。App の中の HTML を表示するだけでも、WebKit の GPU・Networking のプロセスが
+	     起動時にこの権限を確かめ、ないとクラッシュしてページが出ない。App 自身はネットに接続しない（帮助的网页链接用浏览器打开） -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

@@ -531,7 +531,6 @@ final class SameColorDialog: NSObject {
             let swatch = ColorSwatchView(color: ColorSettingValue.color(color), frame: label.frame)
             label.superview?.addSubview(swatch)
         }
-        page.setUnavailable([idc("BUTTON_HELP")], reason: L10n.tr("この項目は今後のバージョンで対応します。", comment: "共通設定：以后的版本移植的项目"))
         if let list = page.list(idc("LIST_COLORS")) {
             list.setColumns(["", ""], widths: [20, 120])
             list.cellView = { [weak self] row, column in self?.cell(row: row, column: column) }

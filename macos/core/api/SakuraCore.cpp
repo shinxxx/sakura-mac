@@ -56,6 +56,7 @@
 #include "doc/CDocTypeSetting.h"
 #include "typeprop/CImpExpManager.h"
 #include "func/CFuncLookup.h"
+#include "func/Funccode.h"
 #include "func/CKeyBind.h"
 #include "uiparts/CMenuDrawer.h"
 #include "mem/CNativeW.h"
@@ -5426,6 +5427,12 @@ Text WindowListLabel(const WindowListEntry& entry, std::int32_t index)
 }
 
 std::int32_t FileMatchScore(const Text& file1, const Text& file2) { return FileMatchScoreSepExt(file1.c_str(), file2.c_str()); }
+
+std::int32_t HelpContextID(FunctionCode code)
+{
+	// 原版 MyWinHelp(HELP_CONTEXT) に渡す番号。-1（該当なし）も 0 にする
+	return std::max(0, FuncID_To_HelpContextID(static_cast<EFunctionCode>(code)));
+}
 
 // ----- 入力補完・キーワードヘルプ（第 44 步。原版 view/CEditView_CmdHokan.cpp、env/CHokanMgr.cpp、view/CEditView_Search.cpp） -----
 

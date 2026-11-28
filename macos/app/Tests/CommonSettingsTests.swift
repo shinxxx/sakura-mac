@@ -598,7 +598,7 @@ final class CommonSettingsTests: XCTestCase {
             XCTAssertTrue(d.isEnabled("IDC_EDIT_SX"))
             XCTAssertTrue(d.isEnabled("IDC_COMBO_WINTYPE"))
             XCTAssertFalse(d.isEnabled("IDC_EDIT_WX"))
-            XCTAssertFalse(d.isEnabled("IDC_BUTTON_HELP"))
+            XCTAssertTrue(d.isEnabled("IDC_BUTTON_HELP"))	// 第 49 步：ヘルプ（HLP000286）
             click(d, "IDC_RADIO_WINPOS_SET")
             XCTAssertFalse(d.isChecked("IDC_RADIO_WINPOS_DEF"))
             XCTAssertTrue(d.isEnabled("IDC_EDIT_WX"))
