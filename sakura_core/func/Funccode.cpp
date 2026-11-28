@@ -31,7 +31,7 @@
 #include "config/maxdata.h" //MAX_MRU
 #include "env/CShareData.h"
 #include "env/DLLSHAREDATA.h"
-#if defined(_WIN32)	// Mac 版：機能の分類と一覧（共通設定の「種別」「機能」）だけ使う。ヘルプ番号と機能の有効・チェック状態は編集画面の側（移植計画のステップ 41）
+#if defined(_WIN32)	// Mac 版：機能の分類と一覧（共通設定の「種別」「機能」）、ヘルプ番号（ステップ 49）だけ使う。機能の有効・チェック状態は編集画面の側（移植計画のステップ 41）
 #include <Shlwapi.h>
 #include "doc/CEditDoc.h"
 #include "_main/CAppMode.h"
@@ -42,8 +42,8 @@
 #include "docplus/CDiffManager.h"
 #include "env/CMarkMgr.h"	// CAutoMarkMgr
 #include "util/os.h"
-#include "sakura.hh"
 #endif
+#include "sakura.hh"	// Mac 版：ヘルプの話題番号も使う（移植計画のステップ 49）
 
 //using namespace nsFuncCode;
 
@@ -547,7 +547,6 @@ const EFunctionCode* nsFuncCode::ppnFuncListArr[] = {
 };
 const int nsFuncCode::nFincListNumArrNum = int(std::size(nsFuncCode::pnFuncListNumArr));
 
-#if defined(_WIN32)
 //! 機能番号に応じてヘルプトピック番号を返す
 /*!
 	@author Stonee
@@ -965,6 +964,7 @@ int FuncID_To_HelpContextID( EFunctionCode nFuncID )
 	}
 }
 
+#if defined(_WIN32)	// Mac 版：機能の有効・チェック状態は編集画面の側（移植計画のステップ 41）
 /* 機能が利用可能か調べる */
 bool IsFuncEnable( const CEditDoc* pcEditDoc, const DLLSHAREDATA* pShareData, EFunctionCode nId )
 {
