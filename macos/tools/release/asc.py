@@ -11,7 +11,8 @@
   asc.py register-bundle-id BUNDLE_ID NAME      注册 macOS 的 Bundle ID（已有时什么也不做）
   asc.py app-id BUNDLE_ID                       App Store Connect 里 App 记录的 ID（没有时返回 3）
   asc.py wait-build BUNDLE_ID BUILD [秒]        等上传的构建处理完（VALID 时返回 0）
-  asc.py setup-internal-testing BUNDLE_ID       建 TestFlight 的内部测试组（所有构建自动可用），把团队的成员加进去
+  asc.py setup-internal-testing BUNDLE_ID       建 TestFlight 的内部测试组（所有构建自动可用），把团队的成员加进去，
+                                                给还没接受的测试者发邀请邮件
 
 不打印密钥的内容，也不打印成员的邮件地址。
 """
@@ -208,6 +209,23 @@ def cmd_setup_internal_testing(c, args):
             "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": group["id"]}]}}}})
         added += 1
     print(f"测试者：原有 {len(existing)} 位，新加 {added} 位")
+    return invite_testers(c, app, group)
+
+
+def invite_testers(c, app, group):
+    """给还没接受的测试者发 TestFlight 的邀请邮件。用 API 加的测试者不会自动收到邀请，要另外发。"""
+    testers = c.get(f"/v1/betaGroups/{group['id']}/betaTesters", limit=200).get("data", [])
+    sent = done = 0
+    for t in testers:
+        state = t["attributes"].get("state")
+        if state in ("ACCEPTED", "INSTALLED"):
+            done += 1
+            continue
+        c.post("/v1/betaTesterInvitations", {"data": {"type": "betaTesterInvitations", "relationships": {
+            "app": {"data": {"type": "apps", "id": app["id"]}},
+            "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}}}})
+        sent += 1
+    print(f"邀请邮件：新发 {sent} 封，已接受的 {done} 位")
     return 0
 
 

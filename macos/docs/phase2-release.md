@@ -29,7 +29,7 @@ macos/tools/release/release.sh --developer-id  # 直接发布用：Developer ID 
 
 - 构建号默认是「年月日.时分」（每次上传必须比上次大）；版本号是 `Config/App.xcconfig` 的 `MARKETING_VERSION`。
 - 上传用 `xcrun altool --upload-app`，之后用 App Store Connect API 等构建处理完（`VALID`），
-  再建内部测试组「Sakura 内部テスト」（所有构建自动可用），把团队的成员加为测试者。测试者在 Mac 的 TestFlight App 里安装。
+  再建内部测试组「Sakura 内部テスト」（所有构建自动可用），把团队的成员加为测试者，并发邀请邮件（用 API 加的测试者不会自动收到邀请）。测试者点邮件里的链接接受一次以后，测试者在 Mac 的 TestFlight App 里安装。
 - 结果在 `macos/app/build/release/<时间>/`（`summary.txt`、各阶段的日志、`.xcarchive`、`.pkg` 或 `.zip`）。
 
 ## 自动检查（`macos/tools/release/check-release.sh`）
