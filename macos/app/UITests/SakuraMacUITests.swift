@@ -1883,12 +1883,12 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(rowCol.waitForExistence(timeout: 5), "ステータスバーの行・桁")
         XCTAssertEqual(rowCol.value as? String, "    1 行    1 桁")
         XCTAssertEqual(app.staticTexts["statusBar.insMode"].value as? String, "挿入")
-        XCTAssertTrue(app.buttons["toolbar.30101"].exists || app.otherElements["toolbar"].exists, "ツールバー")
+        XCTAssertTrue(app.descendants(matching: .any)["toolbar"].exists, "ツールバー")
         editor.typeText("abc")
         let moved = NSPredicate(format: "value == %@", "    1 行    4 桁")
         wait(for: [expectation(for: moved, evaluatedWith: rowCol)], timeout: 5)
         let settings = app.menuBars.menuBarItems["設定"]
-        let tabItem = settings.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'タブ' AND title CONTAINS '表示'")).firstMatch
+        let tabItem = settings.menuItems.matching(NSPredicate(format: "title CONTAINS 'タブ' AND (title CONTAINS '表示' OR title CONTAINS '隠す')")).firstMatch
         settings.click()
         tabItem.click()
         XCTAssertTrue(app.descendants(matching: .any)["tabBar"].waitForExistence(timeout: 5), "タブバー")
