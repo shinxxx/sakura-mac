@@ -324,6 +324,8 @@ final class StatusBarTests: XCTestCase {
         NotificationCenter.default.post(name: WindowBarSettings.didChangeNotification, object: nil)
         let first = try untitled()
         let second = try untitled()
+        // タブは NSDocumentController の文書の窓口（App で開いた文書と同じにする）
+        for document in documents { NSDocumentController.shared.addDocument(document) }
         first.updateWindowBars()
         second.updateWindowBars()
         let tabBar = try XCTUnwrap(second.tabBarView)
