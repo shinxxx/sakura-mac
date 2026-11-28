@@ -4,8 +4,12 @@
 "    辞書ファイル" = "   字典文件名";
 /* STR_EDITVWISRCH_NOMATCH */
 " (見つかりません)" = " (无匹配项)";
+/* STR_CARET_WITHBOM */
+" BOM付" = " 带BOM";
 /* STR_PROPCOMCUSTMENU_SEP */
 " ─────────────" = " --------------------------";
+/* STR_STATUS_ROW_COL */
+"%5d 行 %4d 桁" = "%5d 行 %4d 列";
 /* STR_ERR_CEDITVIEW_CMD29 */
 "%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?" = "%@\n\n此文件已被更新。\n重新加载将导致所有更改丢失，确定继续？";
 /* STR_ERR_DLGEDITDOC6 */
@@ -266,6 +270,8 @@
 "タグジャンプできません" = "无法进行标签跳转";
 /* STR_ERR_TAGJMPBK1 */
 "タグジャンプバックできません" = "无法进行书签标签跳转";
+/* STR_TABWND_CLOSETAB */
+"タブを閉じる" = "关闭标签页";
 /* STR_OUTLINE_TEXT */
 "テキスト" = "文本";
 /* IDD_JUMP */
@@ -356,6 +362,8 @@
 "上" = "顶部";
 /* STR_DLGFNCLST_MENU_TOPDOC */
 "上ドッキング(T)" = "顶部停靠(T)";
+/* STR_INS_MODE_OVR */
+"上書" = "改写";
 /* STR_EXCLU_DENY_WRITE */
 "上書きを禁止する" = "拒绝写入访问模式";
 /* IDD_FIND */
@@ -448,6 +456,8 @@
 "完全一致でヒットしたら次のファイルを検索しない" = "精确匹配后不搜索下一个文件";
 /* STR_PROPCOMMACR_LIST4 */
 "実行時に読み込み" = "执行时读取";
+/* STR_TABWND_LR_INFO */
+"左クリック: タブ名一覧\n右クリック: パス名一覧" = "左键: 标签名称列表\n右键: 路径列表";
 /* STR_DLGFNCLST_MENU_LEFTDOC */
 "左ドッキング(L)" = "左停靠(L)";
 /* STR_IMAGE_POS1 */
@@ -488,6 +498,8 @@
 "指定桁で折り返す" = "按设定换行";
 /* IDD_JUMP */
 "指定行へジャンプ" = "跳转";
+/* STR_INS_MODE_INS */
+"挿入" = "插入";
 /* STR_ERR_DLGMACRO03 */
 "挿入すべき文字コードが指定されていません．" = "未定义行尾自动插入字符编码。";
 /* 保存ダイアログ */
@@ -500,6 +512,8 @@
 "改行無" = "没有换行符";
 /* STR_ERR_DLGMACRO16 */
 "数値を指定してください．" = "未定义数字";
+/* STR_ERR_DLGEDITWND13 */
+"文字:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@" = "字符:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@";
 /* STR_CODECHECKER_CONFORM_LOSESOME */
 "文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。" = "正在保存为%@编码，编码转换会导致部分字符信息丢失。";
 /* STR_ERR_MACRO_ENCODING */

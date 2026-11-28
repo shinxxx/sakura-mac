@@ -163,6 +163,12 @@ enum CommandTable {
         31118: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_REGEX_KEYWORD
         31119: #selector(EditorTextView.showTypeSettings(_:)),		// F_TYPE_KEYHELP
 
+        // 第 38 步：ツールバー・ステータスバー・タブバーの表示（WindowBars.swift）
+        31100: #selector(EditorTextView.toggleWindowBar(_:)),		// F_SHOWTOOLBAR ツールバーの表示
+        31102: #selector(EditorTextView.toggleWindowBar(_:)),		// F_SHOWSTATUSBAR ステータスバーの表示
+        31103: #selector(EditorTextView.toggleWindowBar(_:)),		// F_SHOWTAB タブバーの表示
+        30108: #selector(NSDocumentController.openDocument(_:)),	// F_FILEOPEN_DROPDOWN 開く(ドロップダウン)（ツールバーの▼は EditorToolbar.swift）
+
         // ウィンドウ（第 26 步）
         31320: #selector(NSWindow.performClose(_:)),				// F_WINCLOSE 閉じる
         31340: Selector(("activateNextWindow:")),					// F_NEXTWINDOW（AppDelegate）

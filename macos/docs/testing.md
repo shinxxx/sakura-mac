@@ -147,3 +147,13 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
   ヘルプ窗口的目次同步・戻る・進む・ホーム・非表示・キーワード・検索、帮助以外的链接用浏览器（换成测试用的），コマンド一覧，macOS 帮助菜单的搜索。
 - 界面测试 `testHelpWindow`：ヘルプ > ヘルプ目次・キーワード検索、検索 的タブ、戻る・ホーム、検索ダイアログの「ヘルプ」、项目的右键说明，保存截图 `step49-*`。
 - CI 的 `check-encoding`：`make_help_data.py --check`（`HelpTopics.json` 与原版的帮助生成的结果相同）。详见 [phase3-help.md](phase3-help.md)。
+
+## ツールバー・タブバー・ステータスバー（第 38 步）
+
+- 核心库 `test-mac-statusbar.cpp`：行・桁（排版位置、`bLineNumIsCRLF`、`bDispColByChar`）、改行コードの名前、カーソル位置の文字コード（文書の文字コード、
+  `bDispUtf8Codepoint`・`bDispSPCodepoint`、SJIS で Unicode 表示）、各種コード（原版 ShowCodeBox）。
+- App 的 `StatusBarTests`：`testSameAsWindows` 按 `Tests/StatusBarSamples/cases.txt` 打开样本文件、从开头向下 N 次・向右 M 次移动，把各栏的文字与
+  `expected/statusbar.txt` 比较；CI 的 `statusbar-windows` 在 Windows 上用官方版 sakura.exe 做同样的操作（`macos/tools/statusbar/windows-statusbar.ps1`，SB_GETTEXTW 读各栏），
+  与同一个文件比较，并保存 Windows 的窗口截图。其他：栏的宽度、双击・右键的功能、各种代码的对话框、消息进状态栏、显示的切换、工具栏的按钮・提示、标签的宽度・列表。
+  `testScreenshots` 写出 `$TMPDIR/sakura-dialog-shots/statusbar-window.png`・`tabbar-window.png`（与 Windows 的截图对照）。
+- 界面测试 `testWindowBars`：默认显示工具栏和状态栏、输入后行・桁变化、設定 > タブの表示 显示标签栏。

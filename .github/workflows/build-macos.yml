@@ -241,6 +241,52 @@ jobs:
           }
           exit $ng
 
+  # 第 38 步：ステータスバーの各欄が Windows 官方版 sakura.exe と同じ（macos/app/Tests/StatusBarSamples/expected と比較）。
+  # ツールバー・タブバー・ステータスバーの画面も保存する（Mac 版の画面と見比べる）
+  statusbar-windows:
+    needs: check-encoding
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download Sakura Editor (official release)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh release view --repo sakura-editor/sakura --json tagName,assets | ConvertFrom-Json
+          $exes = $rel.assets | Where-Object { $_.name -like '*.zip' -and $_.name -match 'Release' -and $_.name -match 'Exe' }
+          $asset = @($exes | Where-Object { $_.name -match 'x64' }) + @($exes | Where-Object { $_.name -match 'Win32' }) | Select-Object -First 1
+          if (-not $asset) { throw "Release Exe zip not found in $($rel.tagName)" }
+          gh release download $rel.tagName --repo sakura-editor/sakura --pattern $asset.name --dir dl
+          Expand-Archive "dl/$($asset.name)" -DestinationPath sakura
+          "Sakura Editor $($rel.tagName) ($($asset.name))"
+
+      - name: Read status bar
+        shell: cmd
+        run: |
+          for /f "delims=" %%i in ('dir /s /b sakura\sakura.exe') do set EXE=%%i
+          %SystemRoot%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File macos\tools\statusbar\windows-statusbar.ps1 -SakuraExe "%EXE%" -DataDir macos\app\Tests\StatusBarSamples -OutDir statusbar-result
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: statusbar-windows
+          path: |
+            statusbar-result/*.txt
+            statusbar-result/*.png
+
+      - name: Compare with expected
+        shell: pwsh
+        run: |
+          git diff --no-index --exit-code -- macos/app/Tests/StatusBarSamples/expected/statusbar.txt statusbar-result/statusbar.txt
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::differs from Windows: statusbar.txt"; exit 1 }
+
   # 第 43 步：Grep 的结果与 Windows 官方版 sakura.exe 相同（-GREPMODE 的标准输出与 macos/core/tests/data/grep/expected 比较）
   grep-windows:
     needs: check-encoding

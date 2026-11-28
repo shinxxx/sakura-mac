@@ -322,5 +322,13 @@
   "検索する語を入力してください:": {
     "en": "Type in the word(s) to search for:",
     "zh": "键入要搜索的字词:"
+  },
+  "文字:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@": {
+    "en": "Character:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@",
+    "zh": "字符:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@"
+  },
+  "挿入": {
+    "en": "INS",
+    "zh": "插入"
   }
 }

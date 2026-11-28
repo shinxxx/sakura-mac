@@ -4,8 +4,12 @@
 "    辞書ファイル" = "   Dict Filename";
 /* STR_EDITVWISRCH_NOMATCH */
 " (見つかりません)" = " (No Matches)";
+/* STR_CARET_WITHBOM */
+" BOM付" = " BOM";
 /* STR_PROPCOMCUSTMENU_SEP */
 " ─────────────" = " --------------------------";
+/* STR_STATUS_ROW_COL */
+"%5d 行 %4d 桁" = "%5d Ln %4d Col";
 /* STR_ERR_CEDITVIEW_CMD29 */
 "%@\n\nこのファイルは変更されています。\n再ロードを行うと変更が失われますが、よろしいですか?" = "%@\n\nThis file has been updated.\nReloading will cause all changes to be lost, OK?";
 /* STR_ERR_DLGEDITDOC6 */
@@ -266,6 +270,8 @@
 "タグジャンプできません" = "Cant Tag-Jump";
 /* STR_ERR_TAGJMPBK1 */
 "タグジャンプバックできません" = "Cant Bookmark Tag-Jump";
+/* STR_TABWND_CLOSETAB */
+"タブを閉じる" = "Close Tab";
 /* STR_OUTLINE_TEXT */
 "テキスト" = "Text";
 /* IDD_JUMP */
@@ -356,6 +362,8 @@
 "上" = "Top";
 /* STR_DLGFNCLST_MENU_TOPDOC */
 "上ドッキング(T)" = "Top docking";
+/* STR_INS_MODE_OVR */
+"上書" = "OVR";
 /* STR_EXCLU_DENY_WRITE */
 "上書きを禁止する" = "Deny Write Access Mode";
 /* IDD_FIND */
@@ -448,6 +456,8 @@
 "完全一致でヒットしたら次のファイルを検索しない" = "If exact match, don't search next file";
 /* STR_PROPCOMMACR_LIST4 */
 "実行時に読み込み" = "Read at Exec time";
+/* STR_TABWND_LR_INFO */
+"左クリック: タブ名一覧\n右クリック: パス名一覧" = "Left-Click: Tab Name List\nRight-Click: Path List";
 /* STR_DLGFNCLST_MENU_LEFTDOC */
 "左ドッキング(L)" = "Left docking";
 /* STR_IMAGE_POS1 */
@@ -488,6 +498,8 @@
 "指定桁で折り返す" = "Wrap at set line";
 /* IDD_JUMP */
 "指定行へジャンプ" = "Jump to Line";
+/* STR_INS_MODE_INS */
+"挿入" = "INS";
 /* STR_ERR_DLGMACRO03 */
 "挿入すべき文字コードが指定されていません．" = "End of line auto-insert char code hasn't been defined.";
 /* 保存ダイアログ */
@@ -500,6 +512,8 @@
 "改行無" = "NONE";
 /* STR_ERR_DLGMACRO16 */
 "数値を指定してください．" = "Number is not defined.";
+/* STR_ERR_DLGEDITWND13 */
+"文字:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@" = "Character:\t\t%@ (%@)\n\nSJIS:\t\t%@\nJIS:\t\t%@\nEUC:\t\t%@\nLatin1:\t\t%@\nUTF-16:\t\t%@\nUTF-8:\t\t%@\nCESU-8:\t\t%@";
 /* STR_CODECHECKER_CONFORM_LOSESOME */
 "文字エンコード %@ で保存しようとしていますが、文字コード変換により一部の文字情報が失われます。" = "Saving in %@, but some character information will be lost by the encoding conversion.";
 /* STR_ERR_MACRO_ENCODING */

@@ -13,7 +13,7 @@ import UniformTypeIdentifiers
 ///   それが「キーマクロの実行」で実行するファイルになる
 /// - 記録する場所：CommandTable.perform（キー割り当て）、メニュー（NSMenu.willSendActionNotification、項目の tag が機能番号）、
 ///   入力（insertText → Char・CharIme）、キーの既定の動き（doCommand(by:) の選択子 → 機能番号）、検索・置換・ジャンプのダイアログ
-/// - 記録中は窓口のタイトルに「【キーマクロの記録中】」（原版のキャプションの ${M?…$}）。Mac 版にはステータスバーがないので REC 欄はない
+/// - 記録中は窓口のタイトルに「【キーマクロの記録中】」（原版のキャプションの ${M?…$}）。ステータスバーの REC 欄も濃く表示する（第 38 步）
 /// - キーマクロの保存（F_SAVEKEYMACRO）・読み込み（F_LOADKEYMACRO。原版と同じくファイル名を覚えるだけ）・実行（F_EXECKEYMACRO。実行の直前に読む）。
 ///   選んだファイルは安全書签を残す（BookmarkStore.settingFiles。沙盒で再起動後も読める）
 /// - 実行は全体で一つの取り消し単位（原版 ExecKeyMacroAfter の SetUndoBuffer）

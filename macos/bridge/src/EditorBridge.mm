@@ -428,6 +428,43 @@ std::int32_t MeasureWithCoreText(const char16_t* faceName, std::int32_t size, co
 
 @end
 
+@implementation ECCaretStatus
+
+- (instancetype)initWithStatus:(const core::CaretStatus&)c
+{
+	self = [super init];
+	if (self) {
+		_line = c.line;
+		_column = c.column;
+		_charCode = ToNSString(c.charCode);
+		_eolName = ToNSString(c.eolName);
+	}
+	return self;
+}
+
+@end
+
+@implementation ECCharCodes
+
+- (instancetype)initWithCodes:(const core::CharCodes&)c
+{
+	self = [super init];
+	if (self) {
+		_character = ToNSString(c.character);
+		_codePoint = ToNSString(c.codePoint);
+		_sjis = ToNSString(c.sjis);
+		_jis = ToNSString(c.jis);
+		_euc = ToNSString(c.euc);
+		_latin1 = ToNSString(c.latin1);
+		_utf16 = ToNSString(c.utf16);
+		_utf8 = ToNSString(c.utf8);
+		_cesu8 = ToNSString(c.cesu8);
+	}
+	return self;
+}
+
+@end
+
 @implementation ECSaveCheck
 
 - (instancetype)initWithCheck:(const core::SaveCheck&)c
@@ -2404,6 +2441,19 @@ static ECSearchResult *InvalidViewResult()
 }
 
 - (NSInteger)charWidth { return _doc->CharWidth(); }
+
+- (ECCaretStatus *)caretStatusAt:(ECLayoutPosition)caret
+{
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.x)) caret = ECLayoutPosition{};
+	return [[ECCaretStatus alloc] initWithStatus:_doc->GetCaretStatus(core::LayoutPosition{ static_cast<std::int32_t>(caret.line), static_cast<std::int32_t>(caret.x) })];
+}
+
+- (ECCharCodes *)charCodesAt:(ECLayoutPosition)caret
+{
+	if (!FitsInt32(caret.line) || !FitsInt32(caret.x)) return nil;
+	const auto codes = _doc->GetCharCodes(core::LayoutPosition{ static_cast<std::int32_t>(caret.line), static_cast<std::int32_t>(caret.x) });
+	return codes ? [[ECCharCodes alloc] initWithCodes:*codes] : nil;
+}
 - (NSInteger)layoutWidth { return _doc->LayoutWidth(); }
 
 - (ECColorSetting)colorFor:(ECColorIndex)index

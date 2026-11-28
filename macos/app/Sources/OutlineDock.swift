@@ -163,8 +163,75 @@ final class EditorContainerView: NSView {
         arrange()
     }
 
+    // MARK: 第 38 步：ツールバー・タブバー・ステータスバー（原版 CEditWnd::OnSize の並び：
+    // 上からツールバー、タブバー（上）、編集画面とアウトライン、タブバー（下）、ステータスバー）
+
+    /// ツールバー（nil は非表示）
+    var toolbar: NSView? {
+        didSet { replaceBar(oldValue, toolbar) }
+    }
+    /// タブバー（nil は非表示）。atBottom は「表示位置：下」
+    var tabBar: NSView? {
+        didSet { replaceBar(oldValue, tabBar) }
+    }
+    var tabBarAtBottom = false {
+        didSet { if oldValue != tabBarAtBottom { arrange() } }
+    }
+    /// ステータスバー（nil は非表示）
+    var statusBar: NSView? {
+        didSet { replaceBar(oldValue, statusBar) }
+    }
+
+    private func replaceBar(_ old: NSView?, _ new: NSView?) {
+        if old !== new { old?.removeFromSuperview() }
+        if let new, new.superview !== self { addSubview(new) }
+        arrange()
+    }
+
+    /// バーの高さ（幅が決まると高さが決まるもの（折り返すツールバー・多段のタブ）は fittingHeight(forWidth:)）
+    private func barHeight(_ bar: NSView?, width: CGFloat) -> CGFloat {
+        guard let bar else { return 0 }
+        if let sized = bar as? WindowBarSizing { return sized.fittingHeight(forWidth: width) }
+        return bar.frame.height
+    }
+
+    /// 編集画面とアウトラインの範囲（バーを除く）
+    var editorArea: NSRect {
+        var area = bounds
+        let top = barHeight(toolbar, width: area.width) + (tabBarAtBottom ? 0 : barHeight(tabBar, width: area.width))
+        let bottom = barHeight(statusBar, width: area.width) + (tabBarAtBottom ? barHeight(tabBar, width: area.width) : 0)
+        area.origin.y += top
+        area.size.height = max(0, area.height - top - bottom)
+        return area
+    }
+
+    private func arrangeBars() {
+        let width = bounds.width
+        var y: CGFloat = 0
+        if let toolbar {
+            let h = barHeight(toolbar, width: width)
+            toolbar.frame = NSRect(x: 0, y: y, width: width, height: h)
+            y += h
+        }
+        if let tabBar, !tabBarAtBottom {
+            tabBar.frame = NSRect(x: 0, y: y, width: width, height: barHeight(tabBar, width: width))
+        }
+        var bottom = bounds.height
+        if let statusBar {
+            let h = barHeight(statusBar, width: width)
+            bottom -= h
+            statusBar.frame = NSRect(x: 0, y: bottom, width: width, height: h)
+        }
+        if let tabBar, tabBarAtBottom {
+            let h = barHeight(tabBar, width: width)
+            bottom -= h
+            tabBar.frame = NSRect(x: 0, y: bottom, width: width, height: h)
+        }
+    }
+
     func arrange() {
-        let bounds = self.bounds
+        arrangeBars()
+        let bounds = editorArea
         guard let dock, dock.side.isDocking else {
             editor.frame = bounds
             return
@@ -177,18 +244,18 @@ final class EditorContainerView: NSView {
         switch dock.side {
         case .left:
             dockFrame.size.width = size
-            editorFrame.origin.x = size
+            editorFrame.origin.x = bounds.minX + size
             editorFrame.size.width = bounds.width - size
         case .right:
-            dockFrame.origin.x = bounds.width - size
+            dockFrame.origin.x = bounds.maxX - size
             dockFrame.size.width = size
             editorFrame.size.width = bounds.width - size
         case .top:
             dockFrame.size.height = size
-            editorFrame.origin.y = size
+            editorFrame.origin.y = bounds.minY + size
             editorFrame.size.height = bounds.height - size
         case .bottom:
-            dockFrame.origin.y = bounds.height - size
+            dockFrame.origin.y = bounds.maxY - size
             dockFrame.size.height = size
             editorFrame.size.height = bounds.height - size
         default:
@@ -201,8 +268,13 @@ final class EditorContainerView: NSView {
     /// ドッキングの場所（原版 GetDockSpaceRect：編集画面とアウトラインを合わせた範囲。画面の座標）
     var dockSpaceOnScreen: NSRect {
         guard let window else { return .zero }
-        return window.convertToScreen(convert(bounds, to: nil))
+        return window.convertToScreen(convert(editorArea, to: nil))
     }
+}
+
+/// 幅で高さが変わるバー（折り返すツールバー、多段のタブバー）
+protocol WindowBarSizing: AnyObject {
+    func fittingHeight(forWidth width: CGFloat) -> CGFloat
 }
 
 // MARK: - ドッキングしたアウトライン
@@ -306,7 +378,7 @@ final class OutlineDockView: NSView {
         }
         let startSize = size
         let startPoint = container.convert(event.locationInWindow, from: nil)
-        let total = side.isHorizontal ? container.bounds.width : container.bounds.height
+        let total = side.isHorizontal ? container.editorArea.width : container.editorArea.height
         while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
             let p = container.convert(next.locationInWindow, from: nil)
             var delta: CGFloat
@@ -494,7 +566,7 @@ extension OutlineWindowController {
     func showDocked(focus: Bool) {
         guard let dockView, let container else { return }
         if dockView.size == 0 {
-            let total = dockSide.isHorizontal ? container.bounds.width : container.bounds.height
+            let total = dockSide.isHorizontal ? container.editorArea.width : container.editorArea.height
             dockView.size = OutlineDockSettings.idealStretch(0, max: total)
         }
         if container.dock !== dockView { container.dock = dockView }
@@ -539,7 +611,7 @@ extension OutlineWindowController {
     /// 分割バーで大きさを変えた（原版 OnLButtonUp：同期ならほかの窓口へ通知）
     func dockSizeChanged(_ size: CGFloat) {
         guard let dockView, let container else { return }
-        let total = dockSide.isHorizontal ? container.bounds.width : container.bounds.height
+        let total = dockSide.isHorizontal ? container.editorArea.width : container.editorArea.height
         let clamped = max(OutlineDockSettings.minSize, min(size, total - OutlineDockSettings.minSize)).rounded()
         dockView.size = clamped
         container.arrange()
@@ -565,7 +637,7 @@ extension OutlineWindowController {
         guard let view else { return }
         let typeIndex = view.document.typeIndex
         if side.isDocking, let container {
-            let total = side.isHorizontal ? container.bounds.width : container.bounds.height
+            let total = side.isHorizontal ? container.editorArea.width : container.editorArea.height
             let stretch = size ?? CGFloat(OutlineDockSettings.size(side, typeIndex: typeIndex))
             OutlineDockSettings.setSize(Int(OutlineDockSettings.idealStretch(stretch, max: total)), for: side, typeIndex: typeIndex)
         }
@@ -823,7 +895,7 @@ extension EditorTextView {
         panel.dockView?.side = sideNew
         let size = CGFloat(OutlineDockSettings.size(sideNew, typeIndex: typeIndex))
         if let container = panel.container {
-            let total = sideNew.isHorizontal ? container.bounds.width : container.bounds.height
+            let total = sideNew.isHorizontal ? container.editorArea.width : container.editorArea.height
             panel.setDockSize(OutlineDockSettings.idealStretch(size, max: total))
         }
         return false

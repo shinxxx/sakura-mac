@@ -363,6 +363,37 @@ NS_SWIFT_NAME(EditorTypeSetting)
 /*!
 	保存前的检查结果（sakura::core::SaveCheck，原版 CCodeChecker::OnCheckSave，第 30 步）
 */
+/*!
+	ステータスバーに出すカーソル位置の情報（第 38 步，原版 CCaret::ShowCaretPosInfo）。行・桁は表示する値（1 から）
+*/
+NS_SWIFT_NAME(EditorCaretStatus)
+@interface ECCaretStatus : NSObject
+@property (readonly) NSInteger line;
+@property (readonly) NSInteger column;
+//! カーソル位置の文字のコード（"82A0"、"U+3042" 等）。改行の上では改行の名前、EOF 等では空
+@property (readonly, copy) NSString *charCode;
+//! 入力改行コードの名前（CRLF、LF 等）
+@property (readonly, copy) NSString *eolName;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
+/*!
+	カーソル位置の文字の各文字コード（第 38 步，原版 ShowCodeBox）。表せない文字コードは "-"
+*/
+NS_SWIFT_NAME(EditorCharCodes)
+@interface ECCharCodes : NSObject
+@property (readonly, copy) NSString *character;
+@property (readonly, copy) NSString *codePoint;
+@property (readonly, copy) NSString *sjis;
+@property (readonly, copy) NSString *jis;
+@property (readonly, copy) NSString *euc;
+@property (readonly, copy) NSString *latin1;
+@property (readonly, copy) NSString *utf16;
+@property (readonly, copy) NSString *utf8;
+@property (readonly, copy) NSString *cesu8;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 NS_SWIFT_NAME(EditorSaveCheck)
 @interface ECSaveCheck : NSObject
 //! 换行符混在（类型别设置「保存時に改行コードの混在を警告する」打开、并且不转换换行符时）
@@ -1647,6 +1678,10 @@ NS_SWIFT_NAME(EditorDocument)
 - (ECPosition)logicPositionOf:(ECLayoutPosition)position NS_SWIFT_NAME(logicPosition(of:));
 //! 半角一字的宽度（点，包括文字间隔）
 @property (readonly) NSInteger charWidth;
+//! ステータスバーのカーソル位置の情報（第 38 步）。caret はカーソルの排版位置
+- (ECCaretStatus *)caretStatusAt:(ECLayoutPosition)caret NS_SWIFT_NAME(caretStatus(at:));
+//! カーソル位置の文字の各文字コード（第 38 步）。文字がない（改行・EOF）とき nil
+- (nullable ECCharCodes *)charCodesAt:(ECLayoutPosition)caret NS_SWIFT_NAME(charCodes(at:));
 //! 文字部分的宽度（点）：折り返さない时是最长的行，其他时候是折り返し桁数的宽度
 @property (readonly) NSInteger layoutWidth;
 

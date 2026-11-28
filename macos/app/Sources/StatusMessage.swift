@@ -6,8 +6,8 @@ import AppKit
 
 /// ステータスメッセージ（第 44 步，原版 CEditView::SendStatusMessage）。
 ///
-/// Mac 版にはまだステータスバーがないので、編集画面の左下に小さなラベルで出す
-/// （原版もステータスバーを表示していないときはメニューバーに出す）。
+/// 第 38 步：ステータスバーを表示しているときはステータスバーのメッセージ欄に出す（原版 CEditWnd::SendStatusMessage）。
+/// 表示していないときは編集画面の左下に小さなラベルで出す（原版はメニューバーに出す）。
 /// インクリメンタルサーチ中はずっと、ほかのメッセージ（「▼先頭から再検索しました」等）は数秒で消える。
 final class StatusMessageLabel: NSTextField {
     init() {
@@ -36,12 +36,33 @@ final class StatusMessageLabel: NSTextField {
 
 extension EditorTextView {
     /// 表示中のステータスメッセージ（空は表示していない）
-    var statusMessage: String { statusLabel?.isHidden == false ? statusLabel?.stringValue ?? "" : "" }
+    var statusMessage: String {
+        if let bar = statusBarView { return bar.text(.message) }
+        return statusLabel?.isHidden == false ? statusLabel?.stringValue ?? "" : ""
+    }
+
+    /// この編集画面の窓口のステータスバー（表示していないとき nil）
+    var statusBarView: StatusBarView? {
+        (window?.windowController as? EditorWindowController)?.statusBar
+    }
 
     /// ステータスメッセージを出す。空なら消す。persistent でないものは 4 秒で消える
     func sendStatusMessage(_ text: String, persistent: Bool = false) {
         statusTimer?.invalidate()
         statusTimer = nil
+        if let bar = statusBarView {
+            statusLabel?.isHidden = true
+            bar.setText(.message, text)
+            if !text.isEmpty && !persistent {
+                let timer = Timer(timeInterval: 4, repeats: false) { [weak self] _ in
+                    self?.statusBarView?.setText(.message, "")
+                    self?.statusTimer = nil
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                statusTimer = timer
+            }
+            return
+        }
         guard let host = enclosingScrollView else { return }
         if text.isEmpty {
             statusLabel?.isHidden = true

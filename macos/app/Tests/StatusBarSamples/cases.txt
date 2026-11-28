@@ -1,0 +1,23 @@
+# ステータスバーの比較（计划第 38 步）：<ファイル> <下へ移動の回数> <右へ移動の回数>
+# ファイルの先頭から Down を N 回、Right を M 回押したときのステータスバー（行・桁、改行、文字コード、文字コードセット、挿入、ズーム）
+sjis-crlf.txt 0 0
+sjis-crlf.txt 0 3
+sjis-crlf.txt 0 4
+sjis-crlf.txt 0 7
+sjis-crlf.txt 1 0
+sjis-crlf.txt 1 2
+sjis-crlf.txt 1 5
+sjis-crlf.txt 2 2
+sjis-crlf.txt 3 0
+utf8-lf.txt 0 0
+utf8-lf.txt 0 8
+utf8-lf.txt 0 9
+utf8-lf.txt 1 3
+utf8-lf.txt 2 0
+utf8bom-cr.txt 0 1
+utf8bom-cr.txt 1 1
+utf8bom-cr.txt 1 2
+utf16le-crlf.txt 0 1
+utf16le-crlf.txt 0 2
+utf16le-crlf.txt 1 0
+utf16le-crlf.txt 2 0

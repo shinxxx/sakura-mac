@@ -3137,6 +3137,152 @@ std::int32_t Document::CharWidth() const
 	return static_cast<std::int32_t>(m_impl->layout.GetWidthPerKeta());
 }
 
+namespace {
+
+CLayoutInt LineIndexToColumn(const CLayoutMgr& mgr, const CLayout* pcLayout, CLogicInt nIndex);	// 下で定義
+
+//! 文字コードの16進表示（原版 CCaret::ShowCaretPosInfo・ShowCodeBox：失敗したら fallback で）
+EConvertResult CaretCharToHex(ECodeType eCodeType, const WCHAR* pLine, int nLen, WCHAR* szDst, const CommonSetting_Statusbar* psStatusbar)
+{
+	std::unique_ptr<CCodeBase> pCode(CCodeFactory::CreateCodeBase(eCodeType, false));
+	return pCode->UnicodeToHex(pLine, nLen, szDst, psStatusbar);
+}
+
+} // namespace
+
+CaretStatus Document::GetCaretStatus(const LayoutPosition& caret) const
+{
+	// 原版 CCaret::ShowCaretPosInfo（ステータスバーを表示しているとき）
+	const auto& d = *m_impl;
+	const CLayoutMgr* pLayoutMgr = &d.layout;
+	const CLayoutPoint ptLayout(CLayoutInt(caret.x), CLayoutInt(caret.line));
+	CLogicPoint ptLogic;
+	pLayoutMgr->LayoutToLogic(ptLayout, &ptLogic);
+
+	CaretStatus result;
+	result.eolName = Text(d.newLineEol.GetName());
+
+	// カーソル位置の文字列を取得
+	const CLayout* pcLayout = nullptr;
+	CLogicInt nLineLen;
+	const WCHAR* pLine = pLayoutMgr->GetLineStr(ptLayout.GetY2(), &nLineLen, &pcLayout);
+
+	// -- -- -- -- キャレット位置 -> ptCaret -- -- -- -- //
+	const int nLayoutXDefault = std::max<int>(1, pLayoutMgr->GetWidthPerKeta());	// 原版 GetTextMetrics().GetLayoutXDefault()
+	const bool bCaretHabaMode = GetDllShareData().m_Common.m_sStatusbar.m_bDispColByChar == 0;
+	std::int32_t x = 0, y = 0;
+	//行番号をロジック単位で表示
+	if (d.typeConfig.m_bLineNumIsCRLF) {
+		if (bCaretHabaMode) {
+			y = ptLogic.y;
+			if (pcLayout) {
+				// 新レイアウト桁数を計算(1行のデータが長いと重い)
+				int nPosX = 0;
+				const CLayout* pcLayoutCalc = pcLayout;
+				while (pcLayoutCalc->GetPrevLayout()) {
+					if (pcLayoutCalc->GetLogicOffset() == 0) {
+						break; // 先頭行
+					}
+					pcLayoutCalc = pcLayoutCalc->GetPrevLayout();
+					nPosX += Int((LineIndexToColumn(*pLayoutMgr, pcLayoutCalc, pcLayoutCalc->GetLengthWithoutEOL()) - pcLayoutCalc->GetIndent()) / nLayoutXDefault);
+				}
+				x = nPosX + Int(ptLayout.GetX2() - pcLayout->GetIndent()) / nLayoutXDefault;
+			}
+			else {
+				x = 0;
+			}
+		}
+		else {
+			x = ptLogic.x;
+			y = ptLogic.y;
+		}
+	}
+	//行番号をレイアウト単位で表示
+	else {
+		if (bCaretHabaMode) {
+			// ルーラー基準
+			x = Int(ptLayout.GetX2()) / nLayoutXDefault;
+		}
+		else {
+			// 文字単位
+			x = pcLayout ? ptLogic.x - Int(pcLayout->GetLogicOffset()) : ptLogic.x;
+		}
+		y = Int(ptLayout.GetY2());
+	}
+	//表示値が1から始まるように補正
+	result.line = y + 1;
+	result.column = x + 1;
+
+	// -- -- -- -- キャレット位置の文字情報 -> szCaretChar -- -- -- -- //
+	if (pLine && pcLayout) {
+		// 指定された桁に対応する行のデータ内の位置を調べる
+		const CLogicInt nIdx = ptLogic.GetX2() - pcLayout->GetLogicOffset();
+		if (nIdx < nLineLen) {
+			if (nIdx < nLineLen - (pcLayout->GetLayoutEol().GetLen() ? 1 : 0)) {
+				//任意の文字コードからUnicodeへ変換する
+				WCHAR szCaretChar[32] = {};
+				const CommonSetting_Statusbar* psStatusbar = &GetDllShareData().m_Common.m_sStatusbar;
+				if (CaretCharToHex(static_cast<ECodeType>(d.info.encoding), &pLine[nIdx], Int(nLineLen - nIdx), szCaretChar, psStatusbar) != RESULT_COMPLETE) {
+					// うまくコードが取れなかった(Unicodeで表示)
+					CaretCharToHex(CODE_UNICODE, &pLine[nIdx], Int(nLineLen - nIdx), szCaretChar, psStatusbar);
+				}
+				result.charCode = Text(szCaretChar);
+			}
+			else {
+				result.charCode = Text(pcLayout->GetLayoutEol().GetName());
+			}
+		}
+	}
+	return result;
+}
+
+std::optional<CharCodes> Document::GetCharCodes(const LayoutPosition& caret) const
+{
+	// 原版 CEditWnd.cpp の ShowCodeBox
+	const auto& d = *m_impl;
+	const CLayoutMgr* pLayoutMgr = &d.layout;
+	const CLayout* pcLayout = nullptr;
+	CLogicInt nLineLen;
+	const WCHAR* pLine = pLayoutMgr->GetLineStr(CLayoutInt(caret.line), &nLineLen, &pcLayout);
+	if (!pLine || !pcLayout) return std::nullopt;
+	// 指定された桁に対応する行のデータ内の位置を調べる（原版 LineColumnToIndex）
+	CLogicPoint ptLogic;
+	pLayoutMgr->LayoutToLogic(CLayoutPoint(CLayoutInt(caret.x), CLayoutInt(caret.line)), &ptLogic);
+	const CLogicInt nIdx = ptLogic.GetX2() - pcLayout->GetLogicOffset();
+	if (nIdx < 0 || nIdx >= nLineLen) return std::nullopt;
+	if (nIdx >= nLineLen - (pcLayout->GetLayoutEol().GetLen() ? 1 : 0)) return std::nullopt;
+
+	// 一時的に表示方法の設定を変更する
+	CommonSetting_Statusbar sStatusbar{};
+	sStatusbar.m_bDispUniInSjis = false;
+	sStatusbar.m_bDispUniInJis = false;
+	sStatusbar.m_bDispUniInEuc = false;
+	sStatusbar.m_bDispUtf8Codepoint = false;
+	sStatusbar.m_bDispSPCodepoint = false;
+
+	CharCodes codes;
+	const int nCharChars = CNativeW::GetSizeOfChar(pLine, nLineLen, nIdx);
+	codes.character = Text(&pLine[nIdx], nCharChars);
+	auto code = [&](ECodeType eCodeType) {
+		WCHAR szCode[32] = {};
+		if (CaretCharToHex(eCodeType, &pLine[nIdx], Int(nLineLen - nIdx), szCode, &sStatusbar) != RESULT_COMPLETE) {
+			return Text(u"-");	// うまくコードが取れなかった
+		}
+		return Text(szCode);
+	};
+	codes.sjis = code(CODE_SJIS);
+	codes.jis = code(CODE_JIS);
+	codes.euc = code(CODE_EUC);
+	codes.latin1 = code(CODE_LATIN1);
+	codes.utf16 = code(CODE_UNICODE);
+	codes.utf8 = code(CODE_UTF8);
+	codes.cesu8 = code(CODE_CESU8);
+	// コードポイント部（サロゲートペアも）
+	sStatusbar.m_bDispSPCodepoint = true;
+	codes.codePoint = code(CODE_UNICODE);
+	return codes;
+}
+
 std::int32_t Document::LayoutWidth() const
 {
 	const auto& d = *m_impl;
