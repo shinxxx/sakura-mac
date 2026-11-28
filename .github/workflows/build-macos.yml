@@ -42,6 +42,14 @@ jobs:
       - name: Check help data
         run: python3 macos/tools/help/make_help_data.py --check
 
+      # 第 37 步：App 的图标（Assets.xcassets/AppIcon）与从原版图标生成的结果相同
+      - name: Check app icon
+        run: python3 macos/tools/icon/make_app_icon.py --check
+
+      # 第 37 步：App Store Connect API 的小工具（JWT 的签名等，不连网）
+      - name: Test release tools
+        run: python3 macos/tools/release/test_asc.py -v
+
   # 第 14 步：UTF-16 字符类型（sakura_core/util/wchar16.h）在两个平台上编译并运行测试
   wchar16-test-macos:
     needs: check-encoding
@@ -571,7 +579,10 @@ jobs:
         working-directory: macos/app
         run: xcodegen generate
 
-      - name: Build (Release, unsigned)
+      # 第 37 步：本机签名（ad-hoc）带上权限（沙盒等）构建，之后用 check-release.sh 检查发布的要求。
+      # 本机签名时 Xcode 默认加上调试用的 get-task-allow，发布时的导出会去掉，这里也不加（CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO）
+      # 真正的发布证书的签名、上传在用户的 Mac 上用 macos/tools/release/release.sh 做（CI 不放密钥）
+      - name: Build (Release, ad-hoc signed)
         working-directory: macos/app
         run: |
           set -o pipefail
@@ -582,7 +593,8 @@ jobs:
             -configuration Release \
             -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             build
 
       # 第 24 步：桥接层的单元测试（Swift 通过桥接层打开文件、读出文字）
@@ -639,6 +651,25 @@ jobs:
             "build/Build/Products/Debug/Sakura Editor for Mac.app/Contents/MacOS/Sakura Editor for Mac" \
             ../../build/xcode-core/Release/libsakura_core_api.a \
             ../../build/xcode-core/Debug/libsakura_core_api.a
+
+      # 第 37 步：发布的要求（图标、出口合规、分类、只含 arm64、签名、沙盒开启、没有临时例外和 get-task-allow）
+      - name: Check release requirements
+        working-directory: macos/app
+        run: |
+          ../tools/release/check-release.sh --adhoc "build/Build/Products/Release/Sakura Editor for Mac.app"
+          ../tools/release/make-export-options.sh app-store ABCDE12345 "$RUNNER_TEMP/appstore.plist"
+          ../tools/release/make-export-options.sh developer-id ABCDE12345 "$RUNNER_TEMP/devid.plist"
+          plutil -lint "$RUNNER_TEMP/appstore.plist" "$RUNNER_TEMP/devid.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :method' "$RUNNER_TEMP/appstore.plist")" = app-store-connect
+          ! ../tools/release/make-export-options.sh app-store bad-team "$RUNNER_TEMP/bad.plist"
+          bash -n ../tools/release/release.sh
+
+      # 第 37 步：run-tests.sh 用的输入法工具能编译（实际切换在用户的 Mac 上跑 run-tests.sh 时确认）
+      - name: Build input source tool
+        run: |
+          xcrun swiftc -O -o "$RUNNER_TEMP/inputsource" macos/tools/inputsource.swift
+          "$RUNNER_TEMP/inputsource" get || true
+          macos/tools/check-arch.sh "$RUNNER_TEMP/inputsource"
 
       # 第 9 步：确认 App 能启动，不会一启动就崩溃（CI 没有屏幕可看，只确认进程启动 10 秒后仍在运行）
       - name: Launch smoke test

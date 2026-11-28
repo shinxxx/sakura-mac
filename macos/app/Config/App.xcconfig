@@ -20,5 +20,6 @@ ARCHS = arm64
 MARKETING_VERSION = 0.1.0
 CURRENT_PROJECT_VERSION = 1
 
-// 签名用的开发团队 ID。在 Xcode 的 Signing & Capabilities 里选择团队即可。
-DEVELOPMENT_TEAM =
+// 签名用的开发团队 ID（第 37 步：2026-11-28 注册的个人账号。团队 ID 只是编号，不是密码）。
+// 测试（run-tests.sh、CI）用 DEVELOPMENT_TEAM= 覆盖成空，用本机签名（ad-hoc），不需要证书。
+DEVELOPMENT_TEAM = 27TKMRNG74

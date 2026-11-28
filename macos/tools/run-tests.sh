@@ -24,7 +24,7 @@ if [ -z "${DEVELOPER_DIR:-}" ] && ! xcodebuild -version > /dev/null 2>&1; then
     XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | head -1)
     if [ -n "$XCODE" ]; then
         export DEVELOPER_DIR="$XCODE/Contents/Developer"
-        echo "使用 $XCODE（想固定下来：sudo xcode-select -s $DEVELOPER_DIR）"
+        echo "使用 ${XCODE}（想固定下来：sudo xcode-select -s ${DEVELOPER_DIR}）"
     fi
 fi
 
@@ -37,11 +37,48 @@ FAILED=0
 
 say() { echo "$*" | tee -a "$SUMMARY"; }
 
-# 界面测试前：现在的输入法是「Unicode 十六进制输入」时停下（这个布局用 Option 键输入编码，⌥→ 等的测试会失败。
-# XCUITest 打字时会临时切到这个布局，运行中断时可能留下来）。只读设置，不改：请用户在菜单栏切回平时的输入法
-if [ "$RUN_UI" = 1 ] && defaults read com.apple.HIToolbox AppleSelectedInputSources 2>/dev/null | grep -q "UnicodeHexInput"; then
-    say "现在的输入法是「Unicode 十六进制输入」：请在菜单栏切回平时用的输入法（ABC、日文等）后再运行"
-    exit 1
+# 输入法（2026-11-28 项目负责人同意）：界面测试打字时 XCUITest 会临时切到「Unicode 十六进制输入」，
+# 中途被打断时可能留在这个布局（⌥→ 等的测试也会失败）。开始时记下当前的输入法，结束或被打断（Ctrl+C 等）时切回。
+# 开始时已经停在「Unicode 十六进制输入」时先切回 ABC，结束时也切回 ABC。不动别的输入法的设置。
+INPUT_TOOL="$ROOT/build/inputsource"
+SAVED_INPUT=""
+INPUT_RESTORED=0
+restore_input() {
+    [ -n "$SAVED_INPUT" ] && [ "$INPUT_RESTORED" = 0 ] || return 0
+    INPUT_RESTORED=1
+    local now
+    now="$("$INPUT_TOOL" get 2>/dev/null)"
+    if [ "$now" = "$SAVED_INPUT" ]; then
+        say "输入法：和开始时相同（${SAVED_INPUT}）"
+    elif "$INPUT_TOOL" set "$SAVED_INPUT" 2>> "$OUT/inputsource.log"; then
+        say "输入法：已从 $now 切回 $SAVED_INPUT"
+    else
+        FAILED=1
+        say "输入法：没能切回 ${SAVED_INPUT}（现在是 ${now}），请在菜单栏手动切换"
+    fi
+}
+if [ "$RUN_UI" = 1 ]; then
+    mkdir -p "$ROOT/build"
+    if [ ! -x "$INPUT_TOOL" ] || [ "$ROOT/macos/tools/inputsource.swift" -nt "$INPUT_TOOL" ]; then
+        xcrun swiftc -O -o "$INPUT_TOOL" "$ROOT/macos/tools/inputsource.swift" > "$OUT/inputsource.log" 2>&1
+    fi
+    if SAVED_INPUT="$("$INPUT_TOOL" get 2>> "$OUT/inputsource.log")"; then
+        if [ "$SAVED_INPUT" = "com.apple.keylayout.UnicodeHexInput" ]; then
+            SAVED_INPUT="com.apple.keylayout.ABC"
+            if "$INPUT_TOOL" set "$SAVED_INPUT" 2>> "$OUT/inputsource.log"; then
+                say "开始时的输入法是「Unicode 十六进制输入」：已切回 ABC"
+            else
+                say "开始时的输入法是「Unicode 十六进制输入」，没能切回 ABC：请在菜单栏切回平时用的输入法后再运行"
+                exit 1
+            fi
+        fi
+        say "输入法：开始时是 ${SAVED_INPUT}，结束时切回"
+        trap restore_input EXIT
+        trap 'say "（被打断）"; exit 130' INT TERM HUP
+    else
+        SAVED_INPUT=""
+        say "（输入法工具不能用，结束时不会自动切回输入法：$OUT/inputsource.log）"
+    fi
 fi
 
 cd "$ROOT"
@@ -162,6 +199,7 @@ else
     tail -15 "$OUT/app-tests.log" | tee -a "$SUMMARY"
 fi
 
+restore_input
 say ""
 if [ "$FAILED" = 0 ]; then
     say "全部通过"
