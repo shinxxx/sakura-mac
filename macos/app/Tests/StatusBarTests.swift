@@ -356,6 +356,7 @@ final class StatusBarTests: XCTestCase {
             try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent(name + ".png"))
         }
         let first = try open(Self.samples.appendingPathComponent("sjis-crlf.txt"))
+        first.textView.moveToBeginningOfDocument(nil)	// 前のテストで閉じた位置に戻るので先頭から（Windows 版の画面と同じ 2 行 5 桁）
         first.textView.moveDown(nil)
         first.textView.moveRight(nil)
         first.textView.moveRight(nil)

@@ -157,3 +157,6 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
   与同一个文件比较，并保存 Windows 的窗口截图。其他：栏的宽度、双击・右键的功能、各种代码的对话框、消息进状态栏、显示的切换、工具栏的按钮・提示、标签的宽度・列表。
   `testScreenshots` 写出 `$TMPDIR/sakura-dialog-shots/statusbar-window.png`・`tabbar-window.png`（与 Windows 的截图对照）。
 - 界面测试 `testWindowBars`：默认显示工具栏和状态栏、输入后行・桁变化、設定 > タブの表示 显示标签栏。
+- 画面（左 Mac 版、右 Windows 版。Windows 版は CI の `statusbar-windows` の画面）：
+  ![](images/step38/mac-statusbar.png) ![](images/step38/windows-statusbar.png)
+  ![](images/step38/mac-tabbar.png) ![](images/step38/windows-tabbar.png)
