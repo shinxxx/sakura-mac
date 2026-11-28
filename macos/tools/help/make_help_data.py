@@ -208,6 +208,11 @@ def topics(defines):
     for m in re.finditer(r"^\s*(\w+)\s*=\s*(\S+)\s*$", alias, re.M):
         if m.group(1) in defines:
             result[str(defines[m.group(1)])] = book_path("sakura", m.group(2))
+    # [ALIAS] にない話題（HLP000339 等。原版の F1 はオンラインヘルプ HLP%06d.html に代わる）：同じ名前のページ
+    for name, number in defines.items():
+        page = f"res\\{name}.html"
+        if re.fullmatch(r"HLP\d{6}", name) and str(number) not in result and os.path.exists(os.path.join(BOOKS["sakura"], page.replace("\\", "/"))):
+            result[str(number)] = book_path("sakura", page)
     return dict(sorted(result.items(), key=lambda kv: int(kv[0])))
 
 

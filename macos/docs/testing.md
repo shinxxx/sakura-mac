@@ -138,7 +138,7 @@ App 编完后还确认 App、桥接层框架、核心库只含 arm64（`macos/to
 
 ## ヘルプ（第 49 步）
 
-- 核心库 `test-mac-help.cpp`：`HelpContextID`（原版 `FuncID_To_HelpContextID`）的编号与原版相同，「種別」里全部功能的话题在 `help/sakura/sakura.hhp` 的 [ALIAS] 里有页、文件也在。
+- 核心库 `test-mac-help.cpp`：`HelpContextID`（原版 `FuncID_To_HelpContextID`）的编号与原版相同，「種別」里全部功能的话题的页（`help/sakura/res/HLPnnnnnn.html`）都在（`sakura.hhp` 的 [ALIAS] 有 2 处书写遗漏，`make_help_data.py` 用同名的页补上）。
 - App 的 `HelpTests`：目次・キーワード・话题・注记的页都在 bundle 里，全部页（help/sakura、help/macro）里的链接不断（原版自身的 1 处书写错误除外），
   功能・对话框・设置的页打开原版的那一页（「ヘルプ」按钮有 13 个对话框、设置窗口的「?」），右键显示原版 Cshelp.txt 的说明，Mac 版没有的功能的页有注记，
   ヘルプ窗口的目次同步・戻る・進む・ホーム・非表示・キーワード・検索、帮助以外的链接用浏览器（换成测试用的），コマンド一覧，macOS 帮助菜单的搜索。
