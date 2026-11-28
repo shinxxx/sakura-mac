@@ -47,6 +47,7 @@ final class EditorToolbarView: NSView, WindowBarSizing {
         self.items = items
         isFlat = flat
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: Self.buttonSize + Self.padding * 2))
+        setAccessibilityElement(true)
         setAccessibilityIdentifier("toolbar")
         setAccessibilityRole(.toolbar)
         for item in items {

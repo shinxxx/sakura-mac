@@ -89,6 +89,7 @@ final class TabBarView: NSView, WindowBarSizing {
     init(settings: Settings) {
         self.settings = settings
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: Self.itemHeight + Self.marginTop + 2))
+        setAccessibilityElement(true)
         setAccessibilityIdentifier("tabBar")
         setAccessibilityRole(.tabGroup)
         for (button, title, id, action) in [(listButton, "▼", "tabBar.list", #selector(showList(_:))),

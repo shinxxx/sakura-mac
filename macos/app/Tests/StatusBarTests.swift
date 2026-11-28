@@ -363,7 +363,11 @@ final class StatusBarTests: XCTestCase {
         _ = EditorCore.setCommonSetting("1", section: "Common", key: "bDispTabWnd")
         NotificationCenter.default.post(name: WindowBarSettings.didChangeNotification, object: nil)
         let second = try open(Self.samples.appendingPathComponent("utf8-lf.txt"))
+        // タブは NSDocumentController の文書の窓口（App で開いた文書と同じにする）
+        for document in documents { NSDocumentController.shared.addDocument(document) }
         first.updateWindowBars()
+        second.updateWindowBars()
+        XCTAssertEqual(second.tabBarView?.tabs.count, 2)
         try shot(second, "tabbar-window")
     }
 }

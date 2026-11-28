@@ -58,6 +58,7 @@ final class StatusBarView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: NSRect(x: frameRect.minX, y: frameRect.minY, width: frameRect.width, height: Self.height))
+        setAccessibilityElement(true)
         setAccessibilityIdentifier("statusBar")
         setAccessibilityRole(.group)
         for part in Part.allCases {
