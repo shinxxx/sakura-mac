@@ -76,7 +76,16 @@ final class StatusBarTests: XCTestCase {
             documents.removeLast().close()
         }
         let actual = lines.joined(separator: "\n") + "\n"
+        // 官方版 sakura.exe（リリース版）は改行の上にいるとき改行コードの欄が「%4.0f %%」になる（倍率の書式の文字列が出る不具合。
+        // 原版のソースは入力改行コード）。その欄は同じファイルの最初の行の改行コード（入力改行コード）と比べる
+        var eolOfFile: [String: String] = [:]
         let expected = try String(contentsOf: Self.samples.appendingPathComponent("expected/statusbar.txt"), encoding: .utf8)
+            .split(separator: "\n").map { line -> String in
+                var f = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+                let file = String(f[0].split(separator: " ")[0])
+                if f[2] == "%4.0f %%", let eol = eolOfFile[file] { f[2] = eol } else { eolOfFile[file] = eolOfFile[file] ?? f[2] }
+                return f.joined(separator: "|")
+            }.joined(separator: "\n") + "\n"
         XCTAssertEqual(actual, expected)
     }
 

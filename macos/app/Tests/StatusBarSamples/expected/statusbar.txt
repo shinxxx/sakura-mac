@@ -1,1 +1,21 @@
-pending
+sjis-crlf.txt 0 0|    1 行    1 桁|CRLF|61|SJIS|挿入| 100 %
+sjis-crlf.txt 0 3|    1 行    4 桁|CRLF|09|SJIS|挿入| 100 %
+sjis-crlf.txt 0 4|    1 行    5 桁|CRLF|64|SJIS|挿入| 100 %
+sjis-crlf.txt 0 7|    1 行    8 桁|%4.0f %%|CRLF|SJIS|挿入| 100 %
+sjis-crlf.txt 1 0|    2 行    1 桁|CRLF|82A0|SJIS|挿入| 100 %
+sjis-crlf.txt 1 2|    2 行    5 桁|CRLF|82A4|SJIS|挿入| 100 %
+sjis-crlf.txt 1 5|    2 行   11 桁|%4.0f %%|CRLF|SJIS|挿入| 100 %
+sjis-crlf.txt 2 2|    3 行    5 桁|CRLF|B6|SJIS|挿入| 100 %
+sjis-crlf.txt 3 0|    4 行    1 桁|CRLF||SJIS|挿入| 100 %
+utf8-lf.txt 0 0|    1 行    1 桁|LF|U+65E5|UTF-8|挿入| 100 %
+utf8-lf.txt 0 8|    1 行   17 桁|LF|U+1F600|UTF-8|挿入| 100 %
+utf8-lf.txt 0 9|    1 行   18 桁|%4.0f %%|LF|UTF-8|挿入| 100 %
+utf8-lf.txt 1 3|    2 行    4 桁|%4.0f %%|LF|UTF-8|挿入| 100 %
+utf8-lf.txt 2 0|    3 行    1 桁|LF||UTF-8|挿入| 100 %
+utf8bom-cr.txt 0 1|    1 行    2 桁|CR|U+0062|UTF-8 BOM付|挿入| 100 %
+utf8bom-cr.txt 1 1|    2 行    3 桁|CR|U+3044|UTF-8 BOM付|挿入| 100 %
+utf8bom-cr.txt 1 2|    2 行    5 桁|%4.0f %%|CR|UTF-8 BOM付|挿入| 100 %
+utf16le-crlf.txt 0 1|    1 行    2 桁|CRLF|U+0009|UTF-16 BOM付|挿入| 100 %
+utf16le-crlf.txt 0 2|    1 行    5 桁|CRLF|U+0079|UTF-16 BOM付|挿入| 100 %
+utf16le-crlf.txt 1 0|    2 行    1 桁|CRLF|U+6F22|UTF-16 BOM付|挿入| 100 %
+utf16le-crlf.txt 2 0|    3 行    1 桁|CRLF||UTF-16 BOM付|挿入| 100 %
