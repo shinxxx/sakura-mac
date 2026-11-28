@@ -679,6 +679,13 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate, WKNaviga
               var label = \(label)[0];
               var href = location.href.split('#')[0];
               if (href.indexOf(root) !== 0 || !document.body) return;
+              // 原版のダイアログの画像（Windows の画面）が窓より広いときは縮める（横に切れないように）
+              if (!document.getElementById('sakura-mac-style')) {
+                var style = document.createElement('style');
+                style.id = 'sakura-mac-style';
+                style.textContent = 'img { max-width: 100%; height: auto; }';
+                (document.head || document.body).appendChild(style);
+              }
               var note = notes[decodeURIComponent(href.substring(root.length))];
               if (!note || document.getElementById('sakura-mac-note')) return;
               var div = document.createElement('div');

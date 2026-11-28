@@ -335,6 +335,8 @@ final class HelpTests: XCTestCase {
         // 注記のないページ
         waitForPage(help) { help.show(path: "sakura/res/HLP000025.html") }
         XCTAssertEqual(try evaluate(help, "document.getElementById('sakura-mac-note') === null") as? Bool, true)
+        // 画像は窓の幅まで縮める
+        XCTAssertEqual(try evaluate(help, "document.getElementById('sakura-mac-style') !== null") as? Bool, true)
         // 目次の先頭：Mac 版のページ（原版のスタイル）
         waitForPage(help) { help.show(path: "HelpMac.html") }
         XCTAssertEqual(try evaluate(help, "document.title") as? String, "Mac 版について")
@@ -392,6 +394,8 @@ final class HelpTests: XCTestCase {
         let both = book.search("Grep 置換")
         XCTAssertFalse(both.isEmpty)
         XCTAssertTrue(both.count <= book.search("Grep").count)
+        // 標題に語があるページが先
+        XCTAssertTrue(book.search("タグジャンプ").first?.title.contains("タグジャンプ") ?? false)
         // 原版のマクロのヘルプも
         XCTAssertTrue(book.search("ExpandParameter").contains { $0.path.hasPrefix("macro/") })
 

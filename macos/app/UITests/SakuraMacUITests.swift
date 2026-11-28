@@ -1766,23 +1766,25 @@ final class SakuraMacUITests: XCTestCase {
         XCTAssertTrue(waitFor { !self.helpWindow.outlines["HelpContents"].isHittable }, "目次を隠す")
         helpWindow.buttons["HelpHide"].click()
 
-        // 検索ダイアログの「ヘルプ」：原版の検索のページ
+        // 検索ダイアログ：項目の右クリックで説明
         editor.click()
         key("f", .command)
         let combo = app.comboBoxes["findText"]
         XCTAssertTrue(combo.waitForExistence(timeout: 5), "検索ダイアログ")
-        app.buttons["findHelp"].click()
-        XCTAssertTrue(helpPageShows("単語単位で探す"), "検索ダイアログのページ")
-        keepScreenshot(helpWindow, "step49-help-find-page")
-
-        // 項目の右クリック：説明
         app.checkBoxes["findWord"].rightClick()
         let popover = app.staticTexts["ContextHelp"]
         XCTAssertTrue(popover.waitForExistence(timeout: 5), "項目の説明")
         XCTAssertTrue((popover.value as? String ?? "").hasPrefix("【単語単位で探す】"), popover.value as? String ?? "")
-        keepScreenshot(app.windows.matching(NSPredicate(format: "title == %@", "検索")).firstMatch, "step49-context-help")
+        // NSPanel は XCUITest では Dialog として見える
+        keepScreenshot(app.descendants(matching: .any).matching(NSPredicate(format: "title == %@", "検索")).firstMatch, "step49-context-help")
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
-        closePanel("検索", cancel: "findCancel")
+        XCTAssertTrue(waitFor { !popover.exists }, "Esc で説明を閉じる")
+
+        // 検索ダイアログの「ヘルプ」：原版の検索のページ
+        app.buttons["findHelp"].click()
+        XCTAssertTrue(helpPageShows("単語単位で探す"), "検索ダイアログのページ")
+        if app.buttons["findCancel"].exists { app.buttons["findCancel"].click() }	// 画面の記録に重ならないように閉じる
+        keepScreenshot(helpWindow, "step49-help-find-page")
     }
 
     // MARK: - 第 48 步：界面本地化

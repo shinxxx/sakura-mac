@@ -214,16 +214,20 @@ final class HelpBook {
         let path: String
         let title: String
         let text: String
+        let foldedTitle: String
     }
 
     private lazy var pageTexts: [PageText] = loadPageTexts()
 
-    /// 全部的词都在页里的页（原版 HTML Help 的全文検索。大文字・小文字、全角・半角は区別しない）。按目次的顺序
+    /// 全部的词都在页里的页（原版 HTML Help 的全文検索。大文字・小文字、全角・半角は区別しない）。
+    /// 标题里有全部的词的页在前，其余按目次的顺序
     func search(_ query: String) -> [Topic] {
         let words = query.split(whereSeparator: { $0.isWhitespace }).map { Self.fold(String($0)) }
         guard !words.isEmpty else { return [] }
-        return pageTexts.filter { page in words.allSatisfy { page.text.contains($0) || page.title.contains($0) } }
-            .map { Topic(title: $0.title, path: $0.path) }
+        let hits = pageTexts.filter { page in words.allSatisfy { page.text.contains($0) || page.foldedTitle.contains($0) } }
+        let inTitle = hits.filter { page in words.allSatisfy { page.foldedTitle.contains($0) } }
+        let rest = hits.filter { page in !words.allSatisfy { page.foldedTitle.contains($0) } }
+        return (inTitle + rest).map { Topic(title: $0.title, path: $0.path) }
     }
 
     private static func fold(_ text: String) -> String {
@@ -256,7 +260,7 @@ final class HelpBook {
             guard let data = try? Data(contentsOf: url(for: path)),
                   let html = String(data: data, encoding: .utf8) else { return nil }
             let title = Self.htmlTitle(html) ?? title(of: path)
-            return PageText(path: path, title: title, text: Self.fold(Self.plainText(html)))
+            return PageText(path: path, title: title, text: Self.fold(Self.plainText(html)), foldedTitle: Self.fold(title))
         }
     }
 
