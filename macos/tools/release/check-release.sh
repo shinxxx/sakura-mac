@@ -54,9 +54,9 @@ EXE="$APP/Contents/MacOS/$(pb CFBundleExecutable)"
 [ "$(pb CFBundleIdentifier)" = "$BUNDLE_ID" ] && ok "Bundle ID：$BUNDLE_ID" || ng "Bundle ID 是「$(pb CFBundleIdentifier)」，应该是 $BUNDLE_ID"
 VER="$(pb CFBundleShortVersionString)"; BUILD="$(pb CFBundleVersion)"
 if [[ "$VER" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] && [[ "$BUILD" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
-    ok "版本：$VER（构建 $BUILD）"
+    ok "版本：${VER}（构建 ${BUILD}）"
 else
-    ng "版本号格式不对：「$VER」（构建「$BUILD」），应该是用点分隔的数字"
+    ng "版本号格式不对：「${VER}」（构建「${BUILD}」），应该是用点分隔的数字"
 fi
 [ -n "$(pb LSApplicationCategoryType)" ] && ok "分类：$(pb LSApplicationCategoryType)" || ng "没有 LSApplicationCategoryType（App Store 必须）"
 [ "$(pb ITSAppUsesNonExemptEncryption)" = "false" ] && ok "出口合规：不使用需要申报的加密" || ng "没有 ITSAppUsesNonExemptEncryption = NO"

@@ -29,7 +29,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 ENV_FILE="${SIGNING_ENV:-$HOME/.config/sakura-mac/signing.env}"
 if [ ! -f "$ENV_FILE" ]; then
-    echo "没有设置文件 $ENV_FILE（参考 $HERE/signing.env.example）" >&2
+    echo "没有设置文件 ${ENV_FILE}（参考 $HERE/signing.env.example）" >&2
     exit 1
 fi
 # shellcheck disable=SC1090
@@ -69,7 +69,7 @@ AUTH=(-allowProvisioningUpdates
     -authenticationKeyID "$ASC_KEY_ID"
     -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 
-say "== $APP_NAME（$BUNDLE_ID）构建 $BUILD_NUMBER，方式：$MODE =="
+say "== ${APP_NAME}（${BUNDLE_ID}）构建 ${BUILD_NUMBER}，方式：$MODE =="
 
 cd "$ROOT"
 git submodule update --init externals/Onigmo externals/bregonig externals/cmigemo > /dev/null

@@ -11,7 +11,7 @@ OUT="$3"
 case "$METHOD" in
     app-store) XCODE_METHOD=app-store-connect ;;
     developer-id) XCODE_METHOD=developer-id ;;
-    *) echo "不认识的方式：$METHOD（app-store 或 developer-id）" >&2; exit 2 ;;
+    *) echo "不认识的方式：${METHOD}（app-store 或 developer-id）" >&2; exit 2 ;;
 esac
 if ! [[ "$TEAM" =~ ^[A-Z0-9]{10}$ ]]; then
     echo "团队 ID 应该是 10 个大写字母或数字：$TEAM" >&2

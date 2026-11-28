@@ -24,7 +24,7 @@ if [ -z "${DEVELOPER_DIR:-}" ] && ! xcodebuild -version > /dev/null 2>&1; then
     XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | head -1)
     if [ -n "$XCODE" ]; then
         export DEVELOPER_DIR="$XCODE/Contents/Developer"
-        echo "使用 $XCODE（想固定下来：sudo xcode-select -s $DEVELOPER_DIR）"
+        echo "使用 ${XCODE}（想固定下来：sudo xcode-select -s ${DEVELOPER_DIR}）"
     fi
 fi
 
@@ -49,12 +49,12 @@ restore_input() {
     local now
     now="$("$INPUT_TOOL" get 2>/dev/null)"
     if [ "$now" = "$SAVED_INPUT" ]; then
-        say "输入法：和开始时相同（$SAVED_INPUT）"
+        say "输入法：和开始时相同（${SAVED_INPUT}）"
     elif "$INPUT_TOOL" set "$SAVED_INPUT" 2>> "$OUT/inputsource.log"; then
         say "输入法：已从 $now 切回 $SAVED_INPUT"
     else
         FAILED=1
-        say "输入法：没能切回 $SAVED_INPUT（现在是 $now），请在菜单栏手动切换"
+        say "输入法：没能切回 ${SAVED_INPUT}（现在是 ${now}），请在菜单栏手动切换"
     fi
 }
 if [ "$RUN_UI" = 1 ]; then
@@ -72,7 +72,7 @@ if [ "$RUN_UI" = 1 ]; then
                 exit 1
             fi
         fi
-        say "输入法：开始时是 $SAVED_INPUT，结束时切回"
+        say "输入法：开始时是 ${SAVED_INPUT}，结束时切回"
         trap restore_input EXIT
         trap 'say "（被打断）"; exit 130' INT TERM HUP
     else
